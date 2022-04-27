@@ -1,0 +1,27 @@
+version: '3.6'
+
+services:
+
+  medcat-1-2:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-1-2/Dockerfile
+    volumes:
+      - ./app/model:/app/model
+    environment:
+      - CODE_TYPE=snomed
+      - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+    ports:
+      - 8000:8000
+
+  medcat-1-2-icd10:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-1-2/Dockerfile
+    volumes:
+      - ./app/model:/app/model
+    environment:
+      - CODE_TYPE=icd10
+      - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+    ports:
+      - 8001:8000

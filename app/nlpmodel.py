@@ -27,12 +27,24 @@ class NLPModel(ModelServices):
             df = pd.DataFrame(columns=['label_name', 'label_id', 'start', 'end'])
         else:
             if self.config.code_type == 'icd10':
-                df['icd10'] = df['icd10'].astype(str)
+                output = pd.DataFrame()
+                for _, row in df.iterrows():
+                    print(row)
+                    if row['icd10']:
+                        for icd10 in row['icd10']:
+                            output_row = row.copy()
+                            if isinstance(icd10, str):
+                                output_row['icd10'] = icd10
+                            else:
+                                output_row['icd10'] = icd10['code']
+                                output_row['pretty_name'] = icd10['name']
+                            output = output.append(output_row, ignore_index=True)
+                df = output
                 df.rename(columns={'pretty_name': 'label_name', 'icd10': 'label_id'}, inplace=True)
             elif self.config.code_type == 'snomed':
                 df.rename(columns={'pretty_name': 'label_name', 'cui': 'label_id'}, inplace=True)
             else:
-                raise ValueError(f"Unknown coding type: {self.config.code_type}")
+                raise ValueError(f'Unknown coding type: {self.config.code_type}')
             df = self.retrievemetannotations(df)
         records = df.to_dict('records')
         return records

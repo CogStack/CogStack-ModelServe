@@ -1,8 +1,9 @@
 FROM python:3.7
 
-COPY ../.../app /app
-COPY requirements.txt requirements.txt
+COPY app /app
+COPY docker/medcat-1-2/requirements.txt requirements.txt
 
+RUN pip install -U pip
 RUN pip install -r requirements.txt
 RUN python -m spacy download en_core_web_md
 
