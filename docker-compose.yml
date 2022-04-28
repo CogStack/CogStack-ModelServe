@@ -6,11 +6,22 @@ services:
     build:
         context: ./
         dockerfile: ./docker/medcat-1-2/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cmf_medcat-1-2
     volumes:
       - ./app/model:/app/model
     environment:
       - CODE_TYPE=snomed
       - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
     ports:
       - 8000:8000
 
@@ -18,10 +29,21 @@ services:
     build:
         context: ./
         dockerfile: ./docker/medcat-1-2/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cmf_medcat-1-2-icd10
     volumes:
       - ./app/model:/app/model
     environment:
       - CODE_TYPE=icd10
       - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
     ports:
       - 8001:8000

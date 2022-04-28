@@ -1,12 +1,13 @@
 import argparse
 import uvicorn
 from fastapi import FastAPI
-from domain import TextwithAnnotations
 from typing import List
-import config
+from app.domain import TextwithAnnotations
+from app.model_services import ModelServices
+import app.config as config
 
 
-def serve_model(modelrunner, host, port):
+def get_model_server(modelrunner: ModelServices) -> FastAPI:
     app = FastAPI()
 
     @app.post("/process", response_model=TextwithAnnotations)
@@ -32,8 +33,8 @@ def serve_model(modelrunner, host, port):
         @app.post("/trainunsupervised")
         def retrain(texts: List[str]):
             modelrunner.trainunsupervised(texts)
-    
-    uvicorn.run(app, host=host, port=port)
+
+    return app
 
 
 if __name__ == "__main__":
@@ -65,6 +66,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.model == "medcat_1_2":
         from nlpmodel import NLPModel
-        serve_model(NLPModel(config), args.host, int(args.port))
+        app = get_model_server(NLPModel(config))
+        uvicorn.run(app, host=args.host, port=int(args.port))
     else:
         raise f"Unknown model name: {args.model_name}"

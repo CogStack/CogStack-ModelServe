@@ -2,11 +2,8 @@ import os
 import json
 import pandas as pd
 
-from medcat.vocab import Vocab
-from medcat.cdb import CDB
 from medcat.cat import CAT
-from medcat.meta_cat import MetaCAT
-from model_services import ModelServices
+from app.model_services import ModelServices
 
 
 class NLPModel(ModelServices):
