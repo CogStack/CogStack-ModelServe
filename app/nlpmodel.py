@@ -72,7 +72,7 @@ class NLPModel(ModelServices):
 
     def trainsupervised(self, annotations): 
 
-        temp_path = f'{config.all_models_path}/{config.temp_folder}/data.json'
+        temp_path = f'{self.config.all_models_path}/{self.config.temp_folder}/data.json'
 
         # Medcat only works with json files. Save to local dir and then retrain and delete
         with open(temp_path, 'w') as fp:

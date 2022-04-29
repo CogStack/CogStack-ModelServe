@@ -1,7 +1,7 @@
 import argparse
 import uvicorn
 from fastapi import FastAPI
-from typing import List
+from typing import List, Dict
 from app.domain import TextwithAnnotations
 from app.model_services import ModelServices
 import app.config as config
@@ -11,27 +11,27 @@ def get_model_server(modelrunner: ModelServices) -> FastAPI:
     app = FastAPI()
 
     @app.post("/process", response_model=TextwithAnnotations)
-    def process(text: str):
+    async def process(text: str):
         annotations = modelrunner.annotate(text)
         return {'text': text, 'annotations': annotations}
 
     @app.post("/process_bulk")
-    def process_bulk(texts: List[str]):
+    async def process_bulk(texts: List[str]):
         annotations = modelrunner.batchannotate(texts)
         print(annotations)
 
     @app.get("/info")
-    def info():
+    async def info():
         return {'model_description': 'medmen model', 'model_type': 'medcat'}
     
     if hasattr(modelrunner, "trainsupervised") and callable(modelrunner.trainsupervised):
         @app.post("/trainsupervised")
-        def retrain(annotations: dict):
+        async def retrain(annotations: Dict):
             modelrunner.trainsupervised(annotations)
 
     if hasattr(modelrunner, "trainunsupervised") and callable(modelrunner.trainunsupervised):
         @app.post("/trainunsupervised")
-        def retrain(texts: List[str]):
+        async def retrain(texts: List[str]):
             modelrunner.trainunsupervised(texts)
 
     return app
