@@ -2,9 +2,9 @@ import argparse
 import uvicorn
 from fastapi import FastAPI
 from typing import List, Dict
-from app.domain import TextwithAnnotations
-from app.model_services import ModelServices
-import app.config as config
+from domain import TextwithAnnotations
+from model_services import ModelServices
+import config
 
 
 def get_model_server(modelrunner: ModelServices) -> FastAPI:

@@ -3,7 +3,7 @@ import json
 import pandas as pd
 
 from medcat.cat import CAT
-from app.model_services import ModelServices
+from model_services import ModelServices
 
 
 class NLPModel(ModelServices):
