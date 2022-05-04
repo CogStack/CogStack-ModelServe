@@ -22,7 +22,7 @@ def get_model_server(modelrunner: ModelServices) -> FastAPI:
 
     @app.get("/info")
     async def info():
-        return {'model_description': 'medmen model', 'model_type': 'medcat'}
+        return modelrunner.info()
     
     if hasattr(modelrunner, "trainsupervised") and callable(modelrunner.trainsupervised):
         @app.post("/trainsupervised")

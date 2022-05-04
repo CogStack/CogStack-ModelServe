@@ -15,6 +15,10 @@ class NLPModel(ModelServices):
         meta_cat_config_dict = {'general': {'device': 'cpu'}}
         self.model  = CAT.load_model_pack(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
+    @staticmethod
+    def info():
+        return {'model_description': 'medmen model', 'model_type': 'medcat'}
+
     def annotate(self, text):
 
         doc = self.model.get_entities(text)

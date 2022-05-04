@@ -26,6 +26,10 @@ def test_process():
 
 
 def test_info():
+    model.info.return_value = {
+        "model_description": "medmen model",
+        "model_type": "medcat"
+    }
     response = client.get("/info")
     assert response.json() == {
         "model_description": "medmen model",
