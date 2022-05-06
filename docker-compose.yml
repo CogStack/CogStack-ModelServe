@@ -12,10 +12,10 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2
     volumes:
-      - ./app/model:/app/model
+      - ${MODEL_PACK_FULL_PATH}:/app/model/${BASE_MODEL_PACK}:ro
     environment:
       - CODE_TYPE=snomed
-      - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+      - BASE_MODEL_PACK=${BASE_MODEL_PACK}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -23,7 +23,7 @@ services:
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
     ports:
-      - 8000:8000
+      - 8180:8000
 
   medcat-1-2-icd10:
     build:
@@ -35,10 +35,10 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2-icd10
     volumes:
-      - ./app/model:/app/model
+      - ${MODEL_PACK_FULL_PATH}:/app/model/${BASE_MODEL_PACK}:ro
     environment:
       - CODE_TYPE=icd10
-      - BASE_MODEL_PATH=${BASE_MODEL_PATH}
+      - BASE_MODEL_PACK=${BASE_MODEL_PACK}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -46,4 +46,4 @@ services:
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
     ports:
-      - 8001:8000
+      - 8181:8000

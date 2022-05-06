@@ -10,7 +10,7 @@ class NLPModel(ModelServices):
 
     def __init__(self, config):
         self.config = config
-        model_pack_path = os.path.join(os.path.dirname(__file__), config.all_models_path, config.base_model_path)
+        model_pack_path = os.path.join(os.path.dirname(__file__), 'model', config.base_model_pack)
 
         meta_cat_config_dict = {'general': {'device': 'cpu'}}
         self.model  = CAT.load_model_pack(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
@@ -20,8 +20,46 @@ class NLPModel(ModelServices):
         return {'model_description': 'medmen model', 'model_type': 'medcat'}
 
     def annotate(self, text):
-
         doc = self.model.get_entities(text)
+        return self._get_records_from_doc(doc)
+
+    def batch_annotate(self, texts):
+        batch_size_chars = 500000
+
+        docs = self.model.multiprocessing(self._data_iterator(texts),
+                                          batch_size_chars=batch_size_chars,
+                                          nproc=2)
+        annotations_list = []
+        for doc in docs:
+            annotations_list.append(self._get_records_from_single_doc(doc))
+        return annotations_list
+
+    def train_supervised(self, annotations):
+
+        temp_path = f'model/{self.config.temp_folder}/data.json'
+
+        # Medcat only works with json files. Save to local dir and then retrain and delete
+        with open(temp_path, 'w') as fp:
+            json.dump(annotations, fp)
+
+        self.model.train_supervised(data_path=temp_path,
+                     nepochs=1,
+                     reset_cui_count=False,
+                     print_stats=True,
+                     use_filters=True)
+
+        data = json.load(open(temp_path))
+        print(self.model._print_stats(data, extra_cui_filter=True))
+
+    def train_unsupervised(self, texts):
+
+        self.model.train(texts, progress_print=100)
+        self.model.cdb.print_stats()
+
+    def train_meta_models(self, annotations):
+        pass
+
+    def _get_records_from_doc(self, doc):
         df = pd.DataFrame(doc['entities'].values())
 
         if df.empty:
@@ -46,56 +84,20 @@ class NLPModel(ModelServices):
                 df.rename(columns={'pretty_name': 'label_name', 'cui': 'label_id'}, inplace=True)
             else:
                 raise ValueError(f'Unknown coding type: {self.config.code_type}')
-            df = self.retrievemetannotations(df)
+            df = self._retrieve_meta_annotations(df)
         records = df.to_dict('records')
         return records
 
-    def retrievemetannotations(self, df):
-
+    @staticmethod
+    def _retrieve_meta_annotations(df):
         meta_annotations = []
-        for i,r in df.iterrows():
-            
+        for i, r in df.iterrows():
+
             meta_dict = {}
-            for k,v in r.meta_anns.items():
+            for k, v in r.meta_anns.items():
                 meta_dict[k] = v['value']
-            
+
             meta_annotations.append(meta_dict)
-        
+
         df['new_meta_anns'] = meta_annotations
-        print(df)
         return pd.concat([df.drop(['new_meta_anns'], axis=1), df['new_meta_anns'].apply(pd.Series)], axis=1)
-
-    def batchannotate(self, texts):
-        batch_size_chars = 500000
-
-        results = self.model.multiprocessing(self._data_iterator(texts), 
-                              batch_size_chars = batch_size_chars,
-                              nproc=2)
-
-        print(results)
-
-    def trainsupervised(self, annotations): 
-
-        temp_path = f'{self.config.all_models_path}/{self.config.temp_folder}/data.json'
-
-        # Medcat only works with json files. Save to local dir and then retrain and delete
-        with open(temp_path, 'w') as fp:
-            json.dump(annotations, fp)
-        
-        self.model.train_supervised(data_path=temp_path, 
-                     nepochs=1,
-                     reset_cui_count=False,
-                     print_stats=True, 
-                     use_filters=True) 
-
-        
-        data = json.load(open(temp_path))
-        print(self.model._print_stats(data, extra_cui_filter=True))
-
-    def trainunsupervised(self, texts):
-
-        self.model.train(texts, progress_print=100)
-        self.model.cdb.print_stats()
-        
-    def trainmetamodels(self, annotations):
-        pass

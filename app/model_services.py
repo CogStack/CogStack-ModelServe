@@ -18,5 +18,5 @@ class ModelServices(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def batchannotate(self, texts):
+    def batch_annotate(self, texts):
         raise NotImplementedError

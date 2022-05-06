@@ -10,29 +10,32 @@ import config
 def get_model_server(modelrunner: ModelServices) -> FastAPI:
     app = FastAPI()
 
+    @app.get("/info")
+    async def info():
+        return modelrunner.info()
+
     @app.post("/process", response_model=TextwithAnnotations)
     async def process(text: str):
         annotations = modelrunner.annotate(text)
         return {'text': text, 'annotations': annotations}
 
-    @app.post("/process_bulk")
+    @app.post("/process_bulk", response_model=List[TextwithAnnotations])
     async def process_bulk(texts: List[str]):
-        annotations = modelrunner.batchannotate(texts)
-        print(annotations)
-
-    @app.get("/info")
-    async def info():
-        return modelrunner.info()
+        annotations_list = modelrunner.batch_annotate(texts)
+        body = []
+        for text, annotations in zip(texts, annotations_list):
+            body.append({'text': text, 'annotations': annotations})
+        return body
     
-    if hasattr(modelrunner, "trainsupervised") and callable(modelrunner.trainsupervised):
+    if hasattr(modelrunner, "train_supervised") and callable(modelrunner.train_supervised):
         @app.post("/trainsupervised")
         async def retrain(annotations: Dict):
-            modelrunner.trainsupervised(annotations)
+            modelrunner.train_supervised(annotations)
 
-    if hasattr(modelrunner, "trainunsupervised") and callable(modelrunner.trainunsupervised):
+    if hasattr(modelrunner, "train_unsupervised") and callable(modelrunner.train_unsupervised):
         @app.post("/trainunsupervised")
         async def retrain(texts: List[str]):
-            modelrunner.trainunsupervised(texts)
+            modelrunner.train_unsupervised(texts)
 
     return app
 
