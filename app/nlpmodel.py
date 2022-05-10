@@ -10,14 +10,17 @@ class NLPModel(ModelServices):
 
     def __init__(self, config):
         self.config = config
-        model_pack_path = os.path.join(os.path.dirname(__file__), 'model', config.base_model_pack)
-
+        model_pack_path = os.path.join(os.path.dirname(__file__), 'model', config.base_model_file)
         meta_cat_config_dict = {'general': {'device': 'cpu'}}
-        self.model  = CAT.load_model_pack(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
+        self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
     @staticmethod
     def info():
         return {'model_description': 'medmen model', 'model_type': 'medcat'}
+
+    @staticmethod
+    def load_model(model_file_path, *args, **kwargs):
+        return CAT.load_model_pack(model_file_path, *args, **kwargs)
 
     def annotate(self, text):
         doc = self.model.get_entities(text)

@@ -9,6 +9,11 @@ class ModelServices(ABC):
         raise NotImplementedError
 
     @staticmethod
+    @abstractmethod
+    def load_model(model_file_path, *args, **kwargs):
+        raise NotImplementedError
+
+    @staticmethod
     def _data_iterator(texts):
         for idx, text in enumerate(texts):
             yield idx, text
