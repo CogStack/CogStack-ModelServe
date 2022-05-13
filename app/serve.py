@@ -70,6 +70,9 @@ if __name__ == "__main__":
     if args.model == "medcat_1_2":
         from nlpmodel import NLPModel
         app = get_model_server(NLPModel(config))
-        uvicorn.run(app, host=args.host, port=int(args.port))
+    elif args.model == "de_id":
+        from deid_model import DeIdModel
+        app = get_model_server(DeIdModel(config))
     else:
         raise f"Unknown model name: {args.model_name}"
+    uvicorn.run(app, host=args.host, port=int(args.port))
