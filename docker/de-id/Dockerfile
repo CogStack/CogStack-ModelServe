@@ -20,9 +20,6 @@ RUN apt-get update && \
     apt-get install -qy curl && \
     curl -sSL https://get.docker.com/ | sh
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-RUN source $HOME/.cargo/env
-
 RUN pip install -U pip
 RUN pip install -r requirements.txt
 RUN python -m spacy download en_core_web_md

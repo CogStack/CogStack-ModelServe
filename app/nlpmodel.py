@@ -55,7 +55,6 @@ class NLPModel(ModelServices):
         print(self.model._print_stats(data, extra_cui_filter=True))
 
     def train_unsupervised(self, texts):
-
         self.model.train(texts, progress_print=100)
         self.model.cdb.print_stats()
 

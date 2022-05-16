@@ -2,7 +2,7 @@ import argparse
 import uvicorn
 from fastapi import FastAPI
 from typing import List, Dict
-from domain import TextwithAnnotations
+from domain import TextwithAnnotations, ModelCard
 from model_services import ModelServices
 import config
 
@@ -10,16 +10,16 @@ import config
 def get_model_server(modelrunner: ModelServices) -> FastAPI:
     app = FastAPI()
 
-    @app.get("/info")
+    @app.get("/info", response_model=ModelCard)
     async def info():
         return modelrunner.info()
 
-    @app.post("/process", response_model=TextwithAnnotations)
+    @app.post("/process", response_model=TextwithAnnotations, response_model_exclude_none=True)
     async def process(text: str):
         annotations = modelrunner.annotate(text)
         return {'text': text, 'annotations': annotations}
 
-    @app.post("/process_bulk", response_model=List[TextwithAnnotations])
+    @app.post("/process_bulk", response_model=List[TextwithAnnotations], response_model_exclude_none=True)
     async def process_bulk(texts: List[str]):
         annotations_list = modelrunner.batch_annotate(texts)
         body = []

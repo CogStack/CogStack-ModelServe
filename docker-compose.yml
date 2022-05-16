@@ -46,7 +46,7 @@ services:
     ports:
       - 8181:8000
 
-  medcat-de-id:
+  de-identification:
     build:
         context: ./
         dockerfile: ./docker/de-id/Dockerfile
@@ -54,7 +54,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cmf_medcat-de-id
+    container_name: cmf_de-identification
     volumes:
       - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
     environment:
