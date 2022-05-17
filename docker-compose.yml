@@ -12,7 +12,6 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2
     volumes:
-      - ./app:/app
       - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
     environment:
       - CODE_TYPE=snomed
@@ -35,7 +34,6 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2-icd10
     volumes:
-      - ./app:/app
       - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
     environment:
       - CODE_TYPE=icd10
