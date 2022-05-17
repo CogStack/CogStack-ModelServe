@@ -4,21 +4,21 @@ import numpy as np
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, Trainer
 from medcat.tokenizers.tokenizer_ner import TokenizerNER
-from model_services import ModelServices
+from model_services.base import AbstractModelService
 
 
-class DeIdModel(ModelServices):
+class DeIdModel(AbstractModelService):
 
     def __init__(self, config):
         self.config = config
-        model_file_path = os.path.join(os.path.dirname(__file__), "model", config.base_model_file)
+        model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.base_model_file)
         self.tokenizer, self.model = self.load_model(model_file_path)
         self.trainer = Trainer(model=self.model, tokenizer=None)
         self.id2cui = {id:cui for cui, id in self.tokenizer.label_map.items()}
 
     @staticmethod
     def info():
-        return {"model_description": "de-id model", "model_type": "bert"}
+        return {"model_description": "de-id model", "model_type": "medcat"}
     
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):
@@ -42,8 +42,7 @@ class DeIdModel(ModelServices):
         return annotation_list
 
     def _get_annotations(self, text):
-        tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
-        dataset, offset_mappings = self._chunck(tokens, pad_token_id=1, model_max_length=self.tokenizer.max_len)
+        dataset, offset_mappings = self._chunck(text, pad_token_id=1, model_max_length=self.tokenizer.max_len)
         prediction_output = self.trainer.predict(dataset)
         predictions = np.array(prediction_output.predictions)
         predictions = softmax(predictions, axis=2)
@@ -60,11 +59,15 @@ class DeIdModel(ModelServices):
                         "start": offset_mappings[ps_idx][t_idx][0],
                         "end": offset_mappings[ps_idx][t_idx][1],
                     }
+                    if self.config.include_annotation_text == "true":
+                        annotation["text"] = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
                     if annotations:
                         token_type = self.tokenizer.id2type.get(input_ids[t_idx])
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
                             self._should_expand_with_whole(annotation, annotations)):
                             annotations[-1]["end"] = annotation["end"]
+                            if self.config.include_annotation_text == "true":
+                                annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
                             del annotation
                             continue
                         elif cur_cui_id != 1:
@@ -76,13 +79,14 @@ class DeIdModel(ModelServices):
                             continue
         return annotations
 
-    def _chunck(self, tokens, pad_token_id, model_max_length):
+    def _chunck(self, text, pad_token_id, model_max_length):
+        tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
         dataset = []
         offset_mappings = []
         for i in range(0, len(tokens["input_ids"]), model_max_length):
             dataset.append({
                 "input_ids": tokens["input_ids"][i:i+model_max_length],
-                "attention_mask": [1] * model_max_length,
+                "attention_mask": tokens["attention_mask"][i:i+model_max_length],
             })
             offset_mappings.append(tokens["offset_mapping"][i:i+model_max_length])
         remainder = len(tokens["input_ids"]) % model_max_length
@@ -91,10 +95,11 @@ class DeIdModel(ModelServices):
             del offset_mappings[-1]
             dataset.append({
                 "input_ids": tokens["input_ids"][-remainder:] + [pad_token_id]*(model_max_length-remainder),
-                "attention_mask": [1]*remainder + [1]*(model_max_length-remainder),
+                "attention_mask": tokens["attention_mask"][-remainder:] + [1]*(model_max_length-remainder),
             })
             offset_mappings.append(tokens["offset_mapping"][-remainder:] +
                 [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
+        del tokens
         return dataset, offset_mappings
 
     @staticmethod

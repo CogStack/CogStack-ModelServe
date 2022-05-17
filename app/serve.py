@@ -3,11 +3,11 @@ import uvicorn
 from fastapi import FastAPI
 from typing import List, Dict
 from domain import TextwithAnnotations, ModelCard
-from model_services import ModelServices
+from model_services.base import AbstractModelService
 import config
 
 
-def get_model_server(modelrunner: ModelServices) -> FastAPI:
+def get_model_server(modelrunner: AbstractModelService) -> FastAPI:
     app = FastAPI()
 
     @app.get("/info", response_model=ModelCard)
@@ -68,10 +68,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.model == "medcat_1_2":
-        from nlpmodel import NLPModel
-        app = get_model_server(NLPModel(config))
+        from model_services.nlp_model import NlpModel
+        app = get_model_server(NlpModel(config))
     elif args.model == "de_id":
-        from deid_model import DeIdModel
+        from model_services.deid_model import DeIdModel
         app = get_model_server(DeIdModel(config))
     else:
         raise f"Unknown model name: {args.model_name}"
