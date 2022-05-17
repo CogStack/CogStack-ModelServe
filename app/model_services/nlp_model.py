@@ -3,21 +3,22 @@ import json
 import pandas as pd
 
 from medcat.cat import CAT
-from model_services import ModelServices
+from model_services.base import AbstractModelService
 
-
-class NLPModel(ModelServices):
+class NlpModel(AbstractModelService):
 
     def __init__(self, config):
         self.config = config
-        model_pack_path = os.path.join(os.path.dirname(__file__), 'model', config.base_model_pack)
+        model_pack_path = os.path.join(os.path.dirname(__file__), "..", "model", config.base_model_file)
+        meta_cat_config_dict = {"general": {"device": "cpu"}}
+        self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
-        meta_cat_config_dict = {'general': {'device': 'cpu'}}
-        self.model  = CAT.load_model_pack(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
+    def info(self):
+        return {"model_description": f"{self.config.code_type} model", "model_type": "medcat"}
 
     @staticmethod
-    def info():
-        return {'model_description': 'medmen model', 'model_type': 'medcat'}
+    def load_model(model_file_path, *args, **kwargs):
+        return CAT.load_model_pack(model_file_path, *args, **kwargs)
 
     def annotate(self, text):
         doc = self.model.get_entities(text)
@@ -30,16 +31,16 @@ class NLPModel(ModelServices):
                                           batch_size_chars=batch_size_chars,
                                           nproc=2)
         annotations_list = []
-        for doc in docs:
-            annotations_list.append(self._get_records_from_single_doc(doc))
+        for _, doc in docs.items():
+            annotations_list.append(self._get_records_from_doc(doc))
         return annotations_list
 
     def train_supervised(self, annotations):
 
-        temp_path = f'model/{self.config.temp_folder}/data.json'
+        temp_path = f"model/{self.config.temp_folder}/data.json"
 
         # Medcat only works with json files. Save to local dir and then retrain and delete
-        with open(temp_path, 'w') as fp:
+        with open(temp_path, "w") as fp:
             json.dump(annotations, fp)
 
         self.model.train_supervised(data_path=temp_path,
@@ -52,7 +53,6 @@ class NLPModel(ModelServices):
         print(self.model._print_stats(data, extra_cui_filter=True))
 
     def train_unsupervised(self, texts):
-
         self.model.train(texts, progress_print=100)
         self.model.cdb.print_stats()
 
@@ -60,32 +60,31 @@ class NLPModel(ModelServices):
         pass
 
     def _get_records_from_doc(self, doc):
-        df = pd.DataFrame(doc['entities'].values())
+        df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:
-            df = pd.DataFrame(columns=['label_name', 'label_id', 'start', 'end'])
+            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end"])
         else:
-            if self.config.code_type == 'icd10':
+            if self.config.code_type == "icd10":
                 output = pd.DataFrame()
                 for _, row in df.iterrows():
-                    print(row)
-                    if row['icd10']:
-                        for icd10 in row['icd10']:
+                    if row["icd10"]:
+                        for icd10 in row["icd10"]:
                             output_row = row.copy()
                             if isinstance(icd10, str):
-                                output_row['icd10'] = icd10
+                                output_row["icd10"] = icd10
                             else:
-                                output_row['icd10'] = icd10['code']
-                                output_row['pretty_name'] = icd10['name']
+                                output_row["icd10"] = icd10["code"]
+                                output_row["pretty_name"] = icd10["name"]
                             output = output.append(output_row, ignore_index=True)
                 df = output
-                df.rename(columns={'pretty_name': 'label_name', 'icd10': 'label_id'}, inplace=True)
-            elif self.config.code_type == 'snomed':
-                df.rename(columns={'pretty_name': 'label_name', 'cui': 'label_id'}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", "icd10": "label_id"}, inplace=True)
+            elif self.config.code_type == "snomed":
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
             else:
-                raise ValueError(f'Unknown coding type: {self.config.code_type}')
+                raise ValueError(f"Unknown coding type: {self.config.code_type}")
             df = self._retrieve_meta_annotations(df)
-        records = df.to_dict('records')
+        records = df.to_dict("records")
         return records
 
     @staticmethod
@@ -95,9 +94,9 @@ class NLPModel(ModelServices):
 
             meta_dict = {}
             for k, v in r.meta_anns.items():
-                meta_dict[k] = v['value']
+                meta_dict[k] = v["value"]
 
             meta_annotations.append(meta_dict)
 
-        df['new_meta_anns'] = meta_annotations
-        return pd.concat([df.drop(['new_meta_anns'], axis=1), df['new_meta_anns'].apply(pd.Series)], axis=1)
+        df["new_meta_anns"] = meta_annotations
+        return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)

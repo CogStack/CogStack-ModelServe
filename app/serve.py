@@ -2,24 +2,24 @@ import argparse
 import uvicorn
 from fastapi import FastAPI
 from typing import List, Dict
-from domain import TextwithAnnotations
-from model_services import ModelServices
+from domain import TextwithAnnotations, ModelCard
+from model_services.base import AbstractModelService
 import config
 
 
-def get_model_server(modelrunner: ModelServices) -> FastAPI:
+def get_model_server(modelrunner: AbstractModelService) -> FastAPI:
     app = FastAPI()
 
-    @app.get("/info")
+    @app.get("/info", response_model=ModelCard)
     async def info():
         return modelrunner.info()
 
-    @app.post("/process", response_model=TextwithAnnotations)
+    @app.post("/process", response_model=TextwithAnnotations, response_model_exclude_none=True)
     async def process(text: str):
         annotations = modelrunner.annotate(text)
         return {'text': text, 'annotations': annotations}
 
-    @app.post("/process_bulk", response_model=List[TextwithAnnotations])
+    @app.post("/process_bulk", response_model=List[TextwithAnnotations], response_model_exclude_none=True)
     async def process_bulk(texts: List[str]):
         annotations_list = modelrunner.batch_annotate(texts)
         body = []
@@ -68,8 +68,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.model == "medcat_1_2":
-        from nlpmodel import NLPModel
-        app = get_model_server(NLPModel(config))
-        uvicorn.run(app, host=args.host, port=int(args.port))
+        from model_services.nlp_model import NlpModel
+        app = get_model_server(NlpModel(config))
+    elif args.model == "de_id":
+        from model_services.deid_model import DeIdModel
+        app = get_model_server(DeIdModel(config))
     else:
         raise f"Unknown model name: {args.model_name}"
+    uvicorn.run(app, host=args.host, port=int(args.port))

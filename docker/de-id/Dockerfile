@@ -12,7 +12,7 @@ ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 
 COPY app /app
-COPY docker/medcat-1-2/requirements.txt requirements.txt
+COPY docker/de-id/requirements.txt requirements.txt
 
 RUN apt-get update && \
     apt-get -qy full-upgrade && \
@@ -26,4 +26,4 @@ RUN python -m spacy download en_core_web_md
 
 WORKDIR /app
 EXPOSE 8000
-CMD ["python", "serve.py", "--model", "medcat_1_2", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "serve.py", "--model", "de_id", "--host", "0.0.0.0", "--port", "8000"]

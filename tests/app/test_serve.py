@@ -1,22 +1,22 @@
 from fastapi.testclient import TestClient
 from app.serve import get_model_server
-from app.nlpmodel import NLPModel
+from app.model_services.nlp_model import NlpModel
 from unittest.mock import create_autospec
 
 
-model = create_autospec(NLPModel)
+model = create_autospec(NlpModel)
 client = TestClient(get_model_server(model))
 
 
 def test_info():
     model.info.return_value = {
-        "model_description": "medmen model",
-        "model_type": "medcat"
+        "model_description": "model_description",
+        "model_type": "model_type"
     }
     response = client.get("/info")
     assert response.json() == {
-        "model_description": "medmen model",
-        "model_type": "medcat"
+        "model_description": "model_description",
+        "model_type": "model_type"
     }
 
 
@@ -26,7 +26,6 @@ def test_process():
         "label_id": "76107001",
         "start": 1,
         "end": 15,
-        "meta_anns": None
     }]
     model.annotate.return_value = annotations
     response = client.post("/process?text=Spinal%20stenosis")
@@ -43,14 +42,12 @@ def test_process_bulk():
             "label_id": "76107001",
             "start": 1,
             "end": 15,
-            "meta_anns": None
         }],
         [{
             "label_name": "Spinal stenosis",
             "label_id": "76107001",
             "start": 1,
             "end": 15,
-            "meta_anns": None
         }]
     ]
     model.batch_annotate.return_value = annotations_list
@@ -63,7 +60,6 @@ def test_process_bulk():
                 "label_id": "76107001",
                 "start": 1,
                 "end": 15,
-                "meta_anns": None
             }]
         },
         {
@@ -73,7 +69,6 @@ def test_process_bulk():
                 "label_id": "76107001",
                 "start": 1,
                 "end": 15,
-                "meta_anns": None
             }]
         }
     ]

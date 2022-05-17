@@ -12,10 +12,9 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2
     volumes:
-      - ${MODEL_PACK_FULL_PATH}:/app/model/${BASE_MODEL_PACK}:ro
+      - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
     environment:
       - CODE_TYPE=snomed
-      - BASE_MODEL_PACK=${BASE_MODEL_PACK}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -35,10 +34,9 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cmf_medcat-1-2-icd10
     volumes:
-      - ${MODEL_PACK_FULL_PATH}:/app/model/${BASE_MODEL_PACK}:ro
+      - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
     environment:
       - CODE_TYPE=icd10
-      - BASE_MODEL_PACK=${BASE_MODEL_PACK}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -47,3 +45,26 @@ services:
       - no_proxy=$NO_PROXY
     ports:
       - 8181:8000
+
+  de-identification:
+    build:
+        context: ./
+        dockerfile: ./docker/de-id/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cmf_medcat-de-id
+    volumes:
+      - ${MODEL_PACK_FULL_PATH}:/app/model/model.zip:ro
+    environment:
+      - INCLUDE_ANNOTATION_TEXT=false
+      - CODE_TYPE=userdefined
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8182:8000

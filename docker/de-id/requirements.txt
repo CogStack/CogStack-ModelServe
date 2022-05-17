@@ -1,0 +1,5 @@
+medcat==1.2.8
+fastapi~=0.75.2
+uvicorn~=0.17.6
+setuptools
+wheel
