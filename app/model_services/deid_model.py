@@ -19,7 +19,7 @@ class DeIdModel(AbstractModelService):
     @staticmethod
     def info():
         return {"model_description": "de-id model", "model_type": "medcat"}
-    
+
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):
         model_file_dir = os.path.dirname(model_file_path)
@@ -34,7 +34,7 @@ class DeIdModel(AbstractModelService):
 
     def annotate(self, text):
         return self._get_annotations(text)
-    
+
     def batch_annotate(self, texts):
         annotation_list = []
         for text in texts:
@@ -42,7 +42,7 @@ class DeIdModel(AbstractModelService):
         return annotation_list
 
     def _get_annotations(self, text):
-        dataset, offset_mappings = self._chunck(text, pad_token_id=1, model_max_length=self.tokenizer.max_len)
+        dataset, offset_mappings = self._get_chunked_tokens(text)
         prediction_output = self.trainer.predict(dataset)
         predictions = np.array(prediction_output.predictions)
         predictions = softmax(predictions, axis=2)
@@ -53,6 +53,9 @@ class DeIdModel(AbstractModelService):
             input_ids = dataset[ps_idx]["input_ids"]
             for t_idx, cur_cui_id in enumerate(cui_ids):
                 if cur_cui_id not in [0, -100]:
+                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
+                    if t_text.strip() in ["", "[PAD]"]:
+                        continue
                     annotation = {
                         "label_name": self.tokenizer.cui2name.get(self.id2cui[cur_cui_id]),
                         "label_id": self.id2cui[cur_cui_id],
@@ -60,7 +63,7 @@ class DeIdModel(AbstractModelService):
                         "end": offset_mappings[ps_idx][t_idx][1],
                     }
                     if self.config.include_annotation_text == "true":
-                        annotation["text"] = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
+                        annotation["text"] = t_text
                     if annotations:
                         token_type = self.tokenizer.id2type.get(input_ids[t_idx])
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
@@ -79,8 +82,10 @@ class DeIdModel(AbstractModelService):
                             continue
         return annotations
 
-    def _chunck(self, text, pad_token_id, model_max_length):
+    def _get_chunked_tokens(self, text):
         tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+        model_max_length = self.tokenizer.max_len
+        pad_token_id = self.tokenizer.hf_tokenizer.pad_token_id
         dataset = []
         offset_mappings = []
         for i in range(0, len(tokens["input_ids"]), model_max_length):
@@ -95,7 +100,7 @@ class DeIdModel(AbstractModelService):
             del offset_mappings[-1]
             dataset.append({
                 "input_ids": tokens["input_ids"][-remainder:] + [pad_token_id]*(model_max_length-remainder),
-                "attention_mask": tokens["attention_mask"][-remainder:] + [1]*(model_max_length-remainder),
+                "attention_mask": tokens["attention_mask"][-remainder:] + [0]*(model_max_length-remainder),
             })
             offset_mappings.append(tokens["offset_mapping"][-remainder:] +
                 [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
