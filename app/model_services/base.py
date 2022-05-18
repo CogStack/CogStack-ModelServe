@@ -5,7 +5,7 @@ class AbstractModelService(ABC):
 
     @staticmethod
     @abstractmethod
-    def load_model(model_file_path, *args, **kwargs):
+    def load_model(model_file_path: str, *args, **kwargs):
         raise NotImplementedError
 
     @staticmethod

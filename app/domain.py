@@ -15,6 +15,7 @@ class TextwithAnnotations(BaseModel):
     text: str
     annotations: List[Annotation]
 
+
 class ModelCard(BaseModel):
     model_description: str
     model_type: str

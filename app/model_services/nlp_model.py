@@ -1,26 +1,32 @@
 import os
 import json
+import logging
 import pandas as pd
 
+from typing import Dict
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
+from domain import ModelCard
+
+logger = logging.getLogger(__name__)
+
 
 class NlpModel(AbstractModelService):
 
     def __init__(self, config):
         self.config = config
-        model_pack_path = os.path.join(os.path.dirname(__file__), "..", "model", config.base_model_file)
-        meta_cat_config_dict = {"general": {"device": "cpu"}}
+        model_pack_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
+        meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
-    def info(self):
-        return {"model_description": f"{self.config.code_type} model", "model_type": "medcat"}
+    def info(self) -> Dict:
+        return ModelCard(model_description=f"{self.config.CODE_TYPE} model", model_type="medcat")
 
     @staticmethod
-    def load_model(model_file_path, *args, **kwargs):
+    def load_model(model_file_path: str, *args, **kwargs) -> CAT:
         return CAT.load_model_pack(model_file_path, *args, **kwargs)
 
-    def annotate(self, text):
+    def annotate(self, text: str):
         doc = self.model.get_entities(text)
         return self._get_records_from_doc(doc)
 
@@ -37,7 +43,7 @@ class NlpModel(AbstractModelService):
 
     def train_supervised(self, annotations):
 
-        temp_path = f"model/{self.config.temp_folder}/data.json"
+        temp_path = os.path.join("model", self.config.TEMP_FOLDER, "data.json")
 
         # Medcat only works with json files. Save to local dir and then retrain and delete
         with open(temp_path, "w") as fp:
@@ -50,7 +56,7 @@ class NlpModel(AbstractModelService):
                      use_filters=True)
 
         data = json.load(open(temp_path))
-        print(self.model._print_stats(data, extra_cui_filter=True))
+        logger.debug(self.model._print_stats(data, extra_cui_filter=True))
 
     def train_unsupervised(self, texts):
         self.model.train(texts, progress_print=100)
@@ -65,7 +71,7 @@ class NlpModel(AbstractModelService):
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end"])
         else:
-            if self.config.code_type == "icd10":
+            if self.config.CODE_TYPE == "icd10":
                 output = pd.DataFrame()
                 for _, row in df.iterrows():
                     if row["icd10"]:
@@ -79,10 +85,10 @@ class NlpModel(AbstractModelService):
                             output = output.append(output_row, ignore_index=True)
                 df = output
                 df.rename(columns={"pretty_name": "label_name", "icd10": "label_id"}, inplace=True)
-            elif self.config.code_type == "snomed":
+            elif self.config.CODE_TYPE == "snomed":
                 df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
             else:
-                raise ValueError(f"Unknown coding type: {self.config.code_type}")
+                raise ValueError(f"Unknown coding type: {self.config.CODE_TYPE}")
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

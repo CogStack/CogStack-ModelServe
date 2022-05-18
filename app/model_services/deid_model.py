@@ -1,24 +1,28 @@
 import os
 import shutil
+import logging
 import numpy as np
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, Trainer
 from medcat.tokenizers.tokenizer_ner import TokenizerNER
 from model_services.base import AbstractModelService
+from domain import ModelCard
+
+logger = logging.getLogger(__name__)
 
 
 class DeIdModel(AbstractModelService):
 
     def __init__(self, config):
         self.config = config
-        model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.base_model_file)
+        model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         self.tokenizer, self.model = self.load_model(model_file_path)
         self.trainer = Trainer(model=self.model, tokenizer=None)
-        self.id2cui = {id:cui for cui, id in self.tokenizer.label_map.items()}
+        self.id2cui = {cui_id: cui for cui, cui_id in self.tokenizer.label_map.items()}
 
     @staticmethod
     def info():
-        return {"model_description": "de-id model", "model_type": "medcat"}
+        return ModelCard(model_description="de-id model", model_type="medcat")
 
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):
@@ -29,7 +33,9 @@ class DeIdModel(AbstractModelService):
             shutil.unpack_archive(model_file_path, extract_dir=unpacked_model_dir)
         tokenizer_path = os.path.join(unpacked_model_dir, "tokenizer.dat")
         tokenizer = TokenizerNER.load(tokenizer_path)
+        logger.info(f"Tokenizer loaded from {tokenizer_path}")
         model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
+        logger.info(f"Model loaded from {unpacked_model_dir}")
         return tokenizer, model
 
     def annotate(self, text):
@@ -62,14 +68,14 @@ class DeIdModel(AbstractModelService):
                         "start": offset_mappings[ps_idx][t_idx][0],
                         "end": offset_mappings[ps_idx][t_idx][1],
                     }
-                    if self.config.include_annotation_text == "true":
+                    if self.config.INCLUDE_ANNOTATION_TEXT == "true":
                         annotation["text"] = t_text
                     if annotations:
                         token_type = self.tokenizer.id2type.get(input_ids[t_idx])
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
                             self._should_expand_with_whole(annotation, annotations)):
                             annotations[-1]["end"] = annotation["end"]
-                            if self.config.include_annotation_text == "true":
+                            if self.config.INCLUDE_ANNOTATION_TEXT == "true":
                                 annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
                             del annotation
                             continue
