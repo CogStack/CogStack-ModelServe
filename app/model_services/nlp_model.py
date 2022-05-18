@@ -20,11 +20,13 @@ class NlpModel(AbstractModelService):
         self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
     def info(self) -> Dict:
-        return ModelCard(model_description=f"{self.config.CODE_TYPE} model", model_type="medcat")
+        return ModelCard(model_description=f"{self.config.CODE_TYPE.upper()} model", model_type="medcat")
 
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:
-        return CAT.load_model_pack(model_file_path, *args, **kwargs)
+        cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
+        logger.info(f"Model pack loaded from {model_file_path}")
+        return cat
 
     def annotate(self, text: str):
         doc = self.model.get_entities(text)
@@ -50,10 +52,10 @@ class NlpModel(AbstractModelService):
             json.dump(annotations, fp)
 
         self.model.train_supervised(data_path=temp_path,
-                     nepochs=1,
-                     reset_cui_count=False,
-                     print_stats=True,
-                     use_filters=True)
+                                    nepochs=1,
+                                    reset_cui_count=False,
+                                    print_stats=True,
+                                    use_filters=True)
 
         data = json.load(open(temp_path))
         logger.debug(self.model._print_stats(data, extra_cui_filter=True))
@@ -74,6 +76,8 @@ class NlpModel(AbstractModelService):
             if self.config.CODE_TYPE == "icd10":
                 output = pd.DataFrame()
                 for _, row in df.iterrows():
+                    if "icd10" not in row:
+                        logger.error("No mapped ICD-10 code found in the record")
                     if row["icd10"]:
                         for icd10 in row["icd10"]:
                             output_row = row.copy()
@@ -88,6 +92,7 @@ class NlpModel(AbstractModelService):
             elif self.config.CODE_TYPE == "snomed":
                 df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
             else:
+                logger.error(f'CODE_TYPE {self.config.CODE_TYPE} is not supported')
                 raise ValueError(f"Unknown coding type: {self.config.CODE_TYPE}")
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")

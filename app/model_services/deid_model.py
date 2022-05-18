@@ -22,7 +22,7 @@ class DeIdModel(AbstractModelService):
 
     @staticmethod
     def info():
-        return ModelCard(model_description="de-id model", model_type="medcat")
+        return ModelCard(model_description="De-identification model", model_type="medcat")
 
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):

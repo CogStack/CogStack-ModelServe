@@ -2,8 +2,11 @@ import os
 import argparse
 import logging
 import uvicorn
+from urllib.parse import urlencode
 from functools import lru_cache
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.openapi.utils import get_openapi
+from starlette.datastructures import QueryParams
 from typing import List, Dict
 from domain import TextwithAnnotations, ModelCard
 from model_services.base import AbstractModelService
@@ -48,12 +51,42 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def retrain(texts: List[str]):
             model_service.train_unsupervised(texts)
 
+    @app.middleware("http")
+    async def verify_blank_query_params(request: Request, call_next):
+        scope = request.scope
+        if request.method != "POST":
+            return await call_next(request)
+        if not scope or not scope.get("query_string"):
+            return await call_next(request)
+
+        query_params = QueryParams(scope["query_string"])
+
+        scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
+        return await call_next(Request(scope, request.receive, request._send))
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+        openapi_schema = get_openapi(
+            title=f"{model_service.info().model_description.title()} APIs",
+            version="0.0.1",
+            description="by CogStack Model Farm, a model serving system for CogStack NLP solutions.",
+            routes=app.routes
+        )
+        openapi_schema["info"]["x-logo"] = {
+            "url": "https://avatars.githubusercontent.com/u/28688163?s=200&v=4"
+        }
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
     return app
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="This script servers multiple cogstack models",
+        description="This script serves various CogStack NLP models",
     )
 
     parser.add_argument(
