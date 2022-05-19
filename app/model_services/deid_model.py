@@ -1,6 +1,7 @@
 import os
 import shutil
 import logging
+import torch
 import numpy as np
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, Trainer
@@ -17,8 +18,14 @@ class DeIdModel(AbstractModelService):
         self.config = config
         model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         self.tokenizer, self.model = self.load_model(model_file_path)
-        self.trainer = Trainer(model=self.model, tokenizer=None)
         self.id2cui = {cui_id: cui for cui, cui_id in self.tokenizer.label_map.items()}
+        if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
+            logger.warning("Service is configured to using GPUs but no GPUs were found.")
+            self.device = "cpu"
+        else:
+            self.device = config.DEVICE
+        self.model.to(self.device)
+        self.trainer = Trainer(model=self.model, tokenizer=None)
 
     @staticmethod
     def info():
@@ -48,6 +55,7 @@ class DeIdModel(AbstractModelService):
         return annotation_list
 
     def _get_annotations(self, text):
+        self.model.eval()
         dataset, offset_mappings = self._get_chunked_tokens(text)
         prediction_output = self.trainer.predict(dataset)
         predictions = np.array(prediction_output.predictions)
@@ -59,7 +67,7 @@ class DeIdModel(AbstractModelService):
             input_ids = dataset[ps_idx]["input_ids"]
             for t_idx, cur_cui_id in enumerate(cui_ids):
                 if cur_cui_id not in [0, -100]:
-                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
+                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx].item())
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
                     annotation = {
@@ -71,7 +79,7 @@ class DeIdModel(AbstractModelService):
                     if self.config.INCLUDE_ANNOTATION_TEXT == "true":
                         annotation["text"] = t_text
                     if annotations:
-                        token_type = self.tokenizer.id2type.get(input_ids[t_idx])
+                        token_type = self.tokenizer.id2type.get(input_ids[t_idx].item())
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
                             self._should_expand_with_whole(annotation, annotations)):
                             annotations[-1]["end"] = annotation["end"]
@@ -96,8 +104,8 @@ class DeIdModel(AbstractModelService):
         offset_mappings = []
         for i in range(0, len(tokens["input_ids"]), model_max_length):
             dataset.append({
-                "input_ids": tokens["input_ids"][i:i+model_max_length],
-                "attention_mask": tokens["attention_mask"][i:i+model_max_length],
+                "input_ids": torch.tensor(tokens["input_ids"][i:i+model_max_length]).to(self.device),
+                "attention_mask": torch.tensor(tokens["attention_mask"][i:i+model_max_length]).to(self.device),
             })
             offset_mappings.append(tokens["offset_mapping"][i:i+model_max_length])
         remainder = len(tokens["input_ids"]) % model_max_length
@@ -105,8 +113,8 @@ class DeIdModel(AbstractModelService):
             del dataset[-1]
             del offset_mappings[-1]
             dataset.append({
-                "input_ids": tokens["input_ids"][-remainder:] + [pad_token_id]*(model_max_length-remainder),
-                "attention_mask": tokens["attention_mask"][-remainder:] + [0]*(model_max_length-remainder),
+                "input_ids": torch.tensor(tokens["input_ids"][-remainder:] + [pad_token_id]*(model_max_length-remainder)).to(self.device),
+                "attention_mask": torch.tensor(tokens["attention_mask"][-remainder:] + [0]*(model_max_length-remainder)).to(self.device),
             })
             offset_mappings.append(tokens["offset_mapping"][-remainder:] +
                 [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
