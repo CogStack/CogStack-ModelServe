@@ -1,13 +1,13 @@
 import os
 import argparse
-import logging
+import logging.config
 import uvicorn
 from urllib.parse import urlencode
 from functools import lru_cache
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
-from typing import List, Dict
+from typing import List, Dict, Callable, Any
 from domain import TextwithAnnotations, ModelCard
 from model_services.base import AbstractModelService
 from config import Settings
@@ -25,16 +25,16 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
     app = FastAPI()
 
     @app.get("/info", response_model=ModelCard)
-    async def info():
+    async def info() -> ModelCard:
         return model_service.info()
 
     @app.post("/process", response_model=TextwithAnnotations, response_model_exclude_none=True)
-    async def process(text: str):
+    async def process(text: str) -> Dict:
         annotations = model_service.annotate(text)
         return {"text": text, "annotations": annotations}
 
     @app.post("/process_bulk", response_model=List[TextwithAnnotations], response_model_exclude_none=True)
-    async def process_bulk(texts: List[str]):
+    async def process_bulk(texts: List[str]) -> List[Dict]:
         annotations_list = model_service.batch_annotate(texts)
         body = []
         for text, annotations in zip(texts, annotations_list):
@@ -43,16 +43,16 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
     
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
         @app.post("/trainsupervised")
-        async def retrain(annotations: Dict):
+        async def retrain(annotations: Dict) -> None:
             model_service.train_supervised(annotations)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
         @app.post("/trainunsupervised")
-        async def retrain(texts: List[str]):
+        async def retrain_unsupervised(texts: List[str]) -> None:
             model_service.train_unsupervised(texts)
 
     @app.middleware("http")
-    async def verify_blank_query_params(request: Request, call_next):
+    async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
         scope = request.scope
         if request.method != "POST":
             return await call_next(request)
@@ -64,7 +64,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
         return await call_next(Request(scope, request.receive, request._send))
 
-    def custom_openapi():
+    def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:
             return app.openapi_schema
         openapi_schema = get_openapi(
@@ -79,7 +79,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    app.openapi = custom_openapi
+    app.openapi = custom_openapi  # type: ignore
 
     return app
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
         from model_services.deid_model import DeIdModel
         app = get_model_server(DeIdModel(get_settings()))
     else:
-        raise f"Unknown model name: {args.model_name}"
+        raise ValueError(f"Unknown model name: {args.model_name}")
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"

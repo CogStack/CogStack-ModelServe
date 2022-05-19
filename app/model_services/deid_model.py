@@ -3,18 +3,20 @@ import shutil
 import logging
 import torch
 import numpy as np
+from typing import Tuple, List, Dict
 from scipy.special import softmax
-from transformers import AutoModelForTokenClassification, Trainer
+from transformers import AutoModelForTokenClassification, Trainer, PreTrainedModel
 from medcat.tokenizers.tokenizer_ner import TokenizerNER
 from model_services.base import AbstractModelService
 from domain import ModelCard
+from config import Settings
 
 logger = logging.getLogger(__name__)
 
 
 class DeIdModel(AbstractModelService):
 
-    def __init__(self, config):
+    def __init__(self, config: Settings) -> None:
         self.config = config
         model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         self.tokenizer, self.model = self.load_model(model_file_path)
@@ -28,11 +30,11 @@ class DeIdModel(AbstractModelService):
         self.trainer = Trainer(model=self.model, tokenizer=None)
 
     @staticmethod
-    def info():
+    def info() -> ModelCard:
         return ModelCard(model_description="De-identification model", model_type="medcat")
 
     @staticmethod
-    def load_model(model_file_path, *args, **kwargs):
+    def load_model(model_file_path: str, *args, **kwargs) -> Tuple[TokenizerNER, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)
@@ -45,23 +47,25 @@ class DeIdModel(AbstractModelService):
         logger.info(f"Model loaded from {unpacked_model_dir}")
         return tokenizer, model
 
-    def annotate(self, text):
+    def annotate(self, text: str) -> List[Dict]:
         return self._get_annotations(text)
 
-    def batch_annotate(self, texts):
+    def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
         annotation_list = []
         for text in texts:
             annotation_list.append(self._get_annotations(text))
         return annotation_list
 
-    def _get_annotations(self, text):
+    def _get_annotations(self, text: str) -> List[Dict]:
+        if not text.strip():
+            return []
         self.model.eval()
         dataset, offset_mappings = self._get_chunked_tokens(text)
-        prediction_output = self.trainer.predict(dataset)
+        prediction_output = self.trainer.predict(dataset)   # type: ignore
         predictions = np.array(prediction_output.predictions)
         predictions = softmax(predictions, axis=2)
         batched_cui_ids = np.argmax(predictions, axis=2)
-        annotations = []
+        annotations: List[Dict] = []
 
         for ps_idx, cui_ids in enumerate(batched_cui_ids):
             input_ids = dataset[ps_idx]["input_ids"]
@@ -96,7 +100,7 @@ class DeIdModel(AbstractModelService):
                             continue
         return annotations
 
-    def _get_chunked_tokens(self, text):
+    def _get_chunked_tokens(self, text: str) -> Tuple[List[Dict], List[Tuple]]:
         tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
         model_max_length = self.tokenizer.max_len
         pad_token_id = self.tokenizer.hf_tokenizer.pad_token_id
@@ -122,9 +126,12 @@ class DeIdModel(AbstractModelService):
         return dataset, offset_mappings
 
     @staticmethod
-    def _should_expand_with_partial(cur_cui_id, cur_token_type, annotation, annotations):
+    def _should_expand_with_partial(cur_cui_id: int,
+                                    cur_token_type: str,
+                                    annotation: Dict,
+                                    annotations: List[Dict]) -> bool:
         return all([cur_cui_id == 1, cur_token_type == "sub", (annotation["start"] - annotations[-1]["end"]) in [0, 1]])
 
     @staticmethod
-    def _should_expand_with_whole(annotation, annotations):
+    def _should_expand_with_whole(annotation: Dict, annotations: List[Dict]) -> bool:
         return annotation["label_id"] == annotations[-1]["label_id"] and (annotation["start"] - annotations[-1]["end"]) in [0, 1]

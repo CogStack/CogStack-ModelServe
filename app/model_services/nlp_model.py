@@ -3,17 +3,18 @@ import json
 import logging
 import pandas as pd
 
-from typing import Dict
+from typing import Dict, List
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
+from config import Settings
 
 logger = logging.getLogger(__name__)
 
 
 class NlpModel(AbstractModelService):
 
-    def __init__(self, config):
+    def __init__(self, config: Settings) -> None:
         self.config = config
         model_pack_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         meta_cat_config_dict = {"general": {"device": config.DEVICE}}
@@ -28,11 +29,11 @@ class NlpModel(AbstractModelService):
         logger.info(f"Model pack loaded from {model_file_path}")
         return cat
 
-    def annotate(self, text: str):
+    def annotate(self, text: str) -> Dict:
         doc = self.model.get_entities(text)
         return self._get_records_from_doc(doc)
 
-    def batch_annotate(self, texts):
+    def batch_annotate(self, texts: List[str]) -> List[Dict]:
         batch_size_chars = 500000
 
         docs = self.model.multiprocessing(self._data_iterator(texts),
@@ -43,7 +44,7 @@ class NlpModel(AbstractModelService):
             annotations_list.append(self._get_records_from_doc(doc))
         return annotations_list
 
-    def train_supervised(self, annotations):
+    def train_supervised(self, annotations: List[Dict]) -> None:
 
         temp_path = os.path.join("model", self.config.TEMP_FOLDER, "data.json")
 
@@ -60,14 +61,14 @@ class NlpModel(AbstractModelService):
         data = json.load(open(temp_path))
         logger.debug(self.model._print_stats(data, extra_cui_filter=True))
 
-    def train_unsupervised(self, texts):
+    def train_unsupervised(self, texts: List[str]) -> None:
         self.model.train(texts, progress_print=100)
         self.model.cdb.print_stats()
 
-    def train_meta_models(self, annotations):
+    def train_meta_models(self, annotations: Dict) -> None:
         pass
 
-    def _get_records_from_doc(self, doc):
+    def _get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:
@@ -99,7 +100,7 @@ class NlpModel(AbstractModelService):
         return records
 
     @staticmethod
-    def _retrieve_meta_annotations(df):
+    def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
         meta_annotations = []
         for i, r in df.iterrows():
 
