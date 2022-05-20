@@ -40,7 +40,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         for text, annotations in zip(texts, annotations_list):
             body.append({"text": text, "annotations": annotations})
         return body
-    
+
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
         @app.post("/trainsupervised")
         async def retrain(annotations: Dict) -> None:
@@ -70,7 +70,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         openapi_schema = get_openapi(
             title=f"{model_service.info().model_description.title()} APIs",
             version="0.0.1",
-            description="by CogStack Model Farm, a model serving system for CogStack NLP solutions.",
+            description="by CogStackModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )
         openapi_schema["info"]["x-logo"] = {
