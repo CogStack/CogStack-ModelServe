@@ -85,7 +85,8 @@ class DeIdModel(AbstractModelService):
                     if annotations:
                         token_type = self.tokenizer.id2type.get(input_ids[t_idx].item())
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
-                            self._should_expand_with_whole(annotation, annotations)):
+                           self._should_expand_with_whole(annotation, annotations)):
+
                             annotations[-1]["end"] = annotation["end"]
                             if self.config.INCLUDE_ANNOTATION_TEXT == "true":
                                 annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
@@ -121,7 +122,7 @@ class DeIdModel(AbstractModelService):
                 "attention_mask": torch.tensor(tokens["attention_mask"][-remainder:] + [0]*(model_max_length-remainder)).to(self.device),
             })
             offset_mappings.append(tokens["offset_mapping"][-remainder:] +
-                [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
+                                   [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
         del tokens
         return dataset, offset_mappings
 

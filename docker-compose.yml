@@ -10,7 +10,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cmf_medcat-1-2
+    container_name: cms_medcat-1-2
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
     environment:
@@ -32,7 +32,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cmf_medcat-1-2-icd10
+    container_name: cms_medcat-1-2-icd10
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
     environment:
@@ -54,7 +54,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cmf_medcat-de-id
+    container_name: cms_medcat-de-id
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
     environment:

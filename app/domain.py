@@ -9,7 +9,7 @@ class Annotation(BaseModel):
     label_id: str
     text: Optional[str] = None
     meta_anns: Optional[dict] = None
-    
+
 
 class TextwithAnnotations(BaseModel):
     text: str
