@@ -38,7 +38,8 @@ class NlpModel(AbstractModelService):
 
         docs = self.model.multiprocessing(self._data_iterator(texts),
                                           batch_size_chars=batch_size_chars,
-                                          nproc=2)
+                                          nproc=2,
+                                          addl_info=["cui2icd10", "cui2ontologies", "cui2snomed"])
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append(self._get_records_from_doc(doc))
