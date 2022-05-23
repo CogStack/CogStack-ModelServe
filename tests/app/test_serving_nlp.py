@@ -28,7 +28,7 @@ def test_process():
         "end": 15,
     }]
     model.annotate.return_value = annotations
-    response = client.post("/process?text=Spinal%20stenosis")
+    response = client.post("/process", data="Spinal stenosis")
     assert response.json() == {
         "text": "Spinal stenosis",
         "annotations": annotations

@@ -2,15 +2,19 @@ import os
 import argparse
 import logging.config
 import uvicorn
+import uuid
+from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
 from functools import lru_cache
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, Body
+from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
-from typing import List, Dict, Callable, Any
-from domain import TextwithAnnotations, ModelCard
+from spacy import displacy
+from domain import TextwithAnnotations, ModelCard, Doc
 from model_services.base import AbstractModelService
 from config import Settings
+from utils import annotations_to_entities
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
@@ -22,32 +26,67 @@ def get_settings():
 
 
 def get_model_server(model_service: AbstractModelService) -> FastAPI:
-    app = FastAPI()
+    tags_metadata = [
+        {
+            "name": "Metadata",
+            "description": "Get the model card."
+        },
+        {
+            "name": "Annotations",
+            "description": "Retrieve recognised entities by running the model."
+        },
+        {
+            "name": "Rendering",
+            "description": "Get embeddable annotation snippet in HTML."
+        },
+        {
+            "name": "Training",
+            "description": "Trigger model training on input annotations."
+        }
+    ]
 
-    @app.get("/info", response_model=ModelCard)
-    async def info() -> ModelCard:
+    app = FastAPI(penapi_tags=tags_metadata)
+
+    @app.get("/info", response_model=ModelCard, tags=["Metadata"])
+    async def model_card() -> ModelCard:
         return model_service.info()
 
-    @app.post("/process", response_model=TextwithAnnotations, response_model_exclude_none=True)
-    async def process(text: str) -> Dict:
+    @app.post("/process",
+              response_model=TextwithAnnotations,
+              response_model_exclude_none=True,
+              tags=["Annotations"])
+    async def process_a_single_note(text: str = Body(..., media_type="text/plain")) -> Dict:
         annotations = model_service.annotate(text)
         return {"text": text, "annotations": annotations}
 
-    @app.post("/process_bulk", response_model=List[TextwithAnnotations], response_model_exclude_none=True)
-    async def process_bulk(texts: List[str]) -> List[Dict]:
+    @app.post("/process_bulk",
+              response_model=List[TextwithAnnotations],
+              response_model_exclude_none=True,
+              tags=["Annotations"])
+    async def process_a_list_of_notes(texts: List[str]) -> List[Dict]:
         annotations_list = model_service.batch_annotate(texts)
         body = []
         for text, annotations in zip(texts, annotations_list):
             body.append({"text": text, "annotations": annotations})
         return body
 
+    @app.post("/preview", tags=["Rendering"])
+    async def preview_processing_result(text: str) -> HTMLResponse:
+        annotations = model_service.annotate(text)
+        entities = annotations_to_entities(annotations)
+        ent_input = Doc(text=text, ents=entities)
+        data = displacy.render(ent_input.dict(), style="ent", manual=True)
+        response = HTMLResponse(content=data, status_code=201)
+        response.headers["Content-Disposition"] = f'attachment ; filename="processed_{str(uuid.uuid4())}.html"'
+        return response
+
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
-        @app.post("/trainsupervised")
+        @app.post("/trainsupervised", tags=["Training"])
         async def retrain(annotations: Dict) -> None:
             model_service.train_supervised(annotations)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
-        @app.post("/trainunsupervised")
+        @app.post("/trainunsupervised", tags=["Training"])
         async def retrain_unsupervised(texts: List[str]) -> None:
             model_service.train_unsupervised(texts)
 
