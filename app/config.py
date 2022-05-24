@@ -6,4 +6,5 @@ class Settings(BaseSettings):
     TEMP_FOLDER: str = "temp"
     CODE_TYPE: str = "snomed"
     DEVICE: str = "cpu"
-    INCLUDE_ANNOTATION_TEXT: str = "false"
+    INCLUDE_SPAN_TEXT: str = "false"
+    CONCAT_SIMILAR_ENTITIES: str = "true"

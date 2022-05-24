@@ -58,7 +58,8 @@ services:
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
     environment:
-      - INCLUDE_ANNOTATION_TEXT=${INCLUDE_ANNOTATION_TEXT}
+      - INCLUDE_SPAN_TEXT=${INCLUDE_SPAN_TEXT}
+      - CONCAT_SIMILAR_ENTITIES=${CONCAT_SIMILAR_ENTITIES}
       - CODE_TYPE=userdefined
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY

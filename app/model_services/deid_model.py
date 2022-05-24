@@ -3,9 +3,9 @@ import shutil
 import logging
 import torch
 import numpy as np
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Iterable
 from scipy.special import softmax
-from transformers import AutoModelForTokenClassification, Trainer, PreTrainedModel
+from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.tokenizer_ner import TokenizerNER
 from model_services.base import AbstractModelService
 from domain import ModelCard
@@ -27,7 +27,6 @@ class DeIdModel(AbstractModelService):
         else:
             self.device = config.DEVICE
         self.model.to(self.device)
-        self.trainer = Trainer(model=self.model, tokenizer=None)
 
     @staticmethod
     def info() -> ModelCard:
@@ -60,35 +59,37 @@ class DeIdModel(AbstractModelService):
         if not text.strip():
             return []
         self.model.eval()
-        dataset, offset_mappings = self._get_chunked_tokens(text)
-        prediction_output = self.trainer.predict(dataset)   # type: ignore
-        predictions = np.array(prediction_output.predictions)
-        predictions = softmax(predictions, axis=2)
-        batched_cui_ids = np.argmax(predictions, axis=2)
+        device = self.config.DEVICE
+        cas = self.config.CONCAT_SIMILAR_ENTITIES == "true"
+        ist = self.config.INCLUDE_SPAN_TEXT == "true"
         annotations: List[Dict] = []
 
-        for ps_idx, cui_ids in enumerate(batched_cui_ids):
-            input_ids = dataset[ps_idx]["input_ids"]
-            for t_idx, cur_cui_id in enumerate(cui_ids):
+        for dataset, offset_mappings in self._get_chunked_tokens(text):
+            predictions = self.model(torch.tensor([dataset["input_ids"]]).to(device),
+                                     torch.tensor([dataset["attention_mask"]]).to(device))
+            predictions = softmax(predictions.logits.detach().numpy()[0], axis=-1)
+            predictions = np.argmax(predictions, axis=-1)
+
+            input_ids = dataset["input_ids"]
+            for t_idx, cur_cui_id in enumerate(predictions):
                 if cur_cui_id not in [0, -100]:
-                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx].item())
+                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
                     annotation = {
                         "label_name": self.tokenizer.cui2name.get(self.id2cui[cur_cui_id]),
                         "label_id": self.id2cui[cur_cui_id],
-                        "start": offset_mappings[ps_idx][t_idx][0],
-                        "end": offset_mappings[ps_idx][t_idx][1],
+                        "start": offset_mappings[t_idx][0],
+                        "end": offset_mappings[t_idx][1],
                     }
-                    if self.config.INCLUDE_ANNOTATION_TEXT == "true":
+                    if ist:
                         annotation["text"] = t_text
                     if annotations:
-                        token_type = self.tokenizer.id2type.get(input_ids[t_idx].item())
+                        token_type = self.tokenizer.id2type.get(input_ids[t_idx])
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
-                           self._should_expand_with_whole(annotation, annotations)):
-
+                                self._should_expand_with_whole(cas, annotation, annotations)):
                             annotations[-1]["end"] = annotation["end"]
-                            if self.config.INCLUDE_ANNOTATION_TEXT == "true":
+                            if ist:
                                 annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
                             del annotation
                             continue
@@ -99,32 +100,29 @@ class DeIdModel(AbstractModelService):
                         if cur_cui_id != 1:
                             annotations.append(annotation)
                             continue
+
         return annotations
 
-    def _get_chunked_tokens(self, text: str) -> Tuple[List[Dict], List[Tuple]]:
+    def _get_chunked_tokens(self, text: str) -> Iterable[Tuple[Dict, List[Tuple]]]:
         tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
         model_max_length = self.tokenizer.max_len
         pad_token_id = self.tokenizer.hf_tokenizer.pad_token_id
-        dataset = []
-        offset_mappings = []
-        for i in range(0, len(tokens["input_ids"]), model_max_length):
-            dataset.append({
-                "input_ids": torch.tensor(tokens["input_ids"][i:i+model_max_length]).to(self.device),
-                "attention_mask": torch.tensor(tokens["attention_mask"][i:i+model_max_length]).to(self.device),
-            })
-            offset_mappings.append(tokens["offset_mapping"][i:i+model_max_length])
-        remainder = len(tokens["input_ids"]) % model_max_length
-        if remainder and i >= model_max_length:
-            del dataset[-1]
-            del offset_mappings[-1]
-            dataset.append({
-                "input_ids": torch.tensor(tokens["input_ids"][-remainder:] + [pad_token_id]*(model_max_length-remainder)).to(self.device),
-                "attention_mask": torch.tensor(tokens["attention_mask"][-remainder:] + [0]*(model_max_length-remainder)).to(self.device),
-            })
-            offset_mappings.append(tokens["offset_mapping"][-remainder:] +
-                                   [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-remainder)])
-        del tokens
-        return dataset, offset_mappings
+        partial = len(tokens["input_ids"]) % model_max_length
+        for i in range(0, len(tokens["input_ids"]) - partial, model_max_length):
+            dataset = {
+                "input_ids": tokens["input_ids"][i:i+model_max_length],
+                "attention_mask": tokens["attention_mask"][i:i+model_max_length],
+            }
+            offset_mappings = tokens["offset_mapping"][i:i+model_max_length]
+            yield dataset, offset_mappings
+        if partial:
+            dataset = {
+                "input_ids": tokens["input_ids"][-partial:] + [pad_token_id]*(model_max_length-partial),
+                "attention_mask": tokens["attention_mask"][-partial:] + [0]*(model_max_length-partial),
+            }
+            offset_mappings = (tokens["offset_mapping"][-partial:] +
+                               [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-partial)])
+            yield dataset, offset_mappings
 
     @staticmethod
     def _should_expand_with_partial(cur_cui_id: int,
@@ -134,5 +132,5 @@ class DeIdModel(AbstractModelService):
         return all([cur_cui_id == 1, cur_token_type == "sub", (annotation["start"] - annotations[-1]["end"]) in [0, 1]])
 
     @staticmethod
-    def _should_expand_with_whole(annotation: Dict, annotations: List[Dict]) -> bool:
-        return annotation["label_id"] == annotations[-1]["label_id"] and (annotation["start"] - annotations[-1]["end"]) in [0, 1]
+    def _should_expand_with_whole(is_enabled: bool, annotation: Dict, annotations: List[Dict]) -> bool:
+        return all([is_enabled, annotation["label_id"] == annotations[-1]["label_id"], (annotation["start"] - annotations[-1]["end"]) in [0, 1]])

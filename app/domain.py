@@ -19,3 +19,17 @@ class TextwithAnnotations(BaseModel):
 class ModelCard(BaseModel):
     model_description: str
     model_type: str
+
+
+class Entity(BaseModel):
+    start: int
+    end: int
+    label: str
+    kb_id: str
+    kb_url: str
+
+
+class Doc(BaseModel):
+    text: str
+    ents: List[Entity]
+    title: Optional[str]

@@ -28,7 +28,9 @@ def test_process():
         "end": 15,
     }]
     model.annotate.return_value = annotations
-    response = client.post("/process?text=Spinal%20stenosis")
+    response = client.post("/process",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
     assert response.json() == {
         "text": "Spinal stenosis",
         "annotations": annotations
@@ -72,6 +74,21 @@ def test_process_bulk():
             }]
         }
     ]
+
+
+def test_preview():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 1,
+        "end": 15,
+    }]
+    model.annotate.return_value = annotations
+    response = client.post("/preview",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.status_code == 201
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
 
 
 def test_trainsupervised():
