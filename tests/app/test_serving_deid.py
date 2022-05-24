@@ -28,7 +28,9 @@ def test_process():
         "end": 6,
     }]
     model.annotate.return_value = annotations
-    response = client.post("/process", data="NW1 2BU")
+    response = client.post("/process",
+                           data="NW1 2BU",
+                           headers={"Content-Type": "text/plain"})
     assert response.json() == {
         "text": "NW1 2BU",
         "annotations": annotations
@@ -72,3 +74,18 @@ def test_process_bulk():
             }]
         }
     ]
+
+
+def test_preview():
+    annotations = [{
+        "label_name": "NW1 2BU",
+        "label_id": "C2120",
+        "start": 0,
+        "end": 6,
+    }]
+    model.annotate.return_value = annotations
+    response = client.post("/preview",
+                           data="NW1 2BU",
+                           headers={"Content-Type": "text/plain"})
+    assert response.status_code == 201
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"

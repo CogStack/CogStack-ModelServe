@@ -3,6 +3,7 @@ import argparse
 import logging.config
 import uvicorn
 import uuid
+from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
 from functools import lru_cache
@@ -20,41 +21,30 @@ logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini")
 logger = logging.getLogger(__name__)
 
 
+class Tag(Enum):
+    Metadata = "Get the model card."
+    Annotations = "Retrieve recognised entities by running the model."
+    Rendering = "Get embeddable annotation snippet in HTML."
+    Training = "Trigger model training on input annotations."
+
+
 @lru_cache()
 def get_settings():
     return Settings()
 
 
 def get_model_server(model_service: AbstractModelService) -> FastAPI:
-    tags_metadata = [
-        {
-            "name": "Metadata",
-            "description": "Get the model card."
-        },
-        {
-            "name": "Annotations",
-            "description": "Retrieve recognised entities by running the model."
-        },
-        {
-            "name": "Rendering",
-            "description": "Get embeddable annotation snippet in HTML."
-        },
-        {
-            "name": "Training",
-            "description": "Trigger model training on input annotations."
-        }
-    ]
-
+    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tag]
     app = FastAPI(penapi_tags=tags_metadata)
 
-    @app.get("/info", response_model=ModelCard, tags=["Metadata"])
+    @app.get("/info", response_model=ModelCard, tags=[Tag.Metadata.name])
     async def model_card() -> ModelCard:
         return model_service.info()
 
     @app.post("/process",
               response_model=TextwithAnnotations,
               response_model_exclude_none=True,
-              tags=["Annotations"])
+              tags=[Tag.Annotations.name])
     async def process_a_single_note(text: str = Body(..., media_type="text/plain")) -> Dict:
         annotations = model_service.annotate(text)
         return {"text": text, "annotations": annotations}
@@ -62,7 +52,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
     @app.post("/process_bulk",
               response_model=List[TextwithAnnotations],
               response_model_exclude_none=True,
-              tags=["Annotations"])
+              tags=[Tag.Annotations.name])
     async def process_a_list_of_notes(texts: List[str]) -> List[Dict]:
         annotations_list = model_service.batch_annotate(texts)
         body = []
@@ -70,8 +60,8 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
             body.append({"text": text, "annotations": annotations})
         return body
 
-    @app.post("/preview", tags=["Rendering"])
-    async def preview_processing_result(text: str) -> HTMLResponse:
+    @app.post("/preview", tags=[Tag.Rendering.name])
+    async def preview_processing_result(text: str = Body(..., media_type="text/plain")) -> HTMLResponse:
         annotations = model_service.annotate(text)
         entities = annotations_to_entities(annotations)
         ent_input = Doc(text=text, ents=entities)
@@ -81,12 +71,12 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         return response
 
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
-        @app.post("/trainsupervised", tags=["Training"])
+        @app.post("/trainsupervised", tags=[Tag.Training.name])
         async def retrain(annotations: Dict) -> None:
             model_service.train_supervised(annotations)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
-        @app.post("/trainunsupervised", tags=["Training"])
+        @app.post("/trainunsupervised", tags=[Tag.Training.name])
         async def retrain_unsupervised(texts: List[str]) -> None:
             model_service.train_unsupervised(texts)
 
