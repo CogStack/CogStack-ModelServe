@@ -98,7 +98,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
             return app.openapi_schema
         openapi_schema = get_openapi(
             title=f"{model_service.info().model_description.title()} APIs",
-            version="0.0.1",
+            version=get_settings().api_version,
             description="by CogStackModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )

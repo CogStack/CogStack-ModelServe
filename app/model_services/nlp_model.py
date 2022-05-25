@@ -21,7 +21,9 @@ class NlpModel(AbstractModelService):
         self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
 
     def info(self) -> Dict:
-        return ModelCard(model_description=f"{self.config.CODE_TYPE.upper()} model", model_type="medcat")
+        return ModelCard(model_description=f"{self.config.CODE_TYPE.upper()} model",
+                         model_type="medcat",
+                         api_version="0.0.1")
 
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:

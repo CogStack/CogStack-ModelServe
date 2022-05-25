@@ -30,7 +30,9 @@ class DeIdModel(AbstractModelService):
 
     @staticmethod
     def info() -> ModelCard:
-        return ModelCard(model_description="De-identification model", model_type="medcat")
+        return ModelCard(model_description="De-identification model",
+                         model_type="medcat",
+                         api_version="0.0.1")
 
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> Tuple[TokenizerNER, PreTrainedModel]:
