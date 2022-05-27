@@ -1,10 +1,10 @@
 from fastapi.testclient import TestClient
 from app.serve import get_model_server
-from app.model_services.nlp_model import NlpModel
+from app.model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 
 
-model = create_autospec(NlpModel)
+model = create_autospec(MedCATModel)
 client = TestClient(get_model_server(model))
 
 

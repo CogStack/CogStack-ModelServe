@@ -12,7 +12,7 @@ from config import Settings
 logger = logging.getLogger(__name__)
 
 
-class NlpModel(AbstractModelService):
+class MedCATModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
         self.config = config

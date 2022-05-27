@@ -98,7 +98,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
             return app.openapi_schema
         openapi_schema = get_openapi(
             title=f"{model_service.info().model_description.title()} APIs",
-            version=get_settings().api_version,
+            version=model_service.info().api_version,
             description="by CogStackModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )
@@ -141,8 +141,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.model == "medcat_1_2":
-        from model_services.nlp_model import NlpModel
-        app = get_model_server(NlpModel(get_settings()))
+        from model_services.medcat_model import MedCATModel
+        app = get_model_server(MedCATModel(get_settings()))
     elif args.model == "de_id":
         from model_services.deid_model import DeIdModel
         app = get_model_server(DeIdModel(get_settings()))
