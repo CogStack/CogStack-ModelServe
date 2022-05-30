@@ -10,9 +10,10 @@ client = TestClient(get_model_server(model))
 
 def test_info():
     model_card = {
+        "api_version": "0.0.1",
         "model_description": "model_description",
         "model_type": "model_type",
-        "api_version": "0.0.1"
+        "model_card": None,
     }
     model.info.return_value = model_card
     response = client.get("/info")

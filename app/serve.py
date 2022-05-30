@@ -3,14 +3,17 @@ import argparse
 import logging.config
 import uvicorn
 import uuid
+import tempfile
+import ijson
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
 from functools import lru_cache
-from fastapi import FastAPI, Request, Response, Body
+from fastapi import FastAPI, Request, Response, Body, File, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
+from starlette.status import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 from spacy import displacy
 from domain import TextwithAnnotations, ModelCard, Doc
 from model_services.base import AbstractModelService
@@ -21,7 +24,7 @@ logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini")
 logger = logging.getLogger(__name__)
 
 
-class Tag(Enum):
+class Tag(str, Enum):
     Metadata = "Get the model card."
     Annotations = "Retrieve recognised entities by running the model."
     Rendering = "Get embeddable annotation snippet in HTML."
@@ -66,19 +69,39 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         entities = annotations_to_entities(annotations)
         ent_input = Doc(text=text, ents=entities)
         data = displacy.render(ent_input.dict(), style="ent", manual=True)
-        response = HTMLResponse(content=data, status_code=201)
+        response = HTMLResponse(content=data, status_code=HTTP_201_CREATED)
         response.headers["Content-Disposition"] = f'attachment ; filename="processed_{str(uuid.uuid4())}.html"'
         return response
 
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
-        @app.post("/trainsupervised", tags=[Tag.Training.name])
-        async def retrain(annotations: Dict) -> None:
-            model_service.train_supervised(annotations)
+        @app.post("/train_supervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
+        async def supervised_training(file: UploadFile,
+                                      response: Response,
+                                      redeploy: bool = False,
+                                      skip_save_model: bool = True) -> Dict:
+            data_file = tempfile.NamedTemporaryFile()
+            for line in file.file:
+                data_file.write(line)
+            data_file.flush()
+            training_accepted = model_service.train_supervised(data_file, redeploy, skip_save_model)
+            return _get_training_response(training_accepted, response)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
-        @app.post("/trainunsupervised", tags=[Tag.Training.name])
-        async def retrain_unsupervised(texts: List[str]) -> None:
-            model_service.train_unsupervised(texts)
+        @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
+        async def unsupervised_training(response: Response,
+                                        file: UploadFile = File(...),
+                                        redeploy: bool = False,
+                                        skip_save_model: bool = True) -> Dict:
+            texts = ijson.items(file.file, "item")
+            training_accepted = model_service.train_unsupervised(texts, redeploy, skip_save_model)
+            return _get_training_response(training_accepted, response)
+
+    def _get_training_response(training_accepted: bool, response: Response) -> Dict:
+        if training_accepted:
+            return {"message": "Your training triggered successfully."}
+        else:
+            response.status_code = HTTP_503_SERVICE_UNAVAILABLE
+            return {"message": "Another training is in progress. Please retry your training later."}
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:

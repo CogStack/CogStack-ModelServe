@@ -17,9 +17,10 @@ class TextwithAnnotations(BaseModel):
 
 
 class ModelCard(BaseModel):
+    api_version: str
     model_description: str
     model_type: str
-    api_version: str
+    model_card: Optional[dict] = None
 
 
 class Entity(BaseModel):

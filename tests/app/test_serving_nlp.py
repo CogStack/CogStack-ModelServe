@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from app.serve import get_model_server
 from app.model_services.medcat_model import MedCATModel
@@ -10,9 +11,10 @@ client = TestClient(get_model_server(model))
 
 def test_info():
     model_card = {
+        "api_version": "0.0.1",
         "model_description": "model_description",
         "model_type": "model_type",
-        "api_version": "0.0.1"
+        "model_card": None,
     }
     model.info.return_value = model_card
     response = client.get("/info")
@@ -90,13 +92,15 @@ def test_preview():
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
 
 
-def test_trainsupervised():
+@pytest.mark.skip()
+def test_train_supervised():
     annotations = {}
-    client.post("/trainsupervised", json=annotations)
+    client.post("/train_supervised", json=annotations)
     model.train_supervised.assert_called_with(annotations)
 
 
-def test_trainunsupervised():
+@pytest.mark.skip()
+def test_train_unsupervised():
     texts = ["Spinal stenosis", "Spinal stenosis"]
-    client.post("/trainunsupervised", json=texts)
+    client.post("/train_unsupervised", json=texts)
     model.train_unsupervised.assert_called_with(texts)

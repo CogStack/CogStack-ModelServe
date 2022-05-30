@@ -1,9 +1,12 @@
 import os
 import json
 import logging
+import asyncio
 import pandas as pd
+import threading
 
-from typing import Dict, List
+from functools import partial
+from typing import Dict, List, Iterable, TextIO, Union, Callable
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
@@ -16,14 +19,18 @@ class MedCATModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
         self.config = config
-        model_pack_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
-        meta_cat_config_dict = {"general": {"device": config.DEVICE}}
-        self.model = self.load_model(model_pack_path, meta_cat_config_dict=meta_cat_config_dict)
+        self.model_pack_dir = os.path.join(os.path.dirname(__file__), "..", "model")
+        self.model_pack_path = os.path.join(self.model_pack_dir, config.BASE_MODEL_FILE)
+        self.meta_cat_config_dict = {"general": {"device": config.DEVICE}}
+        self.model = self.load_model(self.model_pack_path, meta_cat_config_dict=self.meta_cat_config_dict)
+        self.training_lock = threading.Lock()
+        self.training_in_progress = False
 
     def info(self) -> Dict:
         return ModelCard(model_description=f"{self.config.CODE_TYPE.upper()} model",
-                         model_type="medcat",
-                         api_version="0.0.1")
+                         model_type="MedCAT",
+                         api_version="0.0.1",
+                         model_card=self.model.get_model_card(as_dict=True))
 
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:
@@ -47,29 +54,109 @@ class MedCATModel(AbstractModelService):
             annotations_list.append(self._get_records_from_doc(doc))
         return annotations_list
 
-    def train_supervised(self, annotations: List[Dict]) -> None:
+    def train_supervised(self, data_file: TextIO, redeploy: bool, skip_save_model: bool) -> bool:
+        return self._start_training(self._train_supervised, data_file, redeploy, skip_save_model)
 
-        temp_path = os.path.join("model", self.config.TEMP_FOLDER, "data.json")
-
-        # Medcat only works with json files. Save to local dir and then retrain and delete
-        with open(temp_path, "w") as fp:
-            json.dump(annotations, fp)
-
-        self.model.train_supervised(data_path=temp_path,
-                                    nepochs=1,
-                                    reset_cui_count=False,
-                                    print_stats=True,
-                                    use_filters=True)
-
-        data = json.load(open(temp_path))
-        logger.debug(self.model._print_stats(data, extra_cui_filter=True))
-
-    def train_unsupervised(self, texts: List[str]) -> None:
-        self.model.train(texts, progress_print=100)
-        self.model.cdb.print_stats()
+    def train_unsupervised(self, texts: Iterable[str], redeploy: bool, skip_save_model: bool) -> bool:
+        return self._start_training(self._train_unsupervised, texts, redeploy, skip_save_model)
 
     def train_meta_models(self, annotations: Dict) -> None:
         pass
+
+    def _start_training(self,
+                        runner: Callable,
+                        dataset: Union[Iterable[str], TextIO],
+                        redeploy: bool,
+                        skip_save_model: bool) -> bool:
+        loop = asyncio.get_event_loop()
+        with self.training_lock:
+            if self.training_in_progress:
+                return False
+            else:
+                self.training_in_progress = True
+        loop.run_in_executor(None, partial(runner, self, dataset, redeploy, skip_save_model))
+        return True
+
+    @staticmethod
+    def _train_supervised(medcat_model: "MedCATModel",
+                          data_file: TextIO,
+                          redeploy: bool,
+                          skip_save_model: bool) -> None:
+        try:
+            training_params = {
+                "data_path": data_file.name,
+                "reset_cui_count": False,
+                "nepochs": 1,
+                "print_stats": True,
+                "use_filters": False,
+
+            }
+            logger.info("Cloning the current model")
+            model = medcat_model.load_model(medcat_model.model_pack_path,
+                                            meta_cat_config_dict=medcat_model.meta_cat_config_dict)
+            logger.info("Starting supervised training")
+            model.train_supervised(**training_params)
+            logger.info("Supervised training finished")
+            model._versioning()
+            logger.info(model.get_model_card())
+            data = json.load(open(data_file.name))
+            logger.debug(model._print_stats(data, extra_cui_filter=True))
+            data_file.close()
+            MedCATModel._perform_post_training_actions(medcat_model, model, redeploy, skip_save_model)
+        finally:
+            with medcat_model.training_lock:
+                medcat_model.training_in_progress = False
+
+    @staticmethod
+    def _train_unsupervised(medcat_model: "MedCATModel",
+                            texts: Iterable[str],
+                            redeploy: bool,
+                            skip_save_model: bool) -> None:
+        try:
+            training_params = {
+                "nepochs": 1,
+                "progress_print": 1000,
+            }
+            logger.info("Cloning the running model...")
+            model = medcat_model.load_model(medcat_model.model_pack_path,
+                                            meta_cat_config_dict=medcat_model.meta_cat_config_dict)
+            logger.info("Starting unsupervised training...")
+            model.train(texts, **training_params)
+            logger.info("Unsupervised training finished")
+            model._versioning()
+            logger.info(model.get_model_card())
+            MedCATModel._perform_post_training_actions(medcat_model, model, redeploy, skip_save_model)
+        finally:
+            with medcat_model.training_lock:
+                medcat_model.training_in_progress = False
+
+    @staticmethod
+    def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
+        meta_annotations = []
+        for i, r in df.iterrows():
+
+            meta_dict = {}
+            for k, v in r.meta_anns.items():
+                meta_dict[k] = v["value"]
+
+            meta_annotations.append(meta_dict)
+
+        df["new_meta_anns"] = meta_annotations
+        return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
+
+    @staticmethod
+    def _perform_post_training_actions(current_model: "MedCATModel",
+                                       trained_model: CAT,
+                                       redeploy: bool,
+                                       skip_save_model: bool):
+        if not skip_save_model:
+            logger.info(f"Saving retrained model to {current_model.model_pack_dir}...")
+            model_pack_name = trained_model.create_model_pack(current_model.model_pack_dir, "model")
+            logger.info(f"Retrained model saved to {os.path.join(current_model.model_pack_dir, model_pack_name)}")
+        if redeploy:
+            del current_model.model
+            current_model.model = trained_model
+            logger.info("Retrained model deployed")
 
     def _get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
@@ -101,17 +188,3 @@ class MedCATModel(AbstractModelService):
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
-
-    @staticmethod
-    def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
-        meta_annotations = []
-        for i, r in df.iterrows():
-
-            meta_dict = {}
-            for k, v in r.meta_anns.items():
-                meta_dict[k] = v["value"]
-
-            meta_annotations.append(meta_dict)
-
-        df["new_meta_anns"] = meta_annotations
-        return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
