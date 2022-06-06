@@ -13,8 +13,8 @@ services:
     container_name: cms_medcat-1-2
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
     environment:
-      - CODE_TYPE=snomed
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -35,8 +35,8 @@ services:
     container_name: cms_medcat-1-2-icd10
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
     environment:
-      - CODE_TYPE=icd10
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -57,10 +57,8 @@ services:
     container_name: cms_medcat-de-id
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/de-id/.env:/app/envs/.env:ro
     environment:
-      - INCLUDE_SPAN_TEXT=${INCLUDE_SPAN_TEXT}
-      - CONCAT_SIMILAR_ENTITIES=${CONCAT_SIMILAR_ENTITIES}
-      - CODE_TYPE=userdefined
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY

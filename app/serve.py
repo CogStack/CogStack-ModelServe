@@ -145,6 +145,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         help="The name of the model to serve",
+        choices=["medcat_1_2", "de-id"],
         required=True
     )
 
