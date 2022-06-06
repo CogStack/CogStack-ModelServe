@@ -1,4 +1,5 @@
 import pytest
+import tempfile
 from fastapi.testclient import TestClient
 from app.serve import get_model_server
 from app.model_services.medcat_model import MedCATModel
@@ -92,15 +93,23 @@ def test_preview():
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
 
 
-@pytest.mark.skip()
 def test_train_supervised():
-    annotations = {}
-    client.post("/train_supervised", json=annotations)
-    model.train_supervised.assert_called_with(annotations)
+    with tempfile.TemporaryFile("r+") as f:
+        f.write('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
+                '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
+                '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
+                '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
+                '"acc":1,"validated":true}]}]}]}]}')
+        response = client.post("/train_supervised", files={"file": ("trainer_export.json", f, "multipart/form-data")})
+    model.train_supervised.assert_called()
+    assert response.status_code == 202
+    assert response.json() == {"message": "Your training started successfully."}
 
 
-@pytest.mark.skip()
 def test_train_unsupervised():
-    texts = ["Spinal stenosis", "Spinal stenosis"]
-    client.post("/train_unsupervised", json=texts)
-    model.train_unsupervised.assert_called_with(texts)
+    with tempfile.TemporaryFile("r+") as f:
+        f.write("Spinal stenosis")
+        response = client.post("/train_unsupervised", files={"file": ("note.txt", f, "multipart/form-data")})
+    model.train_unsupervised.assert_called()
+    assert response.status_code == 202
+    assert response.json() == {"message": "Your training started successfully."}

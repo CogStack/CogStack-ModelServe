@@ -98,7 +98,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
 
     def _get_training_response(training_accepted: bool, response: Response) -> Dict:
         if training_accepted:
-            return {"message": "Your training triggered successfully."}
+            return {"message": "Your training started successfully."}
         else:
             response.status_code = HTTP_503_SERVICE_UNAVAILABLE
             return {"message": "Another training is in progress. Please retry your training later."}

@@ -17,16 +17,16 @@ logger = logging.getLogger(__name__)
 class DeIdModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
-        self.config = config
+        self._config = config
         model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
-        self.tokenizer, self.model = self.load_model(model_file_path)
-        self.id2cui = {cui_id: cui for cui, cui_id in self.tokenizer.label_map.items()}
+        self._tokenizer, self._model = self.load_model(model_file_path)
+        self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
         if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
             logger.warning("Service is configured to using GPUs but no GPUs were found.")
-            self.device = "cpu"
+            self._device = "cpu"
         else:
-            self.device = config.DEVICE
-        self.model.to(self.device)
+            self._device = config.DEVICE
+        self._model.to(self._device)
 
     @staticmethod
     def info() -> ModelCard:
@@ -60,34 +60,34 @@ class DeIdModel(AbstractModelService):
     def _get_annotations(self, text: str) -> List[Dict]:
         if not text.strip():
             return []
-        self.model.eval()
-        device = self.config.DEVICE
-        cas = self.config.CONCAT_SIMILAR_ENTITIES == "true"
-        ist = self.config.INCLUDE_SPAN_TEXT == "true"
+        self._model.eval()
+        device = self._config.DEVICE
+        cas = self._config.CONCAT_SIMILAR_ENTITIES == "true"
+        ist = self._config.INCLUDE_SPAN_TEXT == "true"
         annotations: List[Dict] = []
 
         for dataset, offset_mappings in self._get_chunked_tokens(text):
-            predictions = self.model(torch.tensor([dataset["input_ids"]]).to(device),
-                                     torch.tensor([dataset["attention_mask"]]).to(device))
+            predictions = self._model(torch.tensor([dataset["input_ids"]]).to(device),
+                                      torch.tensor([dataset["attention_mask"]]).to(device))
             predictions = softmax(predictions.logits.detach().numpy()[0], axis=-1)
             predictions = np.argmax(predictions, axis=-1)
 
             input_ids = dataset["input_ids"]
             for t_idx, cur_cui_id in enumerate(predictions):
                 if cur_cui_id not in [0, -100]:
-                    t_text = self.tokenizer.hf_tokenizer.decode(input_ids[t_idx])
+                    t_text = self._tokenizer.hf_tokenizer.decode(input_ids[t_idx])
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
                     annotation = {
-                        "label_name": self.tokenizer.cui2name.get(self.id2cui[cur_cui_id]),
-                        "label_id": self.id2cui[cur_cui_id],
+                        "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),
+                        "label_id": self._id2cui[cur_cui_id],
                         "start": offset_mappings[t_idx][0],
                         "end": offset_mappings[t_idx][1],
                     }
                     if ist:
                         annotation["text"] = t_text
                     if annotations:
-                        token_type = self.tokenizer.id2type.get(input_ids[t_idx])
+                        token_type = self._tokenizer.id2type.get(input_ids[t_idx])
                         if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
                                 self._should_expand_with_whole(cas, annotation, annotations)):
                             annotations[-1]["end"] = annotation["end"]
@@ -106,9 +106,9 @@ class DeIdModel(AbstractModelService):
         return annotations
 
     def _get_chunked_tokens(self, text: str) -> Iterable[Tuple[Dict, List[Tuple]]]:
-        tokens = self.tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
-        model_max_length = self.tokenizer.max_len
-        pad_token_id = self.tokenizer.hf_tokenizer.pad_token_id
+        tokens = self._tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+        model_max_length = self._tokenizer.max_len
+        pad_token_id = self._tokenizer.hf_tokenizer.pad_token_id
         partial = len(tokens["input_ids"]) % model_max_length
         for i in range(0, len(tokens["input_ids"]) - partial, model_max_length):
             dataset = {
