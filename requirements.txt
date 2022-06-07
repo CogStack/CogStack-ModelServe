@@ -1,5 +1,0 @@
-medcat==1.2.5
-fastapi
-uvicorn
-setuptools
-wheel

@@ -1,0 +1,69 @@
+version: "3.6"
+
+services:
+
+  medcat-1-2:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-1-2/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-1-2
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8180:8000
+
+  medcat-1-2-icd10:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-1-2/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-1-2-icd10
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8181:8000
+
+  de-identification:
+    build:
+        context: ./
+        dockerfile: ./docker/de-id/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-de-id
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ./docker/de-id/.env:/app/envs/.env:ro
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8182:8000
