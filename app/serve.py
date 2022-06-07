@@ -5,6 +5,8 @@ import uvicorn
 import uuid
 import tempfile
 import ijson
+import json
+import sys
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
@@ -122,7 +124,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         openapi_schema = get_openapi(
             title=f"{model_service.info().model_description.title()} APIs",
             version=model_service.info().api_version,
-            description="by CogStackModelServe, a model serving system for CogStack NLP solutions.",
+            description="by CogStack ModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )
         openapi_schema["info"]["x-logo"] = {
@@ -145,7 +147,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         help="The name of the model to serve",
-        choices=["medcat_1_2", "de-id"],
+        choices=["medcat_1_2", "de_id"],
         required=True
     )
 
@@ -163,6 +165,13 @@ if __name__ == "__main__":
         help="The port of the server"
     )
 
+    parser.add_argument(
+        "-d",
+        "--doc",
+        action="store_true",
+        help="Export the OpenAPI doc"
+    )
+
     args = parser.parse_args()
     if args.model == "medcat_1_2":
         from model_services.medcat_model import MedCATModel
@@ -170,8 +179,23 @@ if __name__ == "__main__":
     elif args.model == "de_id":
         from model_services.deid_model import DeIdModel
         app = get_model_server(DeIdModel(get_settings()))
-    else:
-        raise ValueError(f"Unknown model name: {args.model_name}")
+
+    if args.doc:
+        doc_name = ""
+        if args.model == "medcat_1_2":
+            if get_settings().CODE_TYPE == "snomed":
+                doc_name = "snomed_model_apis.json"
+            elif get_settings().CODE_TYPE == "icd10":
+                doc_name = "icd10_model_apis.json"
+            else:
+                raise ValueError(f"Unknown code type: {get_settings().CODE_TYPE}")
+        elif args.model == "de_id":
+            doc_name = "de-dentification_model_apis.json"
+        with open(doc_name, "w") as doc:
+            json.dump(app.openapi(), doc, indent=4)
+        print(f"OpenAPI doc exported to {doc_name}")
+        sys.exit(0)
+
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"

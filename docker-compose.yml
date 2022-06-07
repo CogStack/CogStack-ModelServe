@@ -13,6 +13,7 @@ services:
     container_name: cms_medcat-1-2
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
     environment:
       - HTTP_PROXY=$HTTP_PROXY
@@ -35,6 +36,7 @@ services:
     container_name: cms_medcat-1-2-icd10
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
     environment:
       - HTTP_PROXY=$HTTP_PROXY
@@ -67,3 +69,7 @@ services:
       - no_proxy=$NO_PROXY
     ports:
       - 8182:8000
+
+volumes:
+  retrained-models:
+    driver: local

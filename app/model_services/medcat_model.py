@@ -23,6 +23,7 @@ class MedCATModel(AbstractModelService):
     def __init__(self, config: Settings) -> None:
         self._config = config
         self._model_pack_dir = os.path.join(os.path.dirname(__file__), "..", "model")
+        self._retrained_models_dir = os.path.join(self._model_pack_dir, "retrained")
         self._model_pack_path = os.path.join(self._model_pack_dir, config.BASE_MODEL_FILE)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
@@ -156,9 +157,9 @@ class MedCATModel(AbstractModelService):
     @staticmethod
     def _save_model(service: "MedCATModel",
                     model: CAT) -> None:
-        logger.info(f"Saving retrained model to {service._model_pack_dir}...")
-        model_pack_name = model.create_model_pack(service._model_pack_dir, "model")
-        model_pack_path = f"{os.path.join(service._model_pack_dir, model_pack_name)}.zip"
+        logger.info(f"Saving retrained model to {service._retrained_models_dir}...")
+        model_pack_name = model.create_model_pack(service._retrained_models_dir, "model")
+        model_pack_path = f"{os.path.join(service._retrained_models_dir, model_pack_name)}.zip"
         logger.info(f"Retrained model saved to {model_pack_path}")
 
     @staticmethod

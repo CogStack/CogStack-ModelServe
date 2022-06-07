@@ -107,7 +107,7 @@ venv.bak/
 .idea/*
 
 app/model/*
-!app/model/.gitkeep
+!app/model/retrained/.gitkeep
 
 *.log
 
