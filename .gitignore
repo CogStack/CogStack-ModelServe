@@ -107,8 +107,9 @@ venv.bak/
 .idea/*
 
 app/model/*
+!app/model/retrained
+app/model/retrained/*
 !app/model/retrained/.gitkeep
-!app/model/.gitkeep
 app/mlruns/*
 !app/mlruns/.gitkeep
 
