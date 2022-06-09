@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     DEVICE: str = "cpu"
     INCLUDE_SPAN_TEXT: str = "false"
     CONCAT_SIMILAR_ENTITIES: str = "true"
+    MLFLOW_TRACKING_URI: str = "file:/app/mlruns"
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")

@@ -108,6 +108,9 @@ venv.bak/
 
 app/model/*
 !app/model/retrained/.gitkeep
+!app/model/.gitkeep
+app/mlruns/*
+!app/mlruns/.gitkeep
 
 *.log
 

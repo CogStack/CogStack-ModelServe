@@ -15,6 +15,7 @@ services:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
+      - mlruns:/app/mlruns
     environment:
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
@@ -38,6 +39,7 @@ services:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
+      - mlruns:/app/mlruns
     environment:
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
@@ -70,6 +72,30 @@ services:
     ports:
       - 8182:8000
 
+  mlflow:
+    build:
+      context: ./
+      dockerfile: ./docker/mlflow/Dockerfile
+      args:
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    container_name: cms_mlflow
+    volumes:
+      - mlruns:/app/mlruns
+    environment:
+      - BACKEND_STORE_URI=file:/app/mlruns
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8200:5000
+
 volumes:
   retrained-models:
+    driver: local
+  mlruns:
     driver: local

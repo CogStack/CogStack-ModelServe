@@ -79,28 +79,32 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         @app.post("/train_supervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
         async def supervised_training(file: UploadFile,
                                       response: Response,
+                                      epochs: int = 1,
                                       redeploy: bool = False,
                                       skip_save_model: bool = True) -> Dict:
             data_file = tempfile.NamedTemporaryFile()
             for line in file.file:
                 data_file.write(line)
             data_file.flush()
-            training_accepted = model_service.train_supervised(data_file, redeploy, skip_save_model)
-            return _get_training_response(training_accepted, response)
+            job_name = str(uuid.uuid4())
+            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, job_name)
+            return _get_training_response(training_accepted, response, job_name)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
         @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
         async def unsupervised_training(response: Response,
                                         file: UploadFile = File(...),
+                                        epochs: int = 1,
                                         redeploy: bool = False,
                                         skip_save_model: bool = True) -> Dict:
             texts = ijson.items(file.file, "item")
-            training_accepted = model_service.train_unsupervised(texts, redeploy, skip_save_model)
-            return _get_training_response(training_accepted, response)
+            job_name = str(uuid.uuid4())
+            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, job_name)
+            return _get_training_response(training_accepted, response, job_name)
 
-    def _get_training_response(training_accepted: bool, response: Response) -> Dict:
+    def _get_training_response(training_accepted: bool, response: Response, job_name: str) -> Dict:
         if training_accepted:
-            return {"message": "Your training started successfully."}
+            return {"message": "Your training started successfully.", "job_name": job_name}
         else:
             response.status_code = HTTP_503_SERVICE_UNAVAILABLE
             return {"message": "Another training is in progress. Please retry your training later."}
