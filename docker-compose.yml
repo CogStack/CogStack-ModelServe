@@ -82,7 +82,7 @@ services:
         - NO_PROXY=$NO_PROXY
     container_name: cms_mlflow
     volumes:
-      - mlruns:/app/mlruns
+      - mlruns:/app/mlruns:ro
     environment:
       - BACKEND_STORE_URI=file:/app/mlruns
       - HTTP_PROXY=$HTTP_PROXY
