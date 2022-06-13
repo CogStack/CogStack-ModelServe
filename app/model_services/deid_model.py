@@ -35,7 +35,7 @@ class DeIdModel(AbstractModelService):
                          api_version="0.0.1")
 
     @staticmethod
-    def load_model(model_file_path: str, *args, **kwargs) -> Tuple[TokenizerNER, PreTrainedModel]:
+    def load_model(model_file_path: str) -> Tuple[TokenizerNER, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)

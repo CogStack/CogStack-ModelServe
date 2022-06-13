@@ -1,4 +1,3 @@
-import pytest
 import tempfile
 from fastapi.testclient import TestClient
 from app.serve import get_model_server

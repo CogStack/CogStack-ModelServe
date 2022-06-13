@@ -20,7 +20,7 @@ from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
 from config import Settings
-
+from processors.data_batcher import mini_batch
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,6 @@ class MedCATModel(AbstractModelService):
         training_type = "unsupervised"
         training_params = {
             "nepochs": epochs,
-            "progress_print": 1,
         }
         return self._start_training(self._train_unsupervised, training_type, training_params, texts, redeploy,
                                     skip_save_model, correlation_id)
@@ -160,9 +159,12 @@ class MedCATModel(AbstractModelService):
             logger.info("Cloning the running model...")
             model = deepcopy(medcat_model.model)
             logger.info("Starting unsupervised training...")
-            medcat_model._send_model_stats(model, 0)
-            model.train(texts, **training_params)
-            medcat_model._send_model_stats(model, 1)
+            step = 0
+            medcat_model._send_model_stats(model, step)
+            for batch in mini_batch(texts, medcat_model._config.TRAINING_BATCH_SIZE):
+                step += 1
+                model.train(batch, **training_params)
+                medcat_model._send_model_stats(model, step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 mlflow.log_artifact(model_pack_path)
@@ -237,7 +239,7 @@ class MedCATModel(AbstractModelService):
             mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def _send_model_stats(model: CAT, step: int = 0) -> None:
+    def _send_model_stats(model: CAT, step: int) -> None:
         stats = model.cdb._make_stats()
         metrics = {
             "num_of_concepts": stats["Number of concepts"],
@@ -273,7 +275,7 @@ class MedCATModel(AbstractModelService):
             elif self._config.CODE_TYPE == "snomed":
                 df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
             else:
-                logger.error(f'CODE_TYPE {self._config.CODE_TYPE} is not supported')
+                logger.error(f"CODE_TYPE {self._config.CODE_TYPE} is not supported")
                 raise ValueError(f"Unknown coding type: {self._config.CODE_TYPE}")
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")

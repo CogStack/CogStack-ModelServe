@@ -11,6 +11,9 @@ services:
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
     container_name: cms_medcat-1-2
+    restart: always
+    networks:
+      - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -25,6 +28,8 @@ services:
       - no_proxy=$NO_PROXY
     ports:
       - 8180:8000
+    depends_on:
+      - mlflow-db
 
   medcat-1-2-icd10:
     build:
@@ -35,6 +40,9 @@ services:
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
     container_name: cms_medcat-1-2-icd10
+    restart: always
+    networks:
+      - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -49,6 +57,8 @@ services:
       - no_proxy=$NO_PROXY
     ports:
       - 8181:8000
+    depends_on:
+      - mlflow-db
 
   de-identification:
     build:
@@ -59,6 +69,9 @@ services:
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
     container_name: cms_medcat-de-id
+    restart: always
+    networks:
+      - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - ./docker/de-id/.env:/app/envs/.env:ro
@@ -72,7 +85,22 @@ services:
     ports:
       - 8182:8000
 
-  mlflow:
+  mlflow-db:
+    image: postgres:latest
+    container_name: cms_mlflow_db
+    restart: always
+    networks:
+      - cms
+    environment:
+      - POSTGRES_DB=mlflow-backend-store
+      - POSTGRES_USER=$MLFLOW_DB_USERNAE
+      - POSTGRES_PASSWORD=$MLFLOW_DB_PASSWORD
+    volumes:
+      - mlflow-backend-store:/var/lib/postgresql/data
+    ports:
+      - 8199:5432
+
+  mlflow-ui:
     build:
       context: ./
       dockerfile: ./docker/mlflow/Dockerfile
@@ -80,11 +108,15 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_mlflow
+    container_name: cms_mlflow_ui
+    restart: always
+    networks:
+      - cms
     volumes:
-      - mlruns:/app/mlruns:ro
+      - mlruns:/opt/mlflow/mlruns:ro
     environment:
-      - BACKEND_STORE_URI=file:/app/mlruns
+      - BACKEND_STORE_URI=postgresql://${MLFLOW_DB_USERNAE}:${MLFLOW_DB_PASSWORD}@mlflow-db:5432/mlflow-backend-store
+      - DEFAULT_ARTIFACT_ROOT=/opt/mlflow/mlruns
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -93,9 +125,17 @@ services:
       - no_proxy=$NO_PROXY
     ports:
       - 8200:5000
+    depends_on:
+      - mlflow-db
 
 volumes:
   retrained-models:
     driver: local
   mlruns:
     driver: local
+  mlflow-backend-store:
+    driver: local
+
+networks:
+  cms:
+    driver: bridge
