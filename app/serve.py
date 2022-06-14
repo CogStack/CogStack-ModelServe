@@ -89,7 +89,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
                 data_file.write(line)
             data_file.flush()
             correlation_id = str(uuid.uuid4())
-            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, correlation_id)
+            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, correlation_id, file.filename)
             return _get_training_response(training_accepted, response, correlation_id)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
@@ -101,7 +101,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
                                         skip_save_model: bool = True) -> Dict:
             texts = ijson.items(file.file, "item")
             correlation_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, correlation_id)
+            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, correlation_id, file.filename)
             return _get_training_response(training_accepted, response, correlation_id)
 
     def _get_training_response(training_accepted: bool, response: Response, correlation_id: str) -> Dict:

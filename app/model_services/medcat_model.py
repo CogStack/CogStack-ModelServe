@@ -83,7 +83,8 @@ class MedCATModel(AbstractModelService):
                          epochs: int,
                          redeploy: bool,
                          skip_save_model: bool,
-                         correlation_id: str) -> bool:
+                         correlation_id: str,
+                         input_file_name: str) -> bool:
         training_type = "supervised"
         training_params = {
             "data_path": data_file.name,
@@ -91,20 +92,21 @@ class MedCATModel(AbstractModelService):
             "print_stats": 1,
         }
         return self._start_training(self._train_supervised, training_type, training_params, data_file, redeploy,
-                                    skip_save_model, correlation_id)
+                                    skip_save_model, correlation_id, input_file_name)
 
     def train_unsupervised(self,
                            texts: Iterable[str],
                            epochs: int,
                            redeploy: bool,
                            skip_save_model: bool,
-                           correlation_id: str) -> bool:
+                           correlation_id: str,
+                           input_file_name: str) -> bool:
         training_type = "unsupervised"
         training_params = {
             "nepochs": epochs,
         }
         return self._start_training(self._train_unsupervised, training_type, training_params, texts, redeploy,
-                                    skip_save_model, correlation_id)
+                                    skip_save_model, correlation_id, input_file_name)
 
     def train_meta_models(self, annotations: Dict) -> None:
         pass
@@ -288,7 +290,8 @@ class MedCATModel(AbstractModelService):
                         dataset: Union[Iterable[str], TextIO],
                         redeploy: bool,
                         skip_save_model: bool,
-                        correlation_id: str) -> bool:
+                        correlation_id: str,
+                        input_file_name: str) -> bool:
         with self._training_lock:
             if self._training_in_progress:
                 return False
@@ -298,7 +301,10 @@ class MedCATModel(AbstractModelService):
                 experiment_id = self._get_experiment_id(experiment_name)
                 logger.info(f"Starting training job: {correlation_id} with experiment ID: {experiment_id}")
                 mlflow.start_run(experiment_id=experiment_id, run_name=correlation_id)
-                mlflow.set_tag(MLFLOW_SOURCE_NAME, socket.gethostname())
+                mlflow.set_tags({
+                    MLFLOW_SOURCE_NAME: socket.gethostname(),
+                    "training.input.filename": input_file_name,
+                })
                 mlflow.log_params(training_params)
                 self._training_in_progress = True
                 loop.run_in_executor(None, partial(runner, self, training_params, dataset, redeploy, skip_save_model))

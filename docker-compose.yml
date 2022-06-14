@@ -20,16 +20,20 @@ services:
       - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
       - mlruns:/app/mlruns
     environment:
+      - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
+      - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
+    expose:
+      - 8000
     ports:
       - 8180:8000
-    depends_on:
-      - mlflow-db
+#    depends_on:
+#      - mlflow-db
 
   medcat-1-2-icd10:
     build:
@@ -49,16 +53,20 @@ services:
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
       - mlruns:/app/mlruns
     environment:
+      - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
+      - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
+    expose:
+      - 8000
     ports:
       - 8181:8000
-    depends_on:
-      - mlflow-db
+#    depends_on:
+#      - mlflow-db
 
   de-identification:
     build:
@@ -82,6 +90,8 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
+    expose:
+      - 8000
     ports:
       - 8182:8000
 
@@ -93,12 +103,12 @@ services:
       - cms
     environment:
       - POSTGRES_DB=mlflow-backend-store
-      - POSTGRES_USER=$MLFLOW_DB_USERNAE
+      - POSTGRES_USER=$MLFLOW_DB_USERNAME
       - POSTGRES_PASSWORD=$MLFLOW_DB_PASSWORD
     volumes:
       - mlflow-backend-store:/var/lib/postgresql/data
-    ports:
-      - 8199:5432
+    expose:
+      - 5432
 
   mlflow-ui:
     build:
@@ -115,7 +125,8 @@ services:
     volumes:
       - mlruns:/opt/mlflow/mlruns:ro
     environment:
-      - BACKEND_STORE_URI=postgresql://${MLFLOW_DB_USERNAE}:${MLFLOW_DB_PASSWORD}@mlflow-db:5432/mlflow-backend-store
+      - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
+      - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - DEFAULT_ARTIFACT_ROOT=/opt/mlflow/mlruns
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
@@ -123,10 +134,44 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
+    expose:
+      - 5000
     ports:
       - 8200:5000
-    depends_on:
-      - mlflow-db
+#    depends_on:
+#      - mlflow-db
+
+  proxy:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx/Dockerfile
+      args:
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    container_name: cms_proxy
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ./docker/nginx/etc/nginx:/etc/nginx:ro
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 28180:28180
+      - 28181:28181
+      - 28182:28182
+      - 28200:28200
+#    depends_on:
+#      - medcat-1-2
+#      - medcat-1-2-icd10
+#      - de-identification
+#      - mlflow-ui
 
 volumes:
   retrained-models:
