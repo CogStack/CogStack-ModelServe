@@ -6,21 +6,17 @@ import asyncio
 import pandas as pd
 import threading
 import gc
-import re
-import mlflow
-import socket
 
 from functools import partial
 from copy import deepcopy
 from contextlib import redirect_stdout
 from typing import Dict, List, Iterable, TextIO, Union, Callable
-from mlflow.entities import RunStatus
-from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
+from monitoring.tracker import TrainingTracker
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +32,7 @@ class MedCATModel(AbstractModelService):
         self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
         self._training_lock = threading.Lock()
         self._training_in_progress = False
-        mlflow.set_tracking_uri(config.MLFLOW_TRACKING_URI)
+        self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
 
     @property
     def model(self) -> CAT:
@@ -83,7 +79,7 @@ class MedCATModel(AbstractModelService):
                          epochs: int,
                          redeploy: bool,
                          skip_save_model: bool,
-                         correlation_id: str,
+                         training_id: str,
                          input_file_name: str) -> bool:
         training_type = "supervised"
         training_params = {
@@ -92,21 +88,21 @@ class MedCATModel(AbstractModelService):
             "print_stats": 1,
         }
         return self._start_training(self._train_supervised, training_type, training_params, data_file, redeploy,
-                                    skip_save_model, correlation_id, input_file_name)
+                                    skip_save_model, training_id, input_file_name)
 
     def train_unsupervised(self,
                            texts: Iterable[str],
                            epochs: int,
                            redeploy: bool,
                            skip_save_model: bool,
-                           correlation_id: str,
+                           training_id: str,
                            input_file_name: str) -> bool:
         training_type = "unsupervised"
         training_params = {
             "nepochs": epochs,
         }
         return self._start_training(self._train_unsupervised, training_type, training_params, texts, redeploy,
-                                    skip_save_model, correlation_id, input_file_name)
+                                    skip_save_model, training_id, input_file_name)
 
     def train_meta_models(self, annotations: Dict) -> None:
         pass
@@ -124,10 +120,10 @@ class MedCATModel(AbstractModelService):
             buffer = io.StringIO()
             with redirect_stdout(buffer):
                 model.train_supervised(**training_params)
-            medcat_model._send_metrics(buffer.getvalue())
+            medcat_model._training_tracker.send_metrics(buffer.getvalue())
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                mlflow.log_artifact(model_pack_path)
+                medcat_model._training_tracker.send_model_package(model_pack_path)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -141,11 +137,11 @@ class MedCATModel(AbstractModelService):
             gc.collect()
             logger.info("Supervised training finished")
             logger.debug(medcat_model.model.get_model_card())
-            mlflow.end_run()
+            medcat_model._training_tracker.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            mlflow.end_run(RunStatus.to_string(RunStatus.FAILED))
+            medcat_model._training_tracker.end_with_failure()
             raise e
         finally:
             with medcat_model._training_lock:
@@ -162,14 +158,14 @@ class MedCATModel(AbstractModelService):
             model = deepcopy(medcat_model.model)
             logger.info("Starting unsupervised training...")
             step = 0
-            medcat_model._send_model_stats(model, step)
+            medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             for batch in mini_batch(texts, medcat_model._config.TRAINING_BATCH_SIZE):
                 step += 1
                 model.train(batch, **training_params)
-                medcat_model._send_model_stats(model, step)
+                medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                mlflow.log_artifact(model_pack_path)
+                medcat_model._training_tracker.send_model_package(model_pack_path)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -180,11 +176,11 @@ class MedCATModel(AbstractModelService):
             gc.collect()
             logger.info("Unsupervised training finished")
             logger.debug(medcat_model.model.get_model_card())
-            mlflow.end_run()
+            medcat_model._training_tracker.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            mlflow.end_run(RunStatus.to_string(RunStatus.FAILED))
+            medcat_model._training_tracker.end_with_failure()
             raise e
         finally:
             with medcat_model._training_lock:
@@ -222,35 +218,6 @@ class MedCATModel(AbstractModelService):
 
         df["new_meta_anns"] = meta_annotations
         return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
-
-    @staticmethod
-    def _get_experiment_id(experiment_name: str) -> str:
-        experiment = mlflow.get_experiment_by_name(experiment_name)
-        return mlflow.create_experiment(name=experiment_name) if experiment is None else experiment.experiment_id
-
-    @staticmethod
-    def _send_metrics(buffer_value: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", buffer_value,
-                                  re.IGNORECASE)
-        for step, metric in enumerate(metric_lines):
-            metrics = {
-                "precision": float(metric[1]),
-                "recall": float(metric[2]),
-                "f1": float(metric[3]),
-            }
-            mlflow.log_metrics(metrics, step)
-
-    @staticmethod
-    def _send_model_stats(model: CAT, step: int) -> None:
-        stats = model.cdb._make_stats()
-        metrics = {
-            "num_of_concepts": stats["Number of concepts"],
-            "num_of_names": stats["Number of names"],
-            "num_of_concepts_received_training": stats["Number of concepts that received training"],
-            "num_of_seen_training_examples": stats["Number of seen training examples in total"],
-            "avg_training_examples_per_concept": stats["Average training examples per concept"],
-        }
-        mlflow.log_metrics(metrics, step)
 
     def _get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
@@ -290,22 +257,21 @@ class MedCATModel(AbstractModelService):
                         dataset: Union[Iterable[str], TextIO],
                         redeploy: bool,
                         skip_save_model: bool,
-                        correlation_id: str,
+                        training_id: str,
                         input_file_name: str) -> bool:
         with self._training_lock:
             if self._training_in_progress:
                 return False
             else:
                 loop = asyncio.get_event_loop()
-                experiment_name = f"{self.info().model_description} {training_type}".replace(" ", "_")
-                experiment_id = self._get_experiment_id(experiment_name)
-                logger.info(f"Starting training job: {correlation_id} with experiment ID: {experiment_id}")
-                mlflow.start_run(experiment_id=experiment_id, run_name=correlation_id)
-                mlflow.set_tags({
-                    MLFLOW_SOURCE_NAME: socket.gethostname(),
-                    "training.input.filename": input_file_name,
-                })
-                mlflow.log_params(training_params)
+                experiment_id = self._training_tracker.start_tracking(
+                    self.info().model_description,
+                    input_file_name,
+                    training_type,
+                    training_params,
+                    training_id
+                )
+                logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
                 loop.run_in_executor(None, partial(runner, self, training_params, dataset, redeploy, skip_save_model))
                 return True

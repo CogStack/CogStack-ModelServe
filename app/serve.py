@@ -7,7 +7,6 @@ import tempfile
 import ijson
 import json
 import sys
-import mlflow
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
@@ -18,11 +17,11 @@ from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
 from starlette.status import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 from spacy import displacy
-from mlflow.entities import RunStatus
 from domain import TextwithAnnotations, ModelCard, Doc
 from model_services.base import AbstractModelService
 from config import Settings
 from utils import annotations_to_entities
+from monitoring.tracker import TrainingTracker
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
@@ -88,9 +87,9 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
             for line in file.file:
                 data_file.write(line)
             data_file.flush()
-            correlation_id = str(uuid.uuid4())
-            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, correlation_id, file.filename)
-            return _get_training_response(training_accepted, response, correlation_id)
+            training_id = str(uuid.uuid4())
+            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, training_id, file.filename)
+            return _get_training_response(training_accepted, response, training_id)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
         @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
@@ -100,13 +99,13 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
                                         redeploy: bool = False,
                                         skip_save_model: bool = True) -> Dict:
             texts = ijson.items(file.file, "item")
-            correlation_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, correlation_id, file.filename)
-            return _get_training_response(training_accepted, response, correlation_id)
+            training_id = str(uuid.uuid4())
+            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, training_id, file.filename)
+            return _get_training_response(training_accepted, response, training_id)
 
-    def _get_training_response(training_accepted: bool, response: Response, correlation_id: str) -> Dict:
+    def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:
         if training_accepted:
-            return {"message": "Your training started successfully.", "correlation_id": correlation_id}
+            return {"message": "Your training started successfully.", "training_id": training_id}
         else:
             response.status_code = HTTP_503_SERVICE_UNAVAILABLE
             return {"message": "Another training is in progress. Please retry your training later."}
@@ -126,7 +125,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
 
     @app.on_event("shutdown")
     async def on_shutdown():
-        mlflow.end_run(RunStatus.to_string(RunStatus.KILLED))
+        TrainingTracker.end_with_interruption()
 
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:

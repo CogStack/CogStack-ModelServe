@@ -103,7 +103,7 @@ def test_train_supervised():
     model.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
-    assert "correlation_id" in response.json()
+    assert "training_id" in response.json()
 
 
 def test_train_unsupervised():
@@ -112,4 +112,4 @@ def test_train_unsupervised():
         response = client.post("/train_unsupervised", files={"file": ("note.txt", f, "multipart/form-data")})
     model.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
-    assert "correlation_id" in response.json()
+    assert "training_id" in response.json()
