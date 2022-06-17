@@ -114,7 +114,8 @@ class MedCATModel(AbstractModelService):
                           data_file: TextIO,
                           log_frequency: int,
                           redeploy: bool,
-                          skip_save_model: bool) -> None:
+                          skip_save_model: bool,
+                          run_id: str) -> None:
         training_params.update({"print_stats": log_frequency})
         try:
             logger.info("Cloning the current model")
@@ -124,7 +125,7 @@ class MedCATModel(AbstractModelService):
                 model.train_supervised(**training_params)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.send_model_package(model_pack_path)
+                medcat_model._training_tracker.register_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -142,6 +143,7 @@ class MedCATModel(AbstractModelService):
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
+            medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
             raise e
         finally:
@@ -154,7 +156,8 @@ class MedCATModel(AbstractModelService):
                             texts: Iterable[str],
                             log_frequency: int,
                             redeploy: bool,
-                            skip_save_model: bool) -> None:
+                            skip_save_model: bool,
+                            run_id: str) -> None:
         try:
             logger.info("Cloning the running model...")
             model = deepcopy(medcat_model.model)
@@ -167,7 +170,7 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.send_model_package(model_pack_path)
+                medcat_model._training_tracker.register_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -182,6 +185,7 @@ class MedCATModel(AbstractModelService):
         except Exception as e:
             logger.error("Unsupervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
+            medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
             raise e
         finally:
@@ -267,7 +271,7 @@ class MedCATModel(AbstractModelService):
                 return False
             else:
                 loop = asyncio.get_event_loop()
-                experiment_id = self._training_tracker.start_tracking(
+                experiment_id, run_id = self._training_tracker.start_tracking(
                     self.info().model_description,
                     input_file_name,
                     training_type,
@@ -276,5 +280,5 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
+                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model, run_id))
                 return True

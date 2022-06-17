@@ -1,7 +1,7 @@
 import socket
 import mlflow
 import re
-from typing import Dict
+from typing import Dict, Tuple
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus
 
@@ -16,16 +16,16 @@ class TrainingTracker(object):
                        input_file_name: str,
                        training_type: str,
                        training_params: Dict,
-                       training_id: str) -> str:
+                       training_id: str) -> Tuple[str, str]:
         experiment_name = TrainingTracker._get_experiment_name(model_name, training_type)
         experiment_id = TrainingTracker._get_experiment_id(experiment_name)
-        mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
+        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
             "training.input.filename": input_file_name,
         })
         mlflow.log_params(training_params)
-        return experiment_id
+        return experiment_id, active_run.info.run_id
 
     @staticmethod
     def end_with_success() -> None:
@@ -56,8 +56,13 @@ class TrainingTracker(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def send_model_package(filepath: str) -> None:
+    def register_model(filepath: str, run_id: str, model_name: str) -> None:
         mlflow.log_artifact(filepath)
+        mlflow.register_model(f"runs:/{run_id}", model_name.replace(" ", "_"))
+
+    @staticmethod
+    def log_exception(e: Exception) -> None:
+        mlflow.set_tag("exception", str(e))
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

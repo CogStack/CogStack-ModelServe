@@ -81,7 +81,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def supervised_training(file: UploadFile,
                                       response: Response,
                                       epochs: int = 1,
-                                      log_frequency: int = Query(default=1, description="every number of epochs"),
+                                      log_frequency: int = Query(default=1, description="after every number of epochs"),
                                       redeploy: bool = False,
                                       skip_save_model: bool = True) -> Dict:
             data_file = tempfile.NamedTemporaryFile()
@@ -97,7 +97,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def unsupervised_training(response: Response,
                                         file: UploadFile = File(...),
                                         epochs: int = 1,
-                                        log_frequency: int = Query(default=1000, description="every number of documents"),
+                                        log_frequency: int = Query(default=1000, description="after every number of documents"),
                                         redeploy: bool = False,
                                         skip_save_model: bool = True) -> Dict:
             texts = ijson.items(file.file, "item")

@@ -2,30 +2,36 @@ import pytest
 import mlflow
 
 from app.monitoring.tracker import TrainingTracker
+from unittest.mock import Mock
 
 
 @pytest.fixture()
 def mlflow_fixture(mocker):
+    active_run = Mock()
+    active_run.info.run_id = "run_id"
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.get_experiment_by_name", return_value=None)
-    mocker.patch("mlflow.create_experiment", return_value="1")
-    mocker.patch("mlflow.start_run")
+    mocker.patch("mlflow.create_experiment", return_value="experiment_id")
+    mocker.patch("mlflow.start_run", return_value=active_run)
     mocker.patch("mlflow.set_tags")
+    mocker.patch("mlflow.set_tag")
     mocker.patch("mlflow.log_params")
     mocker.patch("mlflow.log_metrics")
     mocker.patch("mlflow.log_artifact")
+    mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.end_run")
     yield TrainingTracker("any")
 
 
 def test_start_new(mlflow_fixture):
-    experiment_id = TrainingTracker.start_tracking("model_name", "input_file_name", "training_type", {}, "training_id")
+    experiment_id, run_id = TrainingTracker.start_tracking("model_name", "input_file_name", "training_type", {}, "training_id")
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="1", run_name="training_id")
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="training_id")
     mlflow.set_tags.assert_called()
     mlflow.log_params.assert_called_once_with({})
-    assert experiment_id == "1"
+    assert experiment_id == "experiment_id"
+    assert run_id == "run_id"
 
 
 def test_end_with_success(mlflow_fixture):
@@ -53,6 +59,12 @@ def test_send_model_stats(mlflow_fixture):
     mlflow.log_metrics.assert_called_once_with({'key_name': 1}, 1)
 
 
-def test_send_model_package(mlflow_fixture):
-    TrainingTracker.send_model_package("filepath")
+def test_register_model(mlflow_fixture):
+    TrainingTracker.register_model("filepath", "run_id", "model name")
     mlflow.log_artifact.assert_called_once_with("filepath")
+    mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
+
+
+def test_log_exception(mlflow_fixture):
+    TrainingTracker.log_exception(Exception("something wrong"))
+    mlflow.set_tag.assert_called_once_with("exception", "something wrong")
