@@ -40,7 +40,7 @@ class TrainingTracker(object):
         mlflow.end_run(RunStatus.to_string(RunStatus.KILLED))
 
     @staticmethod
-    def send_metrics(log: str) -> None:
+    def glean_and_log_metrics(log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)
         for step, metric in enumerate(metric_lines):
             metrics = {

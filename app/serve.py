@@ -11,7 +11,7 @@ from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
 from functools import lru_cache
-from fastapi import FastAPI, Request, Response, Body, File, UploadFile
+from fastapi import FastAPI, Request, Response, Body, File, UploadFile, Query
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
@@ -81,6 +81,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def supervised_training(file: UploadFile,
                                       response: Response,
                                       epochs: int = 1,
+                                      log_frequency: int = Query(default=1, description="every number of epochs"),
                                       redeploy: bool = False,
                                       skip_save_model: bool = True) -> Dict:
             data_file = tempfile.NamedTemporaryFile()
@@ -88,7 +89,7 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
                 data_file.write(line)
             data_file.flush()
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_supervised(data_file, epochs, redeploy, skip_save_model, training_id, file.filename)
+            training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, redeploy, skip_save_model, training_id, file.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
@@ -96,11 +97,12 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def unsupervised_training(response: Response,
                                         file: UploadFile = File(...),
                                         epochs: int = 1,
+                                        log_frequency: int = Query(default=1000, description="every number of documents"),
                                         redeploy: bool = False,
                                         skip_save_model: bool = True) -> Dict:
             texts = ijson.items(file.file, "item")
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, epochs, redeploy, skip_save_model, training_id, file.filename)
+            training_accepted = model_service.train_unsupervised(texts, epochs, log_frequency, redeploy, skip_save_model, training_id, file.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:

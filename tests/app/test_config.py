@@ -9,4 +9,3 @@ def test_configuration():
     assert undertest.INCLUDE_SPAN_TEXT is not None
     assert undertest.CONCAT_SIMILAR_ENTITIES is not None
     assert undertest.MLFLOW_TRACKING_URI is not None
-    assert undertest.TRAINING_BATCH_SIZE is not None

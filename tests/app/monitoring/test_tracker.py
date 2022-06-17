@@ -44,7 +44,7 @@ def test_end_with_interruption(mlflow_fixture):
 
 
 def test_send_metrics(mlflow_fixture):
-    TrainingTracker.send_metrics("Epoch: 1, Prec: 0.01, Rec: 0.01, F1: 0.01")
+    TrainingTracker.glean_and_log_metrics("Epoch: 1, Prec: 0.01, Rec: 0.01, F1: 0.01")
     mlflow.log_metrics.assert_called_once_with({'precision': 0.01, 'recall': 0.01, 'f1': 0.01}, 0)
 
 

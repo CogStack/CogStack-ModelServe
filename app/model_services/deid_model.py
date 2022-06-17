@@ -31,7 +31,7 @@ class DeIdModel(AbstractModelService):
     @staticmethod
     def info() -> ModelCard:
         return ModelCard(model_description="De-identification model",
-                         model_type="BERT",
+                         model_type="Transformers",
                          api_version="0.0.1")
 
     @staticmethod

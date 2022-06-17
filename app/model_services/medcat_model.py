@@ -1,4 +1,3 @@
-import io
 import os
 import json
 import logging
@@ -17,6 +16,7 @@ from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
 from monitoring.tracker import TrainingTracker
+from monitoring.log_captor import LogCaptor
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,7 @@ class MedCATModel(AbstractModelService):
     def train_supervised(self,
                          data_file: TextIO,
                          epochs: int,
+                         log_frequency: int,
                          redeploy: bool,
                          skip_save_model: bool,
                          training_id: str,
@@ -85,14 +86,14 @@ class MedCATModel(AbstractModelService):
         training_params = {
             "data_path": data_file.name,
             "nepochs": epochs,
-            "print_stats": 1,
         }
-        return self._start_training(self._train_supervised, training_type, training_params, data_file, redeploy,
+        return self._start_training(self._train_supervised, training_type, training_params, data_file, log_frequency, redeploy,
                                     skip_save_model, training_id, input_file_name)
 
     def train_unsupervised(self,
                            texts: Iterable[str],
                            epochs: int,
+                           log_frequency: int,
                            redeploy: bool,
                            skip_save_model: bool,
                            training_id: str,
@@ -101,7 +102,7 @@ class MedCATModel(AbstractModelService):
         training_params = {
             "nepochs": epochs,
         }
-        return self._start_training(self._train_unsupervised, training_type, training_params, texts, redeploy,
+        return self._start_training(self._train_unsupervised, training_type, training_params, texts, log_frequency, redeploy,
                                     skip_save_model, training_id, input_file_name)
 
     def train_meta_models(self, annotations: Dict) -> None:
@@ -111,16 +112,16 @@ class MedCATModel(AbstractModelService):
     def _train_supervised(medcat_model: "MedCATModel",
                           training_params: Dict,
                           data_file: TextIO,
+                          log_frequency: int,
                           redeploy: bool,
                           skip_save_model: bool) -> None:
+        training_params.update({"print_stats": log_frequency})
         try:
             logger.info("Cloning the current model")
             model = deepcopy(medcat_model.model)
             logger.info("Starting supervised training")
-            buffer = io.StringIO()
-            with redirect_stdout(buffer):
+            with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
                 model.train_supervised(**training_params)
-            medcat_model._training_tracker.send_metrics(buffer.getvalue())
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 medcat_model._training_tracker.send_model_package(model_pack_path)
@@ -151,6 +152,7 @@ class MedCATModel(AbstractModelService):
     def _train_unsupervised(medcat_model: "MedCATModel",
                             training_params: Dict,
                             texts: Iterable[str],
+                            log_frequency: int,
                             redeploy: bool,
                             skip_save_model: bool) -> None:
         try:
@@ -159,7 +161,7 @@ class MedCATModel(AbstractModelService):
             logger.info("Starting unsupervised training...")
             step = 0
             medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
-            for batch in mini_batch(texts, medcat_model._config.TRAINING_BATCH_SIZE):
+            for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **training_params)
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
@@ -255,6 +257,7 @@ class MedCATModel(AbstractModelService):
                         training_type: str,
                         training_params: Dict,
                         dataset: Union[Iterable[str], TextIO],
+                        log_frequency: int,
                         redeploy: bool,
                         skip_save_model: bool,
                         training_id: str,
@@ -273,5 +276,5 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                loop.run_in_executor(None, partial(runner, self, training_params, dataset, redeploy, skip_save_model))
+                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
                 return True
