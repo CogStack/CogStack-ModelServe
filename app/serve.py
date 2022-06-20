@@ -78,31 +78,27 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
 
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
         @app.post("/train_supervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
-        async def supervised_training(file: UploadFile,
+        async def supervised_training(training_data: UploadFile,
                                       response: Response,
                                       epochs: int = 1,
-                                      log_frequency: int = Query(default=1, description="after every number of epochs"),
-                                      redeploy: bool = False,
-                                      skip_save_model: bool = True) -> Dict:
+                                      log_frequency: int = Query(default=1, description="log after every number of finished epochs")) -> Dict:
             data_file = tempfile.NamedTemporaryFile()
-            for line in file.file:
+            for line in training_data.file:
                 data_file.write(line)
             data_file.flush()
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, redeploy, skip_save_model, training_id, file.filename)
+            training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, training_data.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
         @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
         async def unsupervised_training(response: Response,
-                                        file: UploadFile = File(...),
+                                        training_data: UploadFile = File(...),
                                         epochs: int = 1,
-                                        log_frequency: int = Query(default=1000, description="after every number of documents"),
-                                        redeploy: bool = False,
-                                        skip_save_model: bool = True) -> Dict:
-            texts = ijson.items(file.file, "item")
+                                        log_frequency: int = Query(default=1000, description="log after every number of processed documents")) -> Dict:
+            texts = ijson.items(training_data.file, "item")
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, epochs, log_frequency, redeploy, skip_save_model, training_id, file.filename)
+            training_accepted = model_service.train_unsupervised(texts, epochs, log_frequency, training_id, training_data.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:

@@ -24,14 +24,17 @@ def mlflow_fixture(mocker):
 
 
 def test_start_new(mlflow_fixture):
-    experiment_id, run_id = TrainingTracker.start_tracking("model_name", "input_file_name", "training_type", {}, "training_id")
+    experiment_id, run_id = TrainingTracker.start_tracking("model_name", "input_file_name", "base_model_origin",
+                                                           "training_type", {"param": "param"}, "training_id")
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="training_id")
     mlflow.set_tags.assert_called()
-    mlflow.log_params.assert_called_once_with({})
+    mlflow.log_params.assert_called_once_with({"param": "param"})
     assert experiment_id == "experiment_id"
     assert run_id == "run_id"
+    assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
+    assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
 
 
 def test_end_with_success(mlflow_fixture):
@@ -59,8 +62,8 @@ def test_send_model_stats(mlflow_fixture):
     mlflow.log_metrics.assert_called_once_with({'key_name': 1}, 1)
 
 
-def test_register_model(mlflow_fixture):
-    TrainingTracker.register_model("filepath", "run_id", "model name")
+def test_archive_model(mlflow_fixture):
+    TrainingTracker.archive_model("filepath", "run_id", "model name")
     mlflow.log_artifact.assert_called_once_with("filepath")
     mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
 

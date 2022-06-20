@@ -22,6 +22,7 @@ services:
     environment:
       - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
       - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
+      - BASE_MODEL_ORIGIN=$MODEL_PACKAGE_FULL_PATH
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -55,6 +56,7 @@ services:
     environment:
       - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
       - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
+      - BASE_MODEL_ORIGIN=$MODEL_PACKAGE_FULL_PATH
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -84,6 +86,7 @@ services:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - ./docker/de-id/.env:/app/envs/.env:ro
     environment:
+      - BASE_MODEL_ORIGIN=$MODEL_PACKAGE_FULL_PATH
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY

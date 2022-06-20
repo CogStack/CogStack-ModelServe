@@ -78,8 +78,6 @@ class MedCATModel(AbstractModelService):
                          data_file: TextIO,
                          epochs: int,
                          log_frequency: int,
-                         redeploy: bool,
-                         skip_save_model: bool,
                          training_id: str,
                          input_file_name: str) -> bool:
         training_type = "supervised"
@@ -87,6 +85,8 @@ class MedCATModel(AbstractModelService):
             "data_path": data_file.name,
             "nepochs": epochs,
         }
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
         return self._start_training(self._train_supervised, training_type, training_params, data_file, log_frequency, redeploy,
                                     skip_save_model, training_id, input_file_name)
 
@@ -94,14 +94,14 @@ class MedCATModel(AbstractModelService):
                            texts: Iterable[str],
                            epochs: int,
                            log_frequency: int,
-                           redeploy: bool,
-                           skip_save_model: bool,
                            training_id: str,
                            input_file_name: str) -> bool:
         training_type = "unsupervised"
         training_params = {
             "nepochs": epochs,
         }
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
         return self._start_training(self._train_unsupervised, training_type, training_params, texts, log_frequency, redeploy,
                                     skip_save_model, training_id, input_file_name)
 
@@ -120,12 +120,12 @@ class MedCATModel(AbstractModelService):
         try:
             logger.info("Cloning the current model")
             model = deepcopy(medcat_model.model)
-            logger.info("Starting supervised training")
+            logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
                 model.train_supervised(**training_params)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.register_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.archive_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -161,7 +161,7 @@ class MedCATModel(AbstractModelService):
         try:
             logger.info("Cloning the running model...")
             model = deepcopy(medcat_model.model)
-            logger.info("Starting unsupervised training...")
+            logger.info("Performing unsupervised training...")
             step = 0
             medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             for batch in mini_batch(texts, batch_size=log_frequency):
@@ -170,7 +170,7 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.register_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.archive_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -274,6 +274,7 @@ class MedCATModel(AbstractModelService):
                 experiment_id, run_id = self._training_tracker.start_tracking(
                     self.info().model_description,
                     input_file_name,
+                    self._config.BASE_MODEL_ORIGIN,
                     training_type,
                     training_params,
                     training_id

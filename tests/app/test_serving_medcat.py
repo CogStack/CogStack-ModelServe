@@ -99,7 +99,7 @@ def test_train_supervised():
                 '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
                 '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
                 '"acc":1,"validated":true}]}]}]}]}')
-        response = client.post("/train_supervised", files={"file": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/train_supervised", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
     model.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -109,7 +109,7 @@ def test_train_supervised():
 def test_train_unsupervised():
     with tempfile.TemporaryFile("r+") as f:
         f.write("Spinal stenosis")
-        response = client.post("/train_unsupervised", files={"file": ("note.txt", f, "multipart/form-data")})
+        response = client.post("/train_unsupervised", files={"training_data": ("note.txt", f, "multipart/form-data")})
     model.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()

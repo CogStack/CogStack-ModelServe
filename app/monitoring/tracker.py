@@ -14,6 +14,7 @@ class TrainingTracker(object):
     @staticmethod
     def start_tracking(model_name: str,
                        input_file_name: str,
+                       base_model_original: str,
                        training_type: str,
                        training_params: Dict,
                        training_id: str) -> Tuple[str, str]:
@@ -22,7 +23,8 @@ class TrainingTracker(object):
         active_run = mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
-            "training.input.filename": input_file_name,
+            "training.input_data.filename": input_file_name,
+            "training.base_model.origin": base_model_original,
         })
         mlflow.log_params(training_params)
         return experiment_id, active_run.info.run_id
@@ -56,7 +58,7 @@ class TrainingTracker(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def register_model(filepath: str, run_id: str, model_name: str) -> None:
+    def archive_model(filepath: str, run_id: str, model_name: str) -> None:
         mlflow.log_artifact(filepath)
         mlflow.register_model(f"runs:/{run_id}", model_name.replace(" ", "_"))
 
