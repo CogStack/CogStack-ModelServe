@@ -17,7 +17,8 @@ class TrainingTracker(object):
                        base_model_original: str,
                        training_type: str,
                        training_params: Dict,
-                       training_id: str) -> Tuple[str, str]:
+                       training_id: str,
+                       log_frequency: int) -> Tuple[str, str]:
         experiment_name = TrainingTracker._get_experiment_name(model_name, training_type)
         experiment_id = TrainingTracker._get_experiment_id(experiment_name)
         active_run = mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
@@ -25,6 +26,7 @@ class TrainingTracker(object):
             MLFLOW_SOURCE_NAME: socket.gethostname(),
             "training.input_data.filename": input_file_name,
             "training.base_model.origin": base_model_original,
+            "training.metrics.log_frequency": log_frequency,
         })
         mlflow.log_params(training_params)
         return experiment_id, active_run.info.run_id
@@ -58,7 +60,7 @@ class TrainingTracker(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def archive_model(filepath: str, run_id: str, model_name: str) -> None:
+    def save_and_register_model(filepath: str, run_id: str, model_name: str) -> None:
         mlflow.log_artifact(filepath)
         mlflow.register_model(f"runs:/{run_id}", model_name.replace(" ", "_"))
 

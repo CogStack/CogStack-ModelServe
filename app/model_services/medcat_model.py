@@ -5,6 +5,7 @@ import asyncio
 import pandas as pd
 import threading
 import gc
+import shutil
 
 from functools import partial
 from copy import deepcopy
@@ -117,6 +118,7 @@ class MedCATModel(AbstractModelService):
                           skip_save_model: bool,
                           run_id: str) -> None:
         training_params.update({"print_stats": log_frequency})
+        model_pack_path = None
         try:
             logger.info("Cloning the current model")
             model = deepcopy(medcat_model.model)
@@ -125,7 +127,7 @@ class MedCATModel(AbstractModelService):
                 model.train_supervised(**training_params)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.archive_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.save_and_register_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -149,6 +151,9 @@ class MedCATModel(AbstractModelService):
         finally:
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
+            if model_pack_path:
+                os.remove(model_pack_path)
+                shutil.rmtree(model_pack_path.replace(".zip", ""))
 
     @staticmethod
     def _train_unsupervised(medcat_model: "MedCATModel",
@@ -158,6 +163,7 @@ class MedCATModel(AbstractModelService):
                             redeploy: bool,
                             skip_save_model: bool,
                             run_id: str) -> None:
+        model_pack_path = None
         try:
             logger.info("Cloning the running model...")
             model = deepcopy(medcat_model.model)
@@ -170,7 +176,7 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.archive_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.save_and_register_model(model_pack_path, run_id, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -191,6 +197,9 @@ class MedCATModel(AbstractModelService):
         finally:
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
+            if model_pack_path:
+                os.remove(model_pack_path)
+                shutil.rmtree(model_pack_path.replace(".zip", ""))
 
     @staticmethod
     def _save_model(service: "MedCATModel",
@@ -277,7 +286,8 @@ class MedCATModel(AbstractModelService):
                     self._config.BASE_MODEL_ORIGIN,
                     training_type,
                     training_params,
-                    training_id
+                    training_id,
+                    log_frequency,
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True

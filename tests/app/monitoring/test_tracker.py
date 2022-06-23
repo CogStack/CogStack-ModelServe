@@ -25,7 +25,7 @@ def mlflow_fixture(mocker):
 
 def test_start_new(mlflow_fixture):
     experiment_id, run_id = TrainingTracker.start_tracking("model_name", "input_file_name", "base_model_origin",
-                                                           "training_type", {"param": "param"}, "training_id")
+                                                           "training_type", {"param": "param"}, "training_id", 10)
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="training_id")
@@ -35,6 +35,7 @@ def test_start_new(mlflow_fixture):
     assert run_id == "run_id"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
+    assert mlflow.set_tags.call_args.args[0]["training.metrics.log_frequency"] == 10
 
 
 def test_end_with_success(mlflow_fixture):
@@ -54,16 +55,16 @@ def test_end_with_interruption(mlflow_fixture):
 
 def test_send_metrics(mlflow_fixture):
     TrainingTracker.glean_and_log_metrics("Epoch: 1, Prec: 0.01, Rec: 0.01, F1: 0.01")
-    mlflow.log_metrics.assert_called_once_with({'precision': 0.01, 'recall': 0.01, 'f1': 0.01}, 0)
+    mlflow.log_metrics.assert_called_once_with({"precision": 0.01, "recall": 0.01, "f1": 0.01}, 0)
 
 
 def test_send_model_stats(mlflow_fixture):
     TrainingTracker.send_model_stats({"Key name": 1}, 1)
-    mlflow.log_metrics.assert_called_once_with({'key_name': 1}, 1)
+    mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)
 
 
-def test_archive_model(mlflow_fixture):
-    TrainingTracker.archive_model("filepath", "run_id", "model name")
+def test_save_and_register_model(mlflow_fixture):
+    TrainingTracker.save_and_register_model("filepath", "run_id", "model name")
     mlflow.log_artifact.assert_called_once_with("filepath")
     mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
 

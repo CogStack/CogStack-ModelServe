@@ -15,6 +15,9 @@ ENV MLFLOW_HOME=/opt/mlflow
 
 COPY docker/mlflow/requirements.txt requirements.txt
 
+RUN apt-get update && \
+    apt-get install -qy curl
+
 RUN pip install -U pip
 RUN pip install -r requirements.txt
 

@@ -15,10 +15,7 @@ COPY app /app
 COPY docker/de-id/requirements.txt requirements.txt
 
 RUN apt-get update && \
-    apt-get -qy full-upgrade && \
-    apt-get install -qy curl && \
-    apt-get install -qy curl && \
-    curl -sSL https://get.docker.com/ | sh
+    apt-get install -qy curl
 
 RUN pip install -U pip
 RUN pip install -r requirements.txt
