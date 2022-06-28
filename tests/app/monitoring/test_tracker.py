@@ -2,6 +2,7 @@ import pytest
 import mlflow
 
 from app.monitoring.tracker import TrainingTracker
+from app.monitoring.model_wrapper import ModelWrapper
 from unittest.mock import Mock
 
 
@@ -17,7 +18,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.set_tag")
     mocker.patch("mlflow.log_params")
     mocker.patch("mlflow.log_metrics")
-    mocker.patch("mlflow.log_artifact")
+    mocker.patch("mlflow.pyfunc.log_model")
     mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.end_run")
     yield TrainingTracker("any")
@@ -64,8 +65,9 @@ def test_send_model_stats(mlflow_fixture):
 
 
 def test_save_and_register_model(mlflow_fixture):
-    TrainingTracker.save_and_register_model("filepath", "run_id", "model name")
-    mlflow.log_artifact.assert_called_once_with("filepath")
+    pyfunc_model = Mock()
+    TrainingTracker.save_and_register_model("filepath", "run_id", "model name", pyfunc_model)
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name", python_model=pyfunc_model, artifacts={"model_path": "filepath"})
     mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
 
 

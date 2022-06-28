@@ -18,21 +18,28 @@ class DeIdModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
         self._config = config
-        model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
-        self._tokenizer, self._model = self.load_model(model_file_path)
-        self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
+        self._model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
             logger.warning("Service is configured to using GPUs but no GPUs were found.")
             self._device = "cpu"
         else:
             self._device = config.DEVICE
-        self._model.to(self._device)
+        self._tokenizer: TokenizerNER
+        self._model: PreTrainedModel
+        self._id2cui: Dict[str, str]
 
-    @staticmethod
-    def info() -> ModelCard:
-        return ModelCard(model_description="De-identification model",
+    @property
+    def model_name(self) -> str:
+        return "De-identification model"
+
+    @property
+    def api_version(self) -> str:
+        return "0.0.1"
+
+    def info(self) -> ModelCard:
+        return ModelCard(model_description=self.model_name,
                          model_type="Transformers",
-                         api_version="0.0.1")
+                         api_version=self.api_version)
 
     @staticmethod
     def load_model(model_file_path: str) -> Tuple[TokenizerNER, PreTrainedModel]:
@@ -47,6 +54,11 @@ class DeIdModel(AbstractModelService):
         model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
         logger.info(f"Model loaded from {unpacked_model_dir}")
         return tokenizer, model
+
+    def init_model(self) -> None:
+        self._tokenizer, self._model = self.load_model(self._model_file_path)
+        self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
+        self._model.to(self._device)
 
     def annotate(self, text: str) -> List[Dict]:
         return self._get_annotations(text)

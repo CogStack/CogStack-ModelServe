@@ -15,13 +15,14 @@ from fastapi import FastAPI, Request, Response, Body, File, UploadFile, Query
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
-from starlette.status import HTTP_201_CREATED, HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
+from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 from spacy import displacy
 from domain import TextwithAnnotations, ModelCard, Doc
 from model_services.base import AbstractModelService
 from config import Settings
 from utils import annotations_to_entities
 from monitoring.tracker import TrainingTracker
+from monitoring.model_wrapper import ModelWrapper
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
@@ -66,14 +67,14 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
             body.append({"text": text, "annotations": annotations})
         return body
 
-    @app.post("/preview", tags=[Tag.Rendering.name])
+    @app.post("/preview", tags=[Tag.Rendering.name], response_class=HTMLResponse)
     async def preview_processing_result(text: str = Body(..., media_type="text/plain")) -> HTMLResponse:
         annotations = model_service.annotate(text)
         entities = annotations_to_entities(annotations)
         ent_input = Doc(text=text, ents=entities)
         data = displacy.render(ent_input.dict(), style="ent", manual=True)
-        response = HTMLResponse(content=data, status_code=HTTP_201_CREATED)
-        response.headers["Content-Disposition"] = f'attachment ; filename="processed_{str(uuid.uuid4())}.html"'
+        response = HTMLResponse(content=data, status_code=HTTP_200_OK)
+        response.headers["Content-Disposition"] = f'attachment ; filename="{str(uuid.uuid4())}.html"'
         return response
 
     if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
@@ -129,8 +130,8 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         if app.openapi_schema:
             return app.openapi_schema
         openapi_schema = get_openapi(
-            title=f"{model_service.info().model_description.title()} APIs",
-            version=model_service.info().api_version,
+            title=f"{model_service.model_name} APIs",
+            version=model_service.api_version,
             description="by CogStack ModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )
@@ -155,56 +156,66 @@ if __name__ == "__main__":
         "--model",
         help="The name of the model to serve",
         choices=["medcat_1_2", "de_id"],
-        required=True
+    )
+
+    parser.add_argument(
+        "-mmu",
+        "--mlflow_model_uri",
+        help="The URI of the MLflow model to serve",
+        type=str,
+        default="",
     )
 
     parser.add_argument(
         "-H",
         "--host",
         default="0.0.0.0",
-        help="The hostname of the server"
+        help="The hostname of the server",
     )
 
     parser.add_argument(
         "-p",
         "--port",
         default="8000",
-        help="The port of the server"
+        help="The port of the server",
     )
 
     parser.add_argument(
         "-d",
         "--doc",
         action="store_true",
-        help="Export the OpenAPI doc"
+        help="Export the OpenAPI doc",
     )
 
     args = parser.parse_args()
     if args.model == "medcat_1_2":
         from model_services.medcat_model import MedCATModel
-        app = get_model_server(MedCATModel(get_settings()))
+        model_service = MedCATModel(get_settings())
+        app = get_model_server(model_service)
     elif args.model == "de_id":
         from model_services.deid_model import DeIdModel
-        app = get_model_server(DeIdModel(get_settings()))
+        model_service = DeIdModel(get_settings())
+        app = get_model_server(model_service)
 
     if args.doc:
         doc_name = ""
         if args.model == "medcat_1_2":
-            if get_settings().CODE_TYPE == "snomed":
-                doc_name = "snomed_model_apis.json"
-            elif get_settings().CODE_TYPE == "icd10":
-                doc_name = "icd10_model_apis.json"
-            else:
-                raise ValueError(f"Unknown code type: {get_settings().CODE_TYPE}")
+            doc_name = "medcat_model_apis.json"
         elif args.model == "de_id":
             doc_name = "de-dentification_model_apis.json"
         with open(doc_name, "w") as doc:
             json.dump(app.openapi(), doc, indent=4)
         print(f"OpenAPI doc exported to {doc_name}")
         sys.exit(0)
+    else:
+        if args.model:
+            model_service.init_model()
+        elif args.mlflow_model_uri:
+            model_service = ModelWrapper.get_model_service(get_settings().MLFLOW_TRACKING_URI, args.mlflow_model_uri)
+            app = get_model_server(model_service)
 
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-    log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-    logger.info(f'Start serving model "{args.model}" on {args.host}:{args.port}')
-    uvicorn.run(app, host=args.host, port=int(args.port), log_config=log_config)
+        log_config = uvicorn.config.LOGGING_CONFIG
+        log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
+        log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
+        logger.info(f'Start serving model "{args.model}" on {args.host}:{args.port}')
+        uvicorn.run(app, host=args.host, port=int(args.port), log_config=log_config)

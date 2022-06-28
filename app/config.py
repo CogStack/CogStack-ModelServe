@@ -4,7 +4,7 @@ from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     BASE_MODEL_FILE: str = "model.zip"
-    BASE_MODEL_ORIGIN: str = ""
+    BASE_MODEL_FULL_PATH: str = ""
     CODE_TYPE: str = "snomed"
     DEVICE: str = "cpu"
     INCLUDE_SPAN_TEXT: str = "false"

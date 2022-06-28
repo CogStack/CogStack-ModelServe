@@ -88,7 +88,7 @@ def test_preview():
     response = client.post("/preview",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
-    assert response.status_code == 201
+    assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
 
 

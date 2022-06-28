@@ -4,6 +4,7 @@ import re
 from typing import Dict, Tuple
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus
+from monitoring.model_wrapper import ModelWrapper
 
 
 class TrainingTracker(object):
@@ -60,9 +61,17 @@ class TrainingTracker(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def save_and_register_model(filepath: str, run_id: str, model_name: str) -> None:
-        mlflow.log_artifact(filepath)
-        mlflow.register_model(f"runs:/{run_id}", model_name.replace(" ", "_"))
+    def save_and_register_model(filepath: str,
+                                run_id: str,
+                                model_name: str,
+                                pyfunc_model: ModelWrapper) -> None:
+        model_name = model_name.replace(" ", "_")
+        mlflow.pyfunc.log_model(
+            artifact_path=model_name,
+            python_model=pyfunc_model,
+            artifacts={"model_path": filepath}
+        )
+        mlflow.register_model(f"runs:/{run_id}", model_name)
 
     @staticmethod
     def log_exception(e: Exception) -> None:

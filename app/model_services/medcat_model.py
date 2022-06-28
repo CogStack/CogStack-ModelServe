@@ -18,6 +18,7 @@ from config import Settings
 from processors.data_batcher import mini_batch
 from monitoring.tracker import TrainingTracker
 from monitoring.log_captor import LogCaptor
+from monitoring.model_wrapper import ModelWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +27,15 @@ class MedCATModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
         self._config = config
-        self._model_pack_dir = os.path.join(os.path.dirname(__file__), "..", "model")
-        self._retrained_models_dir = os.path.join(self._model_pack_dir, "retrained")
-        self._model_pack_path = os.path.join(self._model_pack_dir, config.BASE_MODEL_FILE)
+        model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "model")
+        self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
+        self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
-        self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+        self._model = None
         self._training_lock = threading.Lock()
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
+        self._pyfunc_model = ModelWrapper(type(self))
 
     @property
     def model(self) -> CAT:
@@ -47,16 +49,27 @@ class MedCATModel(AbstractModelService):
     def model(self) -> None:
         del self._model
 
+    @property
+    def model_name(self) -> str:
+        return "MedCAT model"
+
+    @property
+    def api_version(self) -> str:
+        return "0.0.1"
+
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
         logger.info(f"Model pack loaded from {model_file_path}")
         return cat
 
+    def init_model(self) -> None:
+        self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+
     def info(self) -> ModelCard:
-        return ModelCard(model_description=f"{self._config.CODE_TYPE.upper()} model",
+        return ModelCard(model_description=f"{self._config.CODE_TYPE.upper()} MedCAT model",
                          model_type="MedCAT",
-                         api_version="0.0.1",
+                         api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))
 
     def annotate(self, text: str) -> Dict:
@@ -85,6 +98,7 @@ class MedCATModel(AbstractModelService):
         training_params = {
             "data_path": data_file.name,
             "nepochs": epochs,
+            "test_size": 0.25
         }
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
@@ -127,7 +141,10 @@ class MedCATModel(AbstractModelService):
                 model.train_supervised(**training_params)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.save_and_register_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.save_and_register_model(model_pack_path,
+                                                                       run_id,
+                                                                       medcat_model.info().model_description,
+                                                                       medcat_model._pyfunc_model)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -176,7 +193,10 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.save_and_register_model(model_pack_path, run_id, medcat_model.info().model_description)
+                medcat_model._training_tracker.save_and_register_model(model_pack_path,
+                                                                       run_id,
+                                                                       medcat_model.info().model_description,
+                                                                       medcat_model._pyfunc_model)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -283,7 +303,7 @@ class MedCATModel(AbstractModelService):
                 experiment_id, run_id = self._training_tracker.start_tracking(
                     self.info().model_description,
                     input_file_name,
-                    self._config.BASE_MODEL_ORIGIN,
+                    self._config.BASE_MODEL_FULL_PATH,
                     training_type,
                     training_params,
                     training_id,
