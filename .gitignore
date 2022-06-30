@@ -113,6 +113,11 @@ app/model/retrained/*
 app/mlruns/*
 !app/mlruns/.gitkeep
 
+app/.eggs
+app/build
+app/cogstack_model_serve.egg-info
+app/dist
+
 *.log
 
 .DS_Store

@@ -2,11 +2,10 @@ import pytest
 import mlflow
 
 from app.monitoring.tracker import TrainingTracker
-from app.monitoring.model_wrapper import ModelWrapper
 from unittest.mock import Mock
 
 
-@pytest.fixture()
+@pytest.fixture
 def mlflow_fixture(mocker):
     active_run = Mock()
     active_run.info.run_id = "run_id"
@@ -21,7 +20,6 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.pyfunc.log_model")
     mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.end_run")
-    yield TrainingTracker("any")
 
 
 def test_start_new(mlflow_fixture):

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class MedCATModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
-        self._config = config
+        super().__init__(config)
         model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "model")
         self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
         self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
@@ -35,7 +35,7 @@ class MedCATModel(AbstractModelService):
         self._training_lock = threading.Lock()
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
-        self._pyfunc_model = ModelWrapper(type(self))
+        self._pyfunc_model = ModelWrapper(type(self), config)
 
     @property
     def model(self) -> CAT:
@@ -171,6 +171,7 @@ class MedCATModel(AbstractModelService):
             if model_pack_path:
                 os.remove(model_pack_path)
                 shutil.rmtree(model_pack_path.replace(".zip", ""))
+                logger.debug("Retrained model housekept")
 
     @staticmethod
     def _train_unsupervised(medcat_model: "MedCATModel",
@@ -220,6 +221,7 @@ class MedCATModel(AbstractModelService):
             if model_pack_path:
                 os.remove(model_pack_path)
                 shutil.rmtree(model_pack_path.replace(".zip", ""))
+                logger.debug("Retrained model housekept")
 
     @staticmethod
     def _save_model(service: "MedCATModel",
@@ -227,7 +229,7 @@ class MedCATModel(AbstractModelService):
         logger.info(f"Saving retrained model to {service._retrained_models_dir}...")
         model_pack_name = model.create_model_pack(service._retrained_models_dir, "model")
         model_pack_path = f"{os.path.join(service._retrained_models_dir, model_pack_name)}.zip"
-        logger.info(f"Retrained model saved to {model_pack_path}")
+        logger.debug(f"Retrained model saved to {model_pack_path}")
         return model_pack_path
 
     @staticmethod

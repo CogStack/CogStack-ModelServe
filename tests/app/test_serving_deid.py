@@ -4,8 +4,8 @@ from app.model_services.deid_model import DeIdModel
 from unittest.mock import create_autospec
 
 
-model = create_autospec(DeIdModel)
-client = TestClient(get_model_server(model))
+model_service = create_autospec(DeIdModel)
+client = TestClient(get_model_server(model_service))
 
 
 def test_info():
@@ -15,7 +15,7 @@ def test_info():
         "model_type": "model_type",
         "model_card": None,
     }
-    model.info.return_value = model_card
+    model_service.info.return_value = model_card
     response = client.get("/info")
     assert response.json() == model_card
 
@@ -27,7 +27,7 @@ def test_process():
         "start": 0,
         "end": 6,
     }]
-    model.annotate.return_value = annotations
+    model_service.annotate.return_value = annotations
     response = client.post("/process",
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})
@@ -52,7 +52,7 @@ def test_process_bulk():
             "end": 6,
         }]
     ]
-    model.batch_annotate.return_value = annotations_list
+    model_service.batch_annotate.return_value = annotations_list
     response = client.post("/process_bulk", json=["NW1 2BU", "NW1 2DA"])
     assert response.json() == [
         {
@@ -83,7 +83,7 @@ def test_preview():
         "start": 0,
         "end": 6,
     }]
-    model.annotate.return_value = annotations
+    model_service.annotate.return_value = annotations
     response = client.post("/preview",
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})

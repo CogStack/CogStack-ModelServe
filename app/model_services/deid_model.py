@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class DeIdModel(AbstractModelService):
 
     def __init__(self, config: Settings) -> None:
+        super().__init__(config)
         self._config = config
         self._model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
         if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():

@@ -5,8 +5,8 @@ from app.model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 
 
-model = create_autospec(MedCATModel)
-client = TestClient(get_model_server(model))
+model_service = create_autospec(MedCATModel)
+client = TestClient(get_model_server(model_service))
 
 
 def test_info():
@@ -16,7 +16,7 @@ def test_info():
         "model_type": "model_type",
         "model_card": None,
     }
-    model.info.return_value = model_card
+    model_service.info.return_value = model_card
     response = client.get("/info")
     assert response.json() == model_card
 
@@ -28,7 +28,7 @@ def test_process():
         "start": 1,
         "end": 15,
     }]
-    model.annotate.return_value = annotations
+    model_service.annotate.return_value = annotations
     response = client.post("/process",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
@@ -53,7 +53,7 @@ def test_process_bulk():
             "end": 15,
         }]
     ]
-    model.batch_annotate.return_value = annotations_list
+    model_service.batch_annotate.return_value = annotations_list
     response = client.post("/process_bulk", json=["Spinal stenosis", "Spinal stenosis"])
     assert response.json() == [
         {
@@ -84,7 +84,7 @@ def test_preview():
         "start": 1,
         "end": 15,
     }]
-    model.annotate.return_value = annotations
+    model_service.annotate.return_value = annotations
     response = client.post("/preview",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
@@ -100,7 +100,7 @@ def test_train_supervised():
                 '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
                 '"acc":1,"validated":true}]}]}]}]}')
         response = client.post("/train_supervised", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
-    model.train_supervised.assert_called()
+    model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
@@ -110,6 +110,6 @@ def test_train_unsupervised():
     with tempfile.TemporaryFile("r+") as f:
         f.write("Spinal stenosis")
         response = client.post("/train_unsupervised", files={"training_data": ("note.txt", f, "multipart/form-data")})
-    model.train_unsupervised.assert_called()
+    model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()

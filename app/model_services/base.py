@@ -1,9 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Iterable, Tuple, Dict
+from config import Settings
 from domain import ModelCard
 
 
 class AbstractModelService(ABC):
+
+    def __init__(self, config: Settings) -> None:
+        self._config = config
 
     @staticmethod
     @abstractmethod

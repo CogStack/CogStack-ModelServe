@@ -18,11 +18,11 @@ services:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
-      - mlruns:/app/mlruns
     environment:
-      - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
-      - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:8197
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -33,8 +33,6 @@ services:
       - 8000
     ports:
       - 8180:8000
-#    depends_on:
-#      - mlflow-db
 
   medcat-1-2-icd10:
     build:
@@ -52,11 +50,11 @@ services:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
-      - mlruns:/app/mlruns
     environment:
-      - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
-      - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:8197
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -67,8 +65,6 @@ services:
       - 8000
     ports:
       - 8181:8000
-#    depends_on:
-#      - mlflow-db
 
   de-identification:
     build:
@@ -115,6 +111,30 @@ services:
     ports:
       - 8199:5432
 
+  minio:
+    image: minio/minio:latest
+    container_name: cms_minio
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: $AWS_ACCESS_KEY_ID
+      MINIO_ROOT_PASSWORD: $AWS_SECRET_ACCESS_KEY
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    expose:
+      - 9000
+      - 9001
+    ports:
+      - 8197:9000
+      - 8198:9001
+
   mlflow-ui:
     build:
       context: ./
@@ -127,12 +147,13 @@ services:
     restart: always
     networks:
       - cms
-    volumes:
-      - mlruns:/opt/mlflow/mlruns:ro
     environment:
       - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
       - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
-      - DEFAULT_ARTIFACT_ROOT=/opt/mlflow/mlruns
+      - DEFAULT_ARTIFACT_ROOT=s3://cms-model-bucket
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=$NO_PROXY
@@ -145,6 +166,7 @@ services:
       - 8200:5000
 #    depends_on:
 #      - mlflow-db
+#      - minio
 
   proxy:
     build:
@@ -186,9 +208,9 @@ services:
 volumes:
   retrained-models:
     driver: local
-  mlruns:
-    driver: local
   mlflow-backend-store:
+    driver: local
+  minio-data:
     driver: local
 
 networks:
