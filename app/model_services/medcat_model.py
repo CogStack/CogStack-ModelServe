@@ -133,6 +133,7 @@ class MedCATModel(AbstractModelService):
                           run_id: str) -> None:
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
+        cdb_config_path = None
         try:
             logger.info("Cloning the current model")
             model = deepcopy(medcat_model.model)
@@ -141,10 +142,14 @@ class MedCATModel(AbstractModelService):
                 model.train_supervised(**training_params)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.save_and_register_model(model_pack_path,
-                                                                       run_id,
-                                                                       medcat_model.info().model_description,
-                                                                       medcat_model._pyfunc_model)
+                cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                model.cdb.config.save(cdb_config_path)
+                medcat_model._training_tracker.save_model(model_pack_path,
+                                                          run_id,
+                                                          medcat_model.info().model_description,
+                                                          medcat_model._pyfunc_model)
+                medcat_model._training_tracker.save_model_artifact(cdb_config_path,
+                                                                   medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             data = json.load(open(data_file.name))
@@ -153,9 +158,9 @@ class MedCATModel(AbstractModelService):
                 MedCATModel._deploy_model(medcat_model, model, skip_save_model)
             else:
                 del model
+                gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             data_file.close()
-            gc.collect()
             logger.info("Supervised training finished")
             logger.debug(medcat_model.model.get_model_card())
             medcat_model._training_tracker.end_with_success()
@@ -172,6 +177,8 @@ class MedCATModel(AbstractModelService):
                 os.remove(model_pack_path)
                 shutil.rmtree(model_pack_path.replace(".zip", ""))
                 logger.debug("Retrained model housekept")
+            if cdb_config_path:
+                os.remove(cdb_config_path)
 
     @staticmethod
     def _train_unsupervised(medcat_model: "MedCATModel",
@@ -182,6 +189,7 @@ class MedCATModel(AbstractModelService):
                             skip_save_model: bool,
                             run_id: str) -> None:
         model_pack_path = None
+        cdb_config_path = None
         try:
             logger.info("Cloning the running model...")
             model = deepcopy(medcat_model.model)
@@ -194,10 +202,13 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
-                medcat_model._training_tracker.save_and_register_model(model_pack_path,
-                                                                       run_id,
-                                                                       medcat_model.info().model_description,
-                                                                       medcat_model._pyfunc_model)
+                cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                model.cdb.config.save(cdb_config_path)
+                medcat_model._training_tracker.save_model(model_pack_path,
+                                                          run_id,
+                                                          medcat_model.info().model_description,
+                                                          medcat_model._pyfunc_model)
+                medcat_model._training_tracker.save_model_artifact(cdb_config_path, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -222,6 +233,8 @@ class MedCATModel(AbstractModelService):
                 os.remove(model_pack_path)
                 shutil.rmtree(model_pack_path.replace(".zip", ""))
                 logger.debug("Retrained model housekept")
+            if cdb_config_path:
+                os.remove(cdb_config_path)
 
     @staticmethod
     def _save_model(service: "MedCATModel",
@@ -239,6 +252,7 @@ class MedCATModel(AbstractModelService):
         if skip_save_model:
             model._versioning()
         del service.model
+        gc.collect()
         service.model = model
         logger.info("Retrained model deployed")
 

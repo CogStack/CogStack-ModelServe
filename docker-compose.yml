@@ -15,12 +15,13 @@ services:
     networks:
       - cms
     volumes:
+      - ./app:/app
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:8197
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
@@ -52,7 +53,7 @@ services:
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
-      - MLFLOW_S3_ENDPOINT_URL=http://minio:8197
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
@@ -95,7 +96,7 @@ services:
       - 8182:8000
 
   mlflow-db:
-    image: postgres:latest
+    image: postgres:14
     container_name: cms_mlflow-db
     restart: always
     networks:
@@ -112,7 +113,7 @@ services:
       - 8199:5432
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2022-06-30T20-58-09Z
     container_name: cms_minio
     restart: always
     networks:
@@ -131,9 +132,6 @@ services:
     expose:
       - 9000
       - 9001
-    ports:
-      - 8197:9000
-      - 8198:9001
 
   mlflow-ui:
     build:

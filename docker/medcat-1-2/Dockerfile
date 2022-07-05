@@ -17,6 +17,9 @@ COPY docker/medcat-1-2/requirements.txt requirements.txt
 RUN apt-get update && \
     apt-get install -qy curl
 
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 RUN pip install -U pip
 RUN pip install -r requirements.txt
 RUN python -m spacy download en_core_web_md

@@ -1,3 +1,4 @@
+import os
 import pytest
 import mlflow
 
@@ -17,9 +18,16 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.set_tag")
     mocker.patch("mlflow.log_params")
     mocker.patch("mlflow.log_metrics")
+    mocker.patch("mlflow.log_artifact")
     mocker.patch("mlflow.pyfunc.log_model")
+    mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.end_run")
+
+
+@pytest.fixture
+def mlflow_fixture_file_uri(mlflow_fixture, mocker):
+    mocker.patch("mlflow.get_tracking_uri", return_value="file:/tmp/mlruns")
 
 
 def test_start_new(mlflow_fixture):
@@ -62,11 +70,23 @@ def test_send_model_stats(mlflow_fixture):
     mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)
 
 
-def test_save_and_register_model(mlflow_fixture):
+def test_save_model(mlflow_fixture):
     pyfunc_model = Mock()
-    TrainingTracker.save_and_register_model("filepath", "run_id", "model name", pyfunc_model)
+    TrainingTracker.save_model("filepath", "run_id", "model name", pyfunc_model)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name", python_model=pyfunc_model, artifacts={"model_path": "filepath"})
     mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
+
+
+def test_save_model_artifact(mlflow_fixture):
+    TrainingTracker.save_model_artifact("filepath", "model name")
+    mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
+
+
+def test_save_model_local(mlflow_fixture_file_uri):
+    pyfunc_model = Mock()
+    TrainingTracker.save_model("filepath", "run_id", "model name", pyfunc_model)
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name", python_model=pyfunc_model, artifacts={"model_path": "filepath"})
+    mlflow.register_model.assert_not_called()
 
 
 def test_log_exception(mlflow_fixture):
