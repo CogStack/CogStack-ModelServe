@@ -31,11 +31,11 @@ class MedCATModel(AbstractModelService):
         self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
         self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
-        self._model = None
         self._training_lock = threading.Lock()
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
+        self._model: CAT
 
     @property
     def model(self) -> CAT:

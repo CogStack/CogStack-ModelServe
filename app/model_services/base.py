@@ -30,3 +30,6 @@ class AbstractModelService(ABC):
     @abstractmethod
     def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
         raise NotImplementedError
+
+    def init_model(self) -> None:
+        raise NotImplementedError
