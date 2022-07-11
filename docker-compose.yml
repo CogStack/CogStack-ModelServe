@@ -25,10 +25,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=$NO_PROXY
+      - NO_PROXY=mlflow-ui,minio
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=$NO_PROXY
+      - no_proxy=mlflow-ui,minio
     expose:
       - 8000
     ports:
@@ -57,10 +57,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=$NO_PROXY
+      - NO_PROXY=mlflow-ui,minio
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=$NO_PROXY
+      - no_proxy=mlflow-ui,minio
     expose:
       - 8000
     ports:
@@ -151,10 +151,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=$NO_PROXY
+      - NO_PROXY=minio
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=$NO_PROXY
+      - no_proxy=minio
     expose:
       - 5000
     ports:
@@ -200,6 +200,7 @@ services:
 #      - medcat-1-2-icd10
 #      - de-identification
 #      - mlflow-ui
+#      - minio
 
 volumes:
   retrained-models:

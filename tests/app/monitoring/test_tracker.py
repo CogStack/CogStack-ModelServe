@@ -73,8 +73,11 @@ def test_send_model_stats(mlflow_fixture):
 def test_save_model(mlflow_fixture):
     pyfunc_model = Mock()
     TrainingTracker.save_model("filepath", "run_id", "model name", pyfunc_model)
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name", python_model=pyfunc_model, artifacts={"model_path": "filepath"})
-    mlflow.register_model.assert_called_once_with("runs:/run_id", "model_name")
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
+                                                    python_model=pyfunc_model,
+                                                    artifacts={"model_path": "filepath"},
+                                                    registered_model_name="model_name")
+    mlflow.register_model.assert_not_called()
 
 
 def test_save_model_artifact(mlflow_fixture):
@@ -85,7 +88,9 @@ def test_save_model_artifact(mlflow_fixture):
 def test_save_model_local(mlflow_fixture_file_uri):
     pyfunc_model = Mock()
     TrainingTracker.save_model("filepath", "run_id", "model name", pyfunc_model)
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name", python_model=pyfunc_model, artifacts={"model_path": "filepath"})
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
+                                                    python_model=pyfunc_model,
+                                                    artifacts={"model_path": "filepath"})
     mlflow.register_model.assert_not_called()
 
 

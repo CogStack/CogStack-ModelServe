@@ -67,13 +67,19 @@ class TrainingTracker(object):
                    model_name: str,
                    pyfunc_model: ModelWrapper) -> None:
         model_name = model_name.replace(" ", "_")
-        mlflow.pyfunc.log_model(
-            artifact_path=model_name,
-            python_model=pyfunc_model,
-            artifacts={"model_path": filepath}
-        )
         if not mlflow.get_tracking_uri().startswith("file:/"):
-            mlflow.register_model(f"runs:/{run_id}", model_name)
+            mlflow.pyfunc.log_model(
+                artifact_path=model_name,
+                python_model=pyfunc_model,
+                artifacts={"model_path": filepath},
+                registered_model_name=model_name,
+            )
+        else:
+            mlflow.pyfunc.log_model(
+                artifact_path=model_name,
+                python_model=pyfunc_model,
+                artifacts={"model_path": filepath},
+            )
 
     @staticmethod
     def save_model_artifact(filepath: str,
