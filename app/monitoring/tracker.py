@@ -47,7 +47,7 @@ class TrainingTracker(object):
 
     @staticmethod
     def glean_and_log_metrics(log: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)
+        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)
         for step, metric in enumerate(metric_lines):
             metrics = {
                 "precision": float(metric[1]),
@@ -63,7 +63,6 @@ class TrainingTracker(object):
 
     @staticmethod
     def save_model(filepath: str,
-                   run_id: str,
                    model_name: str,
                    pyfunc_model: ModelWrapper) -> None:
         model_name = model_name.replace(" ", "_")

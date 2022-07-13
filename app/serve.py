@@ -95,11 +95,10 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
         async def unsupervised_training(response: Response,
                                         training_data: UploadFile = File(...),
-                                        epochs: int = 1,
                                         log_frequency: int = Query(default=1000, description="log after every number of processed documents")) -> Dict:
             texts = ijson.items(training_data.file, "item")
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, epochs, log_frequency, training_id, training_data.filename)
+            training_accepted = model_service.train_unsupervised(texts, 1, log_frequency, training_id, training_data.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:

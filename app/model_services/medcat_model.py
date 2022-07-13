@@ -129,8 +129,7 @@ class MedCATModel(AbstractModelService):
                           data_file: TextIO,
                           log_frequency: int,
                           redeploy: bool,
-                          skip_save_model: bool,
-                          run_id: str) -> None:
+                          skip_save_model: bool) -> None:
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
@@ -145,7 +144,6 @@ class MedCATModel(AbstractModelService):
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 medcat_model._training_tracker.save_model(model_pack_path,
-                                                          run_id,
                                                           medcat_model.info().model_description,
                                                           medcat_model._pyfunc_model)
                 medcat_model._training_tracker.save_model_artifact(cdb_config_path,
@@ -186,8 +184,7 @@ class MedCATModel(AbstractModelService):
                             texts: Iterable[str],
                             log_frequency: int,
                             redeploy: bool,
-                            skip_save_model: bool,
-                            run_id: str) -> None:
+                            skip_save_model: bool) -> None:
         model_pack_path = None
         cdb_config_path = None
         try:
@@ -205,7 +202,6 @@ class MedCATModel(AbstractModelService):
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 medcat_model._training_tracker.save_model(model_pack_path,
-                                                          run_id,
                                                           medcat_model.info().model_description,
                                                           medcat_model._pyfunc_model)
                 medcat_model._training_tracker.save_model_artifact(cdb_config_path, medcat_model.info().model_description)
@@ -327,5 +323,5 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model, run_id))
+                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
                 return True
