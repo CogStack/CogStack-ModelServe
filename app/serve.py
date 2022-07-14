@@ -147,7 +147,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         help="The name of the model to serve",
-        choices=["medcat_1_2", "de_id"],
+        choices=["medcat_0_3", "medcat_1_2", "de_id"],
         required=True
     )
 
@@ -173,8 +173,11 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    if args.model == "medcat_1_2":
-        from model_services.medcat_model import MedCATModel
+    if args.model == "medcat_0_3":
+        from model_services.medcat_model_0_3 import MedCATModel
+        app = get_model_server(MedCATModel(get_settings()))
+    elif args.model == "medcat_1_2":
+        from model_services.medcat_model_1_2 import MedCATModel
         app = get_model_server(MedCATModel(get_settings()))
     elif args.model == "de_id":
         from model_services.deid_model import DeIdModel
@@ -182,7 +185,7 @@ if __name__ == "__main__":
 
     if args.doc:
         doc_name = ""
-        if args.model == "medcat_1_2":
+        if args.model == "medcat_1_2" or args.model == "medcat_0_3":
             if get_settings().CODE_TYPE == "snomed":
                 doc_name = "snomed_model_apis.json"
             elif get_settings().CODE_TYPE == "icd10":

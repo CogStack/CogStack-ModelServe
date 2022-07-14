@@ -2,6 +2,30 @@ version: "3.6"
 
 services:
 
+  medcat-0-3:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-0-3/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-0-3
+    volumes:
+      - /Users/kawsarnoor/Desktop/cogstack/models/uclh_0_3_4_model/SNOMED_CT_UK_wDRUGS_20200228_base_Leilei:/app/model
+      - retrained-models:/app/model/retrained
+      - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=$NO_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=$NO_PROXY
+    ports:
+      - 8183:8000
+
+
   medcat-1-2:
     build:
         context: ./
@@ -35,7 +59,7 @@ services:
           - NO_PROXY=$NO_PROXY
     container_name: cms_medcat-1-2-icd10
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - /Users/kawsarnoor/Downloads/medcat_model_pack_icd10_66f96878587b5f58.zip:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
     environment:
