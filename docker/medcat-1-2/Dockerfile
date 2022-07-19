@@ -10,6 +10,7 @@ ENV NO_PROXY=$NO_PROXY
 ENV http_proxy=$HTTP_PROXY
 ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
+ENV PYTHONUNBUFFERED=1
 
 COPY app /app
 COPY docker/medcat-1-2/requirements.txt requirements.txt

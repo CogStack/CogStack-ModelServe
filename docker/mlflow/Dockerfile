@@ -12,6 +12,7 @@ ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 ENV BACKEND_STORE_URI=$BACKEND_STORE_URI
 ENV MLFLOW_HOME=/opt/mlflow
+ENV PYTHONUNBUFFERED=1
 
 COPY docker/mlflow/requirements.txt requirements.txt
 

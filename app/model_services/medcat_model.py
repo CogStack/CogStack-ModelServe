@@ -138,7 +138,21 @@ class MedCATModel(AbstractModelService):
             model = deepcopy(medcat_model.model)
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
-                model.train_supervised(**training_params)
+                _, _, _, p, r, f1, _, _ = model.train_supervised(**training_params)
+            del _
+            gc.collect()
+            class_id = 0
+            cuis = []
+            for cui, precision in p.items():
+                metric = {
+                    "per_concept_precision": precision,
+                    "per_concept_recall": r[cui],
+                    "per_concept_f1": f1[cui],
+                }
+                medcat_model._training_tracker.send_model_stats(metric, class_id)
+                cuis.append(cui)
+                class_id += 1
+            medcat_model._training_tracker.log_classes(cuis)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")

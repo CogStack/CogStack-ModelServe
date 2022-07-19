@@ -2,7 +2,7 @@ import os
 import re
 import socket
 import mlflow
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus
 from monitoring.model_wrapper import ModelWrapper
@@ -89,6 +89,10 @@ class TrainingTracker(object):
     @staticmethod
     def log_exception(e: Exception) -> None:
         mlflow.set_tag("exception", str(e))
+
+    @staticmethod
+    def log_classes(classes: List[str]) -> None:
+        mlflow.set_tag("training.entity.classes", str(classes))
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

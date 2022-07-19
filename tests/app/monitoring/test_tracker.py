@@ -97,3 +97,8 @@ def test_save_model_local(mlflow_fixture_file_uri):
 def test_log_exception(mlflow_fixture):
     TrainingTracker.log_exception(Exception("something wrong"))
     mlflow.set_tag.assert_called_once_with("exception", "something wrong")
+
+
+def test_log_classes(mlflow_fixture):
+    TrainingTracker.log_classes(["class_1", "class_2"])
+    mlflow.set_tag.assert_called_once_with("training.entity.classes", "['class_1', 'class_2']")
