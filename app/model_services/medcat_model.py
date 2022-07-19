@@ -143,11 +143,12 @@ class MedCATModel(AbstractModelService):
             gc.collect()
             class_id = 0
             cuis = []
-            for cui, precision in p.items():
+            f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[1])}
+            for cui, f1_val in f1.items():
                 metric = {
-                    "per_concept_precision": precision,
+                    "per_concept_precision": p[cui],
                     "per_concept_recall": r[cui],
-                    "per_concept_f1": f1[cui],
+                    "per_concept_f1": f1_val,
                 }
                 medcat_model._training_tracker.send_model_stats(metric, class_id)
                 cuis.append(cui)

@@ -92,7 +92,7 @@ class TrainingTracker(object):
 
     @staticmethod
     def log_classes(classes: List[str]) -> None:
-        mlflow.set_tag("training.entity.classes", str(classes))
+        mlflow.set_tag("training.entity.classes", str(classes)[:5000])
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
