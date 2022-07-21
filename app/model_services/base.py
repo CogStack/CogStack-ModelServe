@@ -6,7 +6,7 @@ from domain import ModelCard
 
 class AbstractModelService(ABC):
 
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, *args, **kwargs) -> None:
         self._config = config
 
     @staticmethod

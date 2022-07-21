@@ -54,7 +54,7 @@ class TrainingTracker(object):
                 "recall": float(metric[2]),
                 "f1": float(metric[3]),
             }
-            mlflow.log_metrics(metrics, step)
+            mlflow.log_metrics(metrics, int(metric[0]))
 
     @staticmethod
     def send_model_stats(stats: Dict, step: int) -> None:

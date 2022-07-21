@@ -10,7 +10,7 @@ import shutil
 from functools import partial
 from copy import deepcopy
 from contextlib import redirect_stdout
-from typing import Dict, List, Iterable, TextIO, Union, Callable
+from typing import Dict, List, Iterable, TextIO, Union, Callable, Optional
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 class MedCATModel(AbstractModelService):
 
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
         super().__init__(config)
-        model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "model")
+        model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
         self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
         self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
@@ -35,7 +35,7 @@ class MedCATModel(AbstractModelService):
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
-        self._model: CAT
+        self._model: CAT = None
 
     @property
     def model(self) -> CAT:
@@ -64,7 +64,10 @@ class MedCATModel(AbstractModelService):
         return cat
 
     def init_model(self) -> None:
-        self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+        if isinstance(self._model, CAT):
+            logger.warning("Model service can be initialised only once")
+        else:
+            self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=f"{self._config.CODE_TYPE.upper()} MedCAT model",

@@ -120,4 +120,7 @@ app/dist
 
 *.log
 
+tests/resources/model
+tests/resources/model.zip
+
 .DS_Store

@@ -3,7 +3,7 @@ import shutil
 import logging
 import torch
 import numpy as np
-from typing import Tuple, List, Dict, Iterable
+from typing import Tuple, List, Dict, Iterable, Optional
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.tokenizer_ner import TokenizerNER
@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 class DeIdModel(AbstractModelService):
 
-    def __init__(self, config: Settings) -> None:
+    def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
         super().__init__(config)
         self._config = config
-        self._model_file_path = os.path.join(os.path.dirname(__file__), "..", "model", config.BASE_MODEL_FILE)
+        model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
+        self._model_file_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
             logger.warning("Service is configured to using GPUs but no GPUs were found.")
             self._device = "cpu"
@@ -57,9 +58,12 @@ class DeIdModel(AbstractModelService):
         return tokenizer, model
 
     def init_model(self) -> None:
-        self._tokenizer, self._model = self.load_model(self._model_file_path)
-        self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
-        self._model.to(self._device)
+        if isinstance(self._model, PreTrainedModel):
+            logger.warning("Model service can be initialised only once")
+        else:
+            self._tokenizer, self._model = self.load_model(self._model_file_path)
+            self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
+            self._model.to(self._device)
 
     def annotate(self, text: str) -> List[Dict]:
         return self._get_annotations(text)
