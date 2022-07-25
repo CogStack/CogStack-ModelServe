@@ -1,6 +1,6 @@
 medcat==1.2.8
 fastapi~=0.75.2
-uvicorn~=0.17.6
+hypercorn~=0.13.2
 python-multipart~=0.0.5
 ijson~=3.1.4
 python-dotenv~=0.20.0

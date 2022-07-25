@@ -1,12 +1,14 @@
 import os
 import argparse
 import logging.config
-import uvicorn
 import uuid
 import tempfile
 import ijson
 import json
 import sys
+import asyncio
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
@@ -213,8 +215,8 @@ if __name__ == "__main__":
             model_service = ModelWrapper.get_model_service(get_settings().MLFLOW_TRACKING_URI, args.mlflow_model_uri)
             app = get_model_server(model_service)
 
-        log_config = uvicorn.config.LOGGING_CONFIG
-        log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-        log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-        logger.info(f'Start serving model "{args.model}" on {args.host}:{args.port}')
-        uvicorn.run(app, host=args.host, port=int(args.port), log_config=log_config)
+        config = Config()
+        config.bind = [f"{args.host}:{args.port}"]
+        config.access_log_format = "%(R)s %(s)s %(st)s %(D)s %({Header}o)s"
+        config.accesslog = logger
+        asyncio.run(serve(app, config))  # type: ignore
