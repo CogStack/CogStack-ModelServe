@@ -19,6 +19,7 @@ from processors.data_batcher import mini_batch
 from monitoring.tracker import TrainingTracker
 from monitoring.log_captor import LogCaptor
 from monitoring.model_wrapper import ModelWrapper
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,7 @@ class MedCATModel(AbstractModelService):
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
         self._model: CAT = None
+        self.executor = ThreadPoolExecutor(max_workers=2)
 
     @property
     def model(self) -> CAT:
@@ -341,5 +343,5 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                loop.run_in_executor(None, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
+                loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
                 return True

@@ -7,12 +7,15 @@ import ijson
 import json
 import sys
 import asyncio
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
 from functools import lru_cache
+from concurrent.futures import ThreadPoolExecutor
+from anyio.lowlevel import RunVar
+from anyio import CapacityLimiter
+from hypercorn.config import Config
+from hypercorn.asyncio import serve
 from fastapi import FastAPI, Request, Response, Body, File, UploadFile, Query
 from fastapi.responses import HTMLResponse
 from fastapi.openapi.utils import get_openapi
@@ -45,6 +48,29 @@ def get_settings():
 def get_model_server(model_service: AbstractModelService) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tag]
     app = FastAPI(penapi_tags=tags_metadata)
+
+    @app.on_event("startup")
+    def on_startup():
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=5))
+        RunVar("_default_thread_limiter").set(CapacityLimiter(2))
+
+    @app.middleware("http")
+    async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
+        scope = request.scope
+        if request.method != "POST":
+            return await call_next(request)
+        if not scope or not scope.get("query_string"):
+            return await call_next(request)
+
+        query_params = QueryParams(scope["query_string"])
+
+        scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
+        return await call_next(Request(scope, request.receive, request._send))
+
+    @app.on_event("shutdown")
+    async def on_shutdown():
+        TrainingTracker.end_with_interruption()
 
     @app.get("/info", response_model=ModelCard, tags=[Tag.Metadata.name])
     async def model_card() -> ModelCard:
@@ -109,23 +135,6 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         else:
             response.status_code = HTTP_503_SERVICE_UNAVAILABLE
             return {"message": "Another training is in progress. Please retry your training later."}
-
-    @app.middleware("http")
-    async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
-        scope = request.scope
-        if request.method != "POST":
-            return await call_next(request)
-        if not scope or not scope.get("query_string"):
-            return await call_next(request)
-
-        query_params = QueryParams(scope["query_string"])
-
-        scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
-        return await call_next(Request(scope, request.receive, request._send))
-
-    @app.on_event("shutdown")
-    async def on_shutdown():
-        TrainingTracker.end_with_interruption()
 
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:

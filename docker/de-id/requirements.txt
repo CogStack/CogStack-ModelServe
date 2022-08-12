@@ -1,5 +1,5 @@
 medcat==1.2.8
-fastapi~=0.75.2
+fastapi~=0.79.0
 hypercorn~=0.13.2
 python-multipart~=0.0.5
 ijson~=3.1.4
