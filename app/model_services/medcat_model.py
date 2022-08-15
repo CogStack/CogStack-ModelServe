@@ -37,7 +37,7 @@ class MedCATModel(AbstractModelService):
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
         self._model: CAT = None
-        self.executor = ThreadPoolExecutor(max_workers=2)
+        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=2)
 
     @property
     def model(self) -> CAT:
@@ -187,7 +187,6 @@ class MedCATModel(AbstractModelService):
             logger.error(e, exc_info=True, stack_info=True)
             medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
-            raise e
         finally:
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
@@ -241,7 +240,6 @@ class MedCATModel(AbstractModelService):
             logger.error(e, exc_info=True, stack_info=True)
             medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
-            raise e
         finally:
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
@@ -343,5 +341,7 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
+                self.executor.shutdown(wait=False)
+                self.executor = ThreadPoolExecutor(max_workers=2)
                 loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
                 return True
