@@ -34,6 +34,7 @@ services:
       - 8000
     ports:
       - 8180:8000
+    mem_limit: 30g
 
   medcat-1-2-icd10:
     build:
@@ -67,6 +68,7 @@ services:
       - 8000
     ports:
       - 8181:8000
+    mem_limit: 30g
 
   de-identification:
     build:

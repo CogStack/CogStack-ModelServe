@@ -8,7 +8,6 @@ import gc
 import shutil
 
 from functools import partial
-from copy import deepcopy
 from contextlib import redirect_stdout
 from typing import Dict, List, Iterable, TextIO, Union, Callable, Optional
 from medcat.cat import CAT
@@ -37,7 +36,7 @@ class MedCATModel(AbstractModelService):
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
         self._model: CAT = None
-        self.executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=2)
+        self.executor: Optional[ThreadPoolExecutor] = None
 
     @property
     def model(self) -> CAT:
@@ -139,8 +138,9 @@ class MedCATModel(AbstractModelService):
         model_pack_path = None
         cdb_config_path = None
         try:
-            logger.info("Cloning the current model")
-            model = deepcopy(medcat_model.model)
+            logger.info("Lo model")
+            model = medcat_model.load_model(medcat_model._model_pack_path,
+                                            meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
                 _, _, _, p, r, f1, _, _ = model.train_supervised(**training_params)
@@ -178,7 +178,6 @@ class MedCATModel(AbstractModelService):
                 del model
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
-            data_file.close()
             logger.info("Supervised training finished")
             logger.debug(medcat_model.model.get_model_card())
             medcat_model._training_tracker.end_with_success()
@@ -188,6 +187,7 @@ class MedCATModel(AbstractModelService):
             medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
         finally:
+            data_file.close()
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
             if model_pack_path:
@@ -208,7 +208,8 @@ class MedCATModel(AbstractModelService):
         cdb_config_path = None
         try:
             logger.info("Cloning the running model...")
-            model = deepcopy(medcat_model.model)
+            model = medcat_model.load_model(medcat_model._model_pack_path,
+                                            meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing unsupervised training...")
             step = 0
             medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
@@ -230,8 +231,8 @@ class MedCATModel(AbstractModelService):
                 MedCATModel._deploy_model(medcat_model, model, skip_save_model)
             else:
                 del model
+                gc.collect()
                 logger.info("Skipped deployment on the retrained model")
-            gc.collect()
             logger.info("Unsupervised training finished")
             logger.debug(medcat_model.model.get_model_card())
             medcat_model._training_tracker.end_with_success()
@@ -341,7 +342,8 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                self.executor.shutdown(wait=False)
-                self.executor = ThreadPoolExecutor(max_workers=2)
+                if self.executor:
+                    self.executor.shutdown(wait=True)
+                    self.executor = ThreadPoolExecutor(max_workers=1)
                 loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
                 return True
