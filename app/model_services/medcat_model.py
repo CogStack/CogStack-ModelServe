@@ -1,5 +1,4 @@
 import os
-import json
 import logging
 import asyncio
 import pandas as pd
@@ -36,7 +35,7 @@ class MedCATModel(AbstractModelService):
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
         self._model: CAT = None
-        self.executor: Optional[ThreadPoolExecutor] = None
+        self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
 
     @property
     def model(self) -> CAT:
@@ -137,9 +136,11 @@ class MedCATModel(AbstractModelService):
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
+        copied_model_pack_path = None
         try:
-            logger.info("Lo model")
-            model = medcat_model.load_model(medcat_model._model_pack_path,
+            logger.info("Loading a new model copy for training...")
+            copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
+            model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
@@ -170,8 +171,6 @@ class MedCATModel(AbstractModelService):
                                                                    medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
-            data = json.load(open(data_file.name))
-            logger.debug(model._print_stats(data, extra_cui_filter=True))
             if redeploy:
                 MedCATModel._deploy_model(medcat_model, model, skip_save_model)
             else:
@@ -179,7 +178,6 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Supervised training finished")
-            logger.debug(medcat_model.model.get_model_card())
             medcat_model._training_tracker.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
@@ -190,10 +188,8 @@ class MedCATModel(AbstractModelService):
             data_file.close()
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
-            if model_pack_path:
-                os.remove(model_pack_path)
-                shutil.rmtree(model_pack_path.replace(".zip", ""))
-                logger.debug("Retrained model housekept")
+            medcat_model._housekeep_model_file(model_pack_path)
+            medcat_model._housekeep_model_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
 
@@ -206,9 +202,11 @@ class MedCATModel(AbstractModelService):
                             skip_save_model: bool) -> None:
         model_pack_path = None
         cdb_config_path = None
+        copied_model_pack_path = None
         try:
-            logger.info("Cloning the running model...")
-            model = medcat_model.load_model(medcat_model._model_pack_path,
+            logger.info("Loading a new model copy for training...")
+            copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
+            model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing unsupervised training...")
             step = 0
@@ -224,7 +222,7 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.save_model(model_pack_path,
                                                           medcat_model.info().model_description,
                                                           medcat_model._pyfunc_model)
-                medcat_model._training_tracker.save_model_artifact(cdb_config_path, medcat_model.info().model_description)
+                # medcat_model._training_tracker.save_model_artifact(cdb_config_path, medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -234,7 +232,6 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
-            logger.debug(medcat_model.model.get_model_card())
             medcat_model._training_tracker.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")
@@ -244,12 +241,27 @@ class MedCATModel(AbstractModelService):
         finally:
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
-            if model_pack_path:
-                os.remove(model_pack_path)
-                shutil.rmtree(model_pack_path.replace(".zip", ""))
-                logger.debug("Retrained model housekept")
+            medcat_model._housekeep_model_file(model_pack_path)
+            medcat_model._housekeep_model_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
+
+    @staticmethod
+    def _make_model_file_copy(model_file_path: str):
+        copied_model_pack_path = model_file_path.replace(".zip", "_copied.zip")
+        shutil.copy2(model_file_path, copied_model_pack_path)
+        if os.path.exists(copied_model_pack_path.replace(".zip", "")):
+            shutil.rmtree(copied_model_pack_path.replace(".zip", ""))
+        return copied_model_pack_path
+
+    @staticmethod
+    def _housekeep_model_file(model_file_path: Optional[str]):
+        if model_file_path and os.path.exists(model_file_path):
+            os.remove(model_file_path)
+            logger.debug("model pack housekept")
+        if model_file_path and os.path.exists(model_file_path.replace(".zip", "")):
+            shutil.rmtree(model_file_path.replace(".zip", ""))
+            logger.debug("Unpacked model directory housekept")
 
     @staticmethod
     def _save_model(service: "MedCATModel",
@@ -342,8 +354,5 @@ class MedCATModel(AbstractModelService):
                 )
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                if self.executor:
-                    self.executor.shutdown(wait=True)
-                    self.executor = ThreadPoolExecutor(max_workers=1)
-                loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model))
+                asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model)))
                 return True

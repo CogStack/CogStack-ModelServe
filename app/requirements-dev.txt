@@ -3,3 +3,4 @@ pytest-mock~=3.7.0
 pytest-timeout~=2.1.0
 mypy==0.950
 flake8==4.0.1
+locust~=2.11.0

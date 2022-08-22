@@ -52,8 +52,8 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
     @app.on_event("startup")
     def on_startup():
         loop = asyncio.get_running_loop()
-        loop.set_default_executor(ThreadPoolExecutor(max_workers=5))
-        RunVar("_default_thread_limiter").set(CapacityLimiter(2))
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
+        RunVar("_default_thread_limiter").set(CapacityLimiter(50))
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
