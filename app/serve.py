@@ -7,6 +7,7 @@ import ijson
 import json
 import sys
 import asyncio
+import shutil
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
@@ -163,9 +164,17 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-m",
-        "--model",
-        help="The name of the model to serve",
-        choices=["medcat_1_2", "de_id"],
+        "--model_type",
+        help="The type of the model to serve",
+        choices=["medcat", "de_id"],
+    )
+
+    parser.add_argument(
+        "-mp",
+        "--model_path",
+        help="The file path to the model package",
+        type=str,
+        default="",
     )
 
     parser.add_argument(
@@ -198,31 +207,47 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    if args.model == "medcat_1_2":
+    settings = get_settings()
+
+    if args.model_type == "medcat":
         from model_services.medcat_model import MedCATModel
-        model_service = MedCATModel(get_settings())
+        model_service = MedCATModel(settings)
         app = get_model_server(model_service)
-    elif args.model == "de_id":
+    elif args.model_type == "de_id":
         from model_services.deid_model import DeIdModel
-        model_service = DeIdModel(get_settings())
+        model_service = DeIdModel(settings)
         app = get_model_server(model_service)
+    else:
+        print(f"Error: unknown model type: {args.model_type}")
+        sys.exit(1)
 
     if args.doc:
         doc_name = ""
-        if args.model == "medcat_1_2":
+        if args.model_type == "medcat":
             doc_name = "medcat_model_apis.json"
-        elif args.model == "de_id":
+        elif args.model_type == "de_id":
             doc_name = "de-dentification_model_apis.json"
         with open(doc_name, "w") as doc:
             json.dump(app.openapi(), doc, indent=4)
         print(f"OpenAPI doc exported to {doc_name}")
         sys.exit(0)
     else:
-        if args.model:
+        if args.model_path:
+            try:
+                dst_model_path = os.path.join(os.path.dirname(__file__), "model", "model.zip")
+                shutil.copy2(args.model_path, dst_model_path)
+            except shutil.SameFileError:
+                pass
+            if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
+                shutil.rmtree(dst_model_path.replace(".zip", ""))
             model_service.init_model()
         elif args.mlflow_model_uri:
-            model_service = ModelWrapper.get_model_service(get_settings().MLFLOW_TRACKING_URI, args.mlflow_model_uri)
+            model_service = ModelWrapper.get_model_service(settings.MLFLOW_TRACKING_URI, args.mlflow_model_uri)
             app = get_model_server(model_service)
+            # TODO: replace /app/model/model.zip with the model artifact
+        else:
+            print("Error: Neither the model path or the mlflow model uri was passed in")
+            sys.exit(1)
 
         config = Config()
         config.bind = [f"{args.host}:{args.port}"]

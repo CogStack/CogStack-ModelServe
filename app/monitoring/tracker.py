@@ -26,6 +26,7 @@ class TrainingTracker(object):
         active_run = mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
+            "training.mlflow.run_id": active_run.info.run_id,
             "training.input_data.filename": input_file_name,
             "training.base_model.origin": base_model_original,
             "training.metrics.log_frequency": log_frequency,

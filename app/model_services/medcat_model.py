@@ -222,7 +222,8 @@ class MedCATModel(AbstractModelService):
                 medcat_model._training_tracker.save_model(model_pack_path,
                                                           medcat_model.info().model_description,
                                                           medcat_model._pyfunc_model)
-                # medcat_model._training_tracker.save_model_artifact(cdb_config_path, medcat_model.info().model_description)
+                medcat_model._training_tracker.save_model_artifact(cdb_config_path,
+                                                                   medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:

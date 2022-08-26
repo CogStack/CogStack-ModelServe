@@ -49,3 +49,6 @@ class _MockedModelService(AbstractModelService):
 
     def batch_annotate(self, texts):
         return None
+
+    def init_model(self):
+        return None

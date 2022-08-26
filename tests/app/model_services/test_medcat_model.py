@@ -45,7 +45,7 @@ def test_annotate(medcat_model):
     medcat_model.init_model()
     annotations = medcat_model.annotate("Spinal stenosis")
     assert len(annotations) == 1
-    assert annotations[0]["label_name"] == "Spinal Stenosis"
+    assert type(annotations[0]["label_name"]) is str
     assert annotations[0]["start"] == 0
     assert annotations[0]["end"] == 15
 

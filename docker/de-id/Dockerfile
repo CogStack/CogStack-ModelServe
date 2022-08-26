@@ -24,4 +24,4 @@ RUN python -m spacy download en_core_web_md
 
 WORKDIR /app
 EXPOSE 8000
-CMD ["python", "serve.py", "--model", "de_id", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "serve.py", "--model_type", "de_id", "--model_path", "/app/model/model.zip", "--host", "0.0.0.0", "--port", "8000"]
