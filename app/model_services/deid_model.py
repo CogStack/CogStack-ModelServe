@@ -58,7 +58,7 @@ class DeIdModel(AbstractModelService):
         return tokenizer, model
 
     def init_model(self) -> None:
-        if isinstance(self._model, PreTrainedModel):
+        if hasattr(self, "_model") and isinstance(self._model, PreTrainedModel):
             logger.warning("Model service can be initialised only once")
         else:
             self._tokenizer, self._model = self.load_model(self._model_file_path)

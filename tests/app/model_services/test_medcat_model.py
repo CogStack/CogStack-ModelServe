@@ -69,5 +69,6 @@ def test_train_unsupervised(medcat_model):
     medcat_model._config.REDEPLOY_TRAINED_MODEL = "false"
     medcat_model._config.SKIP_SAVE_MODEL = "true"
     with patch("app.model_services.medcat_model.MedCATModel._start_training", autospec=True) as start_training:
-        medcat_model.train_unsupervised(["Spinal Stenosis"], 1, 1, "training_id", "input_file_name")
+        with tempfile.TemporaryFile("r+") as f:
+            medcat_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
         start_training.assert_called()

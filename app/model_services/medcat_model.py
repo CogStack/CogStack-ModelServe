@@ -1,14 +1,15 @@
 import os
 import logging
 import asyncio
-import pandas as pd
 import threading
 import gc
 import shutil
+import ijson
+import pandas as pd
 
 from functools import partial
 from contextlib import redirect_stdout
-from typing import Dict, List, Iterable, TextIO, Union, Callable, Optional
+from typing import Dict, List, TextIO, Callable, Optional
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
@@ -34,8 +35,8 @@ class MedCATModel(AbstractModelService):
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelWrapper(type(self), config)
-        self._model: CAT = None
         self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
+        self._model: CAT
 
     @property
     def model(self) -> CAT:
@@ -60,11 +61,11 @@ class MedCATModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
-        logger.info(f"Model pack loaded from {model_file_path}")
+        logger.info(f"Model pack loaded from {os.path.normpath(model_file_path)}")
         return cat
 
     def init_model(self) -> None:
-        if isinstance(self._model, CAT):
+        if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
@@ -103,13 +104,10 @@ class MedCATModel(AbstractModelService):
             "nepochs": epochs,
             "test_size": 0.25
         }
-        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
-        return self._start_training(self._train_supervised, training_type, training_params, data_file, log_frequency, redeploy,
-                                    skip_save_model, training_id, input_file_name)
+        return self._start_training(self._train_supervised, training_type, training_params, data_file, log_frequency, training_id, input_file_name)
 
     def train_unsupervised(self,
-                           texts: Iterable[str],
+                           data_file: TextIO,
                            epochs: int,
                            log_frequency: int,
                            training_id: str,
@@ -118,10 +116,7 @@ class MedCATModel(AbstractModelService):
         training_params = {
             "nepochs": epochs,
         }
-        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
-        return self._start_training(self._train_unsupervised, training_type, training_params, texts, log_frequency, redeploy,
-                                    skip_save_model, training_id, input_file_name)
+        return self._start_training(self._train_unsupervised, training_type, training_params, data_file, log_frequency, training_id, input_file_name)
 
     def train_meta_models(self, annotations: Dict) -> None:
         pass
@@ -130,13 +125,13 @@ class MedCATModel(AbstractModelService):
     def _train_supervised(medcat_model: "MedCATModel",
                           training_params: Dict,
                           data_file: TextIO,
-                          log_frequency: int,
-                          redeploy: bool,
-                          skip_save_model: bool) -> None:
+                          log_frequency: int) -> None:
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
+        redeploy = medcat_model._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = medcat_model._config.SKIP_SAVE_MODEL == "true"
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
@@ -188,21 +183,23 @@ class MedCATModel(AbstractModelService):
             data_file.close()
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
-            medcat_model._housekeep_model_file(model_pack_path)
-            medcat_model._housekeep_model_file(copied_model_pack_path)
+            medcat_model._housekeep_file(model_pack_path)
+            medcat_model._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
 
     @staticmethod
     def _train_unsupervised(medcat_model: "MedCATModel",
                             training_params: Dict,
-                            texts: Iterable[str],
-                            log_frequency: int,
-                            redeploy: bool,
-                            skip_save_model: bool) -> None:
+                            data_file: TextIO,
+                            log_frequency: int) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
+        redeploy = medcat_model._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = medcat_model._config.SKIP_SAVE_MODEL == "true"
+        data_file.seek(0)
+        texts = ijson.items(data_file, "item")
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
@@ -240,10 +237,11 @@ class MedCATModel(AbstractModelService):
             medcat_model._training_tracker.log_exception(e)
             medcat_model._training_tracker.end_with_failure()
         finally:
+            data_file.close()
             with medcat_model._training_lock:
                 medcat_model._training_in_progress = False
-            medcat_model._housekeep_model_file(model_pack_path)
-            medcat_model._housekeep_model_file(copied_model_pack_path)
+            medcat_model._housekeep_file(model_pack_path)
+            medcat_model._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
 
@@ -256,12 +254,12 @@ class MedCATModel(AbstractModelService):
         return copied_model_pack_path
 
     @staticmethod
-    def _housekeep_model_file(model_file_path: Optional[str]):
-        if model_file_path and os.path.exists(model_file_path):
-            os.remove(model_file_path)
+    def _housekeep_file(file_path: Optional[str]):
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
             logger.debug("model pack housekept")
-        if model_file_path and os.path.exists(model_file_path.replace(".zip", "")):
-            shutil.rmtree(model_file_path.replace(".zip", ""))
+        if file_path and os.path.exists(file_path.replace(".zip", "")):
+            shutil.rmtree(file_path.replace(".zip", ""))
             logger.debug("Unpacked model directory housekept")
 
     @staticmethod
@@ -333,10 +331,8 @@ class MedCATModel(AbstractModelService):
                         runner: Callable,
                         training_type: str,
                         training_params: Dict,
-                        dataset: Union[Iterable[str], TextIO],
+                        dataset: TextIO,
                         log_frequency: int,
-                        redeploy: bool,
-                        skip_save_model: bool,
                         training_id: str,
                         input_file_name: str) -> bool:
         with self._training_lock:
@@ -353,7 +349,9 @@ class MedCATModel(AbstractModelService):
                     training_id,
                     log_frequency,
                 )
+                if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
+                    self._training_tracker.save_model_artifact(dataset.name, self.info().model_description)
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, redeploy, skip_save_model)))
+                asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency)))
                 return True

@@ -14,13 +14,10 @@ ENV BACKEND_STORE_URI=$BACKEND_STORE_URI
 ENV MLFLOW_HOME=/opt/mlflow
 ENV PYTHONUNBUFFERED=1
 
-COPY docker/mlflow/requirements.txt requirements.txt
+COPY docker/mlflow/requirements.txt /requirements.txt
 
-RUN apt-get update && \
-    apt-get install -qy curl
-
-RUN pip install -U pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir pip~=22.2.1 &&\
+    pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir -p ${MLFLOW_HOME}/scripts
 COPY docker/mlflow/scripts/run.sh ${MLFLOW_HOME}/scripts/run.sh

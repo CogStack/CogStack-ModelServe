@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     MLFLOW_TRACKING_URI: str = f'file:{os.path.join(os.path.abspath(os.path.dirname(__file__)), "mlruns")}'
     REDEPLOY_TRAINED_MODEL: str = "false"
     SKIP_SAVE_MODEL: str = "false"
+    SKIP_SAVE_TRAINING_DATASET: str = "true"
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")

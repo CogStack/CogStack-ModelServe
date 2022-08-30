@@ -3,11 +3,11 @@ import argparse
 import logging.config
 import uuid
 import tempfile
-import ijson
 import json
 import sys
 import asyncio
 import shutil
+import warnings
 from enum import Enum
 from typing import List, Dict, Callable, Any
 from urllib.parse import urlencode
@@ -32,6 +32,8 @@ from monitoring.model_wrapper import ModelWrapper
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore")
+warnings.simplefilter("ignore")
 
 
 class Tag(str, Enum):
@@ -125,9 +127,12 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         async def unsupervised_training(response: Response,
                                         training_data: UploadFile = File(...),
                                         log_frequency: int = Query(default=1000, description="log after every number of processed documents")) -> Dict:
-            texts = ijson.items(training_data.file, "item")
+            data_file = tempfile.NamedTemporaryFile()
+            for line in training_data.file:
+                data_file.write(line)
+            data_file.flush()
             training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(texts, 1, log_frequency, training_id, training_data.filename)
+            training_accepted = model_service.train_unsupervised(data_file, 1, log_frequency, training_id, training_data.filename)
             return _get_training_response(training_accepted, response, training_id)
 
     def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:
@@ -232,19 +237,19 @@ if __name__ == "__main__":
         print(f"OpenAPI doc exported to {doc_name}")
         sys.exit(0)
     else:
+        dst_model_path = os.path.join(os.path.dirname(__file__), "model", "model.zip")
+        if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
+            shutil.rmtree(dst_model_path.replace(".zip", ""))
         if args.model_path:
             try:
-                dst_model_path = os.path.join(os.path.dirname(__file__), "model", "model.zip")
                 shutil.copy2(args.model_path, dst_model_path)
             except shutil.SameFileError:
                 pass
-            if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
-                shutil.rmtree(dst_model_path.replace(".zip", ""))
             model_service.init_model()
         elif args.mlflow_model_uri:
             model_service = ModelWrapper.get_model_service(settings.MLFLOW_TRACKING_URI, args.mlflow_model_uri)
+            ModelWrapper.download_model_package(os.path.join(args.mlflow_model_uri, "artifacts"), dst_model_path)
             app = get_model_server(model_service)
-            # TODO: replace /app/model/model.zip with the model artifact
         else:
             print("Error: Neither the model path or the mlflow model uri was passed in")
             sys.exit(1)

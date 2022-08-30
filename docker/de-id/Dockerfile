@@ -13,13 +13,10 @@ ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
 
 COPY app /app
-COPY docker/de-id/requirements.txt requirements.txt
+COPY docker/de-id/requirements.txt /requirements.txt
 
-RUN apt-get update && \
-    apt-get install -qy curl
-
-RUN pip install -U pip
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir pip~=22.2.1 &&\
+    pip install --no-cache-dir -r requirements.txt
 RUN python -m spacy download en_core_web_md
 
 WORKDIR /app

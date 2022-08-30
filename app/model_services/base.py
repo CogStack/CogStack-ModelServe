@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict, TextIO
+from typing import Any, List, Iterable, Tuple, Dict
 from config import Settings
 from domain import ModelCard
 
@@ -33,24 +33,4 @@ class AbstractModelService(ABC):
 
     @abstractmethod
     def init_model(self) -> None:
-        raise NotImplementedError
-
-    # Optional methods
-    def export_model(self, model_package_path: str) -> None:
-        raise NotImplementedError
-
-    def train_supervised(self,
-                         data_file: TextIO,
-                         epochs: int,
-                         log_frequency: int,
-                         training_id: str,
-                         input_file_name: str) -> bool:
-        raise NotImplementedError
-
-    def train_unsupervised(self,
-                           texts: Iterable[str],
-                           epochs: int,
-                           log_frequency: int,
-                           training_id: str,
-                           input_file_name: str) -> bool:
         raise NotImplementedError
