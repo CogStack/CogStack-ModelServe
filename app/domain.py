@@ -1,5 +1,6 @@
-from pydantic import BaseModel
+from enum import Enum
 from typing import List, Optional
+from pydantic import BaseModel
 
 
 class Annotation(BaseModel):
@@ -35,3 +36,10 @@ class Doc(BaseModel):
     text: str
     ents: List[Entity]
     title: Optional[str]
+
+
+class Tags(str, Enum):
+    Metadata = "Get the model card."
+    Annotations = "Retrieve recognised entities by running the model."
+    Rendering = "Get embeddable annotation snippet in HTML."
+    Training = "Trigger model training on input annotations."

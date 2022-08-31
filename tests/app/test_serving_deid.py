@@ -1,12 +1,12 @@
+import app.globals
 from fastapi.testclient import TestClient
 from app.serve import get_model_server
 from app.model_services.deid_model import DeIdModel
 from unittest.mock import create_autospec
 
-
 model_service = create_autospec(DeIdModel)
-client = TestClient(get_model_server(model_service))
-
+app = get_model_server(lambda: model_service)
+client = TestClient(app)
 
 def test_info():
     model_card = {

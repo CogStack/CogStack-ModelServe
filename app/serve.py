@@ -1,15 +1,13 @@
 import os
 import argparse
 import logging.config
-import uuid
-import tempfile
 import json
 import sys
 import asyncio
 import shutil
 import warnings
-from enum import Enum
-from typing import List, Dict, Callable, Any
+import globals
+from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor
@@ -17,18 +15,14 @@ from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
-from fastapi import FastAPI, Request, Response, Body, File, UploadFile, Query
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
-from starlette.status import HTTP_200_OK, HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
-from spacy import displacy
-from domain import TextwithAnnotations, ModelCard, Doc
-from model_services.base import AbstractModelService
+from domain import Tags
 from config import Settings
-from utils import annotations_to_entities
 from monitoring.tracker import TrainingTracker
 from monitoring.model_wrapper import ModelWrapper
+from dependencies import ModelServiceDep
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
@@ -36,21 +30,16 @@ warnings.filterwarnings("ignore")
 warnings.simplefilter("ignore")
 
 
-class Tag(str, Enum):
-    Metadata = "Get the model card."
-    Annotations = "Retrieve recognised entities by running the model."
-    Rendering = "Get embeddable annotation snippet in HTML."
-    Training = "Trigger model training on input annotations."
-
-
 @lru_cache()
 def get_settings():
     return Settings()
 
 
-def get_model_server(model_service: AbstractModelService) -> FastAPI:
-    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tag]
-    app = FastAPI(penapi_tags=tags_metadata)
+def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    if msd_overwritten is not None:
+        globals.model_service_dep = msd_overwritten
+    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
+    app = FastAPI(openapi_tags=tags_metadata)
 
     @app.on_event("startup")
     def on_startup():
@@ -75,73 +64,6 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
     async def on_shutdown():
         TrainingTracker.end_with_interruption()
 
-    @app.get("/info", response_model=ModelCard, tags=[Tag.Metadata.name])
-    async def model_card() -> ModelCard:
-        return model_service.info()
-
-    @app.post("/process",
-              response_model=TextwithAnnotations,
-              response_model_exclude_none=True,
-              tags=[Tag.Annotations.name])
-    async def process_a_single_note(text: str = Body(..., media_type="text/plain")) -> Dict:
-        annotations = model_service.annotate(text)
-        return {"text": text, "annotations": annotations}
-
-    @app.post("/process_bulk",
-              response_model=List[TextwithAnnotations],
-              response_model_exclude_none=True,
-              tags=[Tag.Annotations.name])
-    async def process_a_list_of_notes(texts: List[str]) -> List[Dict]:
-        annotations_list = model_service.batch_annotate(texts)
-        body = []
-        for text, annotations in zip(texts, annotations_list):
-            body.append({"text": text, "annotations": annotations})
-        return body
-
-    @app.post("/preview", tags=[Tag.Rendering.name], response_class=HTMLResponse)
-    async def preview_processing_result(text: str = Body(..., media_type="text/plain")) -> HTMLResponse:
-        annotations = model_service.annotate(text)
-        entities = annotations_to_entities(annotations)
-        ent_input = Doc(text=text, ents=entities)
-        data = displacy.render(ent_input.dict(), style="ent", manual=True)
-        response = HTMLResponse(content=data, status_code=HTTP_200_OK)
-        response.headers["Content-Disposition"] = f'attachment ; filename="{str(uuid.uuid4())}.html"'
-        return response
-
-    if hasattr(model_service, "train_supervised") and callable(model_service.train_supervised):
-        @app.post("/train_supervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
-        async def supervised_training(training_data: UploadFile,
-                                      response: Response,
-                                      epochs: int = 1,
-                                      log_frequency: int = Query(default=1, description="log after every number of finished epochs")) -> Dict:
-            data_file = tempfile.NamedTemporaryFile()
-            for line in training_data.file:
-                data_file.write(line)
-            data_file.flush()
-            training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, training_data.filename)
-            return _get_training_response(training_accepted, response, training_id)
-
-    if hasattr(model_service, "train_unsupervised") and callable(model_service.train_unsupervised):
-        @app.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tag.Training.name])
-        async def unsupervised_training(response: Response,
-                                        training_data: UploadFile = File(...),
-                                        log_frequency: int = Query(default=1000, description="log after every number of processed documents")) -> Dict:
-            data_file = tempfile.NamedTemporaryFile()
-            for line in training_data.file:
-                data_file.write(line)
-            data_file.flush()
-            training_id = str(uuid.uuid4())
-            training_accepted = model_service.train_unsupervised(data_file, 1, log_frequency, training_id, training_data.filename)
-            return _get_training_response(training_accepted, response, training_id)
-
-    def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:
-        if training_accepted:
-            return {"message": "Your training started successfully.", "training_id": training_id}
-        else:
-            response.status_code = HTTP_503_SERVICE_UNAVAILABLE
-            return {"message": "Another training is in progress. Please retry your training later."}
-
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:
             return app.openapi_schema
@@ -157,6 +79,13 @@ def get_model_server(model_service: AbstractModelService) -> FastAPI:
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
+    from routers import invocation
+    app.include_router(invocation.router)
+
+    if get_settings().ENABLE_TRAINING_APIS == "true":
+        from routers import training
+        app.include_router(training.router)
+
     app.openapi = custom_openapi  # type: ignore
 
     return app
@@ -168,7 +97,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-m",
+        "-mt",
         "--model_type",
         help="The type of the model to serve",
         choices=["medcat", "de_id"],
@@ -214,17 +143,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     settings = get_settings()
 
-    if args.model_type == "medcat":
-        from model_services.medcat_model import MedCATModel
-        model_service = MedCATModel(settings)
-        app = get_model_server(model_service)
-    elif args.model_type == "de_id":
-        from model_services.deid_model import DeIdModel
-        model_service = DeIdModel(settings)
-        app = get_model_server(model_service)
-    else:
-        print(f"Error: unknown model type: {args.model_type}")
-        sys.exit(1)
+    model_service_dep = ModelServiceDep(args.model_type, settings)
+    globals.model_service_dep = model_service_dep
+    app = get_model_server()
 
     if args.doc:
         doc_name = ""
@@ -245,11 +166,13 @@ if __name__ == "__main__":
                 shutil.copy2(args.model_path, dst_model_path)
             except shutil.SameFileError:
                 pass
+            model_service = model_service_dep()
             model_service.init_model()
         elif args.mlflow_model_uri:
             model_service = ModelWrapper.get_model_service(settings.MLFLOW_TRACKING_URI, args.mlflow_model_uri)
             ModelWrapper.download_model_package(os.path.join(args.mlflow_model_uri, "artifacts"), dst_model_path)
-            app = get_model_server(model_service)
+            model_service_dep.model_service = model_service
+            app = get_model_server()
         else:
             print("Error: Neither the model path or the mlflow model uri was passed in")
             sys.exit(1)

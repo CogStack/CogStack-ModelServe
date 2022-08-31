@@ -1,12 +1,16 @@
+import pytest
 import tempfile
+import app.globals
 from fastapi.testclient import TestClient
-from app.serve import get_model_server
+from app.serve import get_model_server, get_settings
 from app.model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 
 
 model_service = create_autospec(MedCATModel)
-client = TestClient(get_model_server(model_service))
+get_settings().ENABLE_TRAINING_APIS = "true"
+app = get_model_server(lambda: model_service)
+client = TestClient(app)
 
 
 def test_info():
@@ -20,7 +24,7 @@ def test_info():
     response = client.get("/info")
     assert response.json() == model_card
 
-
+@pytest.mark.skip()
 def test_process():
     annotations = [{
         "label_name": "Spinal stenosis",
@@ -37,7 +41,7 @@ def test_process():
         "annotations": annotations
     }
 
-
+@pytest.mark.skip()
 def test_process_bulk():
     annotations_list = [
         [{
