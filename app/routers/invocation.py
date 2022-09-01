@@ -1,17 +1,17 @@
 import uuid
-import globals
 from typing import Dict, List
-from fastapi import APIRouter, Depends, FastAPI, Request, Response, Body, File, UploadFile, Query
+
+from fastapi import APIRouter, Depends, Body
 from fastapi.responses import HTMLResponse
-from starlette.status import HTTP_200_OK
 from spacy import displacy
+from starlette.status import HTTP_200_OK
+
+import globals
 from domain import TextwithAnnotations, ModelCard, Doc, Tags
-from utils import annotations_to_entities
 from model_services.base import AbstractModelService
+from utils import annotations_to_entities
 
 router = APIRouter()
-
-print(globals.model_service_dep)
 
 
 @router.get("/info", response_model=ModelCard, tags=[Tags.Metadata.name])

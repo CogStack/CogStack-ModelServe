@@ -1,8 +1,9 @@
 import logging
-from model_services.medcat_model import MedCATModel
-from model_services.deid_model import DeIdModel
-from model_services.base import AbstractModelService
+
 from config import Settings
+from model_services.base import AbstractModelService
+from model_services.deid_model import DeIdModel
+from model_services.medcat_model import MedCATModel
 
 logger = logging.getLogger(__name__)
 

@@ -7,6 +7,8 @@ import asyncio
 import shutil
 import warnings
 import globals
+import importlib
+
 from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
 from functools import lru_cache
@@ -36,10 +38,11 @@ def get_settings():
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
-    if msd_overwritten is not None:
-        globals.model_service_dep = msd_overwritten
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
     app = FastAPI(openapi_tags=tags_metadata)
+
+    if msd_overwritten is not None:
+        globals.model_service_dep = msd_overwritten
 
     @app.on_event("startup")
     def on_startup():
@@ -79,16 +82,26 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    from routers import invocation
-    app.include_router(invocation.router)
+    _load_invocation_router(app)
 
     if get_settings().ENABLE_TRAINING_APIS == "true":
-        from routers import training
-        app.include_router(training.router)
+        _load_training_router(app)
 
     app.openapi = custom_openapi  # type: ignore
 
     return app
+
+
+def _load_invocation_router(app):
+    from routers import invocation
+    importlib.reload(invocation)
+    app.include_router(invocation.router)
+
+
+def _load_training_router(app):
+    from routers import training
+    importlib.reload(training)
+    app.include_router(training.router)
 
 
 if __name__ == "__main__":
@@ -170,6 +183,9 @@ if __name__ == "__main__":
             model_service.init_model()
         elif args.mlflow_model_uri:
             model_service = ModelWrapper.get_model_service(settings.MLFLOW_TRACKING_URI, args.mlflow_model_uri)
+            settings.BASE_MODEL_FULL_PATH = args.mlflow_model_uri
+            settings.CODE_TYPE = model_service._config.CODE_TYPE    # Maybe CODE_TYPE should be removed from config
+            model_service._config = settings
             ModelWrapper.download_model_package(os.path.join(args.mlflow_model_uri, "artifacts"), dst_model_path)
             model_service_dep.model_service = model_service
             app = get_model_server()

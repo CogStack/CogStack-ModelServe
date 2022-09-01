@@ -1,11 +1,12 @@
 import tempfile
 import uuid
-import globals
 from typing import Dict
-from fastapi import APIRouter, Depends
-from domain import Tags
+
+from fastapi import APIRouter, Depends, Response, File, UploadFile, Query
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
-from fastapi import FastAPI, Request, Response, Body, File, UploadFile, Query
+
+import globals
+from domain import Tags
 from model_services.base import AbstractModelService
 
 router = APIRouter()

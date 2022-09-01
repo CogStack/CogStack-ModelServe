@@ -27,7 +27,6 @@ class ModelWrapper(PythonModel):
     @staticmethod
     def download_model_package(model_artifact_uri: str, dst_file_path: str) -> Optional[str]:
         with tempfile.TemporaryDirectory() as dir_downloaded:
-            print(dir_downloaded)
             mlflow.artifacts.download_artifacts(artifact_uri=model_artifact_uri, dst_path=dir_downloaded)
             # This assumes the model package is the sole zip file in the artifacts directory
             for file_path in glob.glob(os.path.join(dir_downloaded, "**", "*.zip")):
