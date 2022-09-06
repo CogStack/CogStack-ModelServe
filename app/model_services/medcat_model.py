@@ -15,9 +15,9 @@ from model_services.base import AbstractModelService
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
-from monitoring.tracker import TrainingTracker
-from monitoring.log_captor import LogCaptor
-from monitoring.model_wrapper import ModelWrapper
+from management.tracker import TrainingTracker
+from management.log_captor import LogCaptor
+from management.model_manager import ModelManager
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class MedCATModel(AbstractModelService):
         self._training_lock = threading.Lock()
         self._training_in_progress = False
         self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
-        self._pyfunc_model = ModelWrapper(type(self), config)
+        self._pyfunc_model = ModelManager(type(self), config)
         self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
         self._model: CAT
 
@@ -71,7 +71,7 @@ class MedCATModel(AbstractModelService):
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
 
     def info(self) -> ModelCard:
-        return ModelCard(model_description=f"{self._config.CODE_TYPE.upper()} MedCAT model",
+        return ModelCard(model_description="SNOMED MedCAT model",
                          model_type="MedCAT",
                          api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))
@@ -302,27 +302,7 @@ class MedCATModel(AbstractModelService):
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end"])
         else:
-            if self._config.CODE_TYPE == "icd10":
-                output = pd.DataFrame()
-                for _, row in df.iterrows():
-                    if "icd10" not in row:
-                        logger.error("No mapped ICD-10 code found in the record")
-                    if row["icd10"]:
-                        for icd10 in row["icd10"]:
-                            output_row = row.copy()
-                            if isinstance(icd10, str):
-                                output_row["icd10"] = icd10
-                            else:
-                                output_row["icd10"] = icd10["code"]
-                                output_row["pretty_name"] = icd10["name"]
-                            output = output.append(output_row, ignore_index=True)
-                df = output
-                df.rename(columns={"pretty_name": "label_name", "icd10": "label_id"}, inplace=True)
-            elif self._config.CODE_TYPE == "snomed":
-                df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
-            else:
-                logger.error(f"CODE_TYPE {self._config.CODE_TYPE} is not supported")
-                raise ValueError(f"Unknown coding type: {self._config.CODE_TYPE}")
+            df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
@@ -341,13 +321,13 @@ class MedCATModel(AbstractModelService):
             else:
                 loop = asyncio.get_event_loop()
                 experiment_id, run_id = self._training_tracker.start_tracking(
-                    self.info().model_description,
-                    input_file_name,
-                    self._config.BASE_MODEL_FULL_PATH,
-                    training_type,
-                    training_params,
-                    training_id,
-                    log_frequency,
+                    model_name=self.info().model_description,
+                    input_file_name=input_file_name,
+                    base_model_original=self._config.BASE_MODEL_FULL_PATH,
+                    training_type=training_type,
+                    training_params=training_params,
+                    run_name=training_id,
+                    log_frequency=log_frequency,
                 )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     self._training_tracker.save_model_artifact(dataset.name, self.info().model_description)

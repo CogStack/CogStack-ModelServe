@@ -4,6 +4,7 @@ from config import Settings
 from model_services.base import AbstractModelService
 from model_services.deid_model import DeIdModel
 from model_services.medcat_model import MedCATModel
+from model_services.medcat_model_icd10 import MedCATModelIcd10
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,13 @@ class ModelServiceDep(object):
         if self._model_sevice is not None:
             return self._model_sevice
         else:
-            if self._model_type == "medcat":
+            if self._model_type == "medcat_snomed":
                 self._model_sevice = MedCATModel(self._config)
+            elif self._model_type == "medcat_icd10":
+                self._model_sevice = MedCATModelIcd10(self._config)
             elif self._model_type == "de_id":
                 self._model_sevice = DeIdModel(self._config)
             else:
                 logger.error(f"Unknown model type: {self._model_type}")
-                exit(1)
+                exit(1)     # throw an exception?
             return self._model_sevice

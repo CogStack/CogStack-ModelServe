@@ -4,7 +4,6 @@ from app.config import Settings
 def test_configuration():
     undertest = Settings()
     assert undertest.BASE_MODEL_FILE is not None
-    assert undertest.CODE_TYPE is not None
     assert undertest.DEVICE is not None
     assert undertest.INCLUDE_SPAN_TEXT is not None
     assert undertest.CONCAT_SIMILAR_ENTITIES is not None

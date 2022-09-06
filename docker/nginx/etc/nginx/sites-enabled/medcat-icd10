@@ -19,12 +19,12 @@ server {
     ssl_certificate           /etc/nginx/root-ca.pem;
     ssl_certificate_key       /etc/nginx/root-ca.key;
 
-    access_log                /var/log/nginx/access_medcat-1-2-icd10.log;
-    error_log                 /var/log/nginx/error_medcat-1-2-icd10.log;
+    access_log                /var/log/nginx/access_medcat-icd10.log;
+    error_log                 /var/log/nginx/error_medcat-icd10.log;
 
     location / {
         include cors.conf;
-        proxy_pass         http://medcat-1-2-icd10:8000/;
+        proxy_pass         http://medcat-icd10:8000/;
         proxy_set_header   Host $host;
     }
 }

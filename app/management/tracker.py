@@ -2,10 +2,10 @@ import os
 import re
 import socket
 import mlflow
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Optional
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus
-from monitoring.model_wrapper import ModelWrapper
+from management.model_manager import ModelManager
 
 
 class TrainingTracker(object):
@@ -19,11 +19,11 @@ class TrainingTracker(object):
                        base_model_original: str,
                        training_type: str,
                        training_params: Dict,
-                       training_id: str,
+                       run_name: str,
                        log_frequency: int) -> Tuple[str, str]:
         experiment_name = TrainingTracker._get_experiment_name(model_name, training_type)
         experiment_id = TrainingTracker._get_experiment_id(experiment_name)
-        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=training_id)
+        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
             "training.mlflow.run_id": active_run.info.run_id,
@@ -65,7 +65,7 @@ class TrainingTracker(object):
     @staticmethod
     def save_model(filepath: str,
                    model_name: str,
-                   pyfunc_model: ModelWrapper) -> None:
+                   pyfunc_model: ModelManager) -> None:
         model_name = model_name.replace(" ", "_")
         if not mlflow.get_tracking_uri().startswith("file:/"):
             mlflow.pyfunc.log_model(
@@ -96,10 +96,17 @@ class TrainingTracker(object):
         mlflow.set_tag("training.entity.classes", str(classes)[:5000])
 
     @staticmethod
+    def save_pretrained_model(model_name: str, model_path: str, pyfunc_model: ModelManager, run_name: Optional[str] = "") -> None:
+        experiment_name = TrainingTracker._get_experiment_name(f"Pretrained_{model_name}")
+        experiment_id = TrainingTracker._get_experiment_id(experiment_name)
+        mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
+        TrainingTracker.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
+
+    @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         return mlflow.create_experiment(name=experiment_name) if experiment is None else experiment.experiment_id
 
     @staticmethod
-    def _get_experiment_name(model_name: str, training_type: str) -> str:
-        return f"{model_name} {training_type}".replace(" ", "_")
+    def _get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
+        return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")

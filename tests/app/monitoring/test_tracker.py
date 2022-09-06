@@ -2,7 +2,7 @@ import os
 import pytest
 import mlflow
 
-from app.monitoring.tracker import TrainingTracker
+from app.management.tracker import TrainingTracker
 from unittest.mock import Mock
 
 
@@ -32,10 +32,10 @@ def mlflow_fixture_file_uri(mlflow_fixture, mocker):
 
 def test_start_new(mlflow_fixture):
     experiment_id, run_id = TrainingTracker.start_tracking("model_name", "input_file_name", "base_model_origin",
-                                                           "training_type", {"param": "param"}, "training_id", 10)
+                                                           "training_type", {"param": "param"}, "run_name", 10)
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="training_id")
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
     mlflow.set_tags.assert_called()
     mlflow.log_params.assert_called_once_with({"param": "param"})
     assert experiment_id == "experiment_id"
@@ -92,6 +92,17 @@ def test_save_model_local(mlflow_fixture_file_uri):
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "filepath"})
     mlflow.register_model.assert_not_called()
+
+
+def test_save_pretrained_model(mlflow_fixture):
+    pyfunc_model = Mock()
+    TrainingTracker.save_pretrained_model("model_name", "model_path", pyfunc_model, "run_name")
+    mlflow.get_experiment_by_name.assert_called_once_with("Pretrained_model_name")
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
+                                                    python_model=pyfunc_model,
+                                                    artifacts={"model_path": "model_path"},
+                                                    registered_model_name="model_name")
 
 
 def test_log_exception(mlflow_fixture):

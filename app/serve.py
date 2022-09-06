@@ -22,8 +22,8 @@ from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
 from domain import Tags
 from config import Settings
-from monitoring.tracker import TrainingTracker
-from monitoring.model_wrapper import ModelWrapper
+from management.tracker import TrainingTracker
+from management.model_manager import ModelManager
 from dependencies import ModelServiceDep
 
 logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         "-mt",
         "--model_type",
         help="The type of the model to serve",
-        choices=["medcat", "de_id"],
+        choices=["medcat_snomed", "medcat_icd10", "de_id"],
     )
 
     parser.add_argument(
@@ -162,8 +162,10 @@ if __name__ == "__main__":
 
     if args.doc:
         doc_name = ""
-        if args.model_type == "medcat":
-            doc_name = "medcat_model_apis.json"
+        if args.model_type == "medcat_snomed":
+            doc_name = "medcat_snomed_model_apis.json"
+        elif args.model_type == "medcat_icd10":
+            doc_name = "medcat_icd10_model_apis.json"
         elif args.model_type == "de_id":
             doc_name = "de-dentification_model_apis.json"
         with open(doc_name, "w") as doc:
@@ -182,11 +184,10 @@ if __name__ == "__main__":
             model_service = model_service_dep()
             model_service.init_model()
         elif args.mlflow_model_uri:
-            model_service = ModelWrapper.get_model_service(settings.MLFLOW_TRACKING_URI, args.mlflow_model_uri)
-            settings.BASE_MODEL_FULL_PATH = args.mlflow_model_uri
-            settings.CODE_TYPE = model_service._config.CODE_TYPE    # Maybe CODE_TYPE should be removed from config
-            model_service._config = settings
-            ModelWrapper.download_model_package(os.path.join(args.mlflow_model_uri, "artifacts"), dst_model_path)
+            model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
+                                                           args.mlflow_model_uri,
+                                                           settings,
+                                                           dst_model_path)
             model_service_dep.model_service = model_service
             app = get_model_server()
         else:

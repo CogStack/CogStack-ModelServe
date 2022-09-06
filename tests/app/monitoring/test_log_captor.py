@@ -1,5 +1,5 @@
 from contextlib import redirect_stdout
-from app.monitoring.log_captor import LogCaptor
+from app.management.log_captor import LogCaptor
 
 
 def test_capture_and_process():

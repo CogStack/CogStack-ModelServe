@@ -2,22 +2,22 @@ version: "3.6"
 
 services:
 
-  medcat-1-2:
+  medcat-snomed:
     build:
         context: ./
-        dockerfile: ./docker/medcat-1-2/Dockerfile
+        dockerfile: ./docker/medcat-snomed/Dockerfile
         args:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-1-2
+    container_name: cms_medcat-snomed
     restart: always
     networks:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
-      - ./docker/medcat-1-2/.env_snomed:/app/envs/.env:ro
+      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
@@ -36,22 +36,22 @@ services:
       - 8180:8000
     mem_limit: 30g
 
-  medcat-1-2-icd10:
+  medcat-icd10:
     build:
         context: ./
-        dockerfile: ./docker/medcat-1-2/Dockerfile
+        dockerfile: ./docker/medcat-icd10/Dockerfile
         args:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-1-2-icd10
+    container_name: cms_medcat-icd10
     restart: always
     networks:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
-      - ./docker/medcat-1-2/.env_icd10:/app/envs/.env:ro
+      - ./docker/medcat-icd10/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
@@ -200,8 +200,8 @@ services:
       - 28199:28199
       - 28200:28200
 #    depends_on:
-#      - medcat-1-2
-#      - medcat-1-2-icd10
+#      - medcat-snomed
+#      - medcat-icd10
 #      - de-identification
 #      - mlflow-ui
 #      - minio
