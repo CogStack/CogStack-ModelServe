@@ -49,7 +49,8 @@ class ModelManager(PythonModel):
 
     def load_context(self, context: PythonModelContext) -> None:
         model_service = self._model_service_type(self._config)
-        model_service.model = self._model_service_type.load_model(context.artifacts["model_path"])
+        model_service._model_file_path = context.artifacts["model_path"]
+        model_service.init_model()
         self._model_service = model_service
 
     # This is hacky and used for getting a model service rather than making prediction

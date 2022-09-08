@@ -71,8 +71,8 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         if app.openapi_schema:
             return app.openapi_schema
         openapi_schema = get_openapi(
-            title=f"{model_service.model_name} APIs",
-            version=model_service.api_version,
+            title=f"{globals.model_service_dep().model_name} APIs",
+            version=globals.model_service_dep().api_version,
             description="by CogStack ModelServe, a model serving system for CogStack NLP solutions.",
             routes=app.routes
         )
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         elif args.model_type == "medcat_icd10":
             doc_name = "medcat_icd10_model_apis.json"
         elif args.model_type == "de_id":
-            doc_name = "de-dentification_model_apis.json"
+            doc_name = "de-identification_model_apis.json"
         with open(doc_name, "w") as doc:
             json.dump(app.openapi(), doc, indent=4)
         print(f"OpenAPI doc exported to {doc_name}")
