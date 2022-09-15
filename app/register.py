@@ -4,11 +4,12 @@ import uuid
 from config import Settings
 from management.tracker import TrainingTracker
 from management.model_manager import ModelManager
-warnings.filterwarnings("ignore")
-warnings.simplefilter("ignore")
 
 
 if __name__ == "__main__":
+    warnings.filterwarnings("ignore")
+    warnings.simplefilter("ignore")
+
     parser = argparse.ArgumentParser(
         description="This script pushes a pretrained NLP model to the Cogstack ModelServe registry",
     )

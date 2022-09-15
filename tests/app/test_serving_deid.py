@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from app.serve import get_model_server, get_settings
+from app.api import get_model_server, get_settings
 from app.model_services.deid_model import DeIdModel
 from app.dependencies import ModelServiceDep
 from unittest.mock import create_autospec

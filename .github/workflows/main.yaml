@@ -27,10 +27,10 @@ jobs:
           pip install -r app/requirements.txt -r app/requirements-dev.txt
       - name: Check types
         run: |
-          python -m mypy --follow-imports=normal app/model_services app/management app/processors app/routers/*.py app/*.py
+          python -m mypy --follow-imports=normal app/model_services/*.py app/management/*.py app/processors/*.py app/routers/*.py app/*.py
       - name: Lint
         run: |
-          flake8 app/model_services app/management app/processors app/routers/*.py app/*.py
+          flake8 app/model_services/*.py app/management/*.py app/processors app/routers/*.py app/*.py
       - name: Test
         run: |
           pytest -s -vv tests

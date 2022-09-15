@@ -25,6 +25,8 @@ class ModelManager(PythonModel):
                           downloaded_model_path: Optional[str] = None) -> AbstractModelService:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
+        # In case the load_model overwrote the tracking URI
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         model_service = pyfunc_model.predict(pd.DataFrame())
         if config is not None:
             config.BASE_MODEL_FULL_PATH = mlflow_model_uri
