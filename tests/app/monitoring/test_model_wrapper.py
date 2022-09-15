@@ -1,7 +1,7 @@
 import pytest
 import mlflow
 import pandas as pd
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 from mlflow.pyfunc import PythonModelContext
 from app.model_services.base import AbstractModelService
 from app.management.model_manager import ModelManager
@@ -19,7 +19,7 @@ def mlflow_fixture(mocker):
 def test_get_model_service(mlflow_fixture):
     config = Settings()
     model_service = ModelManager.get_model_service("mlflow_tracking_uri", "model_uri", config)
-    mlflow.set_tracking_uri.assert_called_once_with("mlflow_tracking_uri")
+    mlflow.set_tracking_uri.assert_has_calls([call("mlflow_tracking_uri"), call("mlflow_tracking_uri")])
     mlflow.pyfunc.load_model.assert_called_once_with(model_uri="model_uri")
     pyfunc_model.predict.assert_called_once()
     assert model_service._config.BASE_MODEL_FULL_PATH == "model_uri"

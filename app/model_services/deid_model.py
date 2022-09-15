@@ -31,6 +31,18 @@ class DeIdModel(AbstractModelService):
         self._id2cui: Dict[str, str]
 
     @property
+    def model(self) -> PreTrainedModel:
+        return self._model
+
+    @model.setter
+    def model(self, m) -> None:
+        self._model = m
+
+    @model.deleter
+    def model(self) -> None:
+        del self._model
+
+    @property
     def model_name(self) -> str:
         return "De-identification model"
 

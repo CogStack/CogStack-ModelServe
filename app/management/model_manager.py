@@ -25,6 +25,8 @@ class ModelManager(PythonModel):
                           downloaded_model_path: Optional[str] = None) -> AbstractModelService:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
+        # In case the load_model overwrote the tracking URI
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         model_service = pyfunc_model.predict(pd.DataFrame())
         if config is not None:
             config.BASE_MODEL_FULL_PATH = mlflow_model_uri
@@ -49,7 +51,8 @@ class ModelManager(PythonModel):
 
     def load_context(self, context: PythonModelContext) -> None:
         model_service = self._model_service_type(self._config)
-        model_service.model = self._model_service_type.load_model(context.artifacts["model_path"])
+        model_service._model_file_path = context.artifacts["model_path"]
+        model_service.init_model()
         self._model_service = model_service
 
     # This is hacky and used for getting a model service rather than making prediction
