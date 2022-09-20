@@ -1,6 +1,13 @@
+import os
 import argparse
 import warnings
 import uuid
+import sys
+import inspect
+
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
+sys.path.insert(0, parent_dir)
+
 from config import Settings
 from management.tracker import TrainingTracker
 from management.model_manager import ModelManager

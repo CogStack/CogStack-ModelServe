@@ -1,8 +1,13 @@
-import os
 import argparse
 import logging.config
 import json
+import os
 import sys
+import inspect
+
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
+sys.path.insert(0, parent_dir)
+
 import asyncio
 import shutil
 import warnings
@@ -16,7 +21,7 @@ from dependencies import ModelServiceDep
 
 
 if __name__ == "__main__":
-    logging.config.fileConfig(os.path.join(os.path.dirname(__file__), "logging.ini"), disable_existing_loggers=False)
+    logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
     logger = logging.getLogger(__name__)
     warnings.filterwarnings("ignore")
     warnings.simplefilter("ignore")
@@ -89,7 +94,7 @@ if __name__ == "__main__":
         print(f"OpenAPI doc exported to {doc_name}")
         sys.exit(0)
     else:
-        dst_model_path = os.path.join(os.path.dirname(__file__), "model", "model.zip")
+        dst_model_path = os.path.join(parent_dir, "model", "model.zip")
         if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
             shutil.rmtree(dst_model_path.replace(".zip", ""))
         if args.model_path:
