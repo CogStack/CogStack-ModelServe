@@ -8,7 +8,7 @@ from mlflow.entities import RunStatus
 from management.model_manager import ModelManager
 
 
-class TrainingTracker(object):
+class TrackerClient(object):
 
     def __init__(self, mlflow_tracking_uri: str) -> None:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
@@ -21,8 +21,8 @@ class TrainingTracker(object):
                        training_params: Dict,
                        run_name: str,
                        log_frequency: int) -> Tuple[str, str]:
-        experiment_name = TrainingTracker._get_experiment_name(model_name, training_type)
-        experiment_id = TrainingTracker._get_experiment_id(experiment_name)
+        experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
+        experiment_id = TrackerClient._get_experiment_id(experiment_name)
         active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
@@ -97,10 +97,10 @@ class TrainingTracker(object):
 
     @staticmethod
     def save_pretrained_model(model_name: str, model_path: str, pyfunc_model: ModelManager, run_name: Optional[str] = "") -> None:
-        experiment_name = TrainingTracker._get_experiment_name(f"Pretrained_{model_name}")
-        experiment_id = TrainingTracker._get_experiment_id(experiment_name)
+        experiment_name = TrackerClient._get_experiment_name(f"Pretrained_{model_name}")
+        experiment_id = TrackerClient._get_experiment_id(experiment_name)
         mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
-        TrainingTracker.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
+        TrackerClient.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

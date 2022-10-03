@@ -1,5 +1,6 @@
 import logging
 
+from domain import ModelType
 from config import Settings
 from model_services.base import AbstractModelService
 from model_services.deid_model import DeIdModel
@@ -28,11 +29,11 @@ class ModelServiceDep(object):
         if self._model_sevice is not None:
             return self._model_sevice
         else:
-            if self._model_type == "medcat_snomed":
+            if self._model_type == ModelType.MEDCAT_SNOMED.value:
                 self._model_sevice = MedCATModel(self._config)
-            elif self._model_type == "medcat_icd10":
+            elif self._model_type == ModelType.MEDCAT_ICD10.value:
                 self._model_sevice = MedCATModelIcd10(self._config)
-            elif self._model_type == "de_id":
+            elif self._model_type == ModelType.DE_ID.value:
                 self._model_sevice = DeIdModel(self._config)
             else:
                 logger.error(f"Unknown model type: {self._model_type}")

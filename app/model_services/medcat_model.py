@@ -15,7 +15,7 @@ from model_services.base import AbstractModelService
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
-from management.tracker import TrainingTracker
+from management.tracker_client import TrackerClient
 from management.log_captor import LogCaptor
 from management.model_manager import ModelManager
 from concurrent.futures import ThreadPoolExecutor
@@ -33,7 +33,7 @@ class MedCATModel(AbstractModelService):
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._training_lock = threading.Lock()
         self._training_in_progress = False
-        self._training_tracker = TrainingTracker(config.MLFLOW_TRACKING_URI)
+        self._tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
         self._pyfunc_model = ModelManager(type(self), config)
         self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
         self._model: CAT
@@ -138,7 +138,7 @@ class MedCATModel(AbstractModelService):
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing supervised training...")
-            with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
+            with redirect_stdout(LogCaptor(medcat_model._tracker_client.glean_and_log_metrics)):
                 _, _, _, p, r, f1, _, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
@@ -151,19 +151,19 @@ class MedCATModel(AbstractModelService):
                     "per_concept_recall": r[cui],
                     "per_concept_f1": f1_val,
                 }
-                medcat_model._training_tracker.send_model_stats(metric, class_id)
+                medcat_model._tracker_client.send_model_stats(metric, class_id)
                 cuis.append(cui)
                 class_id += 1
-            medcat_model._training_tracker.log_classes(cuis)
+            medcat_model._tracker_client.log_classes(cuis)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
-                medcat_model._training_tracker.save_model(model_pack_path,
-                                                          medcat_model.info().model_description,
-                                                          medcat_model._pyfunc_model)
-                medcat_model._training_tracker.save_model_artifact(cdb_config_path,
-                                                                   medcat_model.info().model_description)
+                medcat_model._tracker_client.save_model(model_pack_path,
+                                                        medcat_model.info().model_description,
+                                                        medcat_model._pyfunc_model)
+                medcat_model._tracker_client.save_model_artifact(cdb_config_path,
+                                                                 medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -173,12 +173,12 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Supervised training finished")
-            medcat_model._training_tracker.end_with_success()
+            medcat_model._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            medcat_model._training_tracker.log_exception(e)
-            medcat_model._training_tracker.end_with_failure()
+            medcat_model._tracker_client.log_exception(e)
+            medcat_model._tracker_client.end_with_failure()
         finally:
             data_file.close()
             with medcat_model._training_lock:
@@ -207,20 +207,20 @@ class MedCATModel(AbstractModelService):
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing unsupervised training...")
             step = 0
-            medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
+            medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **training_params)
-                medcat_model._training_tracker.send_model_stats(model.cdb._make_stats(), step)
+                medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
-                medcat_model._training_tracker.save_model(model_pack_path,
-                                                          medcat_model.info().model_description,
-                                                          medcat_model._pyfunc_model)
-                medcat_model._training_tracker.save_model_artifact(cdb_config_path,
-                                                                   medcat_model.info().model_description)
+                medcat_model._tracker_client.save_model(model_pack_path,
+                                                        medcat_model.info().model_description,
+                                                        medcat_model._pyfunc_model)
+                medcat_model._tracker_client.save_model_artifact(cdb_config_path,
+                                                                 medcat_model.info().model_description)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
@@ -230,12 +230,12 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
-            medcat_model._training_tracker.end_with_success()
+            medcat_model._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            medcat_model._training_tracker.log_exception(e)
-            medcat_model._training_tracker.end_with_failure()
+            medcat_model._tracker_client.log_exception(e)
+            medcat_model._tracker_client.end_with_failure()
         finally:
             data_file.close()
             with medcat_model._training_lock:
@@ -320,7 +320,7 @@ class MedCATModel(AbstractModelService):
                 return False
             else:
                 loop = asyncio.get_event_loop()
-                experiment_id, run_id = self._training_tracker.start_tracking(
+                experiment_id, run_id = self._tracker_client.start_tracking(
                     model_name=self.info().model_description,
                     input_file_name=input_file_name,
                     base_model_original=self._config.BASE_MODEL_FULL_PATH,
@@ -330,7 +330,7 @@ class MedCATModel(AbstractModelService):
                     log_frequency=log_frequency,
                 )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
-                    self._training_tracker.save_model_artifact(dataset.name, self.info().model_description)
+                    self._tracker_client.save_model_artifact(dataset.name, self.info().model_description)
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
                 asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency)))

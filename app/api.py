@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
 from domain import Tags
-from management.tracker import TrainingTracker
+from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
 from config import Settings
 
@@ -50,7 +50,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
     @app.on_event("shutdown")
     async def on_shutdown():
-        TrainingTracker.end_with_interruption()
+        TrackerClient.end_with_interruption()
 
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:

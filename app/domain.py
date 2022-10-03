@@ -44,3 +44,9 @@ class Tags(str, Enum):
     Annotations = "Retrieve recognised entities by running the model."
     Rendering = "Get embeddable annotation snippet in HTML."
     Training = "Trigger model training on input annotations."
+
+
+class ModelType(str, Enum):
+    MEDCAT_SNOMED = "medcat_snomed"
+    MEDCAT_ICD10 = "medcat_icd10"
+    DE_ID = "de_id"

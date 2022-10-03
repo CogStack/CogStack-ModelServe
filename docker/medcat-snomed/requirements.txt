@@ -5,7 +5,8 @@ python-multipart~=0.0.5
 ijson~=3.1.4
 python-dotenv~=0.20.0
 mlflow~=1.26.1
-psycopg2~=2.9.3
+psycopg2-binary~=2.9.3
 boto3~=1.24.20
+typer~=0.4.1
 setuptools
 wheel

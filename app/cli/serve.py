@@ -3,10 +3,8 @@ import logging.config
 import json
 import os
 import sys
-import inspect
 
-parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
-sys.path.insert(0, parent_dir)
+from parent_dir import parent_dir
 
 import asyncio
 import shutil
@@ -18,6 +16,7 @@ from hypercorn.asyncio import serve
 from api import get_settings, get_model_server
 from management.model_manager import ModelManager
 from dependencies import ModelServiceDep
+from domain import ModelType
 
 
 if __name__ == "__main__":
@@ -32,14 +31,14 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-mt",
-        "--model_type",
+        "--model-type",
         help="The type of the model to serve",
         choices=["medcat_snomed", "medcat_icd10", "de_id"],
     )
 
     parser.add_argument(
         "-mp",
-        "--model_path",
+        "--model-path",
         help="The file path to the model package",
         type=str,
         default="",
@@ -47,7 +46,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "-mmu",
-        "--mlflow_model_uri",
+        "--mlflow-model-uri",
         help="The URI of the MLflow model to serve",
         type=str,
         default="",
@@ -83,11 +82,11 @@ if __name__ == "__main__":
 
     if args.doc:
         doc_name = ""
-        if args.model_type == "medcat_snomed":
+        if args.model_type == ModelType.MEDCAT_SNOMED.value:
             doc_name = "medcat_snomed_model_apis.json"
-        elif args.model_type == "medcat_icd10":
+        elif args.model_type == ModelType.MEDCAT_ICD10.value:
             doc_name = "medcat_icd10_model_apis.json"
-        elif args.model_type == "de_id":
+        elif args.model_type == ModelType.DE_ID.value:
             doc_name = "de-identification_model_apis.json"
         with open(doc_name, "w") as doc:
             json.dump(app.openapi(), doc, indent=4)
