@@ -6,7 +6,7 @@ import numpy as np
 from typing import Tuple, List, Dict, Iterable, Optional
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
-from medcat.tokenizers.tokenizer_ner import TokenizerNER
+from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
 from model_services.base import AbstractModelService
 from domain import ModelCard
 from config import Settings
@@ -26,7 +26,7 @@ class DeIdModel(AbstractModelService):
             self._device = "cpu"
         else:
             self._device = config.DEVICE
-        self._tokenizer: TokenizerNER
+        self._tokenizer: TransformersTokenizerNER
         self._model: PreTrainedModel
         self._id2cui: Dict[str, str]
 
@@ -56,14 +56,14 @@ class DeIdModel(AbstractModelService):
                          api_version=self.api_version)
 
     @staticmethod
-    def load_model(model_file_path: str) -> Tuple[TokenizerNER, PreTrainedModel]:
+    def load_model(model_file_path: str) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)
         if not os.path.isdir(unpacked_model_dir):
             shutil.unpack_archive(model_file_path, extract_dir=unpacked_model_dir)
         tokenizer_path = os.path.join(unpacked_model_dir, "tokenizer.dat")
-        tokenizer = TokenizerNER.load(tokenizer_path)
+        tokenizer = TransformersTokenizerNER.load(tokenizer_path)
         logger.info(f"Tokenizer loaded from {tokenizer_path}")
         model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
         logger.info(f"Model loaded from {unpacked_model_dir}")
@@ -75,7 +75,7 @@ class DeIdModel(AbstractModelService):
         else:
             self._tokenizer, self._model = self.load_model(self._model_file_path)
             self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
-            self._model.to(self._device)
+            self._model.to(self._device)    # type: ignore
 
     def annotate(self, text: str) -> List[Dict]:
         return self._get_annotations(text)
@@ -89,7 +89,7 @@ class DeIdModel(AbstractModelService):
     def _get_annotations(self, text: str) -> List[Dict]:
         if not text.strip():
             return []
-        self._model.eval()
+        self._model.eval()  # type: ignore
         device = self._config.DEVICE
         cas = self._config.CONCAT_SIMILAR_ENTITIES == "true"
         ist = self._config.INCLUDE_SPAN_TEXT == "true"
@@ -97,7 +97,7 @@ class DeIdModel(AbstractModelService):
 
         for dataset, offset_mappings in self._get_chunked_tokens(text):
             predictions = self._model(torch.tensor([dataset["input_ids"]]).to(device),
-                                      torch.tensor([dataset["attention_mask"]]).to(device))
+                                      torch.tensor([dataset["attention_mask"]]).to(device))  # type: ignore
             predictions = softmax(predictions.logits.detach().numpy()[0], axis=-1)
             predictions = np.argmax(predictions, axis=-1)
 
