@@ -102,7 +102,6 @@ class MedCATModel(AbstractModelService):
         training_params = {
             "data_path": data_file.name,
             "nepochs": epochs,
-            "test_size": 0.25
         }
         return self._start_training(self._train_supervised, training_type, training_params, data_file, log_frequency, training_id, input_file_name)
 
@@ -144,7 +143,7 @@ class MedCATModel(AbstractModelService):
             gc.collect()
             class_id = 0
             cuis = []
-            f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[1])}
+            f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
             for cui, f1_val in f1.items():
                 metric = {
                     "per_concept_precision": p[cui],
