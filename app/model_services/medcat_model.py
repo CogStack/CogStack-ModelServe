@@ -144,12 +144,24 @@ class MedCATModel(AbstractModelService):
             class_id = 0
             cuis = []
             f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
+            fp_accumulated = 0
+            fn_accumulated = 0
+            tp_accumulated = 0
+            cc_accumulated = 0
             for cui, f1_val in f1.items():
+                fp_accumulated += fps.get(cui, 0)
+                fn_accumulated += fns.get(cui, 0)
+                tp_accumulated += tps.get(cui, 0)
+                cc_accumulated += cc.get(cui, 0)
                 metric = {
                     "per_concept_fp": fps.get(cui, 0),
                     "per_concept_fn": fns.get(cui, 0),
                     "per_concept_tp": tps.get(cui, 0),
                     "per_concept_counts": cc.get(cui, 0),
+                    "per_concept_acc_fp": fp_accumulated,
+                    "per_concept_acc_fn": fn_accumulated,
+                    "per_concept_acc_tp": tp_accumulated,
+                    "per_concept_acc_cc": cc_accumulated,
                     "per_concept_precision": p[cui],
                     "per_concept_recall": r[cui],
                     "per_concept_f1": f1_val,
