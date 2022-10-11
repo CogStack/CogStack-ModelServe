@@ -137,8 +137,8 @@ class MedCATModel(AbstractModelService):
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             logger.info("Performing supervised training...")
-            with redirect_stdout(LogCaptor(medcat_model._tracker_client.glean_and_log_metrics)):
-                _, _, _, p, r, f1, _, _ = model.train_supervised(**training_params)
+            with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
+                fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
             class_id = 0
@@ -146,6 +146,10 @@ class MedCATModel(AbstractModelService):
             f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
             for cui, f1_val in f1.items():
                 metric = {
+                    "per_concept_fp": fps.get(cui, 0),
+                    "per_concept_fn": fns.get(cui, 0),
+                    "per_concept_tp": tps.get(cui, 0),
+                    "per_concept_counts": cc.get(cui, 0),
                     "per_concept_precision": p[cui],
                     "per_concept_recall": r[cui],
                     "per_concept_f1": f1_val,
