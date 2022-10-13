@@ -136,6 +136,7 @@ class MedCATModel(AbstractModelService):
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
+            medcat_model._training_tracker.log_model_config(medcat_model._get_flattened_config(model))
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
                 fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
@@ -220,6 +221,7 @@ class MedCATModel(AbstractModelService):
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
+            medcat_model._training_tracker.log_model_config(medcat_model._get_flattened_config(model))
             logger.info("Performing unsupervised training...")
             step = 0
             medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
@@ -350,3 +352,22 @@ class MedCATModel(AbstractModelService):
                 self._training_in_progress = True
                 asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency)))
                 return True
+
+    @staticmethod
+    def _get_flattened_config(model: CAT):
+        params = {}
+        for key, val in model.cdb.config.general.__dict__.items():
+            params[f"general.{key}"] = str(val)
+        for key, val in model.cdb.config.cdb_maker.__dict__.items():
+            params[f"cdb_maker.{key}"] = str(val)
+        for key, val in model.cdb.config.annotation_output.__dict__.items():
+            params[f"annotation_output.{key}"] = str(val)
+        for key, val in model.cdb.config.preprocessing.__dict__.items():
+            params[f"preprocessing.{key}"] = str(val)
+        for key, val in model.cdb.config.ner.__dict__.items():
+            params[f"ner.{key}"] = str(val)
+        for key, val in model.cdb.config.linking.__dict__.items():
+            params[f"linking.{key}"] = str(val)
+        params["word_skipper"] = str(model.cdb.config.word_skipper)
+        params["punct_checker"] = str(model.cdb.config.punct_checker)
+        return params

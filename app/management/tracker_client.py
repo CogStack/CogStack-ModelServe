@@ -96,6 +96,10 @@ class TrackerClient(object):
         mlflow.set_tag("training.entity.classes", str(classes)[:5000])
 
     @staticmethod
+    def log_model_config(config: Dict[str, str]) -> None:
+        mlflow.log_params(config)
+
+    @staticmethod
     def save_pretrained_model(model_name: str, model_path: str, pyfunc_model: ModelManager, run_name: Optional[str] = "") -> None:
         experiment_name = TrackerClient._get_experiment_name(f"Pretrained_{model_name}")
         experiment_id = TrackerClient._get_experiment_id(experiment_name)

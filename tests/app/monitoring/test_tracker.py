@@ -113,3 +113,8 @@ def test_log_exception(mlflow_fixture):
 def test_log_classes(mlflow_fixture):
     TrackerClient.log_classes(["class_1", "class_2"])
     mlflow.set_tag.assert_called_once_with("training.entity.classes", "['class_1', 'class_2']")
+
+
+def test_log_model_config(mlflow_fixture):
+    TrackerClient.log_model_config({"property": "value"})
+    mlflow.log_params.assert_called_once_with({"property": "value"})
