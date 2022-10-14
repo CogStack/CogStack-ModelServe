@@ -136,9 +136,9 @@ class MedCATModel(AbstractModelService):
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
-            medcat_model._training_tracker.log_model_config(medcat_model._get_flattened_config(model))
+            medcat_model._tracker_client.log_model_config(medcat_model._get_flattened_config(model))
             logger.info("Performing supervised training...")
-            with redirect_stdout(LogCaptor(medcat_model._training_tracker.glean_and_log_metrics)):
+            with redirect_stdout(LogCaptor(medcat_model._tracker_client.glean_and_log_metrics)):
                 fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
@@ -221,7 +221,7 @@ class MedCATModel(AbstractModelService):
             copied_model_pack_path = medcat_model._make_model_file_copy(medcat_model._model_pack_path)
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
-            medcat_model._training_tracker.log_model_config(medcat_model._get_flattened_config(model))
+            medcat_model._tracker_client.log_model_config(medcat_model._get_flattened_config(model))
             logger.info("Performing unsupervised training...")
             step = 0
             medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
@@ -370,4 +370,8 @@ class MedCATModel(AbstractModelService):
             params[f"linking.{key}"] = str(val)
         params["word_skipper"] = str(model.cdb.config.word_skipper)
         params["punct_checker"] = str(model.cdb.config.punct_checker)
+        params.pop("linking.filters", None)  # deal with the length value in the older model
+        for key, val in params.items():
+            if val == "":  # otherwise it will trigger an MLflow bug
+                params[key] = "<EMPTY>"
         return params
