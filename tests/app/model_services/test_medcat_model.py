@@ -1,7 +1,7 @@
 import os
 import tempfile
 import pytest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from medcat.cat import CAT
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
@@ -72,3 +72,9 @@ def test_train_unsupervised(medcat_model):
         with tempfile.TemporaryFile("r+") as f:
             medcat_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
         start_training.assert_called()
+
+
+def test_send_metrics(medcat_model):
+    medcat_model._tracker_client = Mock()
+    medcat_model.glean_and_log_metrics("Epoch: 0, Prec: 0.01, Rec: 0.01, F1: 0.01")
+    medcat_model._tracker_client.send_model_stats.assert_called_once_with({"precision": 0.01, "recall": 0.01, "f1": 0.01}, 0)

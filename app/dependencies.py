@@ -6,6 +6,7 @@ from model_services.base import AbstractModelService
 from model_services.deid_model import DeIdModel
 from model_services.medcat_model import MedCATModel
 from model_services.medcat_model_icd10 import MedCATModelIcd10
+from model_services.medcat_model_deid import MedCATModelDeIdentification
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,8 @@ class ModelServiceDep(object):
                 self._model_sevice = MedCATModel(self._config)
             elif self._model_type == ModelType.MEDCAT_ICD10.value:
                 self._model_sevice = MedCATModelIcd10(self._config)
+            elif self._model_type == ModelType.MEDCAT_DEID.value:
+                self._model_sevice = MedCATModelDeIdentification(self._config)
             elif self._model_type == ModelType.DE_ID.value:
                 self._model_sevice = DeIdModel(self._config)
             else:

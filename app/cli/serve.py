@@ -33,7 +33,7 @@ if __name__ == "__main__":
         "-mt",
         "--model-type",
         help="The type of the model to serve",
-        choices=["medcat_snomed", "medcat_icd10", "de_id"],
+        choices=["medcat_snomed", "medcat_icd10", "medcat_deid", "de_id"],
     )
 
     parser.add_argument(
@@ -88,6 +88,8 @@ if __name__ == "__main__":
             doc_name = "medcat_icd10_model_apis.json"
         elif args.model_type == ModelType.DE_ID.value:
             doc_name = "de-identification_model_apis.json"
+        elif args.model_type == ModelType.MEDCAT_DEID.value:
+            doc_name = "medcat_deidentification_model_apis.json"
         with open(doc_name, "w") as doc:
             json.dump(app.openapi(), doc, indent=4)
         print(f"OpenAPI doc exported to {doc_name}")

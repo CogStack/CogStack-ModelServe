@@ -60,11 +60,6 @@ def test_end_with_interruption(mlflow_fixture):
     mlflow.end_run.assert_called_once_with("KILLED")
 
 
-def test_send_metrics(mlflow_fixture):
-    TrackerClient.glean_and_log_metrics("Epoch: 0, Prec: 0.01, Rec: 0.01, F1: 0.01")
-    mlflow.log_metrics.assert_called_once_with({"precision": 0.01, "recall": 0.01, "f1": 0.01}, 0)
-
-
 def test_send_model_stats(mlflow_fixture):
     TrackerClient.send_model_stats({"Key name": 1}, 1)
     mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)

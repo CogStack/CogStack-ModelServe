@@ -1,11 +1,12 @@
 import os
-import re
 import socket
 import mlflow
 from typing import Dict, Tuple, List, Optional
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus
 from management.model_manager import ModelManager
+
+os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
 
 
 class TrackerClient(object):
@@ -45,17 +46,6 @@ class TrackerClient(object):
     @staticmethod
     def end_with_interruption() -> None:
         mlflow.end_run(RunStatus.to_string(RunStatus.KILLED))
-
-    @staticmethod
-    def glean_and_log_metrics(log: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)
-        for step, metric in enumerate(metric_lines):
-            metrics = {
-                "precision": float(metric[1]),
-                "recall": float(metric[2]),
-                "f1": float(metric[3]),
-            }
-            mlflow.log_metrics(metrics, int(metric[0]))
 
     @staticmethod
     def send_model_stats(stats: Dict, step: int) -> None:

@@ -5,6 +5,7 @@ import threading
 import gc
 import shutil
 import ijson
+import re
 import pandas as pd
 
 from functools import partial
@@ -138,7 +139,7 @@ class MedCATModel(AbstractModelService):
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             medcat_model._tracker_client.log_model_config(medcat_model._get_flattened_config(model))
             logger.info("Performing supervised training...")
-            with redirect_stdout(LogCaptor(medcat_model._tracker_client.glean_and_log_metrics)):
+            with redirect_stdout(LogCaptor(medcat_model.glean_and_log_metrics)):
                 fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
@@ -313,6 +314,39 @@ class MedCATModel(AbstractModelService):
         df["new_meta_anns"] = meta_annotations
         return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
 
+    @staticmethod
+    def _get_flattened_config(model: CAT):
+        params = {}
+        for key, val in model.cdb.config.general.__dict__.items():
+            params[f"general.{key}"] = str(val)
+        for key, val in model.cdb.config.cdb_maker.__dict__.items():
+            params[f"cdb_maker.{key}"] = str(val)
+        for key, val in model.cdb.config.annotation_output.__dict__.items():
+            params[f"annotation_output.{key}"] = str(val)
+        for key, val in model.cdb.config.preprocessing.__dict__.items():
+            params[f"preprocessing.{key}"] = str(val)
+        for key, val in model.cdb.config.ner.__dict__.items():
+            params[f"ner.{key}"] = str(val)
+        for key, val in model.cdb.config.linking.__dict__.items():
+            params[f"linking.{key}"] = str(val)
+        params["word_skipper"] = str(model.cdb.config.word_skipper)
+        params["punct_checker"] = str(model.cdb.config.punct_checker)
+        params.pop("linking.filters", None)  # deal with the length value in the older model
+        for key, val in params.items():
+            if val == "":  # otherwise it will trigger an MLflow bug
+                params[key] = "<EMPTY>"
+        return params
+
+    def glean_and_log_metrics(self, log: str) -> None:
+        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)
+        for step, metric in enumerate(metric_lines):
+            metrics = {
+                "precision": float(metric[1]),
+                "recall": float(metric[2]),
+                "f1": float(metric[3]),
+            }
+            self._tracker_client.send_model_stats(metrics, int(metric[0]))
+
     def _get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
 
@@ -352,26 +386,3 @@ class MedCATModel(AbstractModelService):
                 self._training_in_progress = True
                 asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency)))
                 return True
-
-    @staticmethod
-    def _get_flattened_config(model: CAT):
-        params = {}
-        for key, val in model.cdb.config.general.__dict__.items():
-            params[f"general.{key}"] = str(val)
-        for key, val in model.cdb.config.cdb_maker.__dict__.items():
-            params[f"cdb_maker.{key}"] = str(val)
-        for key, val in model.cdb.config.annotation_output.__dict__.items():
-            params[f"annotation_output.{key}"] = str(val)
-        for key, val in model.cdb.config.preprocessing.__dict__.items():
-            params[f"preprocessing.{key}"] = str(val)
-        for key, val in model.cdb.config.ner.__dict__.items():
-            params[f"ner.{key}"] = str(val)
-        for key, val in model.cdb.config.linking.__dict__.items():
-            params[f"linking.{key}"] = str(val)
-        params["word_skipper"] = str(model.cdb.config.word_skipper)
-        params["punct_checker"] = str(model.cdb.config.punct_checker)
-        params.pop("linking.filters", None)  # deal with the length value in the older model
-        for key, val in params.items():
-            if val == "":  # otherwise it will trigger an MLflow bug
-                params[key] = "<EMPTY>"
-        return params

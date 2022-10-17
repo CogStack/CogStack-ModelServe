@@ -51,6 +51,8 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
             doc_name = "medcat_snomed_model_apis.json"
         elif model_type == ModelType.MEDCAT_ICD10.value:
             doc_name = "medcat_icd10_model_apis.json"
+        elif model_type == ModelType.MEDCAT_DEID.value:
+            doc_name = "medcat_deidentification_model_apis.json"
         elif model_type == ModelType.DE_ID.value:
             doc_name = "de-identification_model_apis.json"
         with open(doc_name, "w") as api_doc:
@@ -103,6 +105,9 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     elif model_type == ModelType.MEDCAT_ICD10.value:
         from model_services.medcat_model_icd10 import MedCATModelIcd10
         model_service_type = MedCATModelIcd10
+    elif model_type == ModelType.MEDCAT_DEID.value:
+        from model_services.medcat_model_deid import MedCATModelDeIdentification
+        model_service_type = MedCATModelDeIdentification
     elif model_type == ModelType.DE_ID.value:
         from model_services.deid_model import DeIdModel
         model_service_type = DeIdModel

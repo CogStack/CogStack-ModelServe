@@ -49,4 +49,5 @@ class Tags(str, Enum):
 class ModelType(str, Enum):
     MEDCAT_SNOMED = "medcat_snomed"
     MEDCAT_ICD10 = "medcat_icd10"
+    MEDCAT_DEID = "medcat_deid"
     DE_ID = "de_id"
