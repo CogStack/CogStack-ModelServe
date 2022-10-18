@@ -38,14 +38,13 @@ class MedCATModelDeIdentification(MedCATModel):
             model = medcat_model.load_model(copied_model_pack_path,
                                             meta_cat_config_dict=medcat_model._meta_cat_config_dict)
             ner = model._addl_ner[0]
-            # ner.training_arguments.num_train_epochs = training_params["nepochs"]
-            params = {}
-            for key, val in ner.training_arguments.to_dict().items():
-                params[f"transformers.{key}"] = str(val)
+
+            params = {f"transformers.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()}
             for key, val in params.items():
-                if val == "":  # otherwise it will trigger an MLflow bug
-                    params[key] = "<EMPTY>"
+                # Otherwise it will trigger an MLflow bug
+                params[key] = "<EMPTY>" if val == "" else val
             medcat_model._tracker_client.log_model_config(params)
+
             logger.info("Performing supervised training...")
             for epoch in range(training_params["nepochs"]):
                 results, _, _ = ner.train(data_file.name)
@@ -57,7 +56,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 medcat_model._tracker_client.send_model_stats(metrics, epoch)
 
             class_id = 0
-            cuis = []
+            cui2names = {}
             results.sort_values(by=["cui"])
             for _, row in results.iterrows():
                 metrics = {
@@ -69,9 +68,9 @@ class MedCATModelDeIdentification(MedCATModel):
                     "per_concept_r_merged": row["r_merged"],
                 }
                 medcat_model._tracker_client.send_model_stats(metrics, class_id)
-                cuis.append(row["cui"])
+                cui2names[row["cui"]] = model.cdb.cui2preferred_name[row["cui"]]
                 class_id += 1
-            medcat_model._tracker_client.log_classes(cuis)
+            medcat_model._tracker_client.log_classes_and_names(cui2names)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -91,6 +90,11 @@ class MedCATModelDeIdentification(MedCATModel):
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Supervised training finished")
             medcat_model._tracker_client.end_with_success()
+
+            # Remove intermediate results folder on successful training
+            results_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "results")
+            if results_path and os.path.exists(results_path):
+                os.remove(results_path)
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)

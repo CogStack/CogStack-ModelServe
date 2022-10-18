@@ -34,7 +34,6 @@ services:
       - 8000
     ports:
       - 8180:8000
-    mem_limit: 30g
 
   medcat-icd10:
     build:
@@ -68,7 +67,39 @@ services:
       - 8000
     ports:
       - 8181:8000
-    mem_limit: 30g
+
+  medcat-deid:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-deid/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-deid
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained
+      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=mlflow-ui,minio
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=mlflow-ui,minio
+    expose:
+      - 8000
+    ports:
+      - 8182:8000
 
   de-identification:
     build:
@@ -96,7 +127,7 @@ services:
     expose:
       - 8000
     ports:
-      - 8182:8000
+      - 8183:8000
 
   mlflow-db:
     image: postgres:14

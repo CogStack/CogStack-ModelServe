@@ -86,6 +86,10 @@ class TrackerClient(object):
         mlflow.set_tag("training.entity.classes", str(classes)[:5000])
 
     @staticmethod
+    def log_classes_and_names(class2names: Dict[str, str]) -> None:
+        mlflow.set_tag("training.entity.class2names", str(class2names)[:5000])
+
+    @staticmethod
     def log_model_config(config: Dict[str, str]) -> None:
         mlflow.log_params(config)
 
