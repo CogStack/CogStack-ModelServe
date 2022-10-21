@@ -1,4 +1,5 @@
 import os
+import shutil
 import logging
 import gc
 from typing import Dict, List, TextIO
@@ -93,8 +94,8 @@ class MedCATModelDeIdentification(MedCATModel):
 
             # Remove intermediate results folder on successful training
             results_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "results")
-            if results_path and os.path.exists(results_path):
-                os.remove(results_path)
+            if results_path and os.path.isdir(results_path):
+                shutil.rmtree(results_path)
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)

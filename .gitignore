@@ -118,6 +118,8 @@ app/build
 app/cogstack_model_serve.egg-info
 app/dist
 
+analysis/
+
 *.log
 
 tests/resources/model
