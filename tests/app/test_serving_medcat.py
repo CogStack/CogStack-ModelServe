@@ -8,6 +8,7 @@ from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
 get_settings().ENABLE_TRAINING_APIS = "true"
+get_settings().DISABLE_UNSUPERVISED_TRAINING = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 

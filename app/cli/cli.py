@@ -4,7 +4,8 @@ import os
 import sys
 import uuid
 
-from parent_dir import parent_dir
+
+from parent_dir import parent_dir  # noqa
 
 import asyncio
 import shutil
@@ -12,6 +13,7 @@ import warnings
 import typer
 import globals
 
+from typing import Optional
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from domain import ModelType
@@ -91,7 +93,10 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 @cmd_app.command("register")
 def register_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                    model_path: str = typer.Option(..., help="The file path to the model package"),
-                   model_name: str = typer.Option(..., help="The string representation of the registered model")):
+                   model_name: str = typer.Option(..., help="The string representation of the registered model"),
+                   model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
+                   model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
+                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")):
     """
     This script pushes a pretrained NLP model to the Cogstack ModelServe registry
     """
@@ -115,11 +120,18 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
         print(f"Unknown model type: {model_type}")
         exit(1)
 
+    m_config = json.loads(model_config) if model_config is not None else None
+    m_metrics = json.loads(model_metrics) if model_metrics is not None else None
+    m_tags = json.loads(model_tags) if model_tags is not None else None
+
     run_name = str(uuid.uuid4())
     tracker_client.save_pretrained_model(model_name=model_name,
                                          model_path=model_path,
                                          pyfunc_model=ModelManager(model_service_type, config),
-                                         run_name=run_name)
+                                         run_name=run_name,
+                                         model_config=m_config,
+                                         model_metrics=m_metrics,
+                                         model_tags=m_tags)
     print(f"Pushed {model_path} as a new model version ({run_name})")
 
 

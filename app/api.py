@@ -70,7 +70,9 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     _load_invocation_router(app)
 
     if get_settings().ENABLE_TRAINING_APIS == "true":
-        _load_training_router(app)
+        _load_supervised_training_router(app)
+        if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
+            _load_unsupervised_training_router(app)
 
     app.openapi = custom_openapi  # type: ignore
 
@@ -83,7 +85,13 @@ def _load_invocation_router(app):
     app.include_router(invocation.router)
 
 
-def _load_training_router(app):
-    from routers import training
-    importlib.reload(training)
-    app.include_router(training.router)
+def _load_supervised_training_router(app):
+    from routers import supervised_training
+    importlib.reload(supervised_training)
+    app.include_router(supervised_training.router)
+
+
+def _load_unsupervised_training_router(app):
+    from routers import unsupervised_training
+    importlib.reload(unsupervised_training)
+    app.include_router(unsupervised_training.router)

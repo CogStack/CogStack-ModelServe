@@ -11,6 +11,7 @@ import pandas as pd
 from functools import partial
 from contextlib import redirect_stdout
 from typing import Dict, List, TextIO, Callable, Optional
+from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from domain import ModelCard
@@ -190,6 +191,7 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Supervised training finished")
+            medcat_model._tracker_client.log_trainer_version(medcat_version)
             medcat_model._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
@@ -248,6 +250,7 @@ class MedCATModel(AbstractModelService):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
+            medcat_model._tracker_client.log_trainer_version(medcat_version)
             medcat_model._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")

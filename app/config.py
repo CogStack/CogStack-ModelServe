@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     INCLUDE_SPAN_TEXT: str = "false"
     CONCAT_SIMILAR_ENTITIES: str = "true"
     ENABLE_TRAINING_APIS: str = "false"
+    DISABLE_UNSUPERVISED_TRAINING: str = "false"
     MLFLOW_TRACKING_URI: str = f'file:{os.path.join(os.path.abspath(os.path.dirname(__file__)), "mlruns")}'
     REDEPLOY_TRAINED_MODEL: str = "false"
     SKIP_SAVE_MODEL: str = "false"

@@ -57,33 +57,6 @@ services:
     ports:
       - 8181:8000
 
-  medcat-deid:
-    build:
-        context: ./
-        dockerfile: ./docker/medcat-deid/Dockerfile
-        args:
-          - HTTP_PROXY=$HTTP_PROXY
-          - HTTPS_PROXY=$HTTPS_PROXY
-          - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-deid
-    restart: always
-    networks:
-      - cms
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
-      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
-    environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
-      - HTTP_PROXY=$HTTP_PROXY
-      - HTTPS_PROXY=$HTTPS_PROXY
-      - http_proxy=$HTTP_PROXY
-      - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8182:8000
-
   de-identification:
     build:
         context: ./
@@ -107,6 +80,33 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=$NO_PROXY
+    expose:
+      - 8000
+    ports:
+      - 8182:8000
+
+  medcat-deid:
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-deid/Dockerfile
+        args:
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-deid
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained
+      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
     expose:
       - 8000
     ports:

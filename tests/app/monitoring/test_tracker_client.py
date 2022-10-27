@@ -3,7 +3,7 @@ import pytest
 import mlflow
 
 from app.management.tracker_client import TrackerClient
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 
 @pytest.fixture
@@ -42,6 +42,7 @@ def test_start_new(mlflow_fixture):
     assert run_id == "run_id"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
+    assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "False"
     assert mlflow.set_tags.call_args.args[0]["training.metrics.log_frequency"] == 10
 
 
@@ -91,9 +92,24 @@ def test_save_model_local(mlflow_fixture_file_uri):
 
 def test_save_pretrained_model(mlflow_fixture):
     pyfunc_model = Mock()
-    TrackerClient.save_pretrained_model("model_name", "model_path", pyfunc_model, "run_name")
-    mlflow.get_experiment_by_name.assert_called_once_with("Pretrained_model_name")
+    TrackerClient.save_pretrained_model("model_name",
+                                        "model_path",
+                                        pyfunc_model,
+                                        "run_name",
+                                        {"param": "value"},
+                                        [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
+                                        {"tag_name": "tag_value"})
+    mlflow.get_experiment_by_name.assert_called_once_with("model_name")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
+    mlflow.log_params.assert_called_once_with( {"param": "value"})
+    mlflow.log_metrics.assert_has_calls([call({"p": 0.8, "r": 0.8}, 0), call({"p": 0.9, "r": 0.9}, 1)])
+    mlflow.set_tags.assert_called()
+    assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "model_path"
+    assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "Unknown"
+    assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "True"
+    assert mlflow.set_tags.call_args.args[0]["training.mlflow.run_id"] == "run_id"
+    assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
+    assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "model_path"},
@@ -113,6 +129,11 @@ def test_log_classes(mlflow_fixture):
 def test_log_classes_and_names(mlflow_fixture):
     TrackerClient.log_classes_and_names({"class_1": "class_1_name", "class_2": "class_2_name"})
     mlflow.set_tag.assert_called_once_with("training.entity.class2names", "{'class_1': 'class_1_name', 'class_2': 'class_2_name'}")
+
+
+def test_log_trainer_version(mlflow_fixture):
+    TrackerClient.log_trainer_version("1.2.3")
+    mlflow.set_tag.assert_called_once_with("training.trainer.version", "1.2.3")
 
 
 def test_log_model_config(mlflow_fixture):

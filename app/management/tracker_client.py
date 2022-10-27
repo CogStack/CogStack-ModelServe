@@ -30,6 +30,7 @@ class TrackerClient(object):
             "training.mlflow.run_id": active_run.info.run_id,
             "training.input_data.filename": input_file_name,
             "training.base_model.origin": base_model_original,
+            "training.is.pretrained": "False",
             "training.metrics.log_frequency": log_frequency,
         })
         mlflow.log_params(training_params)
@@ -90,15 +91,48 @@ class TrackerClient(object):
         mlflow.set_tag("training.entity.class2names", str(class2names)[:5000])
 
     @staticmethod
+    def log_trainer_version(trainer_version: str) -> None:
+        mlflow.set_tag("training.trainer.version", trainer_version)
+
+    @staticmethod
     def log_model_config(config: Dict[str, str]) -> None:
         mlflow.log_params(config)
 
     @staticmethod
-    def save_pretrained_model(model_name: str, model_path: str, pyfunc_model: ModelManager, run_name: Optional[str] = "") -> None:
-        experiment_name = TrackerClient._get_experiment_name(f"Pretrained_{model_name}")
+    def save_pretrained_model(model_name: str,
+                              model_path: str,
+                              pyfunc_model: ModelManager,
+                              run_name: Optional[str] = "",
+                              model_config: Optional[Dict] = None,
+                              model_metrics: Optional[List[Dict]] = None,
+                              model_tags: Optional[Dict] = None,) -> None:
+        experiment_name = TrackerClient._get_experiment_name(model_name)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
-        mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
-        TrackerClient.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
+        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
+        try:
+            if model_config is not None:
+                TrackerClient.log_model_config(model_config)
+            if model_metrics is not None:
+                for step, metric in enumerate(model_metrics):
+                    TrackerClient.send_model_stats(metric, step)
+            tags = {
+                MLFLOW_SOURCE_NAME: socket.gethostname(),
+                "training.mlflow.run_id": active_run.info.run_id,
+                "training.input_data.filename": "Unknown",
+                "training.base_model.origin": model_path,
+                "training.is.pretrained": "True",
+            }
+            if model_tags is not None:
+                tags = {**tags, **model_tags}
+            mlflow.set_tags(tags)
+            TrackerClient.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
+            TrackerClient.end_with_success()
+            print("finished")
+        except KeyboardInterrupt:
+            TrackerClient.end_with_interruption()
+        except Exception as e:
+            TrackerClient.log_exception(e)
+            TrackerClient.end_with_failure()
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
