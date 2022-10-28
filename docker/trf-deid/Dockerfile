@@ -13,7 +13,7 @@ ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
 
 COPY app /app
-COPY docker/de-id/requirements.txt /requirements.txt
+COPY docker/trf-deid/requirements.txt /requirements.txt
 
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
     pip install --no-cache-dir -r requirements.txt
@@ -21,4 +21,4 @@ RUN python -m spacy download en_core_web_md
 
 WORKDIR /app
 EXPOSE 8000
-CMD ["python", "cli/serve.py", "--model-type", "de_id", "--model-path", "/app/model/model.zip", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "cli/cli.py", "serve", "--model-type", "transformers_deid", "--model-path", "/app/model/model.zip", "--host", "0.0.0.0", "--port", "8000"]

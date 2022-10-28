@@ -28,13 +28,37 @@ warnings.simplefilter("ignore")
 cmd_app = typer.Typer(add_completion=False)
 
 
+@cmd_app.command("apidoc")
+def generate_api_doc(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+                     add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
+                     exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API")):
+    settings = get_settings()
+    settings.ENABLE_TRAINING_APIS = "true" if add_training_apis else "false"
+    settings.DISABLE_UNSUPERVISED_TRAINING = "true" if exclude_unsupervised_training else "false"
+    model_service_dep = ModelServiceDep(model_type, settings)
+    globals.model_service_dep = model_service_dep
+    app = get_model_server()
+    doc_name = ""
+    if model_type == ModelType.MEDCAT_SNOMED.value:
+        doc_name = "medcat_snomed_model_apis.json"
+    elif model_type == ModelType.MEDCAT_ICD10.value:
+        doc_name = "medcat_icd10_model_apis.json"
+    elif model_type == ModelType.MEDCAT_DEID.value:
+        doc_name = "medcat_deidentification_model_apis.json"
+    elif model_type == ModelType.TRANSFORMERS_DEID.value:
+        doc_name = "de-identification_model_apis.json"
+    with open(doc_name, "w") as api_doc:
+        json.dump(app.openapi(), api_doc, indent=4)
+    print(f"OpenAPI doc exported to {doc_name}")
+    sys.exit(0)
+
+
 @cmd_app.command("serve")
 def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                 model_path: str = typer.Option("", help="The file path to the model package"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
                 host: str = typer.Option("0.0.0.0", help="The hostname of the server"),
-                port: str = typer.Option("8000", help="The port of the server"),
-                doc: bool = typer.Option(False, help="Export the OpenAPI doc")):
+                port: str = typer.Option("8000", help="The port of the server")):
     """
     This script serves various CogStack NLP models
     """
@@ -47,47 +71,32 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     globals.model_service_dep = model_service_dep
     app = get_model_server()
 
-    if doc:
-        doc_name = ""
-        if model_type == ModelType.MEDCAT_SNOMED.value:
-            doc_name = "medcat_snomed_model_apis.json"
-        elif model_type == ModelType.MEDCAT_ICD10.value:
-            doc_name = "medcat_icd10_model_apis.json"
-        elif model_type == ModelType.MEDCAT_DEID.value:
-            doc_name = "medcat_deidentification_model_apis.json"
-        elif model_type == ModelType.DE_ID.value:
-            doc_name = "de-identification_model_apis.json"
-        with open(doc_name, "w") as api_doc:
-            json.dump(app.openapi(), api_doc, indent=4)
-        print(f"OpenAPI doc exported to {doc_name}")
-        sys.exit(0)
+    dst_model_path = os.path.join(parent_dir, "model", "model.zip")
+    if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
+        shutil.rmtree(dst_model_path.replace(".zip", ""))
+    if model_path:
+        try:
+            shutil.copy2(model_path, dst_model_path)
+        except shutil.SameFileError:
+            pass
+        model_service = model_service_dep()
+        model_service.init_model()
+    elif mlflow_model_uri:
+        model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
+                                                       mlflow_model_uri,
+                                                       settings,
+                                                       dst_model_path)
+        model_service_dep.model_service = model_service
+        app = get_model_server()
     else:
-        dst_model_path = os.path.join(parent_dir, "model", "model.zip")
-        if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
-            shutil.rmtree(dst_model_path.replace(".zip", ""))
-        if model_path:
-            try:
-                shutil.copy2(model_path, dst_model_path)
-            except shutil.SameFileError:
-                pass
-            model_service = model_service_dep()
-            model_service.init_model()
-        elif mlflow_model_uri:
-            model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
-                                                           mlflow_model_uri,
-                                                           settings,
-                                                           dst_model_path)
-            model_service_dep.model_service = model_service
-            app = get_model_server()
-        else:
-            print("Error: Neither the model path or the mlflow model uri was passed in")
-            sys.exit(1)
+        print("Error: Neither the model path or the mlflow model uri was passed in")
+        sys.exit(1)
 
-        config = Config()
-        config.bind = [f"{host}:{port}"]
-        config.access_log_format = "%(R)s %(s)s %(st)s %(D)s %({Header}o)s"
-        config.accesslog = logger
-        asyncio.run(serve(app, config))  # type: ignore
+    config = Config()
+    config.bind = [f"{host}:{port}"]
+    config.access_log_format = "%(R)s %(s)s %(st)s %(D)s %({Header}o)s"
+    config.accesslog = logger
+    asyncio.run(serve(app, config))  # type: ignore
 
 
 @cmd_app.command("register")
@@ -113,9 +122,9 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     elif model_type == ModelType.MEDCAT_DEID.value:
         from model_services.medcat_model_deid import MedCATModelDeIdentification
         model_service_type = MedCATModelDeIdentification
-    elif model_type == ModelType.DE_ID.value:
-        from model_services.deid_model import DeIdModel
-        model_service_type = DeIdModel
+    elif model_type == ModelType.TRANSFORMERS_DEID.value:
+        from model_services.trf_model_deid import TransformersModelDeIdentification
+        model_service_type = TransformersModelDeIdentification
     else:
         print(f"Unknown model type: {model_type}")
         exit(1)

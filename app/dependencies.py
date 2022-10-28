@@ -3,7 +3,7 @@ import logging
 from domain import ModelType
 from config import Settings
 from model_services.base import AbstractModelService
-from model_services.deid_model import DeIdModel
+from model_services.trf_model_deid import TransformersModelDeIdentification
 from model_services.medcat_model import MedCATModel
 from model_services.medcat_model_icd10 import MedCATModelIcd10
 from model_services.medcat_model_deid import MedCATModelDeIdentification
@@ -36,8 +36,8 @@ class ModelServiceDep(object):
                 self._model_sevice = MedCATModelIcd10(self._config)
             elif self._model_type == ModelType.MEDCAT_DEID.value:
                 self._model_sevice = MedCATModelDeIdentification(self._config)
-            elif self._model_type == ModelType.DE_ID.value:
-                self._model_sevice = DeIdModel(self._config)
+            elif self._model_type == ModelType.TRANSFORMERS_DEID.value:
+                self._model_sevice = TransformersModelDeIdentification(self._config)
             else:
                 logger.error(f"Unknown model type: {self._model_type}")
                 exit(1)     # throw an exception?

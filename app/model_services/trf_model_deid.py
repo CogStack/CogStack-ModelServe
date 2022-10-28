@@ -14,7 +14,7 @@ from config import Settings
 logger = logging.getLogger(__name__)
 
 
-class DeIdModel(AbstractModelService):
+class TransformersModelDeIdentification(AbstractModelService):
 
     def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
         super().__init__(config)

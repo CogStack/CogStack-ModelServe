@@ -60,18 +60,18 @@ services:
   de-identification:
     build:
         context: ./
-        dockerfile: ./docker/de-id/Dockerfile
+        dockerfile: ./docker/trf-deid/Dockerfile
         args:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-de-id
+    container_name: cms_trf-deid
     restart: always
     networks:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - ./docker/de-id/.env:/app/envs/.env:ro
+      - ./docker/trf-deid/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - HTTP_PROXY=$HTTP_PROXY
