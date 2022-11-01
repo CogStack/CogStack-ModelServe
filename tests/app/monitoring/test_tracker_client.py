@@ -95,11 +95,12 @@ def test_save_pretrained_model(mlflow_fixture):
     TrackerClient.save_pretrained_model("model_name",
                                         "model_path",
                                         pyfunc_model,
+                                        "training_type",
                                         "run_name",
                                         {"param": "value"},
                                         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
                                         {"tag_name": "tag_value"})
-    mlflow.get_experiment_by_name.assert_called_once_with("model_name")
+    mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
     mlflow.log_params.assert_called_once_with( {"param": "value"})
     mlflow.log_metrics.assert_has_calls([call({"p": 0.8, "r": 0.8}, 0), call({"p": 0.9, "r": 0.9}, 1)])

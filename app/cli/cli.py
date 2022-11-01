@@ -103,6 +103,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 def register_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                    model_path: str = typer.Option(..., help="The file path to the model package"),
                    model_name: str = typer.Option(..., help="The string representation of the registered model"),
+                   training_type: Optional[str] = typer.Option(None, help="The type of training the model went through"),
                    model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
                    model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")):
@@ -132,11 +133,13 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     m_config = json.loads(model_config) if model_config is not None else None
     m_metrics = json.loads(model_metrics) if model_metrics is not None else None
     m_tags = json.loads(model_tags) if model_tags is not None else None
+    t_type = training_type if training_type is not None else ""
 
     run_name = str(uuid.uuid4())
     tracker_client.save_pretrained_model(model_name=model_name,
                                          model_path=model_path,
                                          pyfunc_model=ModelManager(model_service_type, config),
+                                         training_type=t_type,
                                          run_name=run_name,
                                          model_config=m_config,
                                          model_metrics=m_metrics,

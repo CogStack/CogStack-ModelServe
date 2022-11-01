@@ -161,6 +161,7 @@ class MedCATModel(AbstractModelService):
                     "per_concept_fn": fns.get(cui, 0),
                     "per_concept_tp": tps.get(cui, 0),
                     "per_concept_counts": cc.get(cui, 0),
+                    "per_concept_count_train": model.cdb.cui2count_train.get(cui, 0),
                     "per_concept_acc_fp": fp_accumulated,
                     "per_concept_acc_fn": fn_accumulated,
                     "per_concept_acc_tp": tp_accumulated,
@@ -228,10 +229,19 @@ class MedCATModel(AbstractModelService):
             logger.info("Performing unsupervised training...")
             step = 0
             medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
+            before_cui2count_train = dict(model.cdb.cui2count_train)
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **training_params)
                 medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
+            cui_step = 0
+            for cui, count_train in model.cdb.cui2count_train.items():
+                cui_step += 1
+                per_concept_count_train = {
+                    "per_concept_count_train_before": before_cui2count_train.get(cui, 0),
+                    "per_concept_count_train_after": count_train
+                }
+                medcat_model._tracker_client.send_model_stats(per_concept_count_train, cui_step)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")

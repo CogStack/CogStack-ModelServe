@@ -102,11 +102,12 @@ class TrackerClient(object):
     def save_pretrained_model(model_name: str,
                               model_path: str,
                               pyfunc_model: ModelManager,
+                              training_type: Optional[str] = "",
                               run_name: Optional[str] = "",
                               model_config: Optional[Dict] = None,
                               model_metrics: Optional[List[Dict]] = None,
                               model_tags: Optional[Dict] = None,) -> None:
-        experiment_name = TrackerClient._get_experiment_name(model_name)
+        experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
         try:
