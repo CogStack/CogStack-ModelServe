@@ -5,12 +5,13 @@ import threading
 import gc
 import shutil
 import ijson
+import json
 import re
 import pandas as pd
 
 from functools import partial
 from contextlib import redirect_stdout
-from typing import Dict, List, TextIO, Callable, Optional
+from typing import Dict, List, TextIO, Callable, Optional, Set
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
@@ -65,6 +66,22 @@ class MedCATModel(AbstractModelService):
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
         logger.info(f"Model pack loaded from {os.path.normpath(model_file_path)}")
         return cat
+
+    @staticmethod
+    def get_cuis_from_trainer_export(file_path: str) -> Set[str]:
+        cuis = set()
+        with open(file_path, "r") as f:
+            export_object = json.load(f)
+            for project in export_object["projects"]:
+                for doc in project["documents"]:
+                    annotations = []
+                    if type(doc["annotations"]) == list:
+                        annotations = doc["annotations"]
+                    elif type(doc["annotations"]) == dict:
+                        annotations = list(doc["annotations"].values())
+                    for annotation in annotations:
+                        cuis.add(annotation["cui"])
+        return cuis
 
     def init_model(self) -> None:
         if hasattr(self, "_model") and isinstance(self._model, CAT):
@@ -173,6 +190,10 @@ class MedCATModel(AbstractModelService):
                 medcat_model._tracker_client.send_model_stats(metric, class_id)
                 cuis.append(cui)
                 class_id += 1
+            cuis_in_data_file = medcat_model.get_cuis_from_trainer_export(data_file.name)
+            if len(cuis_in_data_file) != 0:
+                unknown_rate = round(len(cuis_in_data_file - set(model.cdb.cui2names.keys())) / len(cuis_in_data_file) * 100, 2)
+                medcat_model._tracker_client.send_model_stats({"unknown_concept_pct": unknown_rate}, 0)
             medcat_model._tracker_client.log_classes(cuis)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
@@ -235,7 +256,10 @@ class MedCATModel(AbstractModelService):
                 model.train(batch, **training_params)
                 medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
             cui_step = 0
-            for cui, count_train in model.cdb.cui2count_train.items():
+            after_cui2count_train = {c: ct for c, ct in sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
+            for cui, count_train in after_cui2count_train.items():
+                if cui_step >= 10000:  # large numbers will cause the mlflow page to hung on loading
+                    break
                 cui_step += 1
                 per_concept_count_train = {
                     "per_concept_count_train_before": before_cui2count_train.get(cui, 0),

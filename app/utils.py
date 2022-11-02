@@ -13,3 +13,4 @@ def annotations_to_entities(annotations: List[Annotation]) -> List[Entity]:
             "kb_url": "#"
         })
     return entities
+

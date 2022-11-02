@@ -78,3 +78,11 @@ def test_send_metrics(medcat_model):
     medcat_model._tracker_client = Mock()
     medcat_model.glean_and_log_metrics("Epoch: 0, Prec: 0.01, Rec: 0.01, F1: 0.01")
     medcat_model._tracker_client.send_model_stats.assert_called_once_with({"precision": 0.01, "recall": 0.01, "f1": 0.01}, 0)
+
+
+def test_get_cuis_from_trainer_export(medcat_model):
+    path = os.path.join(MODEL_PARENT_DIR, "fixture", "trainer_export.json")
+    cuis = medcat_model.get_cuis_from_trainer_export(path)
+    assert cuis == {'C0010068', 'C0011860', 'C0003864', 'C0011849', 'C0878544', 'C0020473', 'C0155626', 'C0007222',
+                    'C0012634', 'C0020538', 'C0038454', 'C0042029', 'C0007787', 'C0027051', 'C0017168', 'C0338614',
+                    'C0037284'}
