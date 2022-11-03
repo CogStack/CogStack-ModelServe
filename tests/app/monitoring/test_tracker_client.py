@@ -31,7 +31,8 @@ def mlflow_fixture_file_uri(mlflow_fixture, mocker):
 
 
 def test_start_new(mlflow_fixture):
-    experiment_id, run_id = TrackerClient.start_tracking("model_name", "input_file_name", "base_model_origin",
+    tracker_client = TrackerClient("")
+    experiment_id, run_id = tracker_client.start_tracking("model_name", "input_file_name", "base_model_origin",
                                                            "training_type", {"param": "param"}, "run_name", 10)
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
@@ -47,28 +48,33 @@ def test_start_new(mlflow_fixture):
 
 
 def test_end_with_success(mlflow_fixture):
-    TrackerClient.end_with_success()
+    tracker_client = TrackerClient("")
+    tracker_client.end_with_success()
     mlflow.end_run.assert_called_once_with("FINISHED")
 
 
 def test_end_with_failure(mlflow_fixture):
-    TrackerClient.end_with_failure()
+    tracker_client = TrackerClient("")
+    tracker_client.end_with_failure()
     mlflow.end_run.assert_called_once_with("FAILED")
 
 
 def test_end_with_interruption(mlflow_fixture):
-    TrackerClient.end_with_interruption()
+    tracker_client = TrackerClient("")
+    tracker_client.end_with_interruption()
     mlflow.end_run.assert_called_once_with("KILLED")
 
 
 def test_send_model_stats(mlflow_fixture):
-    TrackerClient.send_model_stats({"Key name": 1}, 1)
+    tracker_client = TrackerClient("")
+    tracker_client.send_model_stats({"Key name": 1}, 1)
     mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)
 
 
 def test_save_model(mlflow_fixture):
+    tracker_client = TrackerClient("")
     pyfunc_model = Mock()
-    TrackerClient.save_model("filepath", "model name", pyfunc_model)
+    tracker_client.save_model("filepath", "model name", pyfunc_model)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "filepath"},
@@ -77,13 +83,15 @@ def test_save_model(mlflow_fixture):
 
 
 def test_save_model_artifact(mlflow_fixture):
-    TrackerClient.save_model_artifact("filepath", "model name")
+    tracker_client = TrackerClient("")
+    tracker_client.save_model_artifact("filepath", "model name")
     mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
 
 
 def test_save_model_local(mlflow_fixture_file_uri):
+    tracker_client = TrackerClient("")
     pyfunc_model = Mock()
-    TrackerClient.save_model("filepath", "model name", pyfunc_model)
+    tracker_client.save_model("filepath", "model name", pyfunc_model)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "filepath"})
@@ -91,8 +99,9 @@ def test_save_model_local(mlflow_fixture_file_uri):
 
 
 def test_save_pretrained_model(mlflow_fixture):
+    tracker_client = TrackerClient("")
     pyfunc_model = Mock()
-    TrackerClient.save_pretrained_model("model_name",
+    tracker_client.save_pretrained_model("model_name",
                                         "model_path",
                                         pyfunc_model,
                                         "training_type",
@@ -118,25 +127,42 @@ def test_save_pretrained_model(mlflow_fixture):
 
 
 def test_log_exception(mlflow_fixture):
-    TrackerClient.log_exception(Exception("something wrong"))
+    tracker_client = TrackerClient("")
+    tracker_client.log_exception(Exception("something wrong"))
     mlflow.set_tag.assert_called_once_with("exception", "something wrong")
 
 
 def test_log_classes(mlflow_fixture):
-    TrackerClient.log_classes(["class_1", "class_2"])
+    tracker_client = TrackerClient("")
+    tracker_client.log_classes(["class_1", "class_2"])
     mlflow.set_tag.assert_called_once_with("training.entity.classes", "['class_1', 'class_2']")
 
 
 def test_log_classes_and_names(mlflow_fixture):
-    TrackerClient.log_classes_and_names({"class_1": "class_1_name", "class_2": "class_2_name"})
+    tracker_client = TrackerClient("")
+    tracker_client.log_classes_and_names({"class_1": "class_1_name", "class_2": "class_2_name"})
     mlflow.set_tag.assert_called_once_with("training.entity.class2names", "{'class_1': 'class_1_name', 'class_2': 'class_2_name'}")
 
 
 def test_log_trainer_version(mlflow_fixture):
-    TrackerClient.log_trainer_version("1.2.3")
+    tracker_client = TrackerClient("")
+    tracker_client.log_trainer_version("1.2.3")
     mlflow.set_tag.assert_called_once_with("training.trainer.version", "1.2.3")
 
 
 def test_log_model_config(mlflow_fixture):
-    TrackerClient.log_model_config({"property": "value"})
+    tracker_client = TrackerClient("")
+    tracker_client.log_model_config({"property": "value"})
     mlflow.log_params.assert_called_once_with({"property": "value"})
+
+
+def test_send_batched_model_stats(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    mlflow_client = Mock()
+    tracker_client.mlflow_client = mlflow_client
+    tracker_client.send_batched_model_stats(
+        [{"m1": "v1", "m2": "v1"}, {"m1": "v2", "m2": "v2"}, {"m1": "v3", "m2": "v3"}],
+        "run_id", 3)
+    mlflow_client.log_batch.assert_has_calls([call(run_id='run_id', metrics=[]), call(run_id='run_id', metrics=[])])
+
+

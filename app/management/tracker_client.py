@@ -3,7 +3,8 @@ import socket
 import mlflow
 from typing import Dict, Tuple, List, Optional
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
-from mlflow.entities import RunStatus
+from mlflow.entities import RunStatus, Metric
+from mlflow.tracking import MlflowClient
 from management.model_manager import ModelManager
 
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
@@ -13,6 +14,7 @@ class TrackerClient(object):
 
     def __init__(self, mlflow_tracking_uri: str) -> None:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
+        self.mlflow_client = MlflowClient(mlflow_tracking_uri)
 
     @staticmethod
     def start_tracking(model_name: str,
@@ -128,12 +130,24 @@ class TrackerClient(object):
             mlflow.set_tags(tags)
             TrackerClient.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
             TrackerClient.end_with_success()
-            print("finished")
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
         except Exception as e:
             TrackerClient.log_exception(e)
             TrackerClient.end_with_failure()
+
+    def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000):
+        if batch_size <= 0:
+            return
+        batch = []
+        for step, metrics in enumerate(aggregated_metrics):
+            for metric_name, metric_value in metrics.items():
+                batch.append(Metric(key=metric_name, value=metric_value, timestamp=0, step=step))
+                if len(batch) == batch_size:
+                    self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
+                    batch.clear()
+        if batch:
+            self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

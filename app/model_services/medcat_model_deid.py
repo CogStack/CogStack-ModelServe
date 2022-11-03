@@ -27,7 +27,8 @@ class MedCATModelDeIdentification(MedCATModel):
     def _train_supervised(medcat_model: "MedCATModel",
                           training_params: Dict,
                           data_file: TextIO,
-                          log_frequency: int) -> None:
+                          log_frequency: int,
+                          run_id: str) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -56,21 +57,20 @@ class MedCATModelDeIdentification(MedCATModel):
                 }
                 medcat_model._tracker_client.send_model_stats(metrics, epoch)
 
-            class_id = 0
             cui2names = {}
             results.sort_values(by=["cui"])
+            aggregated_metrics = []
             for _, row in results.iterrows():
-                metrics = {
+                aggregated_metrics.append({
                     "per_concept_p": row["p"],
                     "per_concept_r": row["r"],
                     "per_concept_f1": row["f1"],
                     "per_concept_support": row["support"],
                     "per_concept_p_merged": row["p_merged"],
                     "per_concept_r_merged": row["r_merged"],
-                }
-                medcat_model._tracker_client.send_model_stats(metrics, class_id)
+                })
                 cui2names[row["cui"]] = model.cdb.cui2preferred_name[row["cui"]]
-                class_id += 1
+            medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             medcat_model._tracker_client.log_classes_and_names(cui2names)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)

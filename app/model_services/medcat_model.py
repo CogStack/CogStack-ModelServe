@@ -143,7 +143,8 @@ class MedCATModel(AbstractModelService):
     def _train_supervised(medcat_model: "MedCATModel",
                           training_params: Dict,
                           data_file: TextIO,
-                          log_frequency: int) -> None:
+                          log_frequency: int,
+                          run_id: str) -> None:
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
@@ -161,19 +162,19 @@ class MedCATModel(AbstractModelService):
                 fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
-            class_id = 0
             cuis = []
             f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
             fp_accumulated = 0
             fn_accumulated = 0
             tp_accumulated = 0
             cc_accumulated = 0
+            aggregated_metrics = []
             for cui, f1_val in f1.items():
                 fp_accumulated += fps.get(cui, 0)
                 fn_accumulated += fns.get(cui, 0)
                 tp_accumulated += tps.get(cui, 0)
                 cc_accumulated += cc.get(cui, 0)
-                metric = {
+                aggregated_metrics.append({
                     "per_concept_fp": fps.get(cui, 0),
                     "per_concept_fn": fns.get(cui, 0),
                     "per_concept_tp": tps.get(cui, 0),
@@ -186,10 +187,9 @@ class MedCATModel(AbstractModelService):
                     "per_concept_precision": p[cui],
                     "per_concept_recall": r[cui],
                     "per_concept_f1": f1_val,
-                }
-                medcat_model._tracker_client.send_model_stats(metric, class_id)
+                })
                 cuis.append(cui)
-                class_id += 1
+            medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             cuis_in_data_file = medcat_model.get_cuis_from_trainer_export(data_file.name)
             if len(cuis_in_data_file) != 0:
                 unknown_rate = round(len(cuis_in_data_file - set(model.cdb.cui2names.keys())) / len(cuis_in_data_file) * 100, 2)
@@ -233,7 +233,8 @@ class MedCATModel(AbstractModelService):
     def _train_unsupervised(medcat_model: "MedCATModel",
                             training_params: Dict,
                             data_file: TextIO,
-                            log_frequency: int) -> None:
+                            log_frequency: int,
+                            run_id: str) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -255,17 +256,18 @@ class MedCATModel(AbstractModelService):
                 step += 1
                 model.train(batch, **training_params)
                 medcat_model._tracker_client.send_model_stats(model.cdb._make_stats(), step)
-            cui_step = 0
             after_cui2count_train = {c: ct for c, ct in sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
+            aggregated_metrics = []
+            cui_step = 0
             for cui, count_train in after_cui2count_train.items():
                 if cui_step >= 10000:  # large numbers will cause the mlflow page to hung on loading
                     break
                 cui_step += 1
-                per_concept_count_train = {
+                aggregated_metrics.append({
                     "per_concept_count_train_before": before_cui2count_train.get(cui, 0),
                     "per_concept_count_train_after": count_train
-                }
-                medcat_model._tracker_client.send_model_stats(per_concept_count_train, cui_step)
+                })
+            medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -421,5 +423,5 @@ class MedCATModel(AbstractModelService):
                     self._tracker_client.save_model_artifact(dataset.name, self.info().model_description)
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency)))
+                asyncio.ensure_future(loop.run_in_executor(self.executor, partial(runner, self, training_params, dataset, log_frequency, run_id)))
                 return True
