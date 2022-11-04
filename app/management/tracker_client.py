@@ -26,9 +26,10 @@ class TrackerClient(object):
                        log_frequency: int) -> Tuple[str, str]:
         experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
-        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
+        active_run = mlflow.start_run(experiment_id=experiment_id)
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
+            "mlflow.runName": run_name,
             "training.mlflow.run_id": active_run.info.run_id,
             "training.input_data.filename": input_file_name,
             "training.base_model.origin": base_model_original,
@@ -111,7 +112,7 @@ class TrackerClient(object):
                               model_tags: Optional[Dict] = None,) -> None:
         experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
-        active_run = mlflow.start_run(experiment_id=experiment_id, run_name=run_name)
+        active_run = mlflow.start_run(experiment_id=experiment_id)
         try:
             if model_config is not None:
                 TrackerClient.log_model_config(model_config)
@@ -120,6 +121,7 @@ class TrackerClient(object):
                     TrackerClient.send_model_stats(metric, step)
             tags = {
                 MLFLOW_SOURCE_NAME: socket.gethostname(),
+                "mlflow.runName": run_name,
                 "training.mlflow.run_id": active_run.info.run_id,
                 "training.input_data.filename": "Unknown",
                 "training.base_model.origin": model_path,

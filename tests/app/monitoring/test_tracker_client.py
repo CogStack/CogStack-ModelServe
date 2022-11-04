@@ -36,11 +36,12 @@ def test_start_new(mlflow_fixture):
                                                            "training_type", {"param": "param"}, "run_name", 10)
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
     mlflow.set_tags.assert_called()
     mlflow.log_params.assert_called_once_with({"param": "param"})
     assert experiment_id == "experiment_id"
     assert run_id == "run_id"
+    assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
     assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "False"
@@ -110,10 +111,11 @@ def test_save_pretrained_model(mlflow_fixture):
                                         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
                                         {"tag_name": "tag_value"})
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name")
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
     mlflow.log_params.assert_called_once_with( {"param": "value"})
     mlflow.log_metrics.assert_has_calls([call({"p": 0.8, "r": 0.8}, 0), call({"p": 0.9, "r": 0.9}, 1)])
     mlflow.set_tags.assert_called()
+    assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "model_path"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "Unknown"
     assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "True"

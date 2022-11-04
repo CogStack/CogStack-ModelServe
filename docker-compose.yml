@@ -20,6 +20,8 @@ services:
       - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
@@ -51,6 +53,8 @@ services:
       - ./docker/medcat-icd10/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
@@ -81,6 +85,8 @@ services:
       - ./docker/trf-deid/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
@@ -112,6 +118,8 @@ services:
       - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
