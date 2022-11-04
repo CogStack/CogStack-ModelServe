@@ -9,8 +9,16 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelIcd10(MedCATModel):
 
+    @property
+    def model_name(self) -> str:
+        return "ICD-10 MedCAT model"
+
+    @property
+    def api_version(self) -> str:
+        return "0.0.1"
+
     def info(self) -> ModelCard:
-        return ModelCard(model_description="ICD-10 MedCAT model",
+        return ModelCard(model_description=self.model_name,
                          model_type="MedCAT",
                          api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))

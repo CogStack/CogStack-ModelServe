@@ -11,11 +11,18 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelDeIdentification(MedCATModel):
 
+    @property
+    def model_name(self) -> str:
+        return "De-Identification MedCAT model"
+
+    @property
+    def api_version(self) -> str:
+        return "0.0.1"
+
     def info(self) -> ModelCard:
-        return ModelCard(model_description="De-Identification MedCAT model",
+        return ModelCard(model_description=self.model_name,
                          model_type="MedCAT",
-                         api_version=self.api_version,
-                         model_card=self.model.get_model_card(as_dict=True))
+                         api_version=self.api_version)
 
     def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
         annotation_list = []

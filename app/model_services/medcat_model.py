@@ -55,7 +55,7 @@ class MedCATModel(AbstractModelService):
 
     @property
     def model_name(self) -> str:
-        return "MedCAT model"
+        return "SNOMED MedCAT model"
 
     @property
     def api_version(self) -> str:
@@ -90,7 +90,7 @@ class MedCATModel(AbstractModelService):
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
 
     def info(self) -> ModelCard:
-        return ModelCard(model_description="SNOMED MedCAT model",
+        return ModelCard(model_description=self.model_name,
                          model_type="MedCAT",
                          api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))
