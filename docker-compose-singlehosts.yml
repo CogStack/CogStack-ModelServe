@@ -29,6 +29,12 @@ services:
       - 8000
     ports:
       - 8180:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   medcat-icd10:
     build:
@@ -56,6 +62,12 @@ services:
       - 8000
     ports:
       - 8181:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   de-identification:
     build:
@@ -84,6 +96,12 @@ services:
       - 8000
     ports:
       - 8182:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   medcat-deid:
     build:
@@ -111,6 +129,12 @@ services:
       - 8000
     ports:
       - 8183:8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
 volumes:
   retrained-models:

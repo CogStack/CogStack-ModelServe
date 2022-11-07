@@ -191,9 +191,7 @@ class MedCATModel(AbstractModelService):
                 cuis.append(cui)
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             cuis_in_data_file = medcat_model.get_cuis_from_trainer_export(data_file.name)
-            if len(cuis_in_data_file) != 0:
-                unknown_rate = round(len(cuis_in_data_file - set(model.cdb.cui2names.keys())) / len(cuis_in_data_file) * 100, 2)
-                medcat_model._tracker_client.send_model_stats({"unknown_concept_pct": unknown_rate}, 0)
+            medcat_model._save_trained_concept(cuis_in_data_file, medcat_model)
             medcat_model._tracker_client.log_classes(cuis)
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
@@ -375,6 +373,26 @@ class MedCATModel(AbstractModelService):
             if val == "":  # otherwise it will trigger an MLflow bug
                 params[key] = "<EMPTY>"
         return params
+
+    @staticmethod
+    def _save_trained_concept(training_concepts: Set, medcat_model: "MedCATModel"):
+        if len(training_concepts) != 0:
+            unknown_concepts = training_concepts - set(medcat_model.model.cdb.cui2names.keys())
+            unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts) * 100, 2)
+            medcat_model._tracker_client.send_model_stats({
+                "unknown_concept_count": len(unknown_concepts),
+                "unknown_concept_pct": unknown_concept_pct,
+            }, 0)
+            if unknown_concepts:
+                medcat_model._tracker_client.save_data("unknown_concepts.csv",
+                                                       pd.DataFrame({"cui": list(unknown_concepts)}),
+                                                       medcat_model.model_name)
+            medcat_model._tracker_client.save_data("trained_concepts.csv",
+                                                   pd.DataFrame({
+                                                       "cui": list(training_concepts),
+                                                       "count_train": [medcat_model.model.cdb.cui2count_train[c] for c in list(training_concepts) if c in medcat_model.model.cdb.cui2count_train],
+                                                   }),
+                                                   medcat_model.model_name)
 
     def glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)

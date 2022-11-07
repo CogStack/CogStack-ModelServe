@@ -22,7 +22,7 @@ if __name__ == "__main__":
         "-b",
         "--another-model-pack-path",
         type=str,
-        default="The path to the second model pack",
+        help="The path to the second model pack",
     )
     FLAGS, unparsed = parser.parse_known_args()
 

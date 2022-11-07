@@ -1,6 +1,7 @@
 import os
 import pytest
 import mlflow
+import pandas as pd
 
 from app.management.tracker_client import TrackerClient
 from unittest.mock import Mock, call
@@ -89,6 +90,12 @@ def test_save_model_artifact(mlflow_fixture):
     mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
 
 
+def test_save_data(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_data("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
+    mlflow.log_artifact.assert_called_once_with(StringContains("test.csv"), artifact_path=os.path.join("model_name", "data"))
+
+
 def test_save_model_local(mlflow_fixture_file_uri):
     tracker_client = TrackerClient("")
     pyfunc_model = Mock()
@@ -168,3 +175,6 @@ def test_send_batched_model_stats(mlflow_fixture):
     mlflow_client.log_batch.assert_has_calls([call(run_id='run_id', metrics=[]), call(run_id='run_id', metrics=[])])
 
 
+class StringContains(str):
+    def __eq__(self, other):
+        return self in other
