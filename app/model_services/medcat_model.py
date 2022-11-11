@@ -15,9 +15,11 @@ from typing import Dict, List, TextIO, Callable, Optional, Set
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
+from model_services.trainer_base import SupervisedTrainer, UnsupervisedTrainer
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
+from processors.metrics_collector import evaluate_model_with_trainer_export
 from management.tracker_client import TrackerClient
 from management.log_captor import LogCaptor
 from management.model_manager import ModelManager
@@ -26,7 +28,7 @@ from concurrent.futures import ThreadPoolExecutor
 logger = logging.getLogger(__name__)
 
 
-class MedCATModel(AbstractModelService):
+class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
     def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
         super().__init__(config)
@@ -60,6 +62,12 @@ class MedCATModel(AbstractModelService):
     @property
     def api_version(self) -> str:
         return "0.0.1"
+
+    @classmethod
+    def wrap_model(cls, model: CAT):
+        model_service = cls(Settings())
+        model_service.model = model
+        return model_service
 
     @staticmethod
     def load_model(model_file_path: str, *args, **kwargs) -> CAT:
@@ -193,6 +201,7 @@ class MedCATModel(AbstractModelService):
             cuis_in_data_file = medcat_model.get_cuis_from_trainer_export(data_file.name)
             medcat_model._save_trained_concept(cuis_in_data_file, medcat_model)
             medcat_model._tracker_client.log_classes(cuis)
+            medcat_model._save_evaluation_results(data_file.name, medcat_model.wrap_model(model))
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -393,6 +402,12 @@ class MedCATModel(AbstractModelService):
                                                        "count_train": [medcat_model.model.cdb.cui2count_train[c] for c in list(training_concepts) if c in medcat_model.model.cdb.cui2count_train],
                                                    }),
                                                    medcat_model.model_name)
+
+    @staticmethod
+    def _save_evaluation_results(data_file_path: str, medcat_model: "MedCATModel"):
+        medcat_model._tracker_client.save_data("evaluation.csv",
+                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_dataframe=True),
+                                               medcat_model.model_name)
 
     def glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)

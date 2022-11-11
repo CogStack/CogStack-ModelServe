@@ -33,6 +33,33 @@ def test_evaluate_model_with_trainer_export():
     assert set(per_cui_rec.keys()) == {"C0017168", "C0020538"}
     assert set(per_cui_f1.keys()) == {"C0017168", "C0020538"}
 
+
+def test_evaluate_model_and_return_dataframe():
+    model_service = create_autospec(AbstractModelService)
+    annotations = [
+        {
+            "label_name": "gastroesophageal reflux",
+            "label_id": "C0017168",
+            "start": 332,
+            "end": 355,
+        },
+        {
+            "label_name": "hypertension",
+            "label_id": "C0020538",
+            "start": 255,
+            "end": 267,
+        }
+    ]
+    model_service.annotate.return_value = annotations
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+
+    result = evaluate_model_with_trainer_export(path, model_service, return_dataframe=True)
+    assert set(result["cui"].to_list()) == {"C0020538", "C0017168"}
+    assert set(result["precision"].to_list()) == {0.5, 0.5}
+    assert set(result["recall"].to_list()) == {0.25, 1.0}
+    assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
+
+
 def test_concat_trainer_exports():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
     with tempfile.NamedTemporaryFile() as f:

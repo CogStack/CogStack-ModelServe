@@ -1,10 +1,13 @@
 import json
-from typing import Tuple, Dict, List
+import pandas as pd
+from typing import Tuple, Dict, List, Union
 from collections import defaultdict
 from model_services.base import AbstractModelService
 
 
-def evaluate_model_with_trainer_export(data_file_path: str, model: AbstractModelService) -> Tuple[float, float, float, Dict, Dict, Dict]:
+def evaluate_model_with_trainer_export(data_file_path: str,
+                                       model: AbstractModelService,
+                                       return_dataframe: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict]]:
     with open(data_file_path, "r") as f:
         data = json.load(f)
 
@@ -81,8 +84,15 @@ def evaluate_model_with_trainer_export(data_file_path: str, model: AbstractModel
         per_cui_prec[cui] = tps[cui] / (tps[cui] + fps[cui])
         per_cui_rec[cui] = tps[cui] / (tps[cui] + fns[cui])
         per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
-
-    return precision, recall, f1, dict(per_cui_prec), dict(per_cui_rec), dict(per_cui_f1)
+    if return_dataframe:
+        return pd.DataFrame({
+            "cui": per_cui_prec.keys(),
+            "precision": per_cui_prec.values(),
+            "recall": per_cui_rec.values(),
+            "f1": per_cui_f1.values(),
+        })
+    else:
+        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1
 
 
 def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: str) -> str:
