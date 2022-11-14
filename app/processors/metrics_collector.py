@@ -1,13 +1,14 @@
 import json
 import pandas as pd
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List, Union, Set
 from collections import defaultdict
+from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
 
 
 def evaluate_model_with_trainer_export(data_file_path: str,
                                        model: AbstractModelService,
-                                       return_dataframe: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict]]:
+                                       return_df: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict]]:
     with open(data_file_path, "r") as f:
         data = json.load(f)
 
@@ -25,22 +26,26 @@ def evaluate_model_with_trainer_export(data_file_path: str,
     true_positives: Dict = {}
     false_positives: Dict = {}
     false_negatives: Dict = {}
+    concept_names: Dict = {}
     true_positive_count, false_positive_count, false_negative_count = 0, 0, 0
 
-    for project in data["projects"]:
-        predictions = {}
+    for project in tqdm(data["projects"], desc="Evaluating projects", total=len(data["projects"]), leave=False):
+        predictions: Dict = {}
         documents = project["documents"]
         true_positives[project["id"]] = {}
         false_positives[project["id"]] = {}
         false_negatives[project["id"]] = {}
 
-        for document in documents:
+        for document in tqdm(documents, desc="Evaluating documents", total=len(documents), leave=False):
             true_positives[project["id"]][document["id"]] = {}
             false_positives[project["id"]][document["id"]] = {}
             false_negatives[project["id"]][document["id"]] = {}
 
             annotations = model.annotate(document["text"])
-            predictions[document["id"]] = [[a["start"], a["end"], a["label_id"]] for a in annotations]
+            predictions[document["id"]] = []
+            for annotation in annotations:
+                predictions[document["id"]].append([annotation["start"], annotation["end"], annotation["label_id"]])
+                concept_names[annotation["label_id"]] = annotation["label_name"]
 
             predicted = {tuple(x) for x in predictions[document["id"]]}
             actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
@@ -64,6 +69,7 @@ def evaluate_model_with_trainer_export(data_file_path: str,
     per_cui_prec = defaultdict(int)
     per_cui_rec = defaultdict(int)
     per_cui_f1 = defaultdict(int)
+    per_cui_name = defaultdict(str)
 
     for documents in false_positives.values():
         for spans in documents.values():
@@ -84,15 +90,18 @@ def evaluate_model_with_trainer_export(data_file_path: str,
         per_cui_prec[cui] = tps[cui] / (tps[cui] + fps[cui])
         per_cui_rec[cui] = tps[cui] / (tps[cui] + fns[cui])
         per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
-    if return_dataframe:
+        per_cui_name[cui] = concept_names[cui]
+
+    if return_df:
         return pd.DataFrame({
-            "cui": per_cui_prec.keys(),
+            "concept": per_cui_prec.keys(),
+            "name": per_cui_name.values(),
             "precision": per_cui_prec.values(),
             "recall": per_cui_rec.values(),
             "f1": per_cui_f1.values(),
         })
     else:
-        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1
+        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name
 
 
 def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: str) -> str:
@@ -110,3 +119,19 @@ def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: 
         json.dump(combined, f)
 
     return combined_data_file_path
+
+
+def get_cuis_from_trainer_export(file_path: str) -> Set[str]:
+    cuis = set()
+    with open(file_path, "r") as f:
+        export_object = json.load(f)
+        for project in export_object["projects"]:
+            for doc in project["documents"]:
+                annotations = []
+                if type(doc["annotations"]) == list:
+                    annotations = doc["annotations"]
+                elif type(doc["annotations"]) == dict:
+                    annotations = list(doc["annotations"].values())
+                for annotation in annotations:
+                    cuis.add(annotation["cui"])
+    return cuis

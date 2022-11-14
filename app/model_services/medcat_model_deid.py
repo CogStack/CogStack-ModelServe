@@ -4,11 +4,13 @@ import logging
 import gc
 from typing import Dict, List, TextIO
 from model_services.medcat_model import MedCATModel
+from processors.metrics_collector import evaluate_model_with_trainer_export, get_cuis_from_trainer_export
 from domain import ModelCard
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: verify the metrics collection
 class MedCATModelDeIdentification(MedCATModel):
 
     @property
@@ -79,6 +81,9 @@ class MedCATModelDeIdentification(MedCATModel):
                 cui2names[row["cui"]] = model.cdb.cui2preferred_name[row["cui"]]
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             medcat_model._tracker_client.log_classes_and_names(cui2names)
+            cuis_in_data_file = get_cuis_from_trainer_export(data_file.name)
+            medcat_model._save_trained_concepts(cuis_in_data_file, medcat_model)
+            medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model.of(model))
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -116,3 +121,9 @@ class MedCATModelDeIdentification(MedCATModel):
             medcat_model._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
+
+    @staticmethod
+    def _evaluate_model_and_save_results(data_file_path: str, medcat_model: "MedCATModel") -> None:
+        medcat_model._tracker_client.save_data("evaluation.csv",
+                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
+                                               medcat_model.model_name)

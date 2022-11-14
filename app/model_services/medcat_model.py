@@ -5,7 +5,6 @@ import threading
 import gc
 import shutil
 import ijson
-import json
 import re
 import pandas as pd
 
@@ -19,7 +18,7 @@ from model_services.trainer_base import SupervisedTrainer, UnsupervisedTrainer
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
-from processors.metrics_collector import evaluate_model_with_trainer_export
+from processors.metrics_collector import evaluate_model_with_trainer_export, get_cuis_from_trainer_export
 from management.tracker_client import TrackerClient
 from management.log_captor import LogCaptor
 from management.model_manager import ModelManager
@@ -30,18 +29,19 @@ logger = logging.getLogger(__name__)
 
 class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
-    def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
+    def __init__(self, config: Settings, model_parent_dir: Optional[str] = None, enable_trainer: bool = True) -> None:
         super().__init__(config)
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
-        self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
-        self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
-        self._training_lock = threading.Lock()
-        self._training_in_progress = False
-        self._tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
-        self._pyfunc_model = ModelManager(type(self), config)
-        self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
+        self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
         self._model: CAT
+        if enable_trainer:
+            self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
+            self._training_lock = threading.Lock()
+            self._training_in_progress = False
+            self._tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
+            self._pyfunc_model = ModelManager(type(self), config)
+            self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
 
     @property
     def model(self) -> CAT:
@@ -64,8 +64,8 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return "0.0.1"
 
     @classmethod
-    def wrap_model(cls, model: CAT):
-        model_service = cls(Settings())
+    def of(cls, model: CAT):
+        model_service = cls(Settings(), enable_trainer=False)
         model_service.model = model
         return model_service
 
@@ -75,25 +75,9 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         logger.info(f"Model pack loaded from {os.path.normpath(model_file_path)}")
         return cat
 
-    @staticmethod
-    def get_cuis_from_trainer_export(file_path: str) -> Set[str]:
-        cuis = set()
-        with open(file_path, "r") as f:
-            export_object = json.load(f)
-            for project in export_object["projects"]:
-                for doc in project["documents"]:
-                    annotations = []
-                    if type(doc["annotations"]) == list:
-                        annotations = doc["annotations"]
-                    elif type(doc["annotations"]) == dict:
-                        annotations = list(doc["annotations"].values())
-                    for annotation in annotations:
-                        cuis.add(annotation["cui"])
-        return cuis
-
     def init_model(self) -> None:
         if hasattr(self, "_model") and isinstance(self._model, CAT):
-            logger.warning("Model service can be initialised only once")
+            logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
 
@@ -198,10 +182,10 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                 })
                 cuis.append(cui)
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            cuis_in_data_file = medcat_model.get_cuis_from_trainer_export(data_file.name)
-            medcat_model._save_trained_concept(cuis_in_data_file, medcat_model)
+            cuis_in_data_file = get_cuis_from_trainer_export(data_file.name)
+            medcat_model._save_trained_concepts(cuis_in_data_file, medcat_model)
             medcat_model._tracker_client.log_classes(cuis)
-            medcat_model._save_evaluation_results(data_file.name, medcat_model.wrap_model(model))
+            medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model.of(model))
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -266,13 +250,13 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
             after_cui2count_train = {c: ct for c, ct in sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
             aggregated_metrics = []
             cui_step = 0
-            for cui, count_train in after_cui2count_train.items():
+            for cui, train_count in after_cui2count_train.items():
                 if cui_step >= 10000:  # large numbers will cause the mlflow page to hung on loading
                     break
                 cui_step += 1
                 aggregated_metrics.append({
-                    "per_concept_count_train_before": before_cui2count_train.get(cui, 0),
-                    "per_concept_count_train_after": count_train
+                    "per_concept_train_count_before": before_cui2count_train.get(cui, 0),
+                    "per_concept_train_count_after": train_count
                 })
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             if not skip_save_model:
@@ -384,7 +368,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return params
 
     @staticmethod
-    def _save_trained_concept(training_concepts: Set, medcat_model: "MedCATModel"):
+    def _save_trained_concepts(training_concepts: Set, medcat_model: "MedCATModel"):
         if len(training_concepts) != 0:
             unknown_concepts = training_concepts - set(medcat_model.model.cdb.cui2names.keys())
             unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts) * 100, 2)
@@ -394,19 +378,23 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
             }, 0)
             if unknown_concepts:
                 medcat_model._tracker_client.save_data("unknown_concepts.csv",
-                                                       pd.DataFrame({"cui": list(unknown_concepts)}),
+                                                       pd.DataFrame({"concept": list(unknown_concepts)}),
                                                        medcat_model.model_name)
+            train_count = []
+            concepts = list(training_concepts)
+            for c in concepts:
+                train_count.append(medcat_model.model.cdb.cui2count_train[c] if c in medcat_model.model.cdb.cui2count_train else 0)
             medcat_model._tracker_client.save_data("trained_concepts.csv",
                                                    pd.DataFrame({
-                                                       "cui": list(training_concepts),
-                                                       "count_train": [medcat_model.model.cdb.cui2count_train[c] for c in list(training_concepts) if c in medcat_model.model.cdb.cui2count_train],
+                                                       "concept": concepts,
+                                                       "train_count": train_count,
                                                    }),
                                                    medcat_model.model_name)
 
     @staticmethod
-    def _save_evaluation_results(data_file_path: str, medcat_model: "MedCATModel"):
+    def _evaluate_model_and_save_results(data_file_path: str, medcat_model: "MedCATModel") -> None:
         medcat_model._tracker_client.save_data("evaluation.csv",
-                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_dataframe=True),
+                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
                                                medcat_model.model_name)
 
     def glean_and_log_metrics(self, log: str) -> None:

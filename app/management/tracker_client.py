@@ -87,8 +87,9 @@ class TrackerClient(object):
     def save_data(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, file_name), "w") as f:
-                data_frame.to_csv(f, index=False)
-                mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "data"))
+                data_frame.to_csv(f.name, index=False)
+                f.flush()
+                mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
 
     @staticmethod
     def log_exception(e: Exception) -> None:

@@ -93,7 +93,7 @@ def test_save_model_artifact(mlflow_fixture):
 def test_save_data(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.save_data("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
-    mlflow.log_artifact.assert_called_once_with(StringContains("test.csv"), artifact_path=os.path.join("model_name", "data"))
+    mlflow.log_artifact.assert_called_once_with(StringContains("test.csv"), artifact_path=os.path.join("model_name", "stats"))
 
 
 def test_save_model_local(mlflow_fixture_file_uri):

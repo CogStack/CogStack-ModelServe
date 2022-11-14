@@ -71,7 +71,7 @@ class TransformersModelDeIdentification(AbstractModelService):
 
     def init_model(self) -> None:
         if hasattr(self, "_model") and isinstance(self._model, PreTrainedModel):
-            logger.warning("Model service can be initialised only once")
+            logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._tokenizer, self._model = self.load_model(self._model_file_path)
             self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
