@@ -1,6 +1,6 @@
 import json
 import pandas as pd
-from typing import Tuple, Dict, List, Union, Set
+from typing import Tuple, Dict, List, Union
 from collections import defaultdict
 from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
@@ -121,8 +121,8 @@ def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: 
     return combined_data_file_path
 
 
-def get_cuis_from_trainer_export(file_path: str) -> Set[str]:
-    cuis = set()
+def get_cui_counts_from_trainer_export(file_path: str) -> Dict[str, int]:
+    cuis: Dict = defaultdict(int)
     with open(file_path, "r") as f:
         export_object = json.load(f)
         for project in export_object["projects"]:
@@ -133,5 +133,5 @@ def get_cuis_from_trainer_export(file_path: str) -> Set[str]:
                 elif type(doc["annotations"]) == dict:
                     annotations = list(doc["annotations"].values())
                 for annotation in annotations:
-                    cuis.add(annotation["cui"])
-    return cuis
+                    cuis[annotation["cui"]] += 1
+    return dict(cuis)

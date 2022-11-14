@@ -85,6 +85,7 @@ class TrackerClient(object):
 
     @staticmethod
     def save_data(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, file_name), "w") as f:
                 data_frame.to_csv(f.name, index=False)

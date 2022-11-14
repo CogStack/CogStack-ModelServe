@@ -4,7 +4,7 @@ import logging
 import gc
 from typing import Dict, List, TextIO
 from model_services.medcat_model import MedCATModel
-from processors.metrics_collector import evaluate_model_with_trainer_export, get_cuis_from_trainer_export
+from processors.metrics_collector import evaluate_model_with_trainer_export, get_cui_counts_from_trainer_export
 from domain import ModelCard
 
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 cui2names[row["cui"]] = model.cdb.cui2preferred_name[row["cui"]]
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             medcat_model._tracker_client.log_classes_and_names(cui2names)
-            cuis_in_data_file = get_cuis_from_trainer_export(data_file.name)
+            cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
             medcat_model._save_trained_concepts(cuis_in_data_file, medcat_model)
             medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model.of(model))
             if not skip_save_model:

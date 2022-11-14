@@ -6,7 +6,7 @@ from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
     evaluate_model_with_trainer_export,
     concat_trainer_exports,
-    get_cuis_from_trainer_export,
+    get_cui_counts_from_trainer_export,
 )
 
 
@@ -75,9 +75,25 @@ def test_concat_trainer_exports():
         assert len(new_export["projects"]) == 3
 
 
-def test_get_cuis_from_trainer_export():
+def test_get_cui_counts_from_trainer_export():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
-    cuis = get_cuis_from_trainer_export(path)
-    assert cuis == {'C0010068', 'C0011860', 'C0003864', 'C0011849', 'C0878544', 'C0020473', 'C0155626', 'C0007222',
-                    'C0012634', 'C0020538', 'C0038454', 'C0042029', 'C0007787', 'C0027051', 'C0017168', 'C0338614',
-                    'C0037284'}
+    cuis = get_cui_counts_from_trainer_export(path)
+    assert cuis == {
+        "C0003864": 2,
+        "C0007222": 1,
+        "C0007787": 1,
+        "C0010068": 1,
+        "C0011849": 1,
+        "C0011860": 3,
+        "C0012634": 1,
+        "C0017168": 1,
+        "C0020473": 3,
+        "C0020538": 4,
+        "C0027051": 1,
+        "C0037284": 2,
+        "C0038454": 1,
+        "C0042029": 4,
+        "C0155626": 2,
+        "C0338614": 1,
+        "C0878544": 1
+    }

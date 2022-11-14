@@ -10,7 +10,7 @@ import pandas as pd
 
 from functools import partial
 from contextlib import redirect_stdout
-from typing import Dict, List, TextIO, Callable, Optional, Set
+from typing import Dict, List, TextIO, Callable, Optional
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
@@ -18,7 +18,7 @@ from model_services.trainer_base import SupervisedTrainer, UnsupervisedTrainer
 from domain import ModelCard
 from config import Settings
 from processors.data_batcher import mini_batch
-from processors.metrics_collector import evaluate_model_with_trainer_export, get_cuis_from_trainer_export
+from processors.metrics_collector import evaluate_model_with_trainer_export, get_cui_counts_from_trainer_export
 from management.tracker_client import TrackerClient
 from management.log_captor import LogCaptor
 from management.model_manager import ModelManager
@@ -64,7 +64,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return "0.0.1"
 
     @classmethod
-    def of(cls, model: CAT):
+    def of(cls, model: CAT) -> "MedCATModel":
         model_service = cls(Settings(), enable_trainer=False)
         model_service.model = model
         return model_service
@@ -182,8 +182,8 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                 })
                 cuis.append(cui)
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            cuis_in_data_file = get_cuis_from_trainer_export(data_file.name)
-            medcat_model._save_trained_concepts(cuis_in_data_file, medcat_model)
+            cui_counts = get_cui_counts_from_trainer_export(data_file.name)
+            medcat_model._save_trained_concepts(cui_counts, medcat_model)
             medcat_model._tracker_client.log_classes(cuis)
             medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model.of(model))
             if not skip_save_model:
@@ -294,7 +294,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                 os.remove(cdb_config_path)
 
     @staticmethod
-    def _make_model_file_copy(model_file_path: str):
+    def _make_model_file_copy(model_file_path: str) -> str:
         copied_model_pack_path = model_file_path.replace(".zip", "_copied.zip")
         shutil.copy2(model_file_path, copied_model_pack_path)
         if os.path.exists(copied_model_pack_path.replace(".zip", "")):
@@ -302,7 +302,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return copied_model_pack_path
 
     @staticmethod
-    def _housekeep_file(file_path: Optional[str]):
+    def _housekeep_file(file_path: Optional[str]) -> None:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
             logger.debug("model pack housekept")
@@ -322,7 +322,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
     @staticmethod
     def _deploy_model(service: "MedCATModel",
                       model: CAT,
-                      skip_save_model: bool):
+                      skip_save_model: bool) -> None:
         if skip_save_model:
             model._versioning()
         del service.model
@@ -345,7 +345,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
 
     @staticmethod
-    def _get_flattened_config(model: CAT):
+    def _get_flattened_config(model: CAT) -> Dict:
         params = {}
         for key, val in model.cdb.config.general.__dict__.items():
             params[f"general.{key}"] = str(val)
@@ -368,10 +368,10 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         return params
 
     @staticmethod
-    def _save_trained_concepts(training_concepts: Set, medcat_model: "MedCATModel"):
-        if len(training_concepts) != 0:
-            unknown_concepts = training_concepts - set(medcat_model.model.cdb.cui2names.keys())
-            unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts) * 100, 2)
+    def _save_trained_concepts(training_concepts: Dict, medcat_model: "MedCATModel") -> None:
+        if len(training_concepts.keys()) != 0:
+            unknown_concepts = set(training_concepts.keys()) - set(medcat_model.model.cdb.cui2names.keys())
+            unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
             medcat_model._tracker_client.send_model_stats({
                 "unknown_concept_count": len(unknown_concepts),
                 "unknown_concept_pct": unknown_concept_pct,
@@ -381,13 +381,16 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                                                        pd.DataFrame({"concept": list(unknown_concepts)}),
                                                        medcat_model.model_name)
             train_count = []
-            concepts = list(training_concepts)
+            annotation_count = []
+            concepts = list(training_concepts.keys())
             for c in concepts:
                 train_count.append(medcat_model.model.cdb.cui2count_train[c] if c in medcat_model.model.cdb.cui2count_train else 0)
+                annotation_count.append(training_concepts[c])
             medcat_model._tracker_client.save_data("trained_concepts.csv",
                                                    pd.DataFrame({
                                                        "concept": concepts,
                                                        "train_count": train_count,
+                                                       "anno_count": annotation_count,
                                                    }),
                                                    medcat_model.model_name)
 
