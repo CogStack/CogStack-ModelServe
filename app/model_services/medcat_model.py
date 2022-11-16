@@ -29,8 +29,10 @@ logger = logging.getLogger(__name__)
 
 class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
+    MODEL_NAME = "SNOMED MedCAT model"
+
     def __init__(self, config: Settings, model_parent_dir: Optional[str] = None, enable_trainer: bool = True) -> None:
-        super().__init__(config)
+        self._config = config
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
@@ -57,7 +59,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
     @property
     def model_name(self) -> str:
-        return "SNOMED MedCAT model"
+        return self.MODEL_NAME
 
     @property
     def api_version(self) -> str:
@@ -185,7 +187,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
             cui_counts = get_cui_counts_from_trainer_export(data_file.name)
             medcat_model._save_trained_concepts(cui_counts, medcat_model)
             medcat_model._tracker_client.log_classes(cuis)
-            medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model.of(model))
+            medcat_model._evaluate_model_and_save_results(data_file.name, medcat_model._tracker_client, medcat_model.of(model))
             if not skip_save_model:
                 model_pack_path = MedCATModel._save_model(medcat_model, model)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -395,10 +397,10 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                                                    medcat_model.model_name)
 
     @staticmethod
-    def _evaluate_model_and_save_results(data_file_path: str, medcat_model: "MedCATModel") -> None:
-        medcat_model._tracker_client.save_data("evaluation.csv",
-                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
-                                               medcat_model.model_name)
+    def _evaluate_model_and_save_results(data_file_path: str, tracker_client: TrackerClient, medcat_model: "MedCATModel") -> None:
+        tracker_client.save_data("evaluation.csv",
+                                 evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
+                                 medcat_model.model_name)
 
     def glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)

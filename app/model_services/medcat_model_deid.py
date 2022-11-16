@@ -10,12 +10,9 @@ from domain import ModelCard
 logger = logging.getLogger(__name__)
 
 
-# TODO: verify the metrics collection
 class MedCATModelDeIdentification(MedCATModel):
 
-    @property
-    def model_name(self) -> str:
-        return "De-Identification MedCAT model"
+    MODEL_NAME = "De-Identification MedCAT model"
 
     @property
     def api_version(self) -> str:

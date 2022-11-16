@@ -47,6 +47,9 @@ def test_predict(mlflow_fixture):
 
 class _MockedModelService(AbstractModelService):
 
+    def __init__(self, config: Settings, *args, **kwargs) -> None:
+        self._config = config
+
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):
         return Mock()

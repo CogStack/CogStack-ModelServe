@@ -1,3 +1,4 @@
+import os
 import pytest
 import tempfile
 from fastapi.testclient import TestClient
@@ -92,6 +93,58 @@ def test_preview():
                            headers={"Content-Type": "text/plain"})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+
+
+def test_preview_trainer_export():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert len(response.text.split("<br/>")) == 2
+
+
+def test_preview_trainer_export_with_project_id():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export?project_id=14", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert len(response.text.split("<br/>")) == 2
+
+
+def test_preview_trainer_export_with_document_id():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export?document_id=3205", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert len(response.text.split("<br/>")) == 1
+
+
+def test_preview_trainer_export_with_project_and_document_ids():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert len(response.text.split("<br/>")) == 1
+
+
+def test_preview_trainer_export_with_project_id_not_present():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export?document_id=1", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 404
+    assert response.text == "Cannot find any matching documents to preview"
+
+
+def test_preview_trainer_export_with_document_id_not_present():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/preview_trainer_export?document_id=1", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 404
+    assert response.text == "Cannot find any matching documents to preview"
 
 
 def test_train_supervised():
