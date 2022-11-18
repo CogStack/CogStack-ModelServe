@@ -51,3 +51,10 @@ class ModelType(str, Enum):
     MEDCAT_ICD10 = "medcat_icd10"
     MEDCAT_DEID = "medcat_deid"
     TRANSFORMERS_DEID = "transformers_deid"
+
+
+class CodeType(str, Enum):
+    SNOMED = "SNOMED"
+    ICD10 = "ICD-10"
+    UMLS = "UMLS"
+    OPCS4 = "OPCS-4"

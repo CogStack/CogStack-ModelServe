@@ -84,6 +84,7 @@ def test_preview():
         "end": 6,
     }]
     model_service.annotate.return_value = annotations
+    model_service.model_name = "SNOMED Model"
     response = client.post("/preview",
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})

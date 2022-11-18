@@ -49,7 +49,7 @@ async def process_a_list_of_notes(texts: List[str],
 async def preview_processing_result(text: str = Body(..., media_type="text/plain"),
                                     model_service: AbstractModelService = Depends(globals.model_service_dep)) -> HTMLResponse:
     annotations = model_service.annotate(text)
-    entities = annotations_to_entities(annotations)
+    entities = annotations_to_entities(annotations, model_service.model_name)
     ent_input = Doc(text=text, ents=entities)
     data = displacy.render(ent_input.dict(), style="ent", manual=True)
     response = HTMLResponse(content=data, status_code=HTTP_200_OK)

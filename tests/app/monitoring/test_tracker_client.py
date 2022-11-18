@@ -90,10 +90,16 @@ def test_save_model_artifact(mlflow_fixture):
     mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
 
 
-def test_save_data(mlflow_fixture):
+def test_save_dataframe(mlflow_fixture):
     tracker_client = TrackerClient("")
-    tracker_client.save_data("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
+    tracker_client.save_dataframe("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
     mlflow.log_artifact.assert_called_once_with(StringContains("test.csv"), artifact_path=os.path.join("model_name", "stats"))
+
+
+def test_save_dict(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_dict("test.json", {"key": {"value": ["v1", "v2"]}}, "model_name")
+    mlflow.log_artifact.assert_called_once_with(StringContains("test.json"), artifact_path=os.path.join("model_name", "stats"))
 
 
 def test_save_model_local(mlflow_fixture_file_uri):

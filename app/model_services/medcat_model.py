@@ -29,8 +29,6 @@ logger = logging.getLogger(__name__)
 
 class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
-    MODEL_NAME = "SNOMED MedCAT model"
-
     def __init__(self, config: Settings, model_parent_dir: Optional[str] = None, enable_trainer: bool = True) -> None:
         self._config = config
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
@@ -59,7 +57,7 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
 
     @property
     def model_name(self) -> str:
-        return self.MODEL_NAME
+        return "SNOMED MedCAT model"
 
     @property
     def api_version(self) -> str:
@@ -379,28 +377,28 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                 "unknown_concept_pct": unknown_concept_pct,
             }, 0)
             if unknown_concepts:
-                medcat_model._tracker_client.save_data("unknown_concepts.csv",
-                                                       pd.DataFrame({"concept": list(unknown_concepts)}),
-                                                       medcat_model.model_name)
+                medcat_model._tracker_client.save_dataframe("unknown_concepts.csv",
+                                                            pd.DataFrame({"concept": list(unknown_concepts)}),
+                                                            medcat_model.model_name)
             train_count = []
             annotation_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
                 train_count.append(medcat_model.model.cdb.cui2count_train[c] if c in medcat_model.model.cdb.cui2count_train else 0)
                 annotation_count.append(training_concepts[c])
-            medcat_model._tracker_client.save_data("trained_concepts.csv",
-                                                   pd.DataFrame({
-                                                       "concept": concepts,
-                                                       "train_count": train_count,
-                                                       "anno_count": annotation_count,
-                                                   }),
-                                                   medcat_model.model_name)
+            medcat_model._tracker_client.save_dataframe("trained_concepts.csv",
+                                                        pd.DataFrame({
+                                                            "concept": concepts,
+                                                            "train_count": train_count,
+                                                            "anno_count": annotation_count,
+                                                        }),
+                                                        medcat_model.model_name)
 
     @staticmethod
     def _evaluate_model_and_save_results(data_file_path: str, tracker_client: TrackerClient, medcat_model: "MedCATModel") -> None:
-        tracker_client.save_data("evaluation.csv",
-                                 evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
-                                 medcat_model.model_name)
+        tracker_client.save_dataframe("evaluation.csv",
+                                      evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
+                                      medcat_model.model_name)
 
     def glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log, re.IGNORECASE)

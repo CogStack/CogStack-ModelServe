@@ -9,7 +9,9 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelIcd10(MedCATModel):
 
-    MODEL_NAME = "ICD-10 MedCAT model"
+    @property
+    def model_name(self) -> str:
+        return "ICD-10 MedCAT model"
 
     @property
     def api_version(self) -> str:

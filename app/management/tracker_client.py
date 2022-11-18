@@ -2,6 +2,7 @@ import os
 import socket
 import mlflow
 import tempfile
+import json
 import pandas as pd
 from typing import Dict, Tuple, List, Optional
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
@@ -84,11 +85,20 @@ class TrackerClient(object):
         mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts"))
 
     @staticmethod
-    def save_data(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
+    def save_dataframe(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
         model_name = model_name.replace(" ", "_")
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, file_name), "w") as f:
                 data_frame.to_csv(f.name, index=False)
+                f.flush()
+                mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
+
+    @staticmethod
+    def save_dict(file_name: str, data: Dict, model_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, file_name), "w") as f:
+                json.dump(data, f)
                 f.flush()
                 mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
 

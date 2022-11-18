@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelDeIdentification(MedCATModel):
 
-    MODEL_NAME = "De-Identification MedCAT model"
+    @property
+    def model_name(self) -> str:
+        return "De-Identification MedCAT model"
 
     @property
     def api_version(self) -> str:
@@ -55,7 +57,7 @@ class MedCATModelDeIdentification(MedCATModel):
 
             logger.info("Performing supervised training...")
             for epoch in range(training_params["nepochs"]):
-                results, _, _ = ner.train(data_file.name)
+                results, examples, _ = ner.train(data_file.name)
                 metrics = {
                     "precision": results["p"].mean(),
                     "recall": results["r"].mean(),
@@ -77,6 +79,8 @@ class MedCATModelDeIdentification(MedCATModel):
                 })
                 cui2names[row["cui"]] = model.cdb.cui2preferred_name[row["cui"]]
             medcat_model._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+            for e_key, e_items in examples.items():
+                medcat_model._tracker_client.save_dict(f"{e_key}_examples.json", e_items, medcat_model.model_name)
             medcat_model._tracker_client.log_classes_and_names(cui2names)
             cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
             medcat_model._save_trained_concepts(cuis_in_data_file, medcat_model)
@@ -121,6 +125,6 @@ class MedCATModelDeIdentification(MedCATModel):
 
     @staticmethod
     def _evaluate_model_and_save_results(data_file_path: str, medcat_model: "MedCATModel") -> None:
-        medcat_model._tracker_client.save_data("evaluation.csv",
-                                               evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
-                                               medcat_model.model_name)
+        medcat_model._tracker_client.save_dataframe("evaluation.csv",
+                                                    evaluate_model_with_trainer_export(data_file_path, medcat_model, return_df=True),
+                                                    medcat_model.model_name)

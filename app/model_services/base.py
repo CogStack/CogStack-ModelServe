@@ -10,6 +10,11 @@ class AbstractModelService(ABC):
     def __init__(self, config: Settings, *args, **kwargs) -> None:
         self._config = config
 
+    @property
+    @abstractmethod
+    def model_name(self) -> str:
+        raise NotImplementedError
+
     @staticmethod
     @abstractmethod
     def load_model(model_file_path: str, *args, **kwargs) -> Any:
