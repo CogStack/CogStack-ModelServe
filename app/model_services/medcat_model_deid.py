@@ -57,18 +57,20 @@ class MedCATModelDeIdentification(MedCATModel):
 
             logger.info("Performing supervised training...")
             for epoch in range(training_params["nepochs"]):
-                results, examples, _ = ner.train(data_file.name)
+                epoch_results, _, _ = ner.train(data_file.name)
                 metrics = {
-                    "precision": results["p"].mean(),
-                    "recall": results["r"].mean(),
-                    "f1": results["f1"].mean(),
+                    "precision": epoch_results["p"].mean(),
+                    "recall": epoch_results["r"].mean(),
+                    "f1": epoch_results["f1"].mean(),
                 }
                 medcat_model._tracker_client.send_model_stats(metrics, epoch)
 
+            logger.info("Evaluating the trained model...")
+            eval_results, examples = ner.eval(data_file.name)
             cui2names = {}
-            results.sort_values(by=["cui"])
+            eval_results.sort_values(by=["cui"])
             aggregated_metrics = []
-            for _, row in results.iterrows():
+            for _, row in eval_results.iterrows():
                 aggregated_metrics.append({
                     "per_concept_p": row["p"],
                     "per_concept_r": row["r"],

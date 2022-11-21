@@ -32,4 +32,4 @@ def _get_training_response(training_accepted: bool, response: Response, training
         return {"message": "Your training started successfully.", "training_id": training_id}
     else:
         response.status_code = HTTP_503_SERVICE_UNAVAILABLE
-        return {"message": "Another training is in progress. Please retry your training later."}
+        return {"message": "Another training on this model is still active. Please retry your training later."}

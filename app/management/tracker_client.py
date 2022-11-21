@@ -3,14 +3,17 @@ import socket
 import mlflow
 import tempfile
 import json
+import logging
 import pandas as pd
 from typing import Dict, Tuple, List, Optional
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
 from management.model_manager import ModelManager
+from exception import StartTrainingException
 
 os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
+logger = logging.getLogger(__name__)
 
 
 class TrackerClient(object):
@@ -29,7 +32,12 @@ class TrackerClient(object):
                        log_frequency: int) -> Tuple[str, str]:
         experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
-        active_run = mlflow.start_run(experiment_id=experiment_id)
+        try:
+            active_run = mlflow.start_run(experiment_id=experiment_id)
+        except Exception as e:
+            logger.error("Cannot start a new training")
+            logger.error(e, exc_info=True, stack_info=True)
+            raise StartTrainingException("Cannot start a new training")
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
             "mlflow.runName": run_name,

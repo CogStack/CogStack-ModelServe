@@ -34,12 +34,12 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._model_pack_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
+        self._tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
         self._model: CAT
         if enable_trainer:
             self._retrained_models_dir = os.path.join(model_parent_dir, "retrained")
             self._training_lock = threading.Lock()
             self._training_in_progress = False
-            self._tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
             self._pyfunc_model = ModelManager(type(self), config)
             self.executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
 
@@ -381,14 +381,17 @@ class MedCATModel(AbstractModelService, SupervisedTrainer, UnsupervisedTrainer):
                                                             pd.DataFrame({"concept": list(unknown_concepts)}),
                                                             medcat_model.model_name)
             train_count = []
+            concept_names = []
             annotation_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
                 train_count.append(medcat_model.model.cdb.cui2count_train[c] if c in medcat_model.model.cdb.cui2count_train else 0)
+                concept_names.append(medcat_model.model.cdb.get_name(c))
                 annotation_count.append(training_concepts[c])
             medcat_model._tracker_client.save_dataframe("trained_concepts.csv",
                                                         pd.DataFrame({
                                                             "concept": concepts,
+                                                            "name": concept_names,
                                                             "train_count": train_count,
                                                             "anno_count": annotation_count,
                                                         }),
