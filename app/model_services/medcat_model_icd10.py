@@ -23,7 +23,7 @@ class MedCATModelIcd10(MedCATModel):
                          api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))
 
-    def _get_records_from_doc(self, doc: Dict) -> Dict:
+    def get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:

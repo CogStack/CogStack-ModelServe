@@ -21,7 +21,7 @@ class MainTest(HttpUser):
 
     @task(5)
     def process_bulk(self):
-        with open(os.path.join(data_dir, "sample_texts.txt"), "r") as file:
+        with open(os.path.join(data_dir, "sample_texts.json"), "r") as file:
             self.client.post("http://localhost:8180/process_bulk", headers={"Content-Type": "application/json"}, data=file)
 
     @task(2)
