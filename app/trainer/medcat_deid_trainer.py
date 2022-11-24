@@ -37,12 +37,13 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             logger.info("Performing supervised training...")
             for epoch in range(training_params["nepochs"]):
                 epoch_results, _, _ = ner.train(data_file.name)
-                metrics = {
-                    "precision": epoch_results["p"].mean(),
-                    "recall": epoch_results["r"].mean(),
-                    "f1": epoch_results["f1"].mean(),
-                }
-                trainer._tracker_client.send_model_stats(metrics, epoch)
+                if (epoch + 1) % log_frequency == 0:
+                    metrics = {
+                        "precision": epoch_results["p"].mean(),
+                        "recall": epoch_results["r"].mean(),
+                        "f1": epoch_results["f1"].mean(),
+                    }
+                    trainer._tracker_client.send_model_stats(metrics, epoch)
 
             logger.info("Evaluating the trained model...")
             eval_results, examples = ner.eval(data_file.name)

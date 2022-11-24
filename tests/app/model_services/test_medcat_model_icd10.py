@@ -17,6 +17,20 @@ def medcat_model():
     return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
 
 
+def test_model_name(medcat_model):
+    assert medcat_model.model_name == "ICD-10 MedCAT model"
+
+
+def test_api_version(medcat_model):
+    assert medcat_model.api_version == "0.0.1"
+
+
+def test_of(medcat_model):
+    new_model_service = medcat_model.of(medcat_model.model)
+    assert isinstance(new_model_service, MedCATModelIcd10)
+    assert new_model_service.model == medcat_model.model
+
+
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_init_model(medcat_model):

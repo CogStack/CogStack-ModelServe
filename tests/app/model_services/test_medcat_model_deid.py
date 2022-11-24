@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock
 from medcat.cat import CAT
 from app.config import Settings
-from app.model_services.medcat_model import MedCATModel
+from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
@@ -14,7 +14,21 @@ MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resource
 def medcat_model():
     config = Settings()
     config.BASE_MODEL_FILE = "deid_model.zip"
-    return MedCATModel(config, MODEL_PARENT_DIR, True)
+    return MedCATModelDeIdentification(config, MODEL_PARENT_DIR, True)
+
+
+def test_model_name(medcat_model):
+    assert medcat_model.model_name == "De-Identification MedCAT model"
+
+
+def test_api_version(medcat_model):
+    assert medcat_model.api_version == "0.0.1"
+
+
+def test_of(medcat_model):
+    new_model_service = medcat_model.of(medcat_model.model)
+    assert isinstance(new_model_service, MedCATModelDeIdentification)
+    assert new_model_service.model == medcat_model.model
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
@@ -27,7 +41,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModel.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "deid_model.zip"))
+    cat = MedCATModelDeIdentification.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "deid_model.zip"))
     assert type(cat) is CAT
 
 
@@ -50,6 +64,18 @@ def test_annotate(medcat_model):
     assert type(annotations[0]["label_name"]) is str
     assert annotations[0]["start"] == 20
     assert annotations[0]["end"] == 27
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_batch_annotate(medcat_model):
+    medcat_model.init_model()
+    annotation_list = medcat_model.batch_annotate(["This is a post code NW1 2DA", "This is a post code NW1 2DA"])
+    assert len(annotation_list) == 2
+    assert type(annotation_list[0][0]["label_name"]) is str
+    assert type(annotation_list[1][0]["label_name"]) is str
+    assert annotation_list[0][0]["start"] == annotation_list[1][0]["start"] == 20
+    assert annotation_list[0][0]["end"] == annotation_list[1][0]["end"] == 27
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
