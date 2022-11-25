@@ -34,7 +34,7 @@ def mlflow_fixture_file_uri(mlflow_fixture, mocker):
 def test_start_new(mlflow_fixture):
     tracker_client = TrackerClient("")
     experiment_id, run_id = tracker_client.start_tracking("model_name", "input_file_name", "base_model_origin",
-                                                           "training_type", {"param": "param"}, "run_name", 10)
+                                                          "training_type", {"param": "param"}, "run_name", 10)
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
@@ -116,16 +116,16 @@ def test_save_pretrained_model(mlflow_fixture):
     tracker_client = TrackerClient("")
     pyfunc_model = Mock()
     tracker_client.save_pretrained_model("model_name",
-                                        "model_path",
-                                        pyfunc_model,
-                                        "training_type",
-                                        "run_name",
-                                        {"param": "value"},
-                                        [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
-                                        {"tag_name": "tag_value"})
+                                         "model_path",
+                                         pyfunc_model,
+                                         "training_type",
+                                         "run_name",
+                                         {"param": "value"},
+                                         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
+                                         {"tag_name": "tag_value"})
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
-    mlflow.log_params.assert_called_once_with( {"param": "value"})
+    mlflow.log_params.assert_called_once_with({"param": "value"})
     mlflow.log_metrics.assert_has_calls([call({"p": 0.8, "r": 0.8}, 0), call({"p": 0.9, "r": 0.9}, 1)])
     mlflow.set_tags.assert_called()
     assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"

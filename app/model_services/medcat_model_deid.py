@@ -29,7 +29,8 @@ class MedCATModelDeIdentification(MedCATModel):
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
                          model_type="MedCAT",
-                         api_version=self.api_version)
+                         api_version=self.api_version,
+                         model_card=self.model.get_model_card(as_dict=True))
 
     def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
         annotation_list = []

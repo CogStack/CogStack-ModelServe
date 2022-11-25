@@ -1,13 +1,14 @@
 import pytest
 import mlflow
 import pandas as pd
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call
 from mlflow.pyfunc import PythonModelContext
 from app.model_services.base import AbstractModelService
 from app.management.model_manager import ModelManager
 from app.config import Settings
 
 pyfunc_model = Mock()
+
 
 @pytest.fixture
 def mlflow_fixture(mocker):

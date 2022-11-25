@@ -103,10 +103,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=$NO_PROXY
+      - NO_PROXY=mlflow-ui,minio
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=$NO_PROXY
+      - no_proxy=mlflow-ui,minio
     expose:
       - 8000
     ports:
@@ -133,7 +133,7 @@ services:
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
-      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
+      - ./docker/medcat-deid/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID

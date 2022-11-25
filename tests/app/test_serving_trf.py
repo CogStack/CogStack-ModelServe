@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
-from app.api import get_model_server, get_settings
+from app.api import get_model_server
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
-from app.dependencies import ModelServiceDep
 from unittest.mock import create_autospec
 
 model_service = create_autospec(TransformersModelDeIdentification)
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
+
 
 def test_info():
     model_card = {

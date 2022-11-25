@@ -1,10 +1,8 @@
 import os
-import pytest
 import tempfile
 from fastapi.testclient import TestClient
 from app.api import get_model_server, get_settings
 from app.model_services.medcat_model import MedCATModel
-from app.dependencies import ModelServiceDep
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
@@ -25,6 +23,7 @@ def test_info():
     response = client.get("/info")
     assert response.json() == model_card
 
+
 def test_process():
     annotations = [{
         "label_name": "Spinal stenosis",
@@ -40,6 +39,7 @@ def test_process():
         "text": "Spinal stenosis",
         "annotations": annotations
     }
+
 
 def test_process_bulk():
     annotations_list = [

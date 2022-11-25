@@ -8,7 +8,7 @@ model_service = create_autospec(MedCATModelDeIdentification,
                                 _config=Settings(),
                                 _model_parent_dir="model_parent_dir",
                                 _enable_trainer=True,
-                                _model_pack_path ="model_parent_dir/mode.zip",
+                                _model_pack_path="model_parent_dir/mode.zip",
                                 _meta_cat_config_dict={"general": {"device": "cpu"}})
 supervised_trainer = MedcatDeIdentificationSupervisedTrainer(model_service)
 

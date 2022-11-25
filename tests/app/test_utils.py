@@ -1,10 +1,10 @@
-import os
 from app.utils import get_code_base_uri, annotations_to_entities
 
 
 def test_get_code_base_uri():
     assert get_code_base_uri("SNOMED model") == "http://snomed.info/id"
     assert get_code_base_uri("ICD-10 model") == "https://icdcodelookup.com/icd-10/codes"
+
 
 def test_annotations_to_entities():
     annotations = [{

@@ -116,7 +116,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(trainer.glean_and_log_metrics)):
-                fps, fns, tps, p, r, f1, cc, _ = model.train(**training_params)
+                fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
             cuis = []
@@ -248,12 +248,12 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
             logger.info("Performing unsupervised training...")
             step = 0
-            trainer._tracker_client.send_model_stats(model.cdb._make_stats(), step)
+            trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
             before_cui2count_train = dict(model.cdb.cui2count_train)
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **training_params)
-                trainer._tracker_client.send_model_stats(model.cdb._make_stats(), step)
+                trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
             after_cui2count_train = {c: ct for c, ct in
                                      sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
             aggregated_metrics = []
