@@ -46,18 +46,6 @@ class _MedcatTrainerCommon(object):
         return params
 
     @staticmethod
-    def glean_and_log_metrics(self, log: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
-                                  re.IGNORECASE)
-        for step, metric in enumerate(metric_lines):
-            metrics = {
-                "precision": float(metric[1]),
-                "recall": float(metric[2]),
-                "f1": float(metric[3]),
-            }
-            self._tracker_client.send_model_stats(metrics, int(metric[0]))
-
-    @staticmethod
     def deploy_model(model_service: AbstractModelService,
                      model: CAT,
                      skip_save_model: bool) -> None:
@@ -115,7 +103,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
             logger.info("Performing supervised training...")
-            with redirect_stdout(LogCaptor(trainer.glean_and_log_metrics)):
+            with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
                 fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
             del _
             gc.collect()
@@ -181,6 +169,17 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             trainer.housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
+
+    def _glean_and_log_metrics(self, log: str) -> None:
+        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
+                                  re.IGNORECASE)
+        for step, metric in enumerate(metric_lines):
+            metrics = {
+                "precision": float(metric[1]),
+                "recall": float(metric[2]),
+                "f1": float(metric[3]),
+            }
+            self._tracker_client.send_model_stats(metrics, int(metric[0]))
 
     def _save_trained_concepts(self, training_concepts: Dict, model: CAT) -> None:
         if len(training_concepts.keys()) != 0:

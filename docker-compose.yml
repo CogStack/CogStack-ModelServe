@@ -26,10 +26,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio
+      - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio
+      - no_proxy=mlflow-ui,minio,localhost
     expose:
       - 8000
     ports:
@@ -65,10 +65,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio
+      - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio
+      - no_proxy=mlflow-ui,minio,localhost
     expose:
       - 8000
     ports:
@@ -103,10 +103,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio
+      - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio
+      - no_proxy=mlflow-ui,minio,localhost
     expose:
       - 8000
     ports:
@@ -142,10 +142,10 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio
+      - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio
+      - no_proxy=mlflow-ui,minio,localhost
     expose:
       - 8000
     ports:
@@ -186,8 +186,10 @@ services:
     volumes:
       - minio-data:/data
     environment:
-      MINIO_ROOT_USER: $AWS_ACCESS_KEY_ID
-      MINIO_ROOT_PASSWORD: $AWS_SECRET_ACCESS_KEY
+      - MINIO_ROOT_USER=$AWS_ACCESS_KEY_ID
+      - MINIO_ROOT_PASSWORD=$AWS_SECRET_ACCESS_KEY
+      - NO_PROXY=localhost
+      - no_proxy=localhost
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
@@ -219,10 +221,10 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=minio
+      - NO_PROXY=minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=minio
+      - no_proxy=minio,localhost
     expose:
       - 5000
     ports:
@@ -258,10 +260,10 @@ services:
     environment:
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=$NO_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=$NO_PROXY
+      - no_proxy=localhost
     ports:
       - 28180:28180
       - 28181:28181
