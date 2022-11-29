@@ -49,7 +49,7 @@ class MedCATModel(AbstractModelService):
         return "0.0.1"
 
     @classmethod
-    def of(cls, model: CAT) -> "MedCATModel":
+    def from_model(cls, model: CAT) -> "MedCATModel":
         model_service = cls(Settings(), enable_trainer=False)
         model_service.model = model
         return model_service

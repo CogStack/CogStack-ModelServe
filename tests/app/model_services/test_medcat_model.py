@@ -25,8 +25,8 @@ def test_api_version(medcat_model):
     assert medcat_model.api_version == "0.0.1"
 
 
-def test_of(medcat_model):
-    new_model_service = medcat_model.of(medcat_model.model)
+def test_from_model(medcat_model):
+    new_model_service = medcat_model.from_model(medcat_model.model)
     assert isinstance(new_model_service, MedCATModel)
     assert new_model_service.model == medcat_model.model
 

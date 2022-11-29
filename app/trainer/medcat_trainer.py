@@ -138,7 +138,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             cui_counts = get_cui_counts_from_trainer_export(data_file.name)
             trainer._save_trained_concepts(cui_counts, model)
             trainer._tracker_client.log_classes(cuis)
-            trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.of(model))
+            trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
             if not skip_save_model:
                 model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")

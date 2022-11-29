@@ -7,7 +7,7 @@ from model_services.base import AbstractModelService
 
 
 def evaluate_model_with_trainer_export(data_file_path: str,
-                                       model: AbstractModelService,
+                                       model_service: AbstractModelService,
                                        return_df: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict]]:
     with open(data_file_path, "r") as f:
         data = json.load(f)
@@ -41,7 +41,7 @@ def evaluate_model_with_trainer_export(data_file_path: str,
             false_positives[project["id"]][document["id"]] = {}
             false_negatives[project["id"]][document["id"]] = {}
 
-            annotations = model.annotate(document["text"])
+            annotations = model_service.annotate(document["text"])
             predictions[document["id"]] = []
             for annotation in annotations:
                 predictions[document["id"]].append([annotation["start"], annotation["end"], annotation["label_id"]])
@@ -63,32 +63,32 @@ def evaluate_model_with_trainer_export(data_file_path: str,
     recall = true_positive_count / (true_positive_count + false_negative_count) if (true_positive_count + false_negative_count) != 0 else 0
     f1 = 2*((precision*recall) / (precision + recall)) if (precision + recall) != 0 else 0
 
-    fps: Dict = defaultdict(int)
-    fns: Dict = defaultdict(int)
-    tps: Dict = defaultdict(int)
-    per_cui_prec = defaultdict(int)
-    per_cui_rec = defaultdict(int)
-    per_cui_f1 = defaultdict(int)
+    fp_counts: Dict = defaultdict(int)
+    fn_counts: Dict = defaultdict(int)
+    tp_counts: Dict = defaultdict(int)
+    per_cui_prec = defaultdict(float)
+    per_cui_rec = defaultdict(float)
+    per_cui_f1 = defaultdict(float)
     per_cui_name = defaultdict(str)
 
     for documents in false_positives.values():
         for spans in documents.values():
             for span in spans:
-                fps[span[2]] += 1
+                fp_counts[span[2]] += 1
 
     for documents in false_negatives.values():
         for spans in documents.values():
             for span in spans:
-                fns[span[2]] += 1
+                fn_counts[span[2]] += 1
 
     for documents in true_positives.values():
         for spans in documents.values():
             for span in spans:
-                tps[span[2]] += 1
+                tp_counts[span[2]] += 1
 
-    for cui in tps.keys():
-        per_cui_prec[cui] = tps[cui] / (tps[cui] + fps[cui])
-        per_cui_rec[cui] = tps[cui] / (tps[cui] + fns[cui])
+    for cui in tp_counts.keys():
+        per_cui_prec[cui] = tp_counts[cui] / (tp_counts[cui] + fp_counts[cui])
+        per_cui_rec[cui] = tp_counts[cui] / (tp_counts[cui] + fn_counts[cui])
         per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
         per_cui_name[cui] = concept_names[cui]
 
