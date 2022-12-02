@@ -25,8 +25,8 @@ def test_medcat_supervised_trainer():
 
 
 def test_medcat_unsupervised_trainer():
-    with patch.object(unsupervised_trainer, "run", wraps=unsupervised_trainer.run) as run1:
+    with patch.object(unsupervised_trainer, "run", wraps=unsupervised_trainer.run) as run:
         with open(os.path.join(data_dir, "sample_texts.json"), "r") as f:
             unsupervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
             unsupervised_trainer._tracker_client.end_with_success()
-    run1.assert_called_once()
+    run.assert_called_once()
