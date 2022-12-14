@@ -5,7 +5,7 @@ import re
 import shutil
 import ijson
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional
+from typing import TextIO, Dict, Optional, Set, List
 
 import pandas as pd
 from medcat import __version__ as medcat_version
@@ -102,10 +102,13 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
+            cui_counts = get_cui_counts_from_trainer_export(data_file.name)
+            training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
-                fps, fns, tps, p, r, f1, cc, _ = model.train_supervised(**training_params)
-            del _
+                fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**training_params)
+            trainer._save_examples(examples)
+            del examples
             gc.collect()
             cuis = []
             f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
@@ -135,7 +138,6 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 })
                 cuis.append(cui)
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            cui_counts = get_cui_counts_from_trainer_export(data_file.name)
             trainer._save_trained_concepts(cui_counts, model)
             trainer._tracker_client.log_classes(cuis)
             trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
@@ -169,6 +171,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             trainer.housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
+
+    @staticmethod
+    def _get_concept_filter(training_concepts: Dict, model: CAT) -> Set[str]:
+        return set(model.cdb.cui2names.keys()) - set(training_concepts.keys())
 
     def _glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
@@ -212,8 +218,23 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
     def _evaluate_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
         self._tracker_client.save_dataframe("evaluation.csv",
-                                            evaluate_model_with_trainer_export(data_file_path, medcat_model,  return_df=True),
+                                            evaluate_model_with_trainer_export(data_file_path,
+                                                                               medcat_model,
+                                                                               return_df=True,
+                                                                               include_anchors=True),
                                             self._model_name)
+
+    def _save_examples(self, examples: Dict):
+        for e_key, e_items in examples.items():
+            rows: List = []
+            columns: List = []
+            for concept, items in e_items.items():
+                if items and not columns:
+                    columns = ["concept"] + list(items[0].keys())
+                for item in items:
+                    rows.append([concept] + list(item.values()))
+            if rows:
+                self._tracker_client.save_dataframe(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
 
 
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):

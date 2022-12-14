@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import json
 import random
 import sys
@@ -29,14 +30,14 @@ def generate_annotations(cuis: List, texts: List, minimum_tokens: int, cui2origi
                 }
                 patterns.append(pattern)
     ruler = nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER"})
-    ruler.add_patterns(patterns)
+    ruler.add_patterns(patterns)    # type: ignore
 
     documents = []
     for doc_id, text in enumerate(tqdm(texts, desc="Evaluating projects", total=len(texts), leave=False)):
         doc = nlp(text)
         annotations = []
         for ent in doc.ents:
-            if len(ent.text.split(" ")) < minimum_tokens:
+            if len(ent.text.strip().split(" ")) < minimum_tokens:
                 continue
             annotation = {
                 "cui": ent.label_,
@@ -80,11 +81,11 @@ if __name__ == "__main__":
         help="The sample size of input texts",
     )
     parser.add_argument(
-        "-e",
-        "--min-token",
+        "-n",
+        "--min-tokens",
         type=int,
-        default=0,
-        help="Minimum number of tokens when doing string matching"
+        default=1,
+        help="The lowest number of tokens each generated annotation will have"
     )
     parser.add_argument(
         "-m",
@@ -122,7 +123,7 @@ if __name__ == "__main__":
         texts = random.sample(texts, FLAGS.sample_size)
 
     cat = CAT.load_model_pack(FLAGS.model_pack_path)
-    annotations = generate_annotations(cuis, texts, FLAGS.min_token, cat.cdb.addl_info["cui2original_names"])
+    annotations = generate_annotations(cuis, texts, FLAGS.min_tokens, cat.cdb.addl_info["cui2original_names"])
 
     with open(FLAGS.output, "w") as f:
         json.dump(annotations, f, indent=4)

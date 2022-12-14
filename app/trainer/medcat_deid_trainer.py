@@ -52,21 +52,20 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             aggregated_metrics = []
             for _, row in eval_results.iterrows():
                 aggregated_metrics.append({
-                    "per_concept_p": row["p"],
-                    "per_concept_r": row["r"],
-                    "per_concept_f1": row["f1"],
-                    "per_concept_support": row["support"],
-                    "per_concept_p_merged": row["p_merged"],
-                    "per_concept_r_merged": row["r_merged"],
+                    "per_concept_p": row["p"] if row["p"] is not None else 0.0,
+                    "per_concept_r": row["r"] if row["r"] is not None else 0.0,
+                    "per_concept_f1": row["f1"] if row["f1"] is not None else 0.0,
+                    "per_concept_support": row["support"] if row["support"] is not None else 0.0,
+                    "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
+                    "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
                 })
                 cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            for e_key, e_items in examples.items():
-                trainer._tracker_client.save_dict(f"{e_key}_examples.json", e_items, trainer._model_name)
+            trainer._save_examples(examples)
             trainer._tracker_client.log_classes_and_names(cui2names)
             cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
             trainer._save_trained_concepts(cuis_in_data_file, model)
-            trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.of(model))
+            trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
             if not skip_save_model:
                 model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")

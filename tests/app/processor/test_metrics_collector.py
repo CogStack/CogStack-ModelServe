@@ -29,7 +29,7 @@ def test_evaluate_model_with_trainer_export():
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
-    precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name = evaluate_model_with_trainer_export(path, model_service)
+    precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors = evaluate_model_with_trainer_export(path, model_service)
     assert precision == 0.5
     assert recall == 0.07142857142857142
     assert f1 == 0.125
@@ -37,6 +37,7 @@ def test_evaluate_model_with_trainer_export():
     assert set(per_cui_rec.keys()) == {"C0017168", "C0020538"}
     assert set(per_cui_f1.keys()) == {"C0017168", "C0020538"}
     assert set(per_cui_name.keys()) == {"C0017168", "C0020538"}
+    assert per_cui_anchors is None
 
 
 def test_evaluate_model_and_return_dataframe():
@@ -65,6 +66,36 @@ def test_evaluate_model_and_return_dataframe():
     assert set(result["precision"].to_list()) == {0.5, 0.5}
     assert set(result["recall"].to_list()) == {0.25, 1.0}
     assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
+    assert "anchors" not in result
+
+
+def test_evaluate_model_and_include_anchors():
+    model_service = create_autospec(AbstractModelService)
+    annotations = [
+        {
+            "label_name": "gastroesophageal reflux",
+            "label_id": "C0017168",
+            "start": 332,
+            "end": 355,
+        },
+        {
+            "label_name": "hypertension",
+            "label_id": "C0020538",
+            "start": 255,
+            "end": 267,
+        }
+    ]
+    model_service.annotate.return_value = annotations
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+
+    result = evaluate_model_with_trainer_export(path, model_service, return_df=True, include_anchors=True)
+
+    assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
+    assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
+    assert set(result["precision"].to_list()) == {0.5, 0.5}
+    assert set(result["recall"].to_list()) == {0.25, 1.0}
+    assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
+    assert set(result["anchors"].to_list()) == {"P14/D3204/S255/E267;P14/D3205/S255/E267", "P14/D3204/S332/E355;P14/D3205/S332/E355"}
 
 
 def test_concat_trainer_exports():

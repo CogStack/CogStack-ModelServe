@@ -9,7 +9,7 @@ ARTIFACTS_DESTINATION = "s3://cms-model-bucket/"
 DEFAULT_ARTIFACT_ROOT = "mlflow-artifacts:/"
 
 
-def _remove_model_version(client: MlflowClient, model_name: str, model_version: Union[int, str]) -> bool:
+def _remove_model_version(client: MlflowClient, model_name: str, model_version: Union[int, str]) -> None:
     versions = client.search_model_versions(f"name='{model_name}'")
     model_version = str(model_version)
     if versions is None or len(versions) == 0:

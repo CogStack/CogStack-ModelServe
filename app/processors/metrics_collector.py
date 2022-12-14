@@ -1,14 +1,18 @@
 import json
 import pandas as pd
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List, Union, Optional
 from collections import defaultdict
 from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
 
 
+ANCHOR_DELIMITER = ";"
+
+
 def evaluate_model_with_trainer_export(data_file_path: str,
                                        model_service: AbstractModelService,
-                                       return_df: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict]]:
+                                       return_df: bool = False,
+                                       include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
     with open(data_file_path, "r") as f:
         data = json.load(f)
 
@@ -27,6 +31,7 @@ def evaluate_model_with_trainer_export(data_file_path: str,
     false_positives: Dict = {}
     false_negatives: Dict = {}
     concept_names: Dict = {}
+    concept_anchors: Dict = {}
     true_positive_count, false_positive_count, false_negative_count = 0, 0, 0
 
     for project in tqdm(data["projects"], desc="Evaluating projects", total=len(data["projects"]), leave=False):
@@ -46,6 +51,8 @@ def evaluate_model_with_trainer_export(data_file_path: str,
             for annotation in annotations:
                 predictions[document["id"]].append([annotation["start"], annotation["end"], annotation["label_id"]])
                 concept_names[annotation["label_id"]] = annotation["label_name"]
+                concept_anchors[annotation["label_id"]] = concept_anchors.get(annotation["label_id"], [])
+                concept_anchors[annotation["label_id"]].append(f"P{project['id']}/D{document['id']}/S{annotation['start']}/E{ annotation['end']}")
 
             predicted = {tuple(x) for x in predictions[document["id"]]}
             actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
@@ -70,6 +77,7 @@ def evaluate_model_with_trainer_export(data_file_path: str,
     per_cui_rec = defaultdict(float)
     per_cui_f1 = defaultdict(float)
     per_cui_name = defaultdict(str)
+    per_cui_anchors = defaultdict(str)
 
     for documents in false_positives.values():
         for spans in documents.values():
@@ -91,17 +99,21 @@ def evaluate_model_with_trainer_export(data_file_path: str,
         per_cui_rec[cui] = tp_counts[cui] / (tp_counts[cui] + fn_counts[cui])
         per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
         per_cui_name[cui] = concept_names[cui]
+        per_cui_anchors[cui] = ANCHOR_DELIMITER.join(concept_anchors[cui])
 
     if return_df:
-        return pd.DataFrame({
+        df = pd.DataFrame({
             "concept": per_cui_prec.keys(),
             "name": per_cui_name.values(),
             "precision": per_cui_prec.values(),
             "recall": per_cui_rec.values(),
             "f1": per_cui_f1.values(),
         })
+        if include_anchors:
+            df["anchors"] = per_cui_anchors.values()
+        return df
     else:
-        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name
+        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors if include_anchors else None
 
 
 def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: str) -> str:
