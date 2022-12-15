@@ -107,7 +107,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
                 fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**training_params)
-            trainer._save_examples(examples)
+            trainer._save_examples(examples, ["tp", "tn"])
             del examples
             gc.collect()
             cuis = []
@@ -174,7 +174,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
     @staticmethod
     def _get_concept_filter(training_concepts: Dict, model: CAT) -> Set[str]:
-        return set(model.cdb.cui2names.keys()) - set(training_concepts.keys())
+        return set(training_concepts.keys()).intersection(set(model.cdb.cui2names.keys()))
 
     def _glean_and_log_metrics(self, log: str) -> None:
         metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
@@ -224,15 +224,18 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                                                include_anchors=True),
                                             self._model_name)
 
-    def _save_examples(self, examples: Dict):
+    def _save_examples(self, examples: Dict, excluded_example_keys: List = []):
         for e_key, e_items in examples.items():
+            if e_key in excluded_example_keys:
+                continue
             rows: List = []
             columns: List = []
             for concept, items in e_items.items():
                 if items and not columns:
+                    # Extract column names from the first row
                     columns = ["concept"] + list(items[0].keys())
                 for item in items:
-                    rows.append([concept] + list(item.values()))
+                    rows.append([concept] + list(item.values())[:len(columns)-1])
             if rows:
                 self._tracker_client.save_dataframe(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
 

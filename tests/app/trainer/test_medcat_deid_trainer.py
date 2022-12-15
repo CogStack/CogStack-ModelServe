@@ -11,7 +11,7 @@ model_service = create_autospec(MedCATModelDeIdentification,
                                 _model_pack_path="model_parent_dir/mode.zip",
                                 _meta_cat_config_dict={"general": {"device": "cpu"}})
 supervised_trainer = MedcatDeIdentificationSupervisedTrainer(model_service)
-
+supervised_trainer._model_name = "supervised_trainer"
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
 

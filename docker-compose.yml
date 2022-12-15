@@ -157,6 +157,45 @@ services:
       retries: 3
       start_period: 60s
 
+  medcat-umls:
+    build:
+      context: ./
+      dockerfile: ./docker/medcat-umls/Dockerfile
+      args:
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    container_name: cms_medcat-umls
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained
+      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=mlflow-ui,minio,localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=mlflow-ui,minio,localhost
+    expose:
+      - 8000
+    ports:
+      - 8184:8000
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/info" ]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   mlflow-db:
     image: postgres:14
     container_name: cms_mlflow-db

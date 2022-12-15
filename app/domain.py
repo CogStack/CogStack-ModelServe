@@ -48,6 +48,7 @@ class Tags(str, Enum):
 
 class ModelType(str, Enum):
     MEDCAT_SNOMED = "medcat_snomed"
+    MEDCAT_UMLS = "medcat_umls"
     MEDCAT_ICD10 = "medcat_icd10"
     MEDCAT_DEID = "medcat_deid"
     TRANSFORMERS_DEID = "transformers_deid"
@@ -55,6 +56,6 @@ class ModelType(str, Enum):
 
 class CodeType(str, Enum):
     SNOMED = "SNOMED"
-    ICD10 = "ICD-10"
     UMLS = "UMLS"
+    ICD10 = "ICD-10"
     OPCS4 = "OPCS-4"

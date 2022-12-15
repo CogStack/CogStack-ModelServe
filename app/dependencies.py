@@ -30,7 +30,8 @@ class ModelServiceDep(object):
         if self._model_sevice is not None:
             return self._model_sevice
         else:
-            if self._model_type == ModelType.MEDCAT_SNOMED.value:
+            if (self._model_type == ModelType.MEDCAT_SNOMED.value
+                    or self._model_type == ModelType.MEDCAT_UMLS.value):
                 self._model_sevice = MedCATModel(self._config)
             elif self._model_type == ModelType.MEDCAT_ICD10.value:
                 self._model_sevice = MedCATModelIcd10(self._config)

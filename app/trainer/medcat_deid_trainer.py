@@ -61,7 +61,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 })
                 cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            trainer._save_examples(examples)
+            trainer._save_examples(examples, ["tp", "tn"])
             trainer._tracker_client.log_classes_and_names(cui2names)
             cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
             trainer._save_trained_concepts(cuis_in_data_file, model)

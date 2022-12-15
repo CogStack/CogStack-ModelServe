@@ -12,6 +12,8 @@ model_service = create_autospec(MedCATModel,
                                 _meta_cat_config_dict={"general": {"device": "cpu"}})
 supervised_trainer = MedcatSupervisedTrainer(model_service)
 unsupervised_trainer = MedcatUnsupervisedTrainer(model_service)
+supervised_trainer._model_name = "supervised_trainer"
+unsupervised_trainer._model_name = "unsupervised_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
@@ -22,7 +24,6 @@ def test_medcat_supervised_trainer():
             supervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
             supervised_trainer._tracker_client.end_with_success()
     run.assert_called_once()
-
 
 def test_medcat_unsupervised_trainer():
     with patch.object(unsupervised_trainer, "run", wraps=unsupervised_trainer.run) as run:

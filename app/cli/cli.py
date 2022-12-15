@@ -41,6 +41,8 @@ def generate_api_doc(model_type: ModelType = typer.Option(..., help="The type of
     doc_name = ""
     if model_type == ModelType.MEDCAT_SNOMED.value:
         doc_name = "medcat_snomed_model_apis.json"
+    elif model_type == ModelType.MEDCAT_SNOMED.value:
+        doc_name = "medcat_umls_model_apis.json"
     elif model_type == ModelType.MEDCAT_ICD10.value:
         doc_name = "medcat_icd10_model_apis.json"
     elif model_type == ModelType.MEDCAT_DEID.value:
@@ -114,7 +116,8 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     config = Settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
 
-    if model_type == ModelType.MEDCAT_SNOMED.value:
+    if (model_type == ModelType.MEDCAT_SNOMED.value
+            or model_type == ModelType.MEDCAT_UMLS.value):
         from model_services.medcat_model import MedCATModel
         model_service_type = MedCATModel
     elif model_type == ModelType.MEDCAT_ICD10.value:
