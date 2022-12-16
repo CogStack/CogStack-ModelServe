@@ -1,7 +1,8 @@
 import logging
 import pandas as pd
-from typing import Dict
+from typing import Dict, Optional
 from model_services.medcat_model import MedCATModel
+from config import Settings
 from domain import ModelCard
 
 logger = logging.getLogger(__name__)
@@ -9,9 +10,12 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelIcd10(MedCATModel):
 
-    @property
-    def model_name(self) -> str:
-        return "ICD-10 MedCAT model"
+    def __init__(self,
+                 config: Settings,
+                 model_parent_dir: Optional[str] = None,
+                 enable_trainer: Optional[bool] = None) -> None:
+        super().__init__(config, model_parent_dir, enable_trainer)
+        self.model_name = "ICD-10 MedCAT model"
 
     @property
     def api_version(self) -> str:

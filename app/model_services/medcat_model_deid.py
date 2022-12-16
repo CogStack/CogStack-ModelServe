@@ -3,7 +3,7 @@ from typing import Dict, List, TextIO, Optional
 from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
-from trainer.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
+from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
 from domain import ModelCard
 from exception import ConfigurationException
 
@@ -17,10 +17,7 @@ class MedCATModelDeIdentification(MedCATModel):
                  model_parent_dir: Optional[str] = None,
                  enable_trainer: Optional[bool] = None) -> None:
         super().__init__(config, model_parent_dir, enable_trainer)
-
-    @property
-    def model_name(self) -> str:
-        return "De-Identification MedCAT model"
+        self.model_name = "De-Identification MedCAT model"
 
     @property
     def api_version(self) -> str:

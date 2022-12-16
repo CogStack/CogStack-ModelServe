@@ -60,7 +60,8 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 model_path: str = typer.Option("", help="The file path to the model package"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
                 host: str = typer.Option("0.0.0.0", help="The hostname of the server"),
-                port: str = typer.Option("8000", help="The port of the server")):
+                port: str = typer.Option("8000", help="The port of the server"),
+                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),):
     """
     This script serves various CogStack NLP models
     """
@@ -82,12 +83,16 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         except shutil.SameFileError:
             pass
         model_service = model_service_dep()
+        if model_name is not None:
+            model_service.model_name = model_name
         model_service.init_model()
     elif mlflow_model_uri:
         model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
                                                        mlflow_model_uri,
                                                        settings,
                                                        dst_model_path)
+        if model_name is not None:
+            model_service.model_name = model_name
         model_service_dep.model_service = model_service
         app = get_model_server()
     else:

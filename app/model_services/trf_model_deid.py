@@ -26,8 +26,9 @@ class TransformersModelDeIdentification(AbstractModelService):
             self._device = "cpu"
         else:
             self._device = config.DEVICE
-        self._tokenizer: TransformersTokenizerNER
+        self.model_name = "De-identification model"
         self._model: PreTrainedModel
+        self._tokenizer: TransformersTokenizerNER
         self._id2cui: Dict[str, str]
 
     @property
@@ -35,16 +36,12 @@ class TransformersModelDeIdentification(AbstractModelService):
         return self._model
 
     @model.setter
-    def model(self, m) -> None:
-        self._model = m
+    def model(self, model) -> None:
+        self._model = model
 
     @model.deleter
     def model(self) -> None:
         del self._model
-
-    @property
-    def model_name(self) -> str:
-        return "De-identification model"
 
     @property
     def api_version(self) -> str:

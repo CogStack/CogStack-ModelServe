@@ -15,7 +15,7 @@ from exception import StartTrainingException
 logger = logging.getLogger(__name__)
 
 
-class _TrainerCommon(object):
+class TrainerCommon(object):
 
     def __init__(self, config: Settings, model_name: str) -> None:
         self._config = config
@@ -24,6 +24,18 @@ class _TrainerCommon(object):
         self._training_in_progress = False
         self._tracker_client = TrackerClient(self._config.MLFLOW_TRACKING_URI)
         self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
+
+    @property
+    def model_name(self) -> str:
+        return self._model_name
+
+    @model_name.setter
+    def model_name(self, model_name: str) -> None:
+        self._model_name = model_name
+
+    @staticmethod
+    def get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
+        return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")
 
     def start_training(self,
                        run: Callable,
@@ -67,7 +79,7 @@ class _TrainerCommon(object):
         return copied_model_pack_path
 
 
-class SupervisedTrainer(ABC, _TrainerCommon):
+class SupervisedTrainer(ABC, TrainerCommon):
 
     def __init__(self, config: Settings, model_name: str) -> None:
         super().__init__(config, model_name)
@@ -96,7 +108,7 @@ class SupervisedTrainer(ABC, _TrainerCommon):
         raise NotImplementedError
 
 
-class UnsupervisedTrainer(ABC, _TrainerCommon):
+class UnsupervisedTrainer(ABC, TrainerCommon):
 
     def __init__(self, config: Settings, model_name: str) -> None:
         super().__init__(config, model_name)

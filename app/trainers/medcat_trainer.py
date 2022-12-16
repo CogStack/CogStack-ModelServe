@@ -13,7 +13,7 @@ from medcat.cat import CAT
 from management.log_captor import LogCaptor
 from management.model_manager import ModelManager
 from model_services.base import AbstractModelService
-from trainer.base import SupervisedTrainer, UnsupervisedTrainer
+from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
 from processors.metrics_collector import evaluate_model_with_trainer_export, get_cui_counts_from_trainer_export
 

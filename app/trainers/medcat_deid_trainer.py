@@ -3,7 +3,7 @@ import logging
 import shutil
 import gc
 from typing import Dict, TextIO
-from trainer.medcat_trainer import MedcatSupervisedTrainer
+from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_cui_counts_from_trainer_export
 
 logger = logging.getLogger(__name__)

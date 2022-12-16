@@ -5,7 +5,7 @@ import pandas as pd
 from typing import Dict, List, Optional, TextIO
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
-from trainer.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
+from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
 from domain import ModelCard
 from config import Settings
 from exception import ConfigurationException
@@ -27,22 +27,19 @@ class MedCATModel(AbstractModelService):
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None
         self._unsupervised_trainer = None
+        self.model_name = "SNOMED MedCAT model"
 
     @property
     def model(self) -> CAT:
         return self._model
 
     @model.setter
-    def model(self, m) -> None:
-        self._model = m
+    def model(self, model) -> None:
+        self._model = model
 
     @model.deleter
     def model(self) -> None:
         del self._model
-
-    @property
-    def model_name(self) -> str:
-        return "SNOMED MedCAT model"
 
     @property
     def api_version(self) -> str:

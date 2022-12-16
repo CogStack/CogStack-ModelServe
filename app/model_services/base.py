@@ -9,11 +9,15 @@ class AbstractModelService(ABC):
     @abstractmethod
     def __init__(self, config: Settings, *args, **kwargs) -> None:
         self._config = config
+        self._model_name = "CMS model"
 
     @property
-    @abstractmethod
     def model_name(self) -> str:
-        raise NotImplementedError
+        return self._model_name
+
+    @model_name.setter
+    def model_name(self, model_name: str) -> None:
+        self._model_name = model_name
 
     @staticmethod
     @abstractmethod
