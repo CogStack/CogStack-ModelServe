@@ -8,7 +8,7 @@ services:
         context: ./
         dockerfile: ./docker/medcat-snomed/Dockerfile
         args:
-          - CMS_MODEL_NAME="SNOMED MedCAT model"
+          - CMS_MODEL_NAME=SNOMED MedCAT model
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -42,7 +42,7 @@ services:
         context: ./
         dockerfile: ./docker/medcat-icd10/Dockerfile
         args:
-          - CMS_MODEL_NAME="ICD-10 MedCAT model"
+          - CMS_MODEL_NAME=ICD-10 MedCAT model
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -76,7 +76,7 @@ services:
         context: ./
         dockerfile: ./docker/trf-deid/Dockerfile
         args:
-          - CMS_MODEL_NAME="De-identification model"
+          - CMS_MODEL_NAME=De-identification model
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -119,7 +119,7 @@ services:
     networks:
       - cms
     volumes:
-      - CMS_MODEL_NAME="De-Identification MedCAT model"
+      - CMS_MODEL_NAME=De-Identification MedCAT model
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
       - ./docker/medcat-snomed/.env:/app/envs/.env:ro
@@ -145,7 +145,7 @@ services:
       context: ./
       dockerfile: ./docker/medcat-umls/Dockerfile
       args:
-        - CMS_MODEL_NAME="UMLS MedCAT model"
+        - CMS_MODEL_NAME=UMLS MedCAT model
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY

@@ -23,4 +23,4 @@ RUN python -m spacy download en_core_web_md
 
 WORKDIR /app
 EXPOSE 8000
-CMD ["python", "cli/cli.py", "serve", "--model-type", "medcat_snomed", "--model-name", "'${CMS_MODEL_NAME}'", "--model-path", "/app/model/model.zip", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python cli/cli.py serve --model-type medcat_snomed --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
