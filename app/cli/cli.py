@@ -17,6 +17,7 @@ from typing import Optional
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from domain import ModelType
+from registry import model_service_registry
 from api import get_settings, get_model_server
 from management.model_manager import ModelManager
 from dependencies import ModelServiceDep
@@ -38,21 +39,14 @@ def generate_api_doc(model_type: ModelType = typer.Option(..., help="The type of
     model_service_dep = ModelServiceDep(model_type, settings)
     globals.model_service_dep = model_service_dep
     app = get_model_server()
-    doc_name = ""
-    if model_type == ModelType.MEDCAT_SNOMED.value:
-        doc_name = "medcat_snomed_model_apis.json"
-    elif model_type == ModelType.MEDCAT_SNOMED.value:
-        doc_name = "medcat_umls_model_apis.json"
-    elif model_type == ModelType.MEDCAT_ICD10.value:
-        doc_name = "medcat_icd10_model_apis.json"
-    elif model_type == ModelType.MEDCAT_DEID.value:
-        doc_name = "medcat_deidentification_model_apis.json"
-    elif model_type == ModelType.TRANSFORMERS_DEID.value:
-        doc_name = "de-identification_model_apis.json"
+    if model_type in model_service_registry.keys():
+        doc_name = f"{model_type}_model_apis.json".replace("medcat_deid", "medcat_deidentification").replace("transformers_deid", "de-identification")
+    else:
+        print(f"Unknown model type: {model_type}")
+        sys.exit(1)
     with open(doc_name, "w") as api_doc:
         json.dump(app.openapi(), api_doc, indent=4)
     print(f"OpenAPI doc exported to {doc_name}")
-    sys.exit(0)
 
 
 @cmd_app.command("serve")
@@ -83,16 +77,14 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         except shutil.SameFileError:
             pass
         model_service = model_service_dep()
-        if model_name is not None:
-            model_service.model_name = model_name
+        model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service.init_model()
     elif mlflow_model_uri:
         model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
                                                        mlflow_model_uri,
                                                        settings,
                                                        dst_model_path)
-        if model_name is not None:
-            model_service.model_name = model_name
+        model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         app = get_model_server()
     else:
@@ -121,22 +113,11 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     config = Settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
 
-    if (model_type == ModelType.MEDCAT_SNOMED.value
-            or model_type == ModelType.MEDCAT_UMLS.value):
-        from model_services.medcat_model import MedCATModel
-        model_service_type = MedCATModel
-    elif model_type == ModelType.MEDCAT_ICD10.value:
-        from model_services.medcat_model_icd10 import MedCATModelIcd10
-        model_service_type = MedCATModelIcd10
-    elif model_type == ModelType.MEDCAT_DEID.value:
-        from model_services.medcat_model_deid import MedCATModelDeIdentification
-        model_service_type = MedCATModelDeIdentification
-    elif model_type == ModelType.TRANSFORMERS_DEID.value:
-        from model_services.trf_model_deid import TransformersModelDeIdentification
-        model_service_type = TransformersModelDeIdentification
+    if model_type in model_service_registry.keys():
+        model_service_type = model_service_registry[model_type]
     else:
         print(f"Unknown model type: {model_type}")
-        exit(1)
+        sys.exit(1)
 
     m_config = json.loads(model_config) if model_config is not None else None
     m_metrics = json.loads(model_metrics) if model_metrics is not None else None

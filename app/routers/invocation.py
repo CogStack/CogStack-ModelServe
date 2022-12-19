@@ -80,6 +80,8 @@ async def preview_trainer_export(training_data: UploadFile,
                     "kb_id": annotation["cui"],
                     "kb_url": "#",
                 })
+            # Displacy cannot handle annotations out of appearance order so be this
+            entities = sorted(entities, key=lambda e: e["start"])
             doc = Doc(text=document["text"], ents=entities, title=f"P{project['id']}/D{document['id']}")
             htmls.append(displacy.render(doc.dict(), style="ent", manual=True))
     if htmls:

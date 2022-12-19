@@ -1,12 +1,8 @@
 import logging
 
-from domain import ModelType
 from config import Settings
+from registry import model_service_registry
 from model_services.base import AbstractModelService
-from model_services.trf_model_deid import TransformersModelDeIdentification
-from model_services.medcat_model import MedCATModel
-from model_services.medcat_model_icd10 import MedCATModelIcd10
-from model_services.medcat_model_deid import MedCATModelDeIdentification
 
 logger = logging.getLogger(__name__)
 
@@ -30,15 +26,8 @@ class ModelServiceDep(object):
         if self._model_sevice is not None:
             return self._model_sevice
         else:
-            if (self._model_type == ModelType.MEDCAT_SNOMED.value
-                    or self._model_type == ModelType.MEDCAT_UMLS.value):
-                self._model_sevice = MedCATModel(self._config)
-            elif self._model_type == ModelType.MEDCAT_ICD10.value:
-                self._model_sevice = MedCATModelIcd10(self._config)
-            elif self._model_type == ModelType.MEDCAT_DEID.value:
-                self._model_sevice = MedCATModelDeIdentification(self._config)
-            elif self._model_type == ModelType.TRANSFORMERS_DEID.value:
-                self._model_sevice = TransformersModelDeIdentification(self._config)
+            if self._model_type in model_service_registry.keys():
+                self._model_sevice = model_service_registry[self._model_type](self._config)
             else:
                 logger.error(f"Unknown model type: {self._model_type}")
                 exit(1)     # throw an exception?
