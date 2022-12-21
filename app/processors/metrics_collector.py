@@ -1,6 +1,7 @@
 import json
 import pandas as pd
 from typing import Tuple, Dict, List, Union, Optional
+from fastapi import UploadFile
 from collections import defaultdict
 from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
@@ -9,12 +10,15 @@ from model_services.base import AbstractModelService
 ANCHOR_DELIMITER = ";"
 
 
-def evaluate_model_with_trainer_export(data_file_path: str,
+def evaluate_model_with_trainer_export(data_file: Union[str, UploadFile],
                                        model_service: AbstractModelService,
                                        return_df: bool = False,
                                        include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
-    with open(data_file_path, "r") as f:
-        data = json.load(f)
+    if isinstance(data_file, str):
+        with open(data_file, "r") as f:
+            data = json.load(f)
+    else:
+        data = json.load(data_file.file)
 
     correct_cuis: Dict = {}
     for project in data["projects"]:

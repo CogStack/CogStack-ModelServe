@@ -73,6 +73,10 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         _load_supervised_training_router(app)
         if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
             _load_unsupervised_training_router(app)
+    if get_settings().ENABLE_EVALUATION_APIS == "true":
+        _load_evaluation_router(app)
+    if get_settings().ENABLE_PREVIEWS_APIS == "true":
+        _load_preview_router(app)
 
     app.openapi = custom_openapi  # type: ignore
 
@@ -89,6 +93,18 @@ def _load_supervised_training_router(app):
     from routers import supervised_training
     importlib.reload(supervised_training)
     app.include_router(supervised_training.router)
+
+
+def _load_evaluation_router(app):
+    from routers import evaluation
+    importlib.reload(evaluation)
+    app.include_router(evaluation.router)
+
+
+def _load_preview_router(app):
+    from routers import preview
+    importlib.reload(preview)
+    app.include_router(preview.router)
 
 
 def _load_unsupervised_training_router(app):

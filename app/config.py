@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     CONCAT_SIMILAR_ENTITIES: str = "true"
     ENABLE_TRAINING_APIS: str = "false"
     DISABLE_UNSUPERVISED_TRAINING: str = "false"
+    ENABLE_EVALUATION_APIS: str = "false"
+    ENABLE_PREVIEWS_APIS: str = "false"
     MLFLOW_TRACKING_URI: str = f'file:{os.path.join(os.path.abspath(os.path.dirname(__file__)), "mlruns")}'
     REDEPLOY_TRAINED_MODEL: str = "false"
     SKIP_SAVE_MODEL: str = "false"

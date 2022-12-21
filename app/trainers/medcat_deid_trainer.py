@@ -96,7 +96,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            trainer.housekeep_file(model_pack_path)
-            trainer.housekeep_file(copied_model_pack_path)
+            trainer._housekeep_file(model_pack_path)
+            trainer._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)

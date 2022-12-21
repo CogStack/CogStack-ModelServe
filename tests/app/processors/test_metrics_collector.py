@@ -1,6 +1,7 @@
 import os
 import tempfile
 import json
+from fastapi import UploadFile
 from unittest.mock import create_autospec
 from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
@@ -67,6 +68,38 @@ def test_evaluate_model_and_return_dataframe():
     assert set(result["recall"].to_list()) == {0.25, 1.0}
     assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
     assert "anchors" not in result
+
+
+def test_evaluate_model_using_uploaded_file():
+    model_service = create_autospec(AbstractModelService)
+    annotations = [
+        {
+            "label_name": "gastroesophageal reflux",
+            "label_id": "C0017168",
+            "start": 332,
+            "end": 355,
+        },
+        {
+            "label_name": "hypertension",
+            "label_id": "C0020538",
+            "start": 255,
+            "end": 267,
+        }
+    ]
+    model_service.annotate.return_value = annotations
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+
+    with open(path, "r") as file:
+        f = UploadFile("uploaded_file")
+        f.file = file
+        result = evaluate_model_with_trainer_export(f, model_service, return_df=True)
+
+        assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
+        assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
+        assert set(result["precision"].to_list()) == {0.5, 0.5}
+        assert set(result["recall"].to_list()) == {0.25, 1.0}
+        assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
+        assert "anchors" not in result
 
 
 def test_evaluate_model_and_include_anchors():

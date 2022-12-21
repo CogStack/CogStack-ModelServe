@@ -44,6 +44,7 @@ class Tags(str, Enum):
     Annotations = "Retrieve recognised entities by running the model."
     Rendering = "Get embeddable annotation snippet in HTML."
     Training = "Trigger model training on input annotations."
+    Evaluating = "Evaluate the deployed model using trainer export"
 
 
 class ModelType(str, Enum):

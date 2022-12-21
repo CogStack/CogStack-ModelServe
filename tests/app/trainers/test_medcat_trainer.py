@@ -1,5 +1,6 @@
 import os
-from unittest.mock import create_autospec, patch
+from unittest.mock import create_autospec, patch, Mock
+from medcat.config import General
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
@@ -16,6 +17,30 @@ unsupervised_trainer = MedcatUnsupervisedTrainer(model_service)
 unsupervised_trainer.model_name = "unsupervised_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
+
+
+def test_get_flattened_config():
+    model = Mock()
+    model.cdb.config.general = General()
+    config = supervised_trainer.get_flattened_config(model)
+    assert "word_skipper" in config
+    assert "punct_checker" in config
+    assert "linking.filters" not in config
+
+
+def test_deploy_model():
+    model = Mock()
+    supervised_trainer.deploy_model(model_service, model, True)
+    model._versioning.assert_called_once()
+    # model_service.model.__del__.assert_called_once()
+    assert model_service.model == model
+
+
+def test_save_model():
+    model = Mock()
+    model.create_model_pack.return_value = "model_pack_name"
+    supervised_trainer.save_model(model, "retrained_models_dir")
+    model.create_model_pack.called_once_with("retrained_models_dir", "model")
 
 
 def test_medcat_supervised_trainer():

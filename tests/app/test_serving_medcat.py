@@ -8,6 +8,8 @@ from unittest.mock import create_autospec
 model_service = create_autospec(MedCATModel)
 get_settings().ENABLE_TRAINING_APIS = "true"
 get_settings().DISABLE_UNSUPERVISED_TRAINING = "false"
+get_settings().ENABLE_EVALUATION_APIS = "true"
+get_settings().ENABLE_PREVIEWS_APIS = "true"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 
@@ -98,7 +100,7 @@ def test_preview():
 def test_preview_trainer_export():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
     assert len(response.text.split("<br/>")) == 2
@@ -107,7 +109,7 @@ def test_preview_trainer_export():
 def test_preview_trainer_export_with_project_id():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?project_id=14", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export?project_id=14", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
     assert len(response.text.split("<br/>")) == 2
@@ -116,7 +118,7 @@ def test_preview_trainer_export_with_project_id():
 def test_preview_trainer_export_with_document_id():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?document_id=3205", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export?document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
     assert len(response.text.split("<br/>")) == 1
@@ -125,7 +127,7 @@ def test_preview_trainer_export_with_document_id():
 def test_preview_trainer_export_with_project_and_document_ids():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
     assert len(response.text.split("<br/>")) == 1
@@ -134,7 +136,7 @@ def test_preview_trainer_export_with_project_and_document_ids():
 def test_preview_trainer_export_with_project_id_not_present():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?document_id=1", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export?document_id=1", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
     assert response.text == "Cannot find any matching documents to preview"
 
@@ -142,7 +144,7 @@ def test_preview_trainer_export_with_project_id_not_present():
 def test_preview_trainer_export_with_document_id_not_present():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?document_id=1", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/preview_trainer_export?document_id=1", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
     assert response.text == "Cannot find any matching documents to preview"
 
@@ -154,7 +156,7 @@ def test_train_supervised():
                 '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
                 '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
                 '"acc":1,"validated":true}]}]}]}]}')
-        response = client.post("/train_supervised", files={"training_data": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/train_supervised", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -168,3 +170,12 @@ def test_train_unsupervised():
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
+
+
+def test_evaluate_with_trainer_export():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(path, "r") as f:
+        response = client.post("/evaluate", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text == "concept,name,precision,recall,f1\n"

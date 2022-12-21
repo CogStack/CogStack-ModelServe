@@ -57,21 +57,21 @@ class _MedcatTrainerCommon(object):
         logger.info("Retrained model deployed")
 
     @staticmethod
-    def housekeep_file(file_path: Optional[str]) -> None:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            logger.debug("model pack housekept")
-        if file_path and os.path.exists(file_path.replace(".zip", "")):
-            shutil.rmtree(file_path.replace(".zip", ""))
-            logger.debug("Unpacked model directory housekept")
-
-    @staticmethod
     def save_model(model: CAT, retrained_models_dir: str) -> str:
         logger.info(f"Saving retrained model to {retrained_models_dir}...")
         model_pack_name = model.create_model_pack(retrained_models_dir, "model")
         model_pack_path = f"{os.path.join(retrained_models_dir, model_pack_name)}.zip"
         logger.debug(f"Retrained model saved to {model_pack_path}")
         return model_pack_path
+
+    @staticmethod
+    def _housekeep_file(file_path: Optional[str]) -> None:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.debug("model pack housekept")
+        if file_path and os.path.exists(file_path.replace(".zip", "")):
+            shutil.rmtree(file_path.replace(".zip", ""))
+            logger.debug("Unpacked model directory housekept")
 
 
 class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
@@ -167,8 +167,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            trainer.housekeep_file(model_pack_path)
-            trainer.housekeep_file(copied_model_pack_path)
+            trainer._housekeep_file(model_pack_path)
+            trainer._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)
 
@@ -316,7 +316,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            trainer.housekeep_file(model_pack_path)
-            trainer.housekeep_file(copied_model_pack_path)
+            trainer._housekeep_file(model_pack_path)
+            trainer._housekeep_file(copied_model_pack_path)
             if cdb_config_path:
                 os.remove(cdb_config_path)

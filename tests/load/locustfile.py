@@ -32,4 +32,4 @@ class MainTest(HttpUser):
     @task(2)
     def train_supervised(self):
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as file:
-            self.client.post("http://localhost:8180/train_supervised?epochs=1&log_frequency=1", files={"training_data": file})
+            self.client.post("http://localhost:8180/train_supervised?epochs=1&log_frequency=1", files={"trainer_export": file})
