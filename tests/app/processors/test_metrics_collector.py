@@ -8,10 +8,11 @@ from app.processors.metrics_collector import (
     evaluate_model_with_trainer_export,
     concat_trainer_exports,
     get_cui_counts_from_trainer_export,
+    get_intra_annotator_agreement_scores,
 )
 
 
-def test_evaluate_model_with_trainer_export():
+def test_evaluate_model_with_trainer_export_path():
     model_service = create_autospec(AbstractModelService)
     annotations = [
         {
@@ -70,7 +71,7 @@ def test_evaluate_model_and_return_dataframe():
     assert "anchors" not in result
 
 
-def test_evaluate_model_using_uploaded_file():
+def test_evaluate_model_with_trainer_export_file():
     model_service = create_autospec(AbstractModelService)
     annotations = [
         {
@@ -90,9 +91,7 @@ def test_evaluate_model_using_uploaded_file():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
     with open(path, "r") as file:
-        f = UploadFile("uploaded_file")
-        f.file = file
-        result = evaluate_model_with_trainer_export(f, model_service, return_df=True)
+        result = evaluate_model_with_trainer_export(file, model_service, return_df=True)
 
         assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
         assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
@@ -161,3 +160,16 @@ def test_get_cui_counts_from_trainer_export():
         "C0338614": 1,
         "C0878544": 1
     }
+
+
+def test_get_intra_annotator_agreement_scores():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    per_cui_iia_pct, per_cui_cohens_kappa = get_intra_annotator_agreement_scores(path, 1, 2)
+    assert set(per_cui_iia_pct.keys()) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
+    assert set(per_cui_cohens_kappa.keys()) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
+
+
+def test_get_intra_annotator_agreement_scores_and_return_dataframe():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    result = get_intra_annotator_agreement_scores(path, 1, 2, return_df=True)
+    assert set(result["cui"]) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}

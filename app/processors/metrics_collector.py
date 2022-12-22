@@ -1,8 +1,8 @@
 import json
 import pandas as pd
-from typing import Tuple, Dict, List, Union, Optional
-from fastapi import UploadFile
+from typing import Tuple, Dict, List, Union, Optional, TextIO
 from collections import defaultdict
+from sklearn.metrics import cohen_kappa_score
 from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
 
@@ -10,15 +10,15 @@ from model_services.base import AbstractModelService
 ANCHOR_DELIMITER = ";"
 
 
-def evaluate_model_with_trainer_export(data_file: Union[str, UploadFile],
+def evaluate_model_with_trainer_export(export_file: Union[str, TextIO],
                                        model_service: AbstractModelService,
                                        return_df: bool = False,
                                        include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
-    if isinstance(data_file, str):
-        with open(data_file, "r") as f:
-            data = json.load(f)
+    if isinstance(export_file, str):
+        with open(export_file, "r") as file:
+            data = json.load(file)
     else:
-        data = json.load(data_file.file)
+        data = json.load(export_file)
 
     correct_cuis: Dict = {}
     for project in data["projects"]:
@@ -151,3 +151,80 @@ def get_cui_counts_from_trainer_export(file_path: str) -> Dict[str, int]:
                 for annotation in annotations:
                     cuis[annotation["cui"]] += 1
     return dict(cuis)
+
+
+def get_intra_annotator_agreement_scores(export_file: Union[str, TextIO],
+                                         project_id: int,
+                                         another_project_id: int,
+                                         return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+    if isinstance(export_file, str):
+        with open(export_file, "r") as file:
+            data = json.load(file)
+    else:
+        data = json.load(export_file)
+
+    project_a = project_b = None
+    for project in data["projects"]:
+        if project_id == project["id"]:
+            project_a = project
+        if another_project_id == project["id"]:
+            project_b = project
+    if project_a is None:
+        raise ValueError(f"Cannot find project with ID: {project_id}")
+    if project_b is None:
+        raise ValueError(f"Cannot find project with ID: {another_project_id}")
+
+    filtered_projects = _filter_common_docs([project_a, project_b])
+
+    docspan2cui_proj1 = {f"{doc['id']}_{a['start']}_{a['end']}": a["cui"] for doc in filtered_projects[0]["documents"] for a in doc["annotations"]}
+    docspan2state_proj1 = {f"{doc['id']}_{a['start']}_{a['end']}": _get_annotation_state(a) for doc in filtered_projects[0]["documents"] for a in doc["annotations"]}
+    docspan2cui_proj2 = {f"{doc['id']}_{a['start']}_{a['end']}": a["cui"] for doc in filtered_projects[1]["documents"] for a in doc["annotations"]}
+    docspan2state_proj2 = {f"{doc['id']}_{a['start']}_{a['end']}": _get_annotation_state(a) for doc in filtered_projects[1]["documents"] for a in doc["annotations"]}
+    cui_states = {}
+    cuis = set(docspan2cui_proj1.values()).union(set(docspan2cui_proj2.values()))
+    for cui in cuis:
+        cui_state_pairs = []
+        docspans = set(_filter_by_cui(docspan2cui_proj1, cui).keys()).union(set(_filter_by_cui(docspan2cui_proj2, cui).keys()))
+        for docspan in docspans:
+            cui_state_pairs.append(
+                (docspan2state_proj1.get(docspan, "MISSING"), docspan2state_proj2.get(docspan, "MISSING")))
+        cui_states[cui] = cui_state_pairs
+
+    per_cui_iia_pct = {cui: (len([cui_state_pair for cui_state_pair in cui_state_pairs if
+                                  cui_state_pair[0] == cui_state_pair[1]]) / len(cui_state_pairs)) * 100 for
+                       cui, cui_state_pairs in cui_states.items()}
+    per_cui_iia_pct = {cui: pct for cui, pct in sorted(per_cui_iia_pct.items(), key=lambda item: item[0])}
+
+    per_cui_cohens_kappa = {cui: cohen_kappa_score([cui_state_pair[0] for cui_state_pair in cui_state_pairs],
+                                                   [cui_state_pair[1] for cui_state_pair in cui_state_pairs]) for
+                            cui, cui_state_pairs in cui_states.items()}
+    per_cui_cohens_kappa = {cui: pct for cui, pct in sorted(per_cui_cohens_kappa.items(), key=lambda item: item[0])}
+
+    if return_df:
+        return pd.DataFrame({
+            "cui": per_cui_iia_pct.keys(),
+            "iaa_percentage": per_cui_iia_pct.values(),
+            "cohens_kappa": per_cui_cohens_kappa.values()
+        })
+    else:
+        return per_cui_iia_pct, per_cui_cohens_kappa
+
+
+def _filter_common_docs(projects: List[Dict]) -> List[Dict]:
+    project_doc_ids = []
+    for project in projects:
+        project_doc_ids.append({doc["id"] for doc in project["documents"]})
+    common_doc_ids = set.intersection(*project_doc_ids)
+    new_projects = []
+    for project in projects:
+        project["documents"] = [doc for doc in project["documents"] if doc["id"] in common_doc_ids]
+        new_projects.append(project)
+    return new_projects
+
+
+def _get_annotation_state(annotation: Dict) -> str:
+    return str(int(annotation["validated"])) + str(int(annotation["correct"])) + str(int(annotation["deleted"])) + str(int(annotation["alternative"])) + str(int(annotation["killed"])) + str(int(annotation["manually_created"]))
+
+
+def _filter_by_cui(any2cui: Dict, cui: str) -> Dict:
+    return {a: c for a, c in any2cui.items() if c == cui}

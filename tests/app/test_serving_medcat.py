@@ -178,4 +178,14 @@ def test_evaluate_with_trainer_export():
         response = client.post("/evaluate", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-    assert response.text == "concept,name,precision,recall,f1\n"
+    assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
+
+
+def test_intra_annotator_agreement_scores():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
+    with open(path, "r") as f:
+        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "cui,iaa_percentage,cohens_kappa"
+
