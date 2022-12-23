@@ -1,5 +1,6 @@
 import os
 import tempfile
+import pytest
 from fastapi.testclient import TestClient
 from app.api import get_model_server, get_settings
 from app.model_services.medcat_model import MedCATModel
@@ -133,20 +134,13 @@ def test_preview_trainer_export_with_project_and_document_ids():
     assert len(response.text.split("<br/>")) == 1
 
 
-def test_preview_trainer_export_with_project_id_not_present():
+@pytest.mark.parametrize("pid,did", [(14, 1), (1, 3205)])
+def test_preview_trainer_export_on_missing_project_or_document(pid, did):
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?document_id=1", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(f"/preview_trainer_export?project_id={pid}&document_id={did}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
-    assert response.text == "Cannot find any matching documents to preview"
-
-
-def test_preview_trainer_export_with_document_id_not_present():
-    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
-    with open(path, "r") as f:
-        response = client.post("/preview_trainer_export?document_id=1", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
-    assert response.status_code == 404
-    assert response.text == "Cannot find any matching documents to preview"
+    assert response.json() == {"detail": "Cannot find any matching documents to preview"}
 
 
 def test_train_supervised():
@@ -189,3 +183,13 @@ def test_intra_annotator_agreement_scores():
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "cui,iaa_percentage,cohens_kappa"
 
+
+@pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
+def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
+#     import pdb; pdb.set_trace()
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
+    with open(path, "r") as f:
+        response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/json"
+    assert response.json() == {"detail": error_message}

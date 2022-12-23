@@ -2,7 +2,7 @@ import uuid
 import json
 from typing import Union
 
-from fastapi import APIRouter, Depends, Body, UploadFile
+from fastapi import APIRouter, Depends, Body, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse
 from spacy import displacy
 from starlette.status import HTTP_200_OK, HTTP_404_NOT_FOUND
@@ -60,5 +60,5 @@ async def preview_trainer_export(trainer_export: UploadFile,
         response = HTMLResponse(content="<br/>".join(htmls), status_code=HTTP_200_OK)
         response.headers["Content-Disposition"] = f'attachment ; filename="preview_{str(uuid.uuid4())}.html"'
     else:
-        response = HTMLResponse(content="Cannot find any matching documents to preview", status_code=HTTP_404_NOT_FOUND)
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str("Cannot find any matching documents to preview"))
     return response

@@ -170,42 +170,45 @@ def get_intra_annotator_agreement_scores(export_file: Union[str, TextIO],
         if another_project_id == project["id"]:
             project_b = project
     if project_a is None:
-        raise ValueError(f"Cannot find project with ID: {project_id}")
+        raise ValueError(f"Cannot find the project with ID: {project_id}")
     if project_b is None:
-        raise ValueError(f"Cannot find project with ID: {another_project_id}")
+        raise ValueError(f"Cannot find the project with ID: {another_project_id}")
 
     filtered_projects = _filter_common_docs([project_a, project_b])
 
-    docspan2cui_proj1 = {f"{doc['id']}_{a['start']}_{a['end']}": a["cui"] for doc in filtered_projects[0]["documents"] for a in doc["annotations"]}
-    docspan2state_proj1 = {f"{doc['id']}_{a['start']}_{a['end']}": _get_annotation_state(a) for doc in filtered_projects[0]["documents"] for a in doc["annotations"]}
-    docspan2cui_proj2 = {f"{doc['id']}_{a['start']}_{a['end']}": a["cui"] for doc in filtered_projects[1]["documents"] for a in doc["annotations"]}
-    docspan2state_proj2 = {f"{doc['id']}_{a['start']}_{a['end']}": _get_annotation_state(a) for doc in filtered_projects[1]["documents"] for a in doc["annotations"]}
+    docspan2cui_proj_a = {}
+    docspan2state_proj_a = {}
+    for document in filtered_projects[0]["documents"]:
+        for annotation in document["annotations"]:
+            docspan2cui_proj_a[f"{document['id']}_{annotation['start']}_{annotation['end']}"] = annotation["cui"]
+            docspan2state_proj_a[f"{document['id']}_{annotation['start']}_{annotation['end']}"] = _get_annotation_state(annotation)
+
+    docspan2cui_proj_b = {}
+    docspan2state_proj_b = {}
+    for document in filtered_projects[1]["documents"]:
+        for annotation in document["annotations"]:
+            docspan2cui_proj_b[f"{document['id']}_{annotation['start']}_{annotation['end']}"] = annotation["cui"]
+            docspan2state_proj_b[f"{document['id']}_{annotation['start']}_{annotation['end']}"] = _get_annotation_state(annotation)
+
     cui_states = {}
-    cuis = set(docspan2cui_proj1.values()).union(set(docspan2cui_proj2.values()))
+    cuis = set(docspan2cui_proj_a.values()).union(set(docspan2cui_proj_b.values()))
     for cui in cuis:
-        cui_state_pairs = []
-        docspans = set(_filter_by_cui(docspan2cui_proj1, cui).keys()).union(set(_filter_by_cui(docspan2cui_proj2, cui).keys()))
-        for docspan in docspans:
-            cui_state_pairs.append(
-                (docspan2state_proj1.get(docspan, "MISSING"), docspan2state_proj2.get(docspan, "MISSING")))
-        cui_states[cui] = cui_state_pairs
+        docspans = set(_filter_by_cui(docspan2cui_proj_a, cui).keys()).union(set(_filter_by_cui(docspan2cui_proj_b, cui).keys()))
+        cui_states[cui] = [(docspan2state_proj_a.get(docspan, "MISSING"), docspan2state_proj_b.get(docspan, "MISSING")) for docspan in docspans]
 
-    per_cui_iia_pct = {cui: (len([cui_state_pair for cui_state_pair in cui_state_pairs if
-                                  cui_state_pair[0] == cui_state_pair[1]]) / len(cui_state_pairs)) * 100 for
-                       cui, cui_state_pairs in cui_states.items()}
-    per_cui_iia_pct = {cui: pct for cui, pct in sorted(per_cui_iia_pct.items(), key=lambda item: item[0])}
-
-    per_cui_cohens_kappa = {cui: cohen_kappa_score([cui_state_pair[0] for cui_state_pair in cui_state_pairs],
-                                                   [cui_state_pair[1] for cui_state_pair in cui_state_pairs]) for
-                            cui, cui_state_pairs in cui_states.items()}
-    per_cui_cohens_kappa = {cui: pct for cui, pct in sorted(per_cui_cohens_kappa.items(), key=lambda item: item[0])}
+    per_cui_iia_pct = {}
+    per_cui_cohens_kappa = {}
+    for cui, cui_state_pairs in cui_states.items():
+        per_cui_iia_pct[cui] = len([csp for csp in cui_state_pairs if csp[0] == csp[1]]) / len(cui_state_pairs) * 100
+        per_cui_cohens_kappa[cui] = cohen_kappa_score(*map(list, zip(*cui_state_pairs)))
 
     if return_df:
-        return pd.DataFrame({
+        df = pd.DataFrame({
             "cui": per_cui_iia_pct.keys(),
             "iaa_percentage": per_cui_iia_pct.values(),
             "cohens_kappa": per_cui_cohens_kappa.values()
         })
+        return df.fillna("NaN")
     else:
         return per_cui_iia_pct, per_cui_cohens_kappa
 
@@ -223,8 +226,13 @@ def _filter_common_docs(projects: List[Dict]) -> List[Dict]:
 
 
 def _get_annotation_state(annotation: Dict) -> str:
-    return str(int(annotation["validated"])) + str(int(annotation["correct"])) + str(int(annotation["deleted"])) + str(int(annotation["alternative"])) + str(int(annotation["killed"])) + str(int(annotation["manually_created"]))
+    return (str(int(annotation["validated"])) +
+            str(int(annotation["correct"])) +
+            str(int(annotation["deleted"])) +
+            str(int(annotation["alternative"])) +
+            str(int(annotation["killed"])) +
+            str(int(annotation["manually_created"])))
 
 
-def _filter_by_cui(any2cui: Dict, cui: str) -> Dict:
-    return {a: c for a, c in any2cui.items() if c == cui}
+def _filter_by_cui(docspan2cui: Dict, cui: str) -> Dict:
+    return {docspan: cui_ for docspan, cui_ in docspan2cui.items() if cui_ == cui}

@@ -2,7 +2,8 @@ import io
 import uuid
 import tempfile
 
-from fastapi import APIRouter, Depends, UploadFile
+from starlette.status import HTTP_404_NOT_FOUND
+from fastapi import APIRouter, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 
 import globals
@@ -43,7 +44,10 @@ async def intra_annotator_agreement_scores(trainer_export: UploadFile,
         for line in trainer_export.file:
             file.write(line)
         file.seek(0)
-        iaa_scores = get_intra_annotator_agreement_scores(file, annotator_a_project_id, annotator_b_project_id, return_df=True)
+        try:
+            iaa_scores = get_intra_annotator_agreement_scores(file, annotator_a_project_id, annotator_b_project_id, return_df=True)
+        except ValueError as e:
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str(e))
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
