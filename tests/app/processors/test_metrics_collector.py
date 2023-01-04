@@ -1,14 +1,15 @@
 import os
 import tempfile
 import json
-from fastapi import UploadFile
 from unittest.mock import create_autospec
 from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
     evaluate_model_with_trainer_export,
     concat_trainer_exports,
     get_cui_counts_from_trainer_export,
-    get_intra_annotator_agreement_scores,
+    get_iaa_scores_per_concept,
+    get_iaa_scores_per_doc,
+    get_iaa_scores_per_span,
 )
 
 
@@ -162,14 +163,44 @@ def test_get_cui_counts_from_trainer_export():
     }
 
 
-def test_get_intra_annotator_agreement_scores():
+def test_get_iaa_scores_per_concept():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
-    per_cui_iia_pct, per_cui_cohens_kappa = get_intra_annotator_agreement_scores(path, 1, 2)
+    per_cui_iia_pct, per_cui_cohens_kappa = get_iaa_scores_per_concept(path, 1, 2)
     assert set(per_cui_iia_pct.keys()) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
     assert set(per_cui_cohens_kappa.keys()) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
 
 
-def test_get_intra_annotator_agreement_scores_and_return_dataframe():
+def test_get_iaa_scores_per_concept_and_return_dataframe():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
-    result = get_intra_annotator_agreement_scores(path, 1, 2, return_df=True)
-    assert set(result["cui"]) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
+    result = get_iaa_scores_per_concept(path, 1, 2, return_df=True)
+    assert set(result["concept"]) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
+
+
+def test_get_iaa_scores_per_doc():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    per_doc_iia_pct, per_doc_cohens_kappa = get_iaa_scores_per_doc(path, 1, 2)
+    assert set(per_doc_iia_pct.keys()) == {"3204", "3205"}
+    assert set(per_doc_cohens_kappa.keys()) == {"3204", "3205"}
+
+
+def test_get_iaa_scores_per_doc_and_return_dataframe():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    result = get_iaa_scores_per_doc(path, 1, 2, return_df=True)
+    assert len(result["doc_id"]) == 2
+    assert len(result["iaa_percentage"]) == 2
+    assert len(result["iaa_percentage"]) == 2
+
+
+def test_get_iaa_scores_per_span():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    per_doc_iia_pct, per_doc_cohens_kappa = get_iaa_scores_per_span(path, 1, 2)
+    assert len(per_doc_iia_pct.keys()) == 30
+    assert len(per_doc_cohens_kappa.keys()) == 30
+
+
+def test_get_iaa_scores_per_span_and_return_dataframe():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    result = get_iaa_scores_per_span(path, 1, 2, return_df=True)
+    assert len(result["doc_id"]) == 30
+    assert len(result["span_start"]) == 30
+    assert len(result["span_end"]) == 30

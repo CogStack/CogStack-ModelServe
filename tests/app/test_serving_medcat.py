@@ -175,21 +175,47 @@ def test_evaluate_with_trainer_export():
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
 
 
-def test_intra_annotator_agreement_scores():
+def test_intra_annotator_agreement_scores_per_concept():
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
     with open(path, "r") as f:
-        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-    assert response.text.split("\n")[0] == "cui,iaa_percentage,cohens_kappa"
+    assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa"
 
 
 @pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
 def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
-#     import pdb; pdb.set_trace()
     path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
     with open(path, "r") as f:
-        response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": error_message}
+
+
+def test_unknown_scope_on_getting_iaa_scores():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
+    with open(path, "r") as f:
+        response = client.post(f"/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=unknown", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 400
+    assert response.headers["content-type"] == "application/json"
+    assert response.json() == {"detail": "Unknown scope: \"unknown\""}
+
+
+def test_intra_annotator_agreement_scores_per_doc():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
+    with open(path, "r") as f:
+        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_document", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa"
+
+
+def test_intra_annotator_agreement_scores_per_span():
+    path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
+    with open(path, "r") as f:
+        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_span", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "doc_id,span_start,span_end,iaa_percentage,cohens_kappa"

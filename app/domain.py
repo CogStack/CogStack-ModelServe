@@ -60,3 +60,9 @@ class CodeType(str, Enum):
     UMLS = "UMLS"
     ICD10 = "ICD-10"
     OPCS4 = "OPCS-4"
+
+
+class Scope(str, Enum):
+    PER_CONCEPT = "per_concept"
+    PER_DOCUMENT = "per_document"
+    PER_SPAN = "per_span"
