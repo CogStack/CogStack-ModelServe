@@ -181,7 +181,7 @@ def test_intra_annotator_agreement_scores_per_concept():
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-    assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa"
+    assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
 
 
 @pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
@@ -209,7 +209,7 @@ def test_intra_annotator_agreement_scores_per_doc():
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_document", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-    assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa"
+    assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
 
 
 def test_intra_annotator_agreement_scores_per_span():
@@ -218,4 +218,4 @@ def test_intra_annotator_agreement_scores_per_span():
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_span", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
-    assert response.text.split("\n")[0] == "doc_id,span_start,span_end,iaa_percentage,cohens_kappa"
+    assert response.text.split("\n")[0] == "doc_id,span_start,span_end,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"

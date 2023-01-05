@@ -27,14 +27,20 @@
                             "last_modified": "2020-04-01 22:06:34.303633+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Other",
+                            "meta_anns": {
+                                "Name1": {
+                                    "name": "Name1",
+                                    "value": "value1",
+                                    "acc": 1,
+                                    "validated": true
+                                },
+                                "Name2": {
+                                    "name": "Name2",
+                                    "value": "value2",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45581,
@@ -51,14 +57,7 @@
                             "last_modified": "2020-04-01 22:06:30.394941+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Confirmed",
-                                    "acc": 1,
-                                    "validated": true
-                                }
-                            ]
+                            "meta_anns": {}
                         },
                         {
                             "id": 45582,
@@ -75,14 +74,14 @@
                             "last_modified": "2020-04-01 22:06:48.174475+00:00",
                             "manually_created": false,
                             "acc": 0.364258020093567,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45583,
@@ -99,14 +98,14 @@
                             "last_modified": "2020-04-01 22:06:33.410261+00:00",
                             "manually_created": false,
                             "acc": 0.39498916376357734,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45584,
@@ -123,14 +122,14 @@
                             "last_modified": "2020-04-01 22:06:32.727096+00:00",
                             "manually_created": false,
                             "acc": 0.43553226241827225,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         }
                     ]
                 },
@@ -155,14 +154,14 @@
                             "last_modified": "2020-04-01 22:08:02.455949+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45586,
@@ -179,14 +178,14 @@
                             "last_modified": "2020-04-01 22:08:05.459069+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45587,
@@ -203,14 +202,14 @@
                             "last_modified": "2020-04-01 22:08:10.676220+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45588,
@@ -227,14 +226,14 @@
                             "last_modified": "2020-04-01 22:06:57.312323+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45589,
@@ -251,14 +250,14 @@
                             "last_modified": "2020-04-01 22:07:51.028108+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45590,
@@ -275,14 +274,14 @@
                             "last_modified": "2020-04-01 22:08:08.633594+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45591,
@@ -299,14 +298,14 @@
                             "last_modified": "2020-04-01 22:07:39.702986+00:00",
                             "manually_created": false,
                             "acc": 0.5504322799558069,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45592,
@@ -323,14 +322,14 @@
                             "last_modified": "2020-04-01 22:07:36.229587+00:00",
                             "manually_created": false,
                             "acc": 0.558904164365694,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45593,
@@ -347,14 +346,14 @@
                             "last_modified": "2020-04-01 22:07:53.183209+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45594,
@@ -371,14 +370,14 @@
                             "last_modified": "2020-04-01 22:08:13.396193+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45595,
@@ -395,14 +394,14 @@
                             "last_modified": "2020-04-01 22:07:57.136409+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45596,
@@ -419,14 +418,14 @@
                             "last_modified": "2020-04-01 22:07:35.202838+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45597,
@@ -443,14 +442,14 @@
                             "last_modified": "2020-04-01 22:07:58.301306+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45598,
@@ -467,14 +466,14 @@
                             "last_modified": "2020-04-01 22:08:11.504493+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45599,
@@ -491,20 +490,14 @@
                             "last_modified": "2020-04-01 22:07:19.824713+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Confirmed",
-                                    "acc": 1,
-                                    "validated": true
-                                },
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45600,
@@ -521,14 +514,14 @@
                             "last_modified": "2020-04-01 22:07:30.761228+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45601,
@@ -545,14 +538,14 @@
                             "last_modified": "2020-04-01 22:07:31.752120+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45602,
@@ -569,14 +562,14 @@
                             "last_modified": "2020-04-01 22:07:55.539090+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45603,
@@ -593,14 +586,14 @@
                             "last_modified": "2020-04-01 22:08:01.409098+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45604,
@@ -617,14 +610,14 @@
                             "last_modified": "2020-04-01 22:08:17.017254+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45605,
@@ -641,14 +634,14 @@
                             "last_modified": "2020-04-01 22:07:10.971059+00:00",
                             "manually_created": false,
                             "acc": 0.6018078580960269,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45606,
@@ -665,14 +658,14 @@
                             "last_modified": "2020-04-01 22:07:34.520090+00:00",
                             "manually_created": false,
                             "acc": 0.6011015540328982,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45607,
@@ -689,14 +682,14 @@
                             "last_modified": "2020-04-01 22:07:08.797248+00:00",
                             "manually_created": false,
                             "acc": 0.4721907772509702,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45608,
@@ -713,14 +706,14 @@
                             "last_modified": "2020-04-01 22:07:42.009112+00:00",
                             "manually_created": false,
                             "acc": 0.4283007394246088,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45609,
@@ -737,14 +730,14 @@
                             "last_modified": "2020-04-01 22:08:09.822242+00:00",
                             "manually_created": false,
                             "acc": 0.46978565675753237,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         }
                     ]
                 }
@@ -777,14 +770,20 @@
                             "last_modified": "2020-04-01 22:06:34.303633+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Other",
+                            "meta_anns": {
+                                "Name1": {
+                                    "name": "Name1",
+                                    "value": "value3",
+                                    "acc": 1,
+                                    "validated": true
+                                },
+                                "Name2": {
+                                    "name": "Name2",
+                                    "value": "value4",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45581,
@@ -801,14 +800,7 @@
                             "last_modified": "2020-04-01 22:06:30.394941+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Confirmed",
-                                    "acc": 1,
-                                    "validated": true
-                                }
-                            ]
+                            "meta_anns": {}
                         },
                         {
                             "id": 45582,
@@ -825,14 +817,14 @@
                             "last_modified": "2020-04-01 22:06:48.174475+00:00",
                             "manually_created": false,
                             "acc": 0.364258020093567,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45583,
@@ -849,14 +841,14 @@
                             "last_modified": "2020-04-01 22:06:33.410261+00:00",
                             "manually_created": false,
                             "acc": 0.39498916376357734,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45584,
@@ -873,14 +865,14 @@
                             "last_modified": "2020-04-01 22:06:32.727096+00:00",
                             "manually_created": false,
                             "acc": 0.43553226241827225,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         }
                     ]
                 },
@@ -905,14 +897,14 @@
                             "last_modified": "2020-04-01 22:08:02.455949+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45586,
@@ -929,14 +921,14 @@
                             "last_modified": "2020-04-01 22:08:05.459069+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45587,
@@ -953,14 +945,14 @@
                             "last_modified": "2020-04-01 22:08:10.676220+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45588,
@@ -977,14 +969,14 @@
                             "last_modified": "2020-04-01 22:06:57.312323+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45589,
@@ -1001,14 +993,14 @@
                             "last_modified": "2020-04-01 22:07:51.028108+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45590,
@@ -1025,14 +1017,14 @@
                             "last_modified": "2020-04-01 22:08:08.633594+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45591,
@@ -1049,14 +1041,14 @@
                             "last_modified": "2020-04-01 22:07:39.702986+00:00",
                             "manually_created": false,
                             "acc": 0.5504322799558069,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45592,
@@ -1073,14 +1065,14 @@
                             "last_modified": "2020-04-01 22:07:36.229587+00:00",
                             "manually_created": false,
                             "acc": 0.558904164365694,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45593,
@@ -1097,14 +1089,14 @@
                             "last_modified": "2020-04-01 22:07:53.183209+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45594,
@@ -1121,14 +1113,14 @@
                             "last_modified": "2020-04-01 22:08:13.396193+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45595,
@@ -1145,14 +1137,14 @@
                             "last_modified": "2020-04-01 22:07:57.136409+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45596,
@@ -1169,14 +1161,14 @@
                             "last_modified": "2020-04-01 22:07:35.202838+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45597,
@@ -1193,14 +1185,14 @@
                             "last_modified": "2020-04-01 22:07:58.301306+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45598,
@@ -1217,14 +1209,14 @@
                             "last_modified": "2020-04-01 22:08:11.504493+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45599,
@@ -1241,20 +1233,14 @@
                             "last_modified": "2020-04-01 22:07:19.824713+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
-                                    "name": "Status",
-                                    "value": "Confirmed",
-                                    "acc": 1,
-                                    "validated": true
-                                },
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45600,
@@ -1271,14 +1257,14 @@
                             "last_modified": "2020-04-01 22:07:30.761228+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45601,
@@ -1295,14 +1281,14 @@
                             "last_modified": "2020-04-01 22:07:31.752120+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45602,
@@ -1319,14 +1305,14 @@
                             "last_modified": "2020-04-01 22:07:55.539090+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45603,
@@ -1343,14 +1329,14 @@
                             "last_modified": "2020-04-01 22:08:01.409098+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45604,
@@ -1367,14 +1353,14 @@
                             "last_modified": "2020-04-01 22:08:17.017254+00:00",
                             "manually_created": false,
                             "acc": 1,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45605,
@@ -1391,14 +1377,14 @@
                             "last_modified": "2020-04-01 22:07:10.971059+00:00",
                             "manually_created": false,
                             "acc": 0.6018078580960269,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45606,
@@ -1415,14 +1401,14 @@
                             "last_modified": "2020-04-01 22:07:34.520090+00:00",
                             "manually_created": false,
                             "acc": 0.6011015540328982,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45607,
@@ -1439,14 +1425,14 @@
                             "last_modified": "2020-04-01 22:07:08.797248+00:00",
                             "manually_created": false,
                             "acc": 0.4721907772509702,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45608,
@@ -1463,14 +1449,14 @@
                             "last_modified": "2020-04-01 22:07:42.009112+00:00",
                             "manually_created": false,
                             "acc": 0.4283007394246088,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Other",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         },
                         {
                             "id": 45609,
@@ -1487,14 +1473,14 @@
                             "last_modified": "2020-04-01 22:08:09.822242+00:00",
                             "manually_created": false,
                             "acc": 0.46978565675753237,
-                            "meta_anns": [
-                                {
+                            "meta_anns": {
+                                "Status": {
                                     "name": "Status",
                                     "value": "Confirmed",
                                     "acc": 1,
                                     "validated": true
                                 }
-                            ]
+                            }
                         }
                     ]
                 }
