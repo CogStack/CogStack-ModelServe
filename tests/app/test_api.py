@@ -7,6 +7,9 @@ def test_get_model_server():
     config = Settings()
     config.ENABLE_TRAINING_APIS = "true"
     config.DISABLE_UNSUPERVISED_TRAINING = "false"
+    config.ENABLE_EVALUATION_APIS = "true"
+    config.ENABLE_PREVIEWS_APIS = "true"
+
     model_service_dep = ModelServiceDep("medcat_snomed", Settings())
 
     app = get_model_server(model_service_dep)
@@ -28,3 +31,6 @@ def test_get_model_server():
     assert "/preview_trainer_export" in paths
     assert "/train_supervised" in paths
     assert "/train_unsupervised" in paths
+    assert "/evaluate" in paths
+    assert "/iaa-scores" in paths
+    assert "/metrics" not in paths

@@ -282,6 +282,42 @@ services:
 #      - mlflow-db
 #      - minio
 
+  prometheus:
+    image: prom/prometheus:v2.41.0
+    container_name: cms_prometheus
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ./docker/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    expose:
+      - 9090
+    ports:
+      - 8201:9090
+
+  grafana:
+    image: grafana/grafana:9.3.2-ubuntu
+    container_name: cms_grafana
+    restart: always
+    networks:
+      - cms
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./docker/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - grafana-data:/var/lib/grafana
+    ports:
+      - 8202:3000
+
   proxy:
     build:
       context: ./
@@ -314,6 +350,8 @@ services:
       - 28182:28182
       - 28199:28199
       - 28200:28200
+      - 28201:28201
+      - 28202:28202
 #    depends_on:
 #      - medcat-snomed
 #      - medcat-icd10
@@ -332,6 +370,10 @@ volumes:
   mlflow-backend-store:
     driver: local
   minio-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
     driver: local
 
 networks:

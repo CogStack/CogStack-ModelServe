@@ -1,7 +1,9 @@
 import io
+import json
 import uuid
 import tempfile
 
+from typing import List
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST
 from fastapi import APIRouter, Query, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
@@ -14,6 +16,7 @@ from processors.metrics_collector import (
     get_iaa_scores_per_concept,
     get_iaa_scores_per_doc,
     get_iaa_scores_per_span,
+    concat_trainer_exports,
 )
 
 router = APIRouter()
@@ -42,21 +45,30 @@ async def evaluate_using_trainer_export(trainer_export: UploadFile,
 @router.post("/iaa-scores",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse)
-async def intra_annotator_agreement_scores(trainer_export: UploadFile,
+async def intra_annotator_agreement_scores(trainer_export: List[UploadFile],
                                            annotator_a_project_id: int,
                                            annotator_b_project_id: int,
                                            scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:
-    with tempfile.NamedTemporaryFile() as file:
-        for line in trainer_export.file:
-            file.write(line)
-        file.seek(0)
+    files = []
+    for te in trainer_export:
+        temp_te = tempfile.NamedTemporaryFile()
+        for line in te.file:
+            temp_te.write(line)
+        temp_te.flush()
+        files.append(temp_te)
+    concatenated = concat_trainer_exports([file.name for file in files])
+    for file in files:
+        file.close()
+    with tempfile.NamedTemporaryFile(mode="w+") as combined:
+        json.dump(concatenated, combined)
+        combined.seek(0)
         try:
             if scope == Scope.PER_CONCEPT.value:
-                iaa_scores = get_iaa_scores_per_concept(file, annotator_a_project_id, annotator_b_project_id, return_df=True)
+                iaa_scores = get_iaa_scores_per_concept(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
             elif scope == Scope.PER_DOCUMENT.value:
-                iaa_scores = get_iaa_scores_per_doc(file, annotator_a_project_id, annotator_b_project_id, return_df=True)
+                iaa_scores = get_iaa_scores_per_doc(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
             elif scope == Scope.PER_SPAN.value:
-                iaa_scores = get_iaa_scores_per_span(file, annotator_a_project_id, annotator_b_project_id, return_df=True)
+                iaa_scores = get_iaa_scores_per_span(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
             else:
                 raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f'Unknown scope: "{scope}"')
         except ValueError as e:

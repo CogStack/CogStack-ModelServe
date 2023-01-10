@@ -126,13 +126,14 @@ def evaluate_model_with_trainer_export(export_file: Union[str, TextIO],
 
 def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: Optional[str] = None) -> Union[Dict, str]:
     combined: Dict = {"projects": []}
-    project_id = 0
+    project_ids = []
     for path in data_file_paths:
         with open(path, "r") as f:
             data = json.load(f)
             for project in data["projects"]:
-                project["id"] = project_id
-                project_id += 1
+                if project["id"] in project_ids:
+                    raise ValueError(f'Found multiple projects share the same ID: {project["id"]}')
+                project_ids.append(project["id"])
         combined["projects"].extend(data["projects"])
 
     if isinstance(combined_data_file_path, str):

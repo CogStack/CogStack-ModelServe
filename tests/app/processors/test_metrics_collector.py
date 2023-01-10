@@ -1,6 +1,7 @@
 import os
 import tempfile
 import json
+import pytest
 from unittest.mock import create_autospec
 from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
@@ -132,11 +133,19 @@ def test_evaluate_model_and_include_anchors():
 
 
 def test_concat_trainer_exports():
-    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+    path_1 = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+    path_2 = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
     with tempfile.NamedTemporaryFile() as f:
-        concat_trainer_exports([path, path, path], f.name)
+        concat_trainer_exports([path_1, path_2], f.name)
         new_export = json.load(f)
         assert len(new_export["projects"]) == 3
+
+
+def test_concat_trainer_exports_with_duplicated_id_found():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+    with pytest.raises(ValueError) as e:
+        concat_trainer_exports([path, path, path])
+        assert "Found multiple projects share the same ID:" in str(e)
 
 
 def test_get_cui_counts_from_trainer_export():

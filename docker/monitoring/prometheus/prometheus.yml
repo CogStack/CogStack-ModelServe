@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "prometheus"
+    scrape_interval: 60s
+    static_configs:
+    - targets:
+      - "localhost:9090"
+
+  - job_name: "cms_medcat-snomed"
+    scrape_interval: 30s
+    static_configs:
+    - targets:
+      - "medcat-snomed:8000"
+
+  - job_name: "cms_medcat-icd10"
+    scrape_interval: 30s
+    static_configs:
+    - targets:
+      - "medcat-icd10:8000"
+
+  - job_name: "cms_de-identification"
+    scrape_interval: 30s
+    static_configs:
+    - targets:
+      - "de-identification:8000"
+
+  - job_name: "cms_medcat-deid"
+    scrape_interval: 30s
+    static_configs:
+    - targets:
+      - "medcat-deid:8000"
+
+  - job_name: "cms_medcat-umls"
+    scrape_interval: 30s
+    static_configs:
+    - targets:
+      - "medcat-umls:8000"

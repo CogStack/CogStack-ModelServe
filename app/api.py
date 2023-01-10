@@ -1,3 +1,4 @@
+import os
 import asyncio
 import globals
 import importlib
@@ -11,6 +12,8 @@ from anyio import CapacityLimiter
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
+from starlette_exporter import PrometheusMiddleware, handle_metrics
+from starlette_exporter.optional_metrics import response_body_size, request_body_size
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
@@ -67,47 +70,67 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    _load_invocation_router(app)
+    app = _load_metrics_route(app, globals.model_service_dep().model_name)
+    app = _load_invocation_router(app)
 
     if get_settings().ENABLE_TRAINING_APIS == "true":
-        _load_supervised_training_router(app)
+        app = _load_supervised_training_router(app)
         if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
-            _load_unsupervised_training_router(app)
+            app = _load_unsupervised_training_router(app)
     if get_settings().ENABLE_EVALUATION_APIS == "true":
-        _load_evaluation_router(app)
+        app = _load_evaluation_router(app)
     if get_settings().ENABLE_PREVIEWS_APIS == "true":
-        _load_preview_router(app)
+        app = _load_preview_router(app)
 
     app.openapi = custom_openapi  # type: ignore
 
     return app
 
 
-def _load_invocation_router(app):
+def _load_invocation_router(app: FastAPI) -> FastAPI:
     from routers import invocation
     importlib.reload(invocation)
     app.include_router(invocation.router)
+    return app
 
 
-def _load_supervised_training_router(app):
+def _load_supervised_training_router(app: FastAPI) -> FastAPI:
     from routers import supervised_training
     importlib.reload(supervised_training)
     app.include_router(supervised_training.router)
+    return app
 
 
-def _load_evaluation_router(app):
+def _load_evaluation_router(app: FastAPI) -> FastAPI:
     from routers import evaluation
     importlib.reload(evaluation)
     app.include_router(evaluation.router)
+    return app
 
 
-def _load_preview_router(app):
+def _load_preview_router(app: FastAPI) -> FastAPI:
     from routers import preview
     importlib.reload(preview)
     app.include_router(preview.router)
+    return app
 
 
-def _load_unsupervised_training_router(app):
+def _load_unsupervised_training_router(app: FastAPI) -> FastAPI:
     from routers import unsupervised_training
     importlib.reload(unsupervised_training)
     app.include_router(unsupervised_training.router)
+    return app
+
+
+def _load_metrics_route(app: FastAPI, app_name: str) -> FastAPI:
+    app.add_middleware(PrometheusMiddleware,
+                       app_name=app_name,
+                       prefix="cms",
+                       labels={
+                           "server_name": os.getenv("HOSTNAME", ""),
+                           "cms_model_name": os.getenv("CMS_MODEL_NAME", ""),
+                       },
+                       skip_paths=["/", "/docs", "/favicon.ico", "/metrics", "/openapi.json"],
+                       optional_metrics=[request_body_size, response_body_size])
+    app.add_route("/metrics", handle_metrics)
+    return app
