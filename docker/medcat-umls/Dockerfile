@@ -14,7 +14,7 @@ ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
 
-COPY docker/medcat-snomed/requirements.txt /requirements.txt
+COPY docker/medcat-umls/requirements.txt /requirements.txt
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
     pip install --no-cache-dir -r requirements.txt
 RUN python -m spacy download en_core_web_md

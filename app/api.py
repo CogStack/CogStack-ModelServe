@@ -130,6 +130,7 @@ def _load_metrics_route(app: FastAPI, app_name: str) -> FastAPI:
                            "server_name": os.getenv("HOSTNAME", ""),
                            "cms_model_name": os.getenv("CMS_MODEL_NAME", ""),
                        },
+                       buckets=[0.1, 0.25, 0.5, 1],
                        skip_paths=["/", "/docs", "/favicon.ico", "/metrics", "/openapi.json"],
                        optional_metrics=[request_body_size, response_body_size])
     app.add_route("/metrics", handle_metrics)

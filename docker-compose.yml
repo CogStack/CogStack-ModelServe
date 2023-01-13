@@ -314,6 +314,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./docker/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./docker/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - grafana-data:/var/lib/grafana
     ports:
       - 8202:3000

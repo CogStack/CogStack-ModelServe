@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 8,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -111,7 +111,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/process\"} / cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process\"}",
+          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -203,7 +203,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"} / cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}",
+          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -275,6 +275,374 @@
         "x": 0,
         "y": 8
       },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_request_body_bytes_total{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m])",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Request Body Bytes on /process",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_request_body_bytes_total{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m])",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Request Body Bytes on /process_bulk",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_response_body_bytes_total{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process\"}[5m])",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Response Body Bytes on /process",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_response_body_bytes_total{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/process_bulk\"}[5m])",
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Response Body Bytes on /process_bulk",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
       "id": 10,
       "options": {
         "legend": {
@@ -295,7 +663,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/train_unsupervised\"} / cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/train_unsupervised\"}",
+          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/train_unsupervised\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/train_unsupervised\"}[5m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -365,7 +733,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 24
       },
       "id": 8,
       "options": {
@@ -387,7 +755,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/train_supervised\"} / cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/train_supervised\"}",
+          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/train_supervised\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/train_supervised\"}[5m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -457,7 +825,7 @@
         "h": 9,
         "w": 12,
         "x": 0,
-        "y": 16
+        "y": 32
       },
       "id": 2,
       "options": {
@@ -479,7 +847,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/info\"} / cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/info\"}",
+          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"UMLS MedCAT model\", path=\"/info\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"UMLS MedCAT model\", path=\"/info\"}[5m])",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -497,13 +865,13 @@
     "list": []
   },
   "time": {
-    "from": "2023-01-11T11:08:33.983Z",
-    "to": "2023-01-11T12:31:25.482Z"
+    "from": "now-15m",
+    "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "UMLS MedCAT Model",
   "uid": "c3Lgs-hVk",
-  "version": 3,
+  "version": 7,
   "weekStart": ""
 }
