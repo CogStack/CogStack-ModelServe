@@ -1,4 +1,3 @@
-import os
 import asyncio
 import globals
 import importlib
@@ -12,8 +11,7 @@ from anyio import CapacityLimiter
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
-from starlette_exporter import PrometheusMiddleware, handle_metrics
-from starlette_exporter.optional_metrics import response_body_size, request_body_size
+from prometheus_fastapi_instrumentator import Instrumentator
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
@@ -37,6 +35,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))
+        Instrumentator(excluded_handlers=["/metrics", "none"]).instrument(app).expose(app)
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
@@ -70,9 +69,8 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    app = _load_metrics_route(app, globals.model_service_dep().model_name)
+    app = _load_static_router(app)
     app = _load_invocation_router(app)
-
     if get_settings().ENABLE_TRAINING_APIS == "true":
         app = _load_supervised_training_router(app)
         if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
@@ -84,6 +82,13 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
     app.openapi = custom_openapi  # type: ignore
 
+    return app
+
+
+def _load_static_router(app: FastAPI) -> FastAPI:
+    from routers import static
+    importlib.reload(static)
+    app.include_router(static.router)
     return app
 
 
@@ -119,19 +124,4 @@ def _load_unsupervised_training_router(app: FastAPI) -> FastAPI:
     from routers import unsupervised_training
     importlib.reload(unsupervised_training)
     app.include_router(unsupervised_training.router)
-    return app
-
-
-def _load_metrics_route(app: FastAPI, app_name: str) -> FastAPI:
-    app.add_middleware(PrometheusMiddleware,
-                       app_name=app_name,
-                       prefix="cms",
-                       labels={
-                           "server_name": os.getenv("HOSTNAME", ""),
-                           "cms_model_name": os.getenv("CMS_MODEL_NAME", ""),
-                       },
-                       buckets=[0.1, 0.25, 0.5, 1],
-                       skip_paths=["/", "/docs", "/favicon.ico", "/metrics", "/openapi.json"],
-                       optional_metrics=[request_body_size, response_body_size])
-    app.add_route("/metrics", handle_metrics)
     return app

@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock
 from medcat.cat import CAT
 from app.config import Settings
-from app.model_services.medcat_model import MedCATModel
+from app.model_services.medcat_model_snomed import MedCATModelSnomed
 
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
@@ -14,7 +14,7 @@ MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resource
 def medcat_model():
     config = Settings()
     config.BASE_MODEL_FILE = "snomed_model.zip"
-    return MedCATModel(config, MODEL_PARENT_DIR, True)
+    return MedCATModelSnomed(config, MODEL_PARENT_DIR, True)
 
 
 def test_model_name(medcat_model):
@@ -27,7 +27,7 @@ def test_api_version(medcat_model):
 
 def test_from_model(medcat_model):
     new_model_service = medcat_model.from_model(medcat_model.model)
-    assert isinstance(new_model_service, MedCATModel)
+    assert isinstance(new_model_service, MedCATModelSnomed)
     assert new_model_service.model == medcat_model.model
 
 
@@ -49,7 +49,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModel.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "snomed_model.zip"))
+    cat = MedCATModelSnomed.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "snomed_model.zip"))
     assert type(cat) is CAT
 
 

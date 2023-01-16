@@ -14,8 +14,12 @@ from app.processors.metrics_collector import (
 )
 
 
-def test_evaluate_model_with_trainer_export_path():
-    model_service = create_autospec(AbstractModelService)
+@pytest.fixture
+def model_service():
+    return create_autospec(AbstractModelService)
+
+
+def test_evaluate_model_with_trainer_export_path(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",
@@ -44,8 +48,7 @@ def test_evaluate_model_with_trainer_export_path():
     assert per_cui_anchors is None
 
 
-def test_evaluate_model_and_return_dataframe():
-    model_service = create_autospec(AbstractModelService)
+def test_evaluate_model_and_return_dataframe(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",
@@ -73,8 +76,7 @@ def test_evaluate_model_and_return_dataframe():
     assert "anchors" not in result
 
 
-def test_evaluate_model_with_trainer_export_file():
-    model_service = create_autospec(AbstractModelService)
+def test_evaluate_model_with_trainer_export_file(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",
@@ -103,8 +105,7 @@ def test_evaluate_model_with_trainer_export_file():
         assert "anchors" not in result
 
 
-def test_evaluate_model_and_include_anchors():
-    model_service = create_autospec(AbstractModelService)
+def test_evaluate_model_and_include_anchors(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",

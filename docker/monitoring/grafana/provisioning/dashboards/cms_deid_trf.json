@@ -4,8 +4,8 @@
       {
         "builtIn": 1,
         "datasource": {
-          "type": "grafana",
-          "uid": "-- Grafana --"
+          "type": "datasource",
+          "uid": "grafana"
         },
         "enable": true,
         "hide": true,
@@ -24,748 +24,998 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 10,
+  "id": 14,
   "links": [],
   "liveNow": false,
   "panels": [
     {
+      "aliasColors": {
+        "4xx": "red"
+      },
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 7,
+        "w": 11,
         "x": 0,
         "y": 0
       },
-      "id": 4,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "hiddenSeries": false,
+      "id": 13,
+      "legend": {
+        "avg": true,
+        "current": false,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
       },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "$$hashKey": "object:255",
+          "alias": "HTTP 500",
+          "color": "#bf1b00"
+        }
+      ],
+      "spaceLength": 10,
+      "stack": true,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:140",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
-          "editorMode": "builder",
-          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"De-Identification model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process\"}[5m])",
-          "legendFormat": "__auto",
+          "editorMode": "code",
+          "expr": "sum by (status) (rate(http_requests_total{job=\"cms_de-identification\"}[1m]))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ status }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Duration on /process",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Request per Minute",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:211",
+          "format": "short",
+          "logBase": 1,
+          "min": "0",
+          "show": true
+        },
+        {
+          "$$hashKey": "object:212",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
+        "h": 7,
+        "w": 11,
+        "x": 11,
         "y": 0
       },
+      "hiddenSeries": false,
+      "id": 20,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "avg",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "$$hashKey": "object:146",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(http_request_size_bytes_sum{job=\"cms_de-identification\"}[1m]) / rate(http_request_size_bytes_count{job=\"cms_de-identification\"}[1m])",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ handler }}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Average Request Size",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1004",
+          "format": "s",
+          "label": "",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1005",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 7,
+        "w": 11,
+        "x": 0,
+        "y": 7
+      },
+      "hiddenSeries": false,
       "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "avg",
+        "sortDesc": true,
+        "total": false,
+        "values": true
       },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:146",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
-          "editorMode": "builder",
-          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m])",
-          "legendFormat": "__auto",
+          "editorMode": "code",
+          "expr": "rate(http_request_duration_seconds_sum{job=\"cms_de-identification\"}[1m]) / rate(http_request_duration_seconds_count{job=\"cms_de-identification\"}[1m])",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ handler }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Duration on /process_bulk",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Average Response Time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1004",
+          "format": "s",
+          "label": "",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1005",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {
+        "none": "red"
+      },
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 7,
+        "w": 13,
+        "x": 11,
+        "y": 7
       },
+      "hiddenSeries": false,
+      "id": 11,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": true,
+        "max": false,
+        "min": false,
+        "rightSide": true,
+        "show": true,
+        "sort": "current",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "$$hashKey": "object:1079",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "increase(http_request_duration_seconds_bucket{job=\"cms_de-identification\", le=\"0.1\"}[1m]) \n/ ignoring (le) increase(http_request_duration_seconds_count{job=\"cms_de-identification\"}[1m])",
+          "format": "time_series",
+          "instant": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ handler }}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Requests under 100ms",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1137",
+          "format": "percentunit",
+          "logBase": 1,
+          "max": "1",
+          "min": "0",
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1138",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 11,
         "x": 0,
-        "y": 8
+        "y": 14
       },
-      "id": 10,
+      "hiddenSeries": false,
+      "id": 18,
+      "legend": {
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "alertThreshold": true
       },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "$$hashKey": "object:1922",
+          "alias": "errors",
+          "color": "#c15c17"
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:766",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(cms_request_body_bytes_total{app_name=\"De-Identification model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process\"}[5m])",
-          "legendFormat": "__auto",
+          "expr": "sum(rate(http_requests_total{job=\"cms_de-identification\", status=\"5xx\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "errors",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Body Bytes on /process",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "5xx Errors per Second",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:890",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:891",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
+        "w": 13,
+        "x": 11,
+        "y": 14
       },
-      "id": 14,
+      "hiddenSeries": false,
+      "id": 4,
+      "legend": {
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "alertThreshold": true
       },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "$$hashKey": "object:1922",
+          "alias": "errors",
+          "color": "#c15c17"
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:766",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(cms_request_body_bytes_total{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m])",
-          "legendFormat": "__auto",
+          "expr": "sum(rate(http_requests_total{job=\"cms_de-identification\", status=\"4xx\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "errors",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Body Bytes on /process_bulk",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "4xx Errors per Second",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:890",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:891",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "description": "",
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 7,
+        "w": 11,
         "x": 0,
-        "y": 16
+        "y": 22
       },
-      "id": 12,
+      "hiddenSeries": false,
+      "id": 15,
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": true,
+        "rightSide": true,
+        "show": true,
+        "sort": "avg",
+        "sortDesc": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "alertThreshold": true
       },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:426",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(cms_response_body_bytes_total{app_name=\"De-Identification model\", path=\"/process\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process\"}[5m])",
-          "legendFormat": "__auto",
+          "expr": "histogram_quantile(0.5, rate(http_request_duration_seconds_bucket{job=\"cms_de-identification\", handler!=\"none\"}[$__rate_interval]))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ handler }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Response Body Bytes on /process",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Request Duration (P50)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1280",
+          "format": "clocks",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1281",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 16
+        "h": 7,
+        "w": 13,
+        "x": 11,
+        "y": 22
       },
+      "hiddenSeries": false,
       "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "legend": {
+        "alignAsTable": true,
+        "avg": true,
+        "current": true,
+        "max": true,
+        "min": true,
+        "rightSide": true,
+        "show": true,
+        "total": false,
+        "values": true
       },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:426",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(cms_response_body_bytes_total{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/process_bulk\"}[5m])",
-          "legendFormat": "__auto",
+          "expr": "histogram_quantile(0.9, rate(http_request_duration_seconds_bucket{job=\"cms_de-identification\", handler!=\"none\"}[1m]))",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "{{ handler }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Response Body Bytes on /process_bulk",
-      "type": "timeseries"
+      "thresholds": [
+        {
+          "$$hashKey": "object:98",
+          "colorMode": "critical",
+          "fill": true,
+          "line": true,
+          "op": "gt",
+          "value": 0,
+          "yaxis": "left"
+        }
+      ],
+      "timeRegions": [],
+      "title": "Request Duration (P90)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:1078",
+          "format": "clocks",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:1079",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 9,
-        "w": 12,
+        "h": 7,
+        "w": 11,
         "x": 0,
-        "y": 24
+        "y": 29
       },
+      "hiddenSeries": false,
       "id": 8,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+      "legend": {
+        "avg": false,
+        "current": true,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
       },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:638",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
-          "editorMode": "builder",
-          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"De-Identification model\", path=\"/train_supervised\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/train_supervised\"}[5m])",
-          "legendFormat": "__auto",
+          "editorMode": "code",
+          "expr": "process_resident_memory_bytes{job=\"cms_de-identification\"}",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "mem",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Duration on /train_supervised",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "Memory Usage",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:683",
+          "format": "decbytes",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:684",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     },
     {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
       "datasource": {
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
+      "fill": 1,
+      "fillGradient": 0,
       "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 24
+        "h": 7,
+        "w": 13,
+        "x": 11,
+        "y": 29
       },
-      "id": 2,
+      "hiddenSeries": false,
+      "id": 9,
+      "legend": {
+        "avg": false,
+        "current": true,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
       "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "alertThreshold": true
       },
+      "percentage": false,
+      "pluginVersion": "9.3.2",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
       "targets": [
         {
+          "$$hashKey": "object:638",
           "datasource": {
             "type": "prometheus",
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "builder",
-          "expr": "rate(cms_request_duration_seconds_sum{app_name=\"De-Identification model\", path=\"/info\"}[5m]) / rate(cms_request_duration_seconds_count{app_name=\"De-Identification model\", path=\"/info\"}[5m])",
-          "legendFormat": "__auto",
+          "expr": "rate(process_cpu_seconds_total{job=\"cms_de-identification\"}[$__rate_interval])",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "cpu",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Request Duration on /info",
-      "type": "timeseries"
+      "thresholds": [],
+      "timeRegions": [],
+      "title": "CPU Usage",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "mode": "time",
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:683",
+          "format": "percentunit",
+          "logBase": 1,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:684",
+          "format": "short",
+          "logBase": 1,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false
+      }
     }
   ],
-  "refresh": false,
+  "refresh": "3s",
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],
@@ -776,7 +1026,22 @@
     "from": "now-15m",
     "to": "now"
   },
-  "timepicker": {},
+  "timepicker": {
+    "refresh_intervals": [
+      "3s"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "1h",
+      "6h",
+      "12h",
+      "24h",
+      "2d",
+      "7d",
+      "30d"
+    ]
+  },
   "timezone": "",
   "title": "De-Identification Model",
   "uid": "wOX1s-h4k",

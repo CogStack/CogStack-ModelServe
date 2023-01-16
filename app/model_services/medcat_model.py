@@ -27,7 +27,7 @@ class MedCATModel(AbstractModelService):
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None
         self._unsupervised_trainer = None
-        self.model_name = "SNOMED MedCAT model"
+        self.model_name = "MedCAT model"
 
     @property
     def model(self) -> CAT:
