@@ -26,7 +26,7 @@ server {
         auth_basic "Authenticated User's Area";
         auth_basic_user_file /etc/nginx/.htpasswd;
         include cors.conf;
-        proxy_pass         http://prometheus:8201/;
+        proxy_pass         http://prometheus:9090/;
         proxy_set_header   Host $host;
     }
 }

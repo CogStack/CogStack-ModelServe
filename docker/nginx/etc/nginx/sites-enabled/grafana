@@ -24,7 +24,7 @@ server {
 
     location / {
         include cors.conf;
-        proxy_pass         http://grafana:8202/;
+        proxy_pass         http://grafana:3000/;
         proxy_set_header   Host $host;
     }
 }
