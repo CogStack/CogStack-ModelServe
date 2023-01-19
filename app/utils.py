@@ -1,5 +1,19 @@
+from functools import lru_cache
 from typing import List, Optional
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from domain import Annotation, Entity, CodeType
+from config import Settings
+
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+
+@lru_cache
+def get_rate_limiter():
+    return Limiter(key_func=get_remote_address)
 
 
 def get_code_base_uri(model_name: str) -> Optional[str]:

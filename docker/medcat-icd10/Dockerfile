@@ -1,4 +1,5 @@
 FROM python:3.8
+LABEL "org.cogstack.model_serve"="medcat_icd10"
 
 ARG CMS_MODEL_NAME
 ARG HTTP_PROXY

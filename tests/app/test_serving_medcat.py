@@ -2,7 +2,8 @@ import os
 import tempfile
 import pytest
 from fastapi.testclient import TestClient
-from app.api import get_model_server, get_settings
+from app.api import get_model_server
+from app.utils import get_settings
 from app.model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 

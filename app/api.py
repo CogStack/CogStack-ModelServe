@@ -2,7 +2,6 @@ import asyncio
 import globals
 import importlib
 
-from functools import lru_cache
 from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
 from concurrent.futures import ThreadPoolExecutor
@@ -12,20 +11,19 @@ from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
-from config import Settings
-
-
-@lru_cache()
-def get_settings():
-    return Settings()
+from utils import get_settings, get_rate_limiter
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
     app = FastAPI(openapi_tags=tags_metadata)
+    app.state.limiter = get_rate_limiter()
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     if msd_overwritten is not None:
         globals.model_service_dep = msd_overwritten
@@ -35,7 +33,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))
-        Instrumentator(excluded_handlers=["/metrics", "none"]).instrument(app).expose(app)
+        Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "none"]).instrument(app).expose(app)
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:

@@ -1,0 +1,32 @@
+version: "3"
+
+services:
+  master:
+    image: locustio/locust:2.14.2
+    ports:
+     - 8089:8089
+    environment:
+      - CMS_BASE_URL=$CMS_BASE_URL
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=minio,localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=master,localhost
+    volumes:
+      - ./main:/mnt/locust/main
+    command: -f /mnt/locust/main/locustfile.py --master -H http://master:8089
+
+  worker:
+    image: locustio/locust:2.14.2
+    environment:
+      - CMS_BASE_URL=$CMS_BASE_URL
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=minio,localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=master,localhost
+    volumes:
+      - ./main:/mnt/locust/main
+    command: -f /mnt/locust/main/locustfile.py --worker --master-host master

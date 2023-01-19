@@ -18,7 +18,8 @@ from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from domain import ModelType
 from registry import model_service_registry
-from api import get_settings, get_model_server
+from api import get_model_server
+from utils import get_settings
 from management.model_manager import ModelManager
 from dependencies import ModelServiceDep
 from config import Settings

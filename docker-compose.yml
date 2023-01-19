@@ -368,6 +368,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+    entrypoint: ["/usr/bin/cadvisor", "--logtostderr", "--whitelisted_container_labels=org.cogstack.model_serve"]
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:8080/healthz", "&>", "/dev/null" ]
       interval: 60s
