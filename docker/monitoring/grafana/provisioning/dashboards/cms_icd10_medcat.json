@@ -43,7 +43,7 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 7,
-        "w": 11,
+        "w": 12,
         "x": 0,
         "y": 0
       },
@@ -143,8 +143,8 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 7,
-        "w": 11,
-        "x": 11,
+        "w": 12,
+        "x": 12,
         "y": 0
       },
       "hiddenSeries": false,
@@ -241,7 +241,7 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 7,
-        "w": 11,
+        "w": 12,
         "x": 0,
         "y": 7
       },
@@ -440,7 +440,7 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 11,
+        "w": 12,
         "x": 0,
         "y": 14
       },
@@ -539,8 +539,8 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
-        "w": 13,
-        "x": 11,
+        "w": 12,
+        "x": 12,
         "y": 14
       },
       "hiddenSeries": false,
@@ -638,8 +638,8 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 7,
-        "w": 11,
+        "h": 11,
+        "w": 24,
         "x": 0,
         "y": 22
       },
@@ -735,10 +735,10 @@
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
-        "h": 7,
-        "w": 13,
-        "x": 11,
-        "y": 22
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 33
       },
       "hiddenSeries": false,
       "id": 16,
@@ -841,9 +841,9 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 7,
-        "w": 11,
+        "w": 12,
         "x": 0,
-        "y": 29
+        "y": 43
       },
       "hiddenSeries": false,
       "id": 8,
@@ -934,9 +934,9 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 7,
-        "w": 13,
-        "x": 11,
-        "y": 29
+        "w": 12,
+        "x": 12,
+        "y": 43
       },
       "hiddenSeries": false,
       "id": 9,
@@ -1015,7 +1015,7 @@
       }
     }
   ],
-  "refresh": "3s",
+  "refresh": "5s",
   "schemaVersion": 37,
   "style": "dark",
   "tags": [],

@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     REDEPLOY_TRAINED_MODEL: str = "false"
     SKIP_SAVE_MODEL: str = "false"
     SKIP_SAVE_TRAINING_DATASET: str = "true"
+    PROCESS_RATE_LIMIT: str = "60/minute"
+    PROCESS_BULK_RATE_LIMIT: str = "30/minute"
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")
