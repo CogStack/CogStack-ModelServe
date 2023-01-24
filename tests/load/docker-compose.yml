@@ -3,6 +3,9 @@ version: "3"
 services:
   master:
     image: locustio/locust:2.14.2
+    container_name: cms_load_master
+    networks:
+      - cogstack-model-serve_cms
     ports:
      - 8089:8089
     environment:
@@ -15,10 +18,17 @@ services:
       - no_proxy=master,localhost
     volumes:
       - ./main:/mnt/locust/main
-    command: -f /mnt/locust/main/locustfile.py --master -H http://master:8089
+      - ${SAMPLE_TEXTS_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_texts.json
+      - ${SAMPLE_TEXT_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_text.txt
+      - ${TRAINER_EXPORT_PATH:-./data/trainer_export.json}:/mnt/locust/data/trainer_export.json
+      - ./requirements.txt:/mnt/locust/requirements.txt
+    entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --master -H http://master:8089"]
 
   worker:
     image: locustio/locust:2.14.2
+    container_name: cms_load_worker
+    networks:
+      - cogstack-model-serve_cms
     environment:
       - CMS_BASE_URL=$CMS_BASE_URL
       - HTTP_PROXY=$HTTP_PROXY
@@ -29,4 +39,12 @@ services:
       - no_proxy=master,localhost
     volumes:
       - ./main:/mnt/locust/main
-    command: -f /mnt/locust/main/locustfile.py --worker --master-host master
+      - ${SAMPLE_TEXTS_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_texts.json
+      - ${SAMPLE_TEXT_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_text.txt
+      - ${TRAINER_EXPORT_PATH:-./data/trainer_export.json}:/mnt/locust/data/trainer_export.json
+      - ./requirements.txt:/mnt/locust/requirements.txt
+    entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --worker --master-host master" ]
+
+networks:
+  cogstack-model-serve_cms:
+    external: true

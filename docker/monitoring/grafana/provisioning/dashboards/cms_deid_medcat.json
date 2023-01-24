@@ -212,7 +212,7 @@
       "yaxes": [
         {
           "$$hashKey": "object:1004",
-          "format": "s",
+          "format": "bytes",
           "label": "",
           "logBase": 1,
           "show": true
