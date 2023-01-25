@@ -1,8 +1,10 @@
 import os
+import json
 import ijson
 from locust import HttpUser, task, between, constant_throughput
 
 CMS_BASE_URL = os.environ["CMS_BASE_URL"]
+
 
 class MainTest(HttpUser):
 
@@ -10,7 +12,7 @@ class MainTest(HttpUser):
 
     def on_start(self): ...
 
-    @task(3)
+    @task
     def info(self):
         self.client.get(f"{CMS_BASE_URL}/info")
 
@@ -23,8 +25,21 @@ class MainTest(HttpUser):
 
     @task
     def process_bulk(self):
+        num_of_doc_per_call = 10
         with open(os.path.join(os.path.dirname(__file__), "..", "data", "sample_texts.json"), "r") as file:
-            self.client.post(f"{CMS_BASE_URL}/process_bulk", headers={"Content-Type": "application/json"}, data=file)
+            batch = []
+            texts = ijson.items(file, "item")
+            for text in texts:
+                if len(batch) < num_of_doc_per_call:
+                    batch.append(text)
+                else:
+                    self.client.post(f"{CMS_BASE_URL}/process_bulk", headers={"Content-Type": "application/json"}, data=json.dumps(batch))
+                    batch.clear()
+                    batch.append(text)
+            if batch:
+                self.client.post(f"{CMS_BASE_URL}/process_bulk", headers={"Content-Type": "application/json"}, data=json.dumps(batch))
+                batch.clear()
+
 
     @task
     def train_unsupervised(self):
