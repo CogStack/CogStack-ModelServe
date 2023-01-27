@@ -101,9 +101,8 @@ def test_preview():
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
 
 
-
 def test_preview_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
@@ -111,7 +110,7 @@ def test_preview_trainer_export():
 
 
 def test_preview_trainer_export_with_project_id():
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
@@ -119,7 +118,7 @@ def test_preview_trainer_export_with_project_id():
 
 
 def test_preview_trainer_export_with_document_id():
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
@@ -127,7 +126,7 @@ def test_preview_trainer_export_with_document_id():
 
 
 def test_preview_trainer_export_with_project_and_document_ids():
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/html; charset=utf-8"
@@ -136,19 +135,19 @@ def test_preview_trainer_export_with_project_and_document_ids():
 
 @pytest.mark.parametrize("pid,did", [(14, 1), (1, 3205)])
 def test_preview_trainer_export_on_missing_project_or_document(pid, did):
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post(f"/preview_trainer_export?project_id={pid}&document_id={did}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
     assert response.json() == {"detail": "Cannot find any matching documents to preview"}
 
 
 def test_train_supervised():
-    with tempfile.TemporaryFile("r+") as f:
-        f.write('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
-                '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
-                '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
-                '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
-                '"acc":1,"validated":true}]}]}]}]}')
+    with tempfile.TemporaryFile("r+b") as f:
+        f.write(str.encode('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
+                           '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
+                           '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
+                           '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
+                           '"acc":1,"validated":true}]}]}]}]}'))
         response = client.post("/train_supervised", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
@@ -157,8 +156,8 @@ def test_train_supervised():
 
 
 def test_train_unsupervised():
-    with tempfile.TemporaryFile("r+") as f:
-        f.write("Spinal stenosis")
+    with tempfile.TemporaryFile("r+b") as f:
+        f.write(str.encode("Spinal stenosis"))
         response = client.post("/train_unsupervised", files={"training_data": ("note.txt", f, "multipart/form-data")})
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -166,7 +165,7 @@ def test_train_unsupervised():
 
 
 def test_evaluate_with_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "r") as f:
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/evaluate", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -174,7 +173,7 @@ def test_evaluate_with_trainer_export():
 
 
 def test_intra_annotator_agreement_scores_per_concept():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "r") as f:
+    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -183,7 +182,7 @@ def test_intra_annotator_agreement_scores_per_concept():
 
 @pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
 def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "r") as f:
+    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
     assert response.headers["content-type"] == "application/json"
@@ -191,15 +190,15 @@ def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
 
 
 def test_unknown_scope_on_getting_iaa_scores():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "r") as f:
-        response = client.post(f"/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=unknown", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
+        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=unknown", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Unknown scope: \"unknown\""}
 
 
 def test_intra_annotator_agreement_scores_per_doc():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "r") as f:
+    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_document", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -207,7 +206,7 @@ def test_intra_annotator_agreement_scores_per_doc():
 
 
 def test_intra_annotator_agreement_scores_per_span():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "r") as f:
+    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_span", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"

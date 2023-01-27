@@ -19,7 +19,6 @@ services:
     volumes:
       - ./main:/mnt/locust/main
       - ${SAMPLE_TEXTS_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_texts.json
-      - ${SAMPLE_TEXT_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_text.txt
       - ${TRAINER_EXPORT_PATH:-./data/trainer_export.json}:/mnt/locust/data/trainer_export.json
       - ./requirements.txt:/mnt/locust/requirements.txt
     entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --master -H http://master:8089"]
@@ -40,7 +39,6 @@ services:
     volumes:
       - ./main:/mnt/locust/main
       - ${SAMPLE_TEXTS_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_texts.json
-      - ${SAMPLE_TEXT_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_text.txt
       - ${TRAINER_EXPORT_PATH:-./data/trainer_export.json}:/mnt/locust/data/trainer_export.json
       - ./requirements.txt:/mnt/locust/requirements.txt
     entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --worker --master-host master" ]

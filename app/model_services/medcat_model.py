@@ -2,6 +2,7 @@ import os
 import logging
 import pandas as pd
 
+from multiprocessing import cpu_count
 from typing import Dict, List, Optional, TextIO
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
@@ -95,7 +96,7 @@ class MedCATModel(AbstractModelService):
 
         docs = self.model.multiprocessing(self._data_iterator(texts),
                                           batch_size_chars=batch_size_chars,
-                                          nproc=2,
+                                          nproc=max(int(cpu_count() / 2), 1),
                                           addl_info=["cui2icd10", "cui2ontologies", "cui2snomed"])
         annotations_list = []
         for _, doc in docs.items():

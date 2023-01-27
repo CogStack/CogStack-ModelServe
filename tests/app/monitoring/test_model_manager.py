@@ -50,10 +50,7 @@ class _MockedModelService(AbstractModelService):
 
     def __init__(self, config: Settings, *args, **kwargs) -> None:
         self._config = config
-
-    @property
-    def model_name():
-        return "Mocked Model"
+        self.model_name = "Mocked Model"
 
     @staticmethod
     def load_model(model_file_path, *args, **kwargs):
@@ -62,7 +59,7 @@ class _MockedModelService(AbstractModelService):
     def info(self):
         return None
 
-    def annotate(self, text: str):
+    def annotate(self, text):
         return None
 
     def batch_annotate(self, texts):
