@@ -15,13 +15,14 @@ services:
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=1y"
       - "--web.console.libraries=/etc/prometheus/console_libraries"
       - "--web.console.templates=/etc/prometheus/consoles"
       - "--web.enable-lifecycle"
     expose:
       - 9090
-    ports:
-      - 8201:9090
+#    ports:
+#      - 8201:9090
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:9090", "&>", "/dev/null" ]
       interval: 60s
@@ -44,8 +45,8 @@ services:
       - grafana-data:/var/lib/grafana
     expose:
       - 3000
-    ports:
-      - 8202:3000
+#    ports:
+#      - 8202:3000
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3000/healthz" ]
       interval: 60s
@@ -65,8 +66,8 @@ services:
       - "--storage.path=/alertmanager"
     expose:
       - 9093
-    ports:
-      - 8203:9093
+#    ports:
+#      - 8203:9093
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:9093/-/ready", "&>", "/dev/null" ]
       interval: 60s
@@ -81,14 +82,17 @@ services:
       - cogstack-model-serve_cms
     expose:
       - 8080
-    ports:
-      - 8204:8080
+#    ports:
+#      - 8204:8080
     volumes:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-    entrypoint: ["/usr/bin/cadvisor", "--logtostderr", "--whitelisted_container_labels=org.cogstack.model_serve"]
+    command:
+      - "--enable_metrics=cpu,percpu,memory,network"
+      - "--store_container_labels=true"
+      - "--docker_only=true"
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:8080/healthz", "&>", "/dev/null" ]
       interval: 60s
