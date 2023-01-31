@@ -24,10 +24,12 @@ class MedCATModelDeIdentification(MedCATModel):
         return "0.0.1"
 
     def info(self) -> ModelCard:
+        model_card = self.model.get_model_card(as_dict=True)
+        model_card["Basic CDB Stats"]["Average training examples per concept"] = 0
         return ModelCard(model_description=self.model_name,
                          model_type="MedCAT",
                          api_version=self.api_version,
-                         model_card=self.model.get_model_card(as_dict=True))
+                         model_card=model_card)
 
     def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
         annotation_list = []

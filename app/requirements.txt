@@ -1,5 +1,3 @@
-setuptools
-wheel
 medcat==1.5.0
 fastapi~=0.79.0
 hypercorn~=0.13.2
@@ -12,3 +10,5 @@ boto3~=1.24.20
 typer~=0.4.1
 prometheus-fastapi-instrumentator~=5.9.1
 slowapi~=0.1.7
+setuptools
+wheel
