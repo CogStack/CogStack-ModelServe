@@ -32,9 +32,9 @@ async def preview_processing_result(text: str = Body(..., media_type="text/plain
 @router.post("/preview_trainer_export",
              tags=[Tags.Rendering.name],
              response_class=HTMLResponse)
-async def preview_trainer_export(trainer_export: UploadFile,
-                                 project_id: Union[int, None] = None,
-                                 document_id: Union[int, None] = None) -> HTMLResponse:
+def preview_trainer_export(trainer_export: UploadFile,
+                           project_id: Union[int, None] = None,
+                           document_id: Union[int, None] = None) -> HTMLResponse:
     data = json.load(trainer_export.file)
     htmls = []
     for project in data["projects"]:

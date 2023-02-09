@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelDeIdentification(MedCATModel):
 
+    CHUNK_SIZE = 500
+
     def __init__(self,
                  config: Settings,
                  model_parent_dir: Optional[str] = None,
@@ -31,7 +33,51 @@ class MedCATModelDeIdentification(MedCATModel):
                          api_version=self.api_version,
                          model_card=model_card)
 
-    def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
+    def annotate(self, text: str) -> Dict:
+        tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
+        leading_ws_len = len(text) - len(text.lstrip())
+        text = text.lstrip()
+        tokenized = tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+        input_ids = tokenized["input_ids"]
+        offset_mapping = tokenized["offset_mapping"]
+        chunk = []
+        aggregated_entities = {}
+        ent_key = 0
+        processed_char_len = leading_ws_len
+
+        for input_id, (start, end) in zip(input_ids, offset_mapping):
+            chunk.append((input_id, (start, end)))
+            if len(chunk) == MedCATModelDeIdentification.CHUNK_SIZE:
+                last_token_start_idx = 0
+                for i in range(MedCATModelDeIdentification.CHUNK_SIZE-1, -1, -1):
+                    if " " in tokenizer.decode([chunk[i][0]], skip_special_tokens=True):
+                        last_token_start_idx = i
+                        break
+                c_text = text[chunk[:last_token_start_idx][0][1][0]:chunk[:last_token_start_idx][-1][1][1]]
+                doc = self.model.get_entities(c_text)
+                for entity in doc["entities"].values():
+                    entity["start"] += processed_char_len
+                    entity["end"] += processed_char_len
+                    aggregated_entities[ent_key] = entity
+                    ent_key += 1
+                chunk = chunk[last_token_start_idx:]
+                processed_char_len += len(c_text)+1
+        if chunk:
+            c_text = text[chunk[0][1][0]:chunk[-1][1][1]]
+            doc = self.model.get_entities(c_text)
+            if doc["entities"]:
+                for entity in doc["entities"].values():
+                    entity["start"] += processed_char_len
+                    entity["end"] += processed_char_len
+                    aggregated_entities[ent_key] = entity
+                    ent_key += 1
+            processed_char_len += len(c_text)
+
+        assert processed_char_len == (len(text)+leading_ws_len), f"{len(text)+leading_ws_len-processed_char_len} characters were not processed:\n{text}"
+
+        return self.get_records_from_doc({"entities": aggregated_entities})
+
+    def batch_annotate(self, texts: List[str]) -> List[Dict]:
         annotation_list = []
         for text in texts:
             annotation_list.append(self.annotate(text))

@@ -112,7 +112,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "increase(http_requests_total{handler=\"/process\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y])",
+          "expr": "round(increase(http_requests_total{handler=\"/process\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -205,7 +205,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y])",
+          "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -1775,7 +1775,7 @@
     "list": []
   },
   "time": {
-    "from": "now-15m",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {
