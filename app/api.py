@@ -73,6 +73,9 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app = _load_supervised_training_router(app)
         if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
             app = _load_unsupervised_training_router(app)
+        if get_settings().DISABLE_METACAT_TRAINING != "true":
+            app = _load_metacat_training_router(app)
+
     if get_settings().ENABLE_EVALUATION_APIS == "true":
         app = _load_evaluation_router(app)
     if get_settings().ENABLE_PREVIEWS_APIS == "true":
@@ -122,4 +125,11 @@ def _load_unsupervised_training_router(app: FastAPI) -> FastAPI:
     from routers import unsupervised_training
     importlib.reload(unsupervised_training)
     app.include_router(unsupervised_training.router)
+    return app
+
+
+def _load_metacat_training_router(app: FastAPI) -> FastAPI:
+    from routers import metacat_training
+    importlib.reload(metacat_training)
+    app.include_router(metacat_training.router)
     return app

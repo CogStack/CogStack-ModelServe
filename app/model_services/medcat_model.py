@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, TextIO
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
+from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
 from exception import ConfigurationException
@@ -28,6 +29,7 @@ class MedCATModel(AbstractModelService):
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None
         self._unsupervised_trainer = None
+        self._metacat_trainer = None
         self.model_name = "MedCAT model"
 
     @property
@@ -80,6 +82,7 @@ class MedCATModel(AbstractModelService):
             if self._enable_trainer:
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
+                self._metacat_trainer = MetacatTrainer(self)
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
@@ -122,6 +125,16 @@ class MedCATModel(AbstractModelService):
         if self._unsupervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
         return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
+
+    def train_metacat(self,
+                      data_file: TextIO,
+                      epochs: int,
+                      log_frequency: int,
+                      training_id: str,
+                      input_file_name: str) -> bool:
+        if self._metacat_trainer is None:
+            raise ConfigurationException("Trainers are not enabled")
+        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
 
     def get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
