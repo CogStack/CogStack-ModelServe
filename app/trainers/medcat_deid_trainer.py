@@ -90,7 +90,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            trainer._tracker_client.log_exception(e)
+            trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
             data_file.close()

@@ -2,9 +2,10 @@ import os
 import logging
 import shutil
 import gc
-from typing import Dict, TextIO
+from typing import Dict, TextIO, Optional
 from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
+from exception import TrainingFailedException
 
 logger = logging.getLogger(__name__)
 
@@ -12,14 +13,15 @@ logger = logging.getLogger(__name__)
 class MetacatTrainer(MedcatSupervisedTrainer):
 
     @staticmethod
-    def get_flattened_config(model: MetaCAT) -> Dict:
+    def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:
         params = {}
+        prefix = "" if prefix is None else f"{prefix}."
         for key, val in model.config.general.__dict__.items():
-            params[f"general.{key}"] = str(val)
+            params[f"{prefix}general.{key}"] = str(val)
         for key, val in model.config.model.__dict__.items():
-            params[f"model.{key}"] = str(val)
+            params[f"{prefix}model.{key}"] = str(val)
         for key, val in model.config.train.__dict__.items():
-            params[f"train.{key}"] = str(val)
+            params[f"{prefix}train.{key}"] = str(val)
         for key, val in params.items():
             if val == "":  # otherwise it will trigger an MLflow bug
                 params[key] = "<EMPTY>"
@@ -40,13 +42,23 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
-            for meta_cat in model._meta_cat:
+
+            is_retrained = False
+            exceptions = []
+            for meta_cat in model._meta_cats:
                 category_name = meta_cat.config.general["category_name"]
-                trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat))
-                logger.info(f"Performing supervised training on category {category_name}...")
+                trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
+                logger.info(f'Performing supervised training on category "{category_name}"...')
 
                 for epoch in range(training_params["nepochs"]):
-                    winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                    try:
+                        winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                        is_retrained = True
+                    except Exception as e:
+                        logger.warning(f"Failed on training meta model: {category_name}")
+                        logger.warning(e, exc_info=True, stack_info=True)
+                        exceptions.append(e)
+                        break
                     if (epoch + 1) % log_frequency == 0:
                         metrics = {
                             "macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
@@ -59,6 +71,10 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                             "weighted_avg_support": winner_report["report"]["weighted avg"]["support"],
                         }
                         trainer._tracker_client.send_model_stats(metrics, epoch)
+            trainer._tracker_client.log_exceptions(exceptions)
+
+            if not is_retrained:
+                raise TrainingFailedException("No metacat model has been retrained")
 
             if not skip_save_model:
                 model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
@@ -84,7 +100,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            trainer._tracker_client.log_exception(e)
+            trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
             data_file.close()

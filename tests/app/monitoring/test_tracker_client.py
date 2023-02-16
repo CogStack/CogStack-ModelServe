@@ -141,10 +141,16 @@ def test_save_pretrained_model(mlflow_fixture):
                                                     registered_model_name="model_name")
 
 
-def test_log_exception(mlflow_fixture):
+def test_log_single_exception(mlflow_fixture):
     tracker_client = TrackerClient("")
-    tracker_client.log_exception(Exception("something wrong"))
+    tracker_client.log_exceptions(Exception("something wrong"))
     mlflow.set_tag.assert_called_once_with("exception", "something wrong")
+
+
+def test_log_multiple_exceptions(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.log_exceptions([Exception("exception_0"), Exception("exception_1")])
+    mlflow.set_tag.assert_has_calls([call("exception_0", "exception_0"), call("exception_1", "exception_1")])
 
 
 def test_log_classes(mlflow_fixture):

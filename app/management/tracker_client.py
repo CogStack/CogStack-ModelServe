@@ -5,7 +5,7 @@ import tempfile
 import json
 import logging
 import pandas as pd
-from typing import Dict, Tuple, List, Optional
+from typing import Dict, Tuple, List, Optional, Union
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
@@ -111,8 +111,12 @@ class TrackerClient(object):
                 mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
 
     @staticmethod
-    def log_exception(e: Exception) -> None:
-        mlflow.set_tag("exception", str(e))
+    def log_exceptions(es: Union[Exception, List[Exception]]) -> None:
+        if isinstance(es, list):
+            for idx, e in enumerate(es):
+                mlflow.set_tag(f"exception_{idx}", str(e))
+        else:
+            mlflow.set_tag("exception", str(es))
 
     @staticmethod
     def log_classes(classes: List[str]) -> None:
@@ -164,7 +168,7 @@ class TrackerClient(object):
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
         except Exception as e:
-            TrackerClient.log_exception(e)
+            TrackerClient.log_exceptions(e)
             TrackerClient.end_with_failure()
 
     def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000):

@@ -23,23 +23,24 @@ logger = logging.getLogger(__name__)
 class _MedcatTrainerCommon(object):
 
     @staticmethod
-    def get_flattened_config(model: CAT) -> Dict:
+    def get_flattened_config(model: CAT, prefix: Optional[str] = None) -> Dict:
         params = {}
+        prefix = "" if prefix is None else f"{prefix}."
         for key, val in model.cdb.config.general.__dict__.items():
-            params[f"general.{key}"] = str(val)
+            params[f"{prefix}general.{key}"] = str(val)
         for key, val in model.cdb.config.cdb_maker.__dict__.items():
-            params[f"cdb_maker.{key}"] = str(val)
+            params[f"{prefix}cdb_maker.{key}"] = str(val)
         for key, val in model.cdb.config.annotation_output.__dict__.items():
-            params[f"annotation_output.{key}"] = str(val)
+            params[f"{prefix}annotation_output.{key}"] = str(val)
         for key, val in model.cdb.config.preprocessing.__dict__.items():
-            params[f"preprocessing.{key}"] = str(val)
+            params[f"{prefix}preprocessing.{key}"] = str(val)
         for key, val in model.cdb.config.ner.__dict__.items():
-            params[f"ner.{key}"] = str(val)
+            params[f"{prefix}ner.{key}"] = str(val)
         for key, val in model.cdb.config.linking.__dict__.items():
-            params[f"linking.{key}"] = str(val)
-        params["word_skipper"] = str(model.cdb.config.word_skipper)
-        params["punct_checker"] = str(model.cdb.config.punct_checker)
-        params.pop("linking.filters", None)  # deal with the length value in the older model
+            params[f"{prefix}linking.{key}"] = str(val)
+        params[f"{prefix}word_skipper"] = str(model.cdb.config.word_skipper)
+        params[f"{prefix}punct_checker"] = str(model.cdb.config.punct_checker)
+        params.pop(f"{prefix}linking.filters", None)  # deal with the length value in the older model
         for key, val in params.items():
             if val == "":  # otherwise it will trigger an MLflow bug
                 params[key] = "<EMPTY>"
@@ -161,7 +162,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         except Exception as e:
             logger.error("Supervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            trainer._tracker_client.log_exception(e)
+            trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
             data_file.close()
@@ -310,7 +311,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         except Exception as e:
             logger.error("Unsupervised training failed")
             logger.error(e, exc_info=True, stack_info=True)
-            trainer._tracker_client.log_exception(e)
+            trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
             data_file.close()

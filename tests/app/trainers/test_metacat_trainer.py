@@ -11,8 +11,8 @@ model_service = create_autospec(MedCATModel,
                                 _enable_trainer=True,
                                 _model_pack_path="model_parent_dir/mode.zip",
                                 _meta_cat_config_dict={"general": {"device": "cpu"}})
-supervised_trainer = MetacatTrainer(model_service)
-supervised_trainer.model_name = "supervised_trainer"
+metacat_trainer = MetacatTrainer(model_service)
+metacat_trainer.model_name = "metacat_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
@@ -22,14 +22,14 @@ def test_get_flattened_config():
     model.config.general = General()
     model.config.model = Model()
     model.config.train = Train()
-    config = supervised_trainer.get_flattened_config(model)
+    config = metacat_trainer.get_flattened_config(model, "prefix")
     for key, val in config.items():
-        assert "general." in key or "model." in key or "train" in key
+        assert "prefix.general." in key or "prefix.model." in key or "prefix.train" in key
 
 
 def test_deploy_model():
     model = Mock()
-    supervised_trainer.deploy_model(model_service, model, True)
+    metacat_trainer.deploy_model(model_service, model, True)
     model._versioning.assert_called_once()
     assert model_service.model == model
 
@@ -37,13 +37,13 @@ def test_deploy_model():
 def test_save_model():
     model = Mock()
     model.create_model_pack.return_value = "model_pack_name"
-    supervised_trainer.save_model(model, "retrained_models_dir")
+    metacat_trainer.save_model(model, "retrained_models_dir")
     model.create_model_pack.called_once_with("retrained_models_dir", "model")
 
 
 def test_metacat_trainer():
-    with patch.object(supervised_trainer, "run", wraps=supervised_trainer.run) as run:
+    with patch.object(metacat_trainer, "run", wraps=metacat_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
-            supervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
-            supervised_trainer._tracker_client.end_with_success()
+            metacat_trainer.train(f, 1, 1, "training_id", "input_file_name")
+            metacat_trainer._tracker_client.end_with_success()
     run.assert_called_once()
