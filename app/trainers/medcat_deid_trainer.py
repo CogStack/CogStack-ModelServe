@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 import gc
+import pandas as pd
 from typing import Dict, TextIO
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_cui_counts_from_trainer_export
@@ -22,6 +23,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         copied_model_pack_path = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
+        eval_mode = training_params["nepochs"] == 0
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
@@ -34,23 +36,35 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 params[key] = "<EMPTY>" if val == "" else val
             trainer._tracker_client.log_model_config(params)
 
-            logger.info("Performing supervised training...")
-            for epoch in range(training_params["nepochs"]):
-                epoch_results, _, _ = ner.train(data_file.name)
-                if (epoch + 1) % log_frequency == 0:
-                    metrics = {
-                        "precision": epoch_results["p"].mean(),
-                        "recall": epoch_results["r"].mean(),
-                        "f1": epoch_results["f1"].mean(),
-                    }
-                    trainer._tracker_client.send_model_stats(metrics, epoch)
+            eval_results: pd.DataFrame = None
+            examples = None
+            if eval_mode:
+                logger.info("Evaluating the trained model...")
+                eval_results, examples = ner.eval(data_file.name)
+            else:
+                # TODO: make sure each epoch will see different batches in different order.
+                # TODO: It looks the pytorch random seed has been set to a constant.
+                ner.training_arguments.num_train_epochs = 1
+                logger.info("Performing supervised training...")
+                dataset = None
+                for epoch in range(training_params["nepochs"]):
+                    eval_results, examples, dataset = ner.train(data_file.name, dataset=dataset)
+                    if (epoch + 1) % log_frequency == 0:
+                        metrics = {
+                            "precision": eval_results["p"].mean(),
+                            "recall": eval_results["r"].mean(),
+                            "f1": eval_results["f1"].mean(),
+                            "p_merged": eval_results["p_merged"].mean(),
+                            "r_merged": eval_results["r_merged"].mean(),
+                        }
+                        trainer._tracker_client.send_model_stats(metrics, epoch)
 
-            logger.info("Evaluating the trained model...")
-            eval_results, examples = ner.eval(data_file.name)
             cui2names = {}
             eval_results.sort_values(by=["cui"])
             aggregated_metrics = []
             for _, row in eval_results.iterrows():
+                if row["support"] == 0:  # the concept has not been used for annotation
+                    continue
                 aggregated_metrics.append({
                     "per_concept_p": row["p"] if row["p"] is not None else 0.0,
                     "per_concept_r": row["r"] if row["r"] is not None else 0.0,
@@ -66,21 +80,24 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
             trainer._save_trained_concepts(cuis_in_data_file, model)
             trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
-            if not skip_save_model:
-                model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
-                cdb_config_path = model_pack_path.replace(".zip", "_config.json")
-                model.cdb.config.save(cdb_config_path)
-                trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
-                trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+            if not eval_mode:
+                if not skip_save_model:
+                    model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
+                    cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                    model.cdb.config.save(cdb_config_path)
+                    trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                else:
+                    logger.info("Skipped saving on the retrained model")
+                if redeploy:
+                    trainer.deploy_model(trainer._model_service, model, skip_save_model)
+                else:
+                    del model
+                    gc.collect()
+                    logger.info("Skipped deployment on the retrained model")
+                logger.info("Supervised training finished")
             else:
-                logger.info("Skipped saving on the retrained model")
-            if redeploy:
-                trainer.deploy_model(trainer._model_service, model, skip_save_model)
-            else:
-                del model
-                gc.collect()
-                logger.info("Skipped deployment on the retrained model")
-            logger.info("Supervised training finished")
+                logger.info("Model evaluation finished")
             trainer._tracker_client.end_with_success()
 
             # Remove intermediate results folder on successful training
