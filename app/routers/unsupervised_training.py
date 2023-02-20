@@ -15,7 +15,7 @@ router = APIRouter()
 @router.post("/train_unsupervised", status_code=HTTP_202_ACCEPTED, tags=[Tags.Training.name])
 async def unsupervised_training(response: Response,
                                 training_data: UploadFile = File(...),
-                                log_frequency: int = Query(default=1000, description="log after every number of processed documents"),
+                                log_frequency: int = Query(default=1000, description="log after every number of processed documents", ge=1),
                                 model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
     data_file = tempfile.NamedTemporaryFile()
     for line in training_data.file:

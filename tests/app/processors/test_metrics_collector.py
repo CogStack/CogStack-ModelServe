@@ -7,7 +7,7 @@ from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
     evaluate_model_with_trainer_export,
     concat_trainer_exports,
-    get_cui_counts_from_trainer_export,
+    get_stats_from_trainer_export,
     get_iaa_scores_per_concept,
     get_iaa_scores_per_doc,
     get_iaa_scores_per_span,
@@ -149,10 +149,10 @@ def test_concat_trainer_exports_with_duplicated_id_found():
         assert "Found multiple projects share the same ID:" in str(e)
 
 
-def test_get_cui_counts_from_trainer_export():
+def test_get_stats_from_trainer_export():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
-    cuis = get_cui_counts_from_trainer_export(path)
-    assert cuis == {
+    cui_counts, num_of_docs = get_stats_from_trainer_export(path)
+    assert cui_counts == {
         "C0003864": 2,
         "C0007222": 1,
         "C0007787": 1,
@@ -171,6 +171,7 @@ def test_get_cui_counts_from_trainer_export():
         "C0338614": 1,
         "C0878544": 1
     }
+    assert num_of_docs == 2
 
 
 def test_get_iaa_scores_per_concept():

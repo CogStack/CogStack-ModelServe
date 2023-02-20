@@ -15,7 +15,7 @@ from management.model_manager import ModelManager
 from model_services.base import AbstractModelService
 from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
-from processors.metrics_collector import evaluate_model_with_trainer_export, get_cui_counts_from_trainer_export
+from processors.metrics_collector import evaluate_model_with_trainer_export, get_stats_from_trainer_export
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
-            cui_counts = get_cui_counts_from_trainer_export(data_file.name)
+            cui_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+            trainer._tracker_client.log_document_size(num_of_docs)
             training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
             logger.info("Performing supervised training...")
             with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
@@ -274,10 +275,14 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             step = 0
             trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
             before_cui2count_train = dict(model.cdb.cui2count_train)
+            num_of_docs = 0
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **training_params)
+                num_of_docs += len(batch)
                 trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
+
+            trainer._tracker_client.log_document_size(num_of_docs)
             after_cui2count_train = {c: ct for c, ct in
                                      sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
             aggregated_metrics = []

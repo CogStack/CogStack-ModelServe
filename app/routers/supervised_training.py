@@ -15,8 +15,8 @@ router = APIRouter()
 @router.post("/train_supervised", status_code=HTTP_202_ACCEPTED, tags=[Tags.Training.name])
 async def supervised_training(trainer_export: UploadFile,
                               response: Response,
-                              epochs: int = 1,
-                              log_frequency: int = Query(default=1, description="log after every number of finished epochs"),
+                              epochs: int = Query(default=1, description="The number of training epochs", ge=0),
+                              log_frequency: int = Query(default=1, description="log after every number of finished epochs", ge=1),
                               model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
     data_file = tempfile.NamedTemporaryFile()
     for line in trainer_export.file:

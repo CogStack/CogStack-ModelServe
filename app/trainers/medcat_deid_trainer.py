@@ -5,7 +5,7 @@ import gc
 import pandas as pd
 from typing import Dict, TextIO
 from trainers.medcat_trainer import MedcatSupervisedTrainer
-from processors.metrics_collector import get_cui_counts_from_trainer_export
+from processors.metrics_collector import get_stats_from_trainer_export
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +77,9 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             trainer._save_examples(examples, ["tp", "tn"])
             trainer._tracker_client.log_classes_and_names(cui2names)
-            cuis_in_data_file = get_cui_counts_from_trainer_export(data_file.name)
-            trainer._save_trained_concepts(cuis_in_data_file, model)
+            cui_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+            trainer._tracker_client.log_document_size(num_of_docs)
+            trainer._save_trained_concepts(cui_counts, model)
             trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
             if not eval_mode:
                 if not skip_save_model:
