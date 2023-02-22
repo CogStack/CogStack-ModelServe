@@ -4,6 +4,7 @@ from medcat.config_meta_cat import General, Model, Train
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.metacat_trainer import MetacatTrainer
+from ..utils import ensure_no_active_run
 
 model_service = create_autospec(MedCATModel,
                                 _config=Settings(),
@@ -42,6 +43,7 @@ def test_save_model():
 
 
 def test_metacat_trainer():
+    ensure_no_active_run(120)
     with patch.object(metacat_trainer, "run", wraps=metacat_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             metacat_trainer.train(f, 1, 1, "training_id", "input_file_name")

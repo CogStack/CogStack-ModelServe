@@ -4,6 +4,7 @@ from medcat.config import General
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
+from ..utils import ensure_no_active_run
 
 model_service = create_autospec(MedCATModel,
                                 _config=Settings(),
@@ -43,6 +44,7 @@ def test_save_model():
 
 
 def test_medcat_supervised_trainer():
+    ensure_no_active_run(120)
     with patch.object(supervised_trainer, "run", wraps=supervised_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             supervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
@@ -51,6 +53,7 @@ def test_medcat_supervised_trainer():
 
 
 def test_medcat_unsupervised_trainer():
+    ensure_no_active_run(120)
     with patch.object(unsupervised_trainer, "run", wraps=unsupervised_trainer.run) as run:
         with open(os.path.join(data_dir, "sample_texts.json"), "r") as f:
             unsupervised_trainer.train(f, 1, 1, "training_id", "input_file_name")

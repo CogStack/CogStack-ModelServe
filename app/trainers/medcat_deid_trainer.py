@@ -42,14 +42,12 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 logger.info("Evaluating the trained model...")
                 eval_results, examples = ner.eval(data_file.name)
             else:
-                # TODO: make sure each epoch will see different batches in different order.
-                # TODO: It looks the pytorch random seed has been set to a constant.
-                ner.training_arguments.num_train_epochs = 1
+                ner.training_arguments.num_train_epochs = training_params["nepochs"]
                 logger.info("Performing supervised training...")
                 dataset = None
-                for epoch in range(training_params["nepochs"]):
+                for training in range(1):  # parameterise the number of trainings?
                     eval_results, examples, dataset = ner.train(data_file.name, dataset=dataset)
-                    if (epoch + 1) % log_frequency == 0:
+                    if (training + 1) % log_frequency == 0:
                         metrics = {
                             "precision": eval_results["p"].mean(),
                             "recall": eval_results["r"].mean(),
@@ -57,7 +55,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                             "p_merged": eval_results["p_merged"].mean(),
                             "r_merged": eval_results["r_merged"].mean(),
                         }
-                        trainer._tracker_client.send_model_stats(metrics, epoch)
+                        trainer._tracker_client.send_model_stats(metrics, training)
 
             cui2names = {}
             eval_results.sort_values(by=["cui"])

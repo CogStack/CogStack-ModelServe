@@ -33,4 +33,4 @@ jobs:
           flake8 app/model_services/*.py app/management/*.py app/processors app/routers/*.py app/cli/*.py app/trainers/*.py app/*.py tests/
       - name: Test
         run: |
-          pytest -s -vv tests
+          pytest -s -vv --random-order tests
