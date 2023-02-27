@@ -33,7 +33,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))
-        Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "none"]).instrument(app).expose(app)
+        Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app).expose(app)
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:

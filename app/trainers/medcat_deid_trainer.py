@@ -42,10 +42,13 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 logger.info("Evaluating the trained model...")
                 eval_results, examples = ner.eval(data_file.name)
             else:
-                ner.training_arguments.num_train_epochs = training_params["nepochs"]
+                ner.training_arguments.num_train_epochs = 1
                 logger.info("Performing supervised training...")
                 dataset = None
-                for training in range(1):  # parameterise the number of trainings?
+                for training in range(training_params["nepochs"]):
+                    if dataset is not None:
+                        dataset["train"] = dataset["train"].shuffle()
+                        dataset["test"] = dataset["test"].shuffle()
                     eval_results, examples, dataset = ner.train(data_file.name, dataset=dataset)
                     if (training + 1) % log_frequency == 0:
                         metrics = {
