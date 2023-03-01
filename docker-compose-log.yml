@@ -1,0 +1,80 @@
+version: "3.6"
+
+services:
+
+  mongodb:
+    image: mongo:5.0
+    container_name: cms_mongodb
+    volumes:
+      - mongodb_data:/data/db
+    restart: always
+    networks:
+      - cogstack-model-serve_cms
+    expose:
+      - 27017
+
+  opensearch:
+    image: opensearchproject/opensearch:2.4.0
+    container_name: cms_opensearch
+    environment:
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - action.auto_create_index=false
+      - plugins.security.ssl.http.enabled=false
+      - plugins.security.disabled=true
+    ulimits:
+      memlock:
+        hard: -1
+        soft: -1
+    volumes:
+      - os_data:/usr/share/opensearch/data
+    restart: always
+    networks:
+      - cogstack-model-serve_cms
+    expose:
+      - 9200
+
+  graylog:
+    image: graylog/graylog:5.0
+    container_name: cms_graylog
+    depends_on:
+      opensearch:
+        condition: "service_started"
+      mongodb:
+        condition: "service_started"
+    entrypoint: "/usr/bin/tini -- wait-for-it opensearch:9200 --  /docker-entrypoint.sh"
+    restart: always
+    networks:
+      - cogstack-model-serve_cms
+    environment:
+      - GRAYLOG_NODE_ID_FILE=/usr/share/graylog/data/config/node-id
+      - GRAYLOG_PASSWORD_SECRET=${GRAYLOG_PASSWORD_SECRET}
+      - GRAYLOG_ROOT_PASSWORD_SHA2=${GRAYLOG_ROOT_PASSWORD_SHA2}
+      - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://localhost:9000/
+      - GRAYLOG_ELASTICSEARCH_HOSTS=http://opensearch:9200
+      - GRAYLOG_MONGODB_URI=mongodb://mongodb:27017/graylog
+    expose:
+      - 9000
+      - 12201/tcp
+      - 12201/udp
+#    ports:
+#      - 8203:9000
+    volumes:
+      - "graylog_data:/usr/share/graylog/data/data"
+      - "graylog_journal:/usr/share/graylog/data/journal"
+
+volumes:
+  mongodb_data:
+    driver: local
+  os_data:
+    driver: local
+  graylog_data:
+    driver: local
+  graylog_journal:
+    driver: local
+
+networks:
+  cogstack-model-serve_cms:
+    external: true

@@ -25,12 +25,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - GELF_INPUT_URI=http://graylog:12201
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,localhost
+      - no_proxy=mlflow-ui,minio,graylog,localhost
     expose:
       - 8000
     ports:
@@ -65,12 +66,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - GELF_INPUT_URI=http://graylog:12201
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,localhost
+      - no_proxy=mlflow-ui,minio,graylog,localhost
     expose:
       - 8000
     ports:
@@ -104,12 +106,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - GELF_INPUT_URI=http://graylog:12201
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,localhost
+      - no_proxy=mlflow-ui,minio,graylog,localhost
     expose:
       - 8000
     ports:
@@ -144,12 +147,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - GELF_INPUT_URI=http://graylog:12201
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,localhost
+      - no_proxy=mlflow-ui,minio,graylog,localhost
     expose:
       - 8000
     ports:
@@ -184,12 +188,13 @@ services:
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
+      - GELF_INPUT_URI=http://graylog:12201
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,localhost
+      - no_proxy=mlflow-ui,minio,graylog,localhost
     expose:
       - 8000
     ports:
@@ -309,19 +314,15 @@ services:
       - https_proxy=$HTTPS_PROXY
       - no_proxy=localhost
     ports:
-      - 28180:28180
-      - 28181:28181
-      - 28182:28182
-      - 28199:28199
-      - 28200:28200
-      - 28201:28201
-      - 28202:28202
-#    depends_on:
-#      - medcat-snomed
-#      - medcat-icd10
-#      - de-identification
-#      - mlflow-ui
-#      - minio
+#      - 28180:28180 # medcat-snomed
+#      - 28181:28181 # medcat-icd10
+#      - 28182:28182 # de-identification
+#      - 28183:8183  # medcat-deid
+      - 28199:28199 # minio
+      - 28200:28200 # mlflow-ui
+      - 28201:28201 # prometheus
+      - 28202:28202 # grafana
+      - 28203:28203 # graylog
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 60s

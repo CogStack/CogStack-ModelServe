@@ -11,15 +11,17 @@ import asyncio
 import shutil
 import warnings
 import typer
+import graypy
 import globals
 
 from typing import Optional
+from urllib.parse import urlparse
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
 from domain import ModelType
 from registry import model_service_registry
 from api import get_model_server
-from utils import get_settings
+from utils import get_settings, send_gelf_message
 from management.model_manager import ModelManager
 from dependencies import ModelServiceDep
 from config import Settings
@@ -62,6 +64,14 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     """
     logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
     logger = logging.getLogger(__name__)
+
+    if "GELF_INPUT_URI" in os.environ:
+        try:
+            uri = urlparse(os.environ["GELF_INPUT_URI"])
+            send_gelf_message(f"Model service {model_type} is starting", uri)
+            logger.addHandler(graypy.GELFTCPHandler(uri.hostname, uri.port))
+        except Exception:
+            print(f"WARNING: $GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
 
     settings = get_settings()
 

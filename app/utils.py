@@ -1,3 +1,9 @@
+import json
+import socket
+import random
+import struct
+
+from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional
 from slowapi import Limiter
@@ -40,3 +46,19 @@ def annotations_to_entities(annotations: List[Annotation], model_name: str) -> L
             "kb_url": f"{code_base_uri}/{annotation['label_id']}" if code_base_uri is not None else "#"
         })
     return entities
+
+
+def send_gelf_message(message: str, gelf_input_uri: ParseResult) -> None:
+    message = {
+        "version": "1.1",
+        "host": socket.gethostname(),
+        "short_message": message,
+        "level": 1,
+    }
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect((gelf_input_uri.hostname, gelf_input_uri.port))
+
+    message_id = struct.pack("<Q", random.getrandbits(64))
+    sock.sendall(b'\x1e\x0f' + message_id + b'\x00\x00' + bytes(json.dumps(message), "utf-8"))
+    sock.close()
