@@ -1,0 +1,49 @@
+version: "3.6"
+
+services:
+
+  proxy:
+    build:
+      context: ./
+      dockerfile: ./docker/nginx/Dockerfile
+      args:
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    container_name: cms_proxy
+    restart: always
+    networks:
+      - cogstack-model-serve_cms
+    volumes:
+      - ./docker/nginx/etc/nginx/root-ca.pem:/etc/nginx/root-ca.pem:ro
+      - ./docker/nginx/etc/nginx/root-ca.key:/etc/nginx/root-ca.key:ro
+      - ./docker/nginx/etc/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/etc/nginx/cors.conf:/etc/nginx/cors.conf:ro
+      - ./docker/nginx/etc/nginx/sites-enabled/:/etc/nginx/sites-enabled/:ro
+      - ./docker/nginx/etc/nginx/.htpasswd:/etc/nginx/.htpasswd
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=localhost
+    ports:
+      - 28180:28180 # medcat-snomed
+      - 28181:28181 # medcat-icd10
+      - 28182:28182 # de-identification
+      - 28183:28183  # medcat-deid
+      - 28199:28199 # minio
+      - 28200:28200 # mlflow-ui
+      - 28201:28201 # prometheus
+      - 28202:28202 # grafana
+      - 28203:28203 # graylog
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+
+networks:
+  cogstack-model-serve_cms:
+    external: true

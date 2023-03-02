@@ -1,6 +1,8 @@
+from urllib.parse import urlparse
 from app.utils import (
     get_code_base_uri,
     annotations_to_entities,
+    send_gelf_message,
 )
 
 
@@ -25,3 +27,15 @@ def test_annotations_to_entities():
         "kb_url": "http://snomed.info/id/76107001",
     }]
     assert annotations_to_entities(annotations, "SNOMED model") == expected
+
+
+def test_send_gelf_message(mocker):
+    mocked_socket = mocker.Mock()
+    mocked_socket_socket = mocker.Mock(return_value=mocked_socket)
+    mocker.patch("socket.socket", new=mocked_socket_socket)
+    send_gelf_message("message", urlparse("http://127.0.0.1:12201"))
+    mocked_socket.connect.assert_called_once_with(("127.0.0.1", 12201))
+    mocked_socket.sendall.assert_called_once()
+    assert b"\x1e\x0f" in mocked_socket.sendall.call_args[0][0]
+    assert b"\x00\x00" in mocked_socket.sendall.call_args[0][0]
+    mocked_socket.close.assert_called_once()
