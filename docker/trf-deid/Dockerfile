@@ -1,4 +1,4 @@
-FROM python:3.8
+FROM python:3.10
 LABEL "org.cogstack.model_serve"="trf-deid"
 
 ARG CMS_MODEL_NAME

@@ -40,7 +40,7 @@ services:
     expose:
       - 9200
     healthcheck:
-      test: ["CMD", "curl", "--silent", "--fail", "http://localhost:9200/_cluster/health", "||", "exit 1" ]
+      test: ["CMD", "curl", "--write-out", "'HTTP %{http_code}'", "--fail", "--silent", ">", "/dev/null", "http://localhost:9200/"]
       interval: 60s
       timeout: 20s
       retries: 3
