@@ -55,8 +55,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
                         is_retrained = True
                     except Exception as e:
-                        logger.warning(f"Failed on training meta model: {category_name}")
-                        logger.warning(e, exc_info=True, stack_info=True)
+                        logger.error(f"Failed on training meta model: {category_name}. This could be benign if training data has no annotations belonging to this category.")
+                        logger.exception(e)
                         exceptions.append(e)
                         break
                     if (epoch + 1) % log_frequency == 0:
@@ -99,7 +99,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 shutil.rmtree(results_path)
         except Exception as e:
             logger.error("Supervised training failed")
-            logger.error(e, exc_info=True, stack_info=True)
+            logger.exception(e)
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:

@@ -60,7 +60,8 @@ class TrainerCommon(object):
                         run_name=training_id,
                         log_frequency=log_frequency,
                     )
-                except StartTrainingException:
+                except StartTrainingException as e:
+                    logger.exception(e)
                     return False
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     self._tracker_client.save_model_artifact(dataset.name, self._model_name)

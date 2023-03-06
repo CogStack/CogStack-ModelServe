@@ -162,7 +162,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
-            logger.error(e, exc_info=True, stack_info=True)
+            logger.exception(e)
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
@@ -315,7 +315,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")
-            logger.error(e, exc_info=True, stack_info=True)
+            logger.exception(e)
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:

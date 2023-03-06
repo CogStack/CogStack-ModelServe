@@ -69,9 +69,11 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         try:
             uri = urlparse(os.environ["GELF_INPUT_URI"])
             send_gelf_message(f"Model service {model_type} is starting", uri)
-            logger.addHandler(graypy.GELFTCPHandler(uri.hostname, uri.port))
+            gelf_tcp_handler = graypy.GELFTCPHandler(uri.hostname, uri.port)
+            gelf_tcp_handler.add_additional_fields({"model_type": model_type, "model_name": model_name or "NULL"})
+            logger.addHandler(gelf_tcp_handler)
         except Exception:
-            print(f"WARNING: $GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
+            print(f"ERROR: $GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
 
     settings = get_settings()
 

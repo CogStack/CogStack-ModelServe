@@ -2,6 +2,7 @@ import io
 import json
 import uuid
 import tempfile
+import logging
 
 from typing import List
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST
@@ -20,6 +21,7 @@ from processors.metrics_collector import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/evaluate",
@@ -72,6 +74,7 @@ def intra_annotator_agreement_scores(trainer_export: List[UploadFile],
             else:
                 raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f'Unknown scope: "{scope}"')
         except ValueError as e:
+            logger.exception(e)
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str(e))
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)

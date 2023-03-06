@@ -36,7 +36,7 @@ class TrackerClient(object):
             active_run = mlflow.start_run(experiment_id=experiment_id)
         except Exception as e:
             logger.error("Cannot start a new training")
-            logger.error(e, exc_info=True, stack_info=True)
+            logger.exception(e)
             raise StartTrainingException("Cannot start a new training")
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
@@ -172,6 +172,7 @@ class TrackerClient(object):
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
         except Exception as e:
+            logger.exception(e)
             TrackerClient.log_exceptions(e)
             TrackerClient.end_with_failure()
 

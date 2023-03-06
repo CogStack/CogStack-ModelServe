@@ -32,7 +32,8 @@ services:
       - 28180:28180 # medcat-snomed
       - 28181:28181 # medcat-icd10
       - 28182:28182 # de-identification
-      - 28183:28183  # medcat-deid
+      - 28183:28183 # medcat-deid
+      - 28184:28184 # medcat-umls
       - 28199:28199 # minio
       - 28200:28200 # mlflow-ui
       - 28201:28201 # prometheus
