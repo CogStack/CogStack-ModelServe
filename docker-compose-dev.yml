@@ -12,10 +12,10 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-snomed
+    container_name: cms-dev_medcat-snomed
     restart: always
     networks:
-      - cms
+      - cms-dev
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -46,10 +46,10 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-icd10
+    container_name: cms-dev_medcat-icd10
     restart: always
     networks:
-      - cms
+      - cms-dev
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -80,10 +80,10 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_trf-deid
+    container_name: cms-dev_trf-deid
     restart: always
     networks:
-      - cms
+      - cms-dev
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - ./docker/trf-deid/.env:/app/envs/.env:ro
@@ -113,10 +113,10 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-deid
+    container_name: cms-dev_medcat-deid
     restart: always
     networks:
-      - cms
+      - cms-dev
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -147,10 +147,10 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-umls
+    container_name: cms-dev_medcat-umls
     restart: always
     networks:
-      - cms
+      - cms-dev
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
@@ -177,5 +177,5 @@ volumes:
     driver: local
 
 networks:
-  cms:
+  cms-dev:
     driver: bridge
