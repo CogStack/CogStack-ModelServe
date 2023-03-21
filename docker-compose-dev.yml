@@ -12,6 +12,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
+    image: ccogstack-model-serve_medcat-snomed:dev
     container_name: cms-dev_medcat-snomed
     restart: always
     networks:
@@ -46,6 +47,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
+    image: cogstack-model-serve_medcat-icd10:dev
     container_name: cms-dev_medcat-icd10
     restart: always
     networks:
@@ -80,6 +82,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
+    image: cogstack-model-serve_de-identification:dev
     container_name: cms-dev_trf-deid
     restart: always
     networks:
@@ -113,6 +116,7 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
+    image: cogstack-model-serve_medcat-deid:dev
     container_name: cms-dev_medcat-deid
     restart: always
     networks:
@@ -147,6 +151,7 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
+    image: cogstack-model-serve_medcat-umls:dev
     container_name: cms-dev_medcat-umls
     restart: always
     networks:

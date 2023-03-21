@@ -97,7 +97,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -114,7 +114,7 @@
           "exemplar": false,
           "expr": "round(increase(http_requests_total{handler=\"/process\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y]))",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "/process",
           "range": true,
           "refId": "A"
         }
@@ -191,7 +191,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
         "tooltip": {
           "mode": "single",
@@ -206,7 +206,7 @@
           },
           "editorMode": "code",
           "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-icd10\", method=\"POST\", status=\"2xx\"}[1y]))",
-          "legendFormat": "__auto",
+          "legendFormat": "/process_bulk",
           "range": true,
           "refId": "A"
         }
@@ -720,26 +720,26 @@
         },
         "overrides": [
           {
-            "__systemRef": "hideSeriesFrom",
             "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "/process"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
+              "id": "byName",
+              "options": "ave_size"
             },
             "properties": [
               {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg_entities"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
               }
             ]
           }
@@ -747,11 +747,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 6,
         "x": 12,
         "y": 8
       },
-      "id": 20,
+      "id": 41,
       "links": [],
       "options": {
         "legend": {
@@ -759,7 +759,7 @@
             "mean"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
@@ -776,16 +776,166 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-icd10\", handler!=\"/favicon.ico\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-icd10\", handler!=\"/favicon.ico\"}[$__rate_interval])",
+          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-icd10\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-icd10\", handler=\"/process\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "{{ handler }}",
+          "legendFormat": "ave_size",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_doc_annotations_sum{job=\"cms_medcat-icd10\", handler=\"/process\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-icd10\", handler=\"/process\"}[$__rate_interval])",
+          "hide": false,
+          "legendFormat": "avg_entities",
+          "range": true,
+          "refId": "B"
         }
       ],
-      "title": "Average Request Size",
+      "title": "Doc Size vs Entities (/process)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ave_size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg_entities"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 8
+      },
+      "id": 43,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "$$hashKey": "object:146",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-icd10\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-icd10\", handler=\"/process_bulk\"}[$__rate_interval])",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "ave_size",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "rate(cms_doc_annotations_sum{job=\"cms_medcat-icd10\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-icd10\", handler=\"/process_bulk\"}[$__rate_interval])",
+          "hide": false,
+          "legendFormat": "avg_entities",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Doc Size vs Entities (/process_bulk)",
       "type": "timeseries"
     },
     {
@@ -1210,7 +1360,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1388,7 +1539,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1566,7 +1718,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1768,7 +1921,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1971,7 +2125,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2072,7 +2227,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "transparent"
+                "color": "transparent",
+                "value": null
               },
               {
                 "color": "red",
@@ -2173,7 +2329,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2273,7 +2430,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -2374,7 +2532,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
