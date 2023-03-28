@@ -22,7 +22,7 @@ def test_annotations_to_entities():
     expected = [{
         "start": 1,
         "end": 15,
-        "label": "Spinal stenosis (76107001)",
+        "label": "Spinal stenosis",
         "kb_id": "76107001",
         "kb_url": "http://snomed.info/id/76107001",
     }]

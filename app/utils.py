@@ -41,7 +41,7 @@ def annotations_to_entities(annotations: List[Annotation], model_name: str) -> L
         entities.append({
             "start": annotation["start"],
             "end": annotation["end"],
-            "label": f"{annotation['label_name']} ({annotation['label_id']})",  # remove label_id after upgrading spaCy
+            "label": f"{annotation['label_name']}",
             "kb_id": annotation["label_id"],
             "kb_url": f"{code_base_uri}/{annotation['label_id']}" if code_base_uri is not None else "#"
         })
