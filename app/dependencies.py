@@ -1,5 +1,6 @@
 import logging
 
+from typing import Optional
 from config import Settings
 from registry import model_service_registry
 from model_services.base import AbstractModelService
@@ -17,9 +18,10 @@ class ModelServiceDep(object):
     def model_service(self, model_service):
         self._model_sevice = model_service
 
-    def __init__(self, model_type: str, config: Settings):
+    def __init__(self, model_type: str, config: Settings, model_name: Optional[str] = None) -> None:
         self._model_type = model_type
         self._config = config
+        self._model_name = "Model" if model_name is None else model_name
         self._model_sevice = None
 
     def __call__(self) -> AbstractModelService:

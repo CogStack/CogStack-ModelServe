@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 
 class TransformersModelDeIdentification(AbstractModelService):
 
-    def __init__(self, config: Settings, model_parent_dir: Optional[str] = None) -> None:
+    def __init__(self,
+                 config: Settings,
+                 model_parent_dir: Optional[str] = None,
+                 model_name: Optional[str] = None) -> None:
         super().__init__(config)
         self._config = config
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
@@ -26,7 +29,7 @@ class TransformersModelDeIdentification(AbstractModelService):
             self._device = "cpu"
         else:
             self._device = config.DEVICE
-        self.model_name = "De-identification model"
+        self.model_name = model_name or "De-identification model"
         self._model: PreTrainedModel
         self._tokenizer: TransformersTokenizerNER
         self._id2cui: Dict[str, str]

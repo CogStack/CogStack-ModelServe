@@ -20,7 +20,8 @@ class MedCATModel(AbstractModelService):
     def __init__(self,
                  config: Settings,
                  model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None) -> None:
+                 enable_trainer: Optional[bool] = None,
+                 model_name: Optional[str] = None) -> None:
         self._model: CAT = None
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
@@ -30,7 +31,7 @@ class MedCATModel(AbstractModelService):
         self._supervised_trainer = None
         self._unsupervised_trainer = None
         self._metacat_trainer = None
-        self.model_name = "MedCAT model"
+        self.model_name = model_name or "MedCAT model"
 
     @property
     def model(self) -> CAT:

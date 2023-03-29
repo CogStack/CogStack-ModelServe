@@ -35,18 +35,25 @@ cmd_app = typer.Typer(add_completion=False)
 @cmd_app.command("apidoc")
 def generate_api_doc(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                      add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
-                     exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API")):
+                     add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
+                     add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
+                     exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
+                     exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
+                     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
+    """
+    This script generates API docs for enabled endpoints
+    """
+
     settings = get_settings()
     settings.ENABLE_TRAINING_APIS = "true" if add_training_apis else "false"
     settings.DISABLE_UNSUPERVISED_TRAINING = "true" if exclude_unsupervised_training else "false"
-    model_service_dep = ModelServiceDep(model_type, settings)
+    settings.DISABLE_METACAT_TRAINING = "true" if exclude_metacat_training else "false"
+    settings.ENABLE_EVALUATION_APIS = "true" if add_evaluation_apis else "false"
+    settings.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
+    model_service_dep = ModelServiceDep(model_type, settings, model_name)
     globals.model_service_dep = model_service_dep
     app = get_model_server()
-    if model_type in model_service_registry.keys():
-        doc_name = f"{model_type}_model_apis.json".replace("medcat_deid", "medcat_deidentification").replace("transformers_deid", "de-identification")
-    else:
-        print(f"Unknown model type: {model_type}")
-        sys.exit(1)
+    doc_name = f"{model_name or model_type}_model_apis.json"
     with open(doc_name, "w") as api_doc:
         json.dump(app.openapi(), api_doc, indent=4)
     print(f"OpenAPI doc exported to {doc_name}")

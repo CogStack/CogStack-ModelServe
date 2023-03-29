@@ -58,7 +58,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         openapi_schema = get_openapi(
             title=f"{globals.model_service_dep().model_name} APIs",
             version=globals.model_service_dep().api_version,
-            description="by CogStack ModelServe, a model serving system for CogStack NLP solutions.",
+            description="by CogStack ModelServe, a model serving and governance system for CogStack NLP solutions.",
             routes=app.routes
         )
         openapi_schema["info"]["x-logo"] = {
