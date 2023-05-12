@@ -722,7 +722,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "ave_size"
+              "options": "avg_size"
             },
             "properties": [
               {
@@ -780,7 +780,7 @@
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "ave_size",
+          "legendFormat": "avg_size",
           "range": true,
           "refId": "A"
         },
@@ -860,7 +860,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "ave_size"
+              "options": "avg_size"
             },
             "properties": [
               {
@@ -918,7 +918,7 @@
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "ave_size",
+          "legendFormat": "avg_size",
           "range": true,
           "refId": "A"
         },

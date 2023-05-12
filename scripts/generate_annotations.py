@@ -65,7 +65,7 @@ if __name__ == "__main__":
         "--cuis",
         type=str,
         default="",
-        help="The path to the file containing CUIs as a JSON list"
+        help="The path to the file containing newline-separated CUIs"
     )
     parser.add_argument(
         "-t",
