@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 class MedCATModelIcd10(MedCATModel):
 
+    ICD10_KEY = "icd10"
+
     def __init__(self,
                  config: Settings,
                  model_parent_dir: Optional[str] = None,
@@ -25,23 +27,24 @@ class MedCATModelIcd10(MedCATModel):
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:
-            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end"])
+            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            output = pd.DataFrame()
+            new_rows = []
             for _, row in df.iterrows():
-                if "icd10" not in row:
+                if self.ICD10_KEY not in row:
                     logger.error("No mapped ICD-10 code found in the record")
-                if row["icd10"]:
-                    for icd10 in row["icd10"]:
+                if row[self.ICD10_KEY]:
+                    for icd10 in row[self.ICD10_KEY]:
                         output_row = row.copy()
                         if isinstance(icd10, str):
-                            output_row["icd10"] = icd10
-                        else:
-                            output_row["icd10"] = icd10["code"]
-                            output_row["pretty_name"] = icd10["name"]
-                        output = output.append(output_row, ignore_index=True)
-            df = output
-            df.rename(columns={"pretty_name": "label_name", "icd10": "label_id"}, inplace=True)
+                            output_row[self.ICD10_KEY] = icd10
+                        elif isinstance(icd10, dict):
+                            output_row[self.ICD10_KEY] = icd10.get("code")
+                            output_row["pretty_name"] = icd10.get("name")
+                new_rows.append(output_row)
+            if new_rows:
+                df = pd.DataFrame(new_rows)
+            df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "acc": "accuracy"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

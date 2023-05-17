@@ -32,11 +32,12 @@ def test_from_model(medcat_model):
 
 
 def test_get_records_from_doc(medcat_model):
-    records = medcat_model.get_records_from_doc({"entities": {"0": {"pretty_name": "pretty_name", "cui": "cui", "icd10": [{"code": "code", "name": "name"}], "meta_anns": {}}}})
+    records = medcat_model.get_records_from_doc({"entities": {"0": {"pretty_name": "pretty_name", "cui": "cui", "icd10": [{"code": "code", "name": "name"}], "acc": 1.0, "meta_anns": {}}}})
     assert len(records) == 1
     assert records[0]["label_name"] == "name"
     assert records[0]["cui"] == "cui"
     assert records[0]["label_id"] == "code"
+    assert records[0]["accuracy"] == 1.0
     assert records[0]["meta_anns"] == {}
 
 
@@ -73,6 +74,7 @@ def test_annotate(medcat_model):
     assert type(annotations[0]["label_name"]) is str
     assert annotations[0]["start"] == 0
     assert annotations[0]["end"] == 15
+    assert annotations[0]["accuracy"] > 0
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),

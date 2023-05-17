@@ -1,3 +1,4 @@
+import statistics
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, Body, Request
@@ -6,7 +7,11 @@ import globals
 from domain import TextwithAnnotations, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings, get_rate_limiter
-from management.prometheus_metrics import cms_doc_annotations
+from management.prometheus_metrics import (
+    cms_doc_annotations,
+    cms_avg_anno_acc_per_doc,
+    cms_avg_meta_anno_conf_per_doc,
+)
 
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
@@ -32,6 +37,9 @@ def process_a_single_note(request: Request,
     annotations = model_service.annotate(text)
     cms_doc_annotations.labels(handler=PATH_PROCESS).observe(len(annotations))
 
+    _send_accuracy_metric(annotations)
+    _send_confidence_metric(annotations)
+
     return {"text": text, "annotations": annotations}
 
 
@@ -49,6 +57,21 @@ def process_a_list_of_notes(request: Request,
     for text, annotations in zip(texts, annotations_list):
         body.append({"text": text, "annotations": annotations})
         annotation_sum += len(annotations)
+        _send_accuracy_metric(annotations)
+        _send_confidence_metric(annotations)
+
     cms_doc_annotations.labels(handler=PATH_PROCESS_BULK).observe(annotation_sum)
 
     return body
+
+
+def _send_accuracy_metric(annotations: List[Dict]) -> None:
+    if annotations and annotations[0].get("accuracy", None) is not None:
+        avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
+        cms_avg_anno_acc_per_doc.labels(handler=PATH_PROCESS).observe(avg_acc)
+
+
+def _send_confidence_metric(annotations: List[Dict]) -> None:
+    if annotations and annotations[0].get("meta_anns", None):
+        avg_conf = statistics.mean([meta_value["confidence"] for annotation in annotations for _, meta_value in annotation["meta_anns"].items()])
+        cms_avg_meta_anno_conf_per_doc.labels(handler=PATH_PROCESS).observe(avg_conf)

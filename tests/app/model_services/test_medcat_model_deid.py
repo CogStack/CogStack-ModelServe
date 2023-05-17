@@ -91,9 +91,11 @@ def test_annotate(medcat_model):
     assert annotations[0]["start"] == 598
     assert annotations[0]["end"] == 601
     assert annotations[0]["source_value"] == "ABC"
+    assert annotations[0]["accuracy"] > 0
     assert annotations[1]["start"] == 2839
     assert annotations[1]["end"] == 2842
     assert annotations[1]["source_value"] == "ABC"
+    assert annotations[1]["accuracy"] > 0
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
@@ -106,6 +108,8 @@ def test_batch_annotate(medcat_model):
     assert type(annotation_list[1][0]["label_name"]) is str
     assert annotation_list[0][0]["start"] == annotation_list[1][0]["start"] == 20
     assert annotation_list[0][0]["end"] == annotation_list[1][0]["end"] == 27
+    assert annotation_list[0][0]["accuracy"] > 0
+    assert annotation_list[1][0]["accuracy"] > 0
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),

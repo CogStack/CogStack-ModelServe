@@ -36,6 +36,14 @@ def test_process():
         "label_id": "76107001",
         "start": 1,
         "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
     }]
     model_service.annotate.return_value = annotations
     response = client.post("/process",
@@ -54,12 +62,28 @@ def test_process_bulk():
             "label_id": "76107001",
             "start": 1,
             "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {
+                    "value": "Affirmed",
+                    "confidence": 0.9999833106994629,
+                    "name": "Status"
+                }
+            },
         }],
         [{
             "label_name": "Spinal stenosis",
             "label_id": "76107001",
             "start": 1,
             "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {
+                    "value": "Affirmed",
+                    "confidence": 0.9999833106994629,
+                    "name": "Status"
+                }
+            },
         }]
     ]
     model_service.batch_annotate.return_value = annotations_list
@@ -72,6 +96,14 @@ def test_process_bulk():
                 "label_id": "76107001",
                 "start": 1,
                 "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
             }]
         },
         {
@@ -81,6 +113,14 @@ def test_process_bulk():
                 "label_id": "76107001",
                 "start": 1,
                 "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
             }]
         }
     ]
@@ -92,6 +132,14 @@ def test_preview():
         "label_id": "76107001",
         "start": 1,
         "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
     }]
     model_service.annotate.return_value = annotations
     response = client.post("/preview",

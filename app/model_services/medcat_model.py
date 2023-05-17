@@ -65,11 +65,9 @@ class MedCATModel(AbstractModelService):
     def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
         meta_annotations = []
         for i, r in df.iterrows():
-
             meta_dict = {}
             for k, v in r.meta_anns.items():
                 meta_dict[k] = v["value"]
-
             meta_annotations.append(meta_dict)
 
         df["new_meta_anns"] = meta_annotations
@@ -141,9 +139,9 @@ class MedCATModel(AbstractModelService):
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:
-            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end"])
+            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            df.rename(columns={"pretty_name": "label_name", "cui": "label_id"}, inplace=True)
+            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "acc": "accuracy"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

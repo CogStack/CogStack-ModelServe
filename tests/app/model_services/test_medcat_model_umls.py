@@ -64,6 +64,7 @@ def test_annotate(medcat_model):
     assert type(annotations[0]["label_name"]) is str
     assert annotations[0]["start"] == 0
     assert annotations[0]["end"] == 15
+    assert annotations[0]["accuracy"] > 0
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),

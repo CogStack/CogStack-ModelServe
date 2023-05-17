@@ -9,6 +9,7 @@ class Annotation(BaseModel):
     end: int
     label_name: str
     label_id: str
+    accuracy: Optional[float] = None
     text: Optional[str] = None
     meta_anns: Optional[dict] = None
 
