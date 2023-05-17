@@ -54,7 +54,7 @@
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 19,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -470,7 +470,7 @@
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 19,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -722,7 +722,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "avg_size"
+              "options": "ave_size"
             },
             "properties": [
               {
@@ -780,7 +780,7 @@
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "avg_size",
+          "legendFormat": "ave_size",
           "range": true,
           "refId": "A"
         },
@@ -860,7 +860,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "avg_size"
+              "options": "ave_size"
             },
             "properties": [
               {
@@ -918,7 +918,7 @@
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "avg_size",
+          "legendFormat": "ave_size",
           "range": true,
           "refId": "A"
         },
@@ -1329,6 +1329,220 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "id": 47,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process\", job=\"cms_medcat-umls\"}",
+          "instant": false,
+          "legendFormat": "/process",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process_bulk\", job=\"cms_medcat-umls\"}",
+          "hide": false,
+          "legendFormat": "/process_bulk",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Average Accuracies of Recognised Entities ",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "id": 45,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "cms_avg_meta_anno_conf_per_doc{handler=\"/process\", job=\"cms_medcat-umls\"}",
+          "instant": false,
+          "legendFormat": "/process",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_meta_anno_conf_per_doc{handler=\"/process_bulk\", job=\"cms_medcat-umls\"}",
+          "hide": false,
+          "legendFormat": "/process_bulk",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Average Confidences of Meta Annotations",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "hidden",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -1426,7 +1640,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "id": 24,
       "links": [],
@@ -1605,7 +1819,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 32
       },
       "id": 35,
       "links": [],
@@ -1808,7 +2022,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 25,
       "links": [],
@@ -2011,7 +2225,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 37,
       "links": [],
@@ -2142,7 +2356,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 15,
       "links": [],
@@ -2244,7 +2458,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 56
       },
       "id": 16,
       "links": [],
@@ -2346,7 +2560,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 56
+        "y": 64
       },
       "id": 8,
       "links": [],
@@ -2447,7 +2661,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 56
+        "y": 64
       },
       "id": 9,
       "links": [],
@@ -2548,7 +2762,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 56
+        "y": 64
       },
       "id": 27,
       "options": {

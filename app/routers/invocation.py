@@ -35,10 +35,10 @@ def process_a_single_note(request: Request,
                           text: str = Body(..., media_type="text/plain"),
                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
     annotations = model_service.annotate(text)
-    cms_doc_annotations.labels(handler=PATH_PROCESS).observe(len(annotations))
+    _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
-    _send_accuracy_metric(annotations)
-    _send_confidence_metric(annotations)
+    _send_accuracy_metric(annotations, PATH_PROCESS)
+    _send_confidence_metric(annotations, PATH_PROCESS)
 
     return {"text": text, "annotations": annotations}
 
@@ -57,21 +57,25 @@ def process_a_list_of_notes(request: Request,
     for text, annotations in zip(texts, annotations_list):
         body.append({"text": text, "annotations": annotations})
         annotation_sum += len(annotations)
-        _send_accuracy_metric(annotations)
-        _send_confidence_metric(annotations)
+        _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
+        _send_confidence_metric(annotations, PATH_PROCESS_BULK)
 
-    cms_doc_annotations.labels(handler=PATH_PROCESS_BULK).observe(annotation_sum)
+    _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
 
     return body
 
 
-def _send_accuracy_metric(annotations: List[Dict]) -> None:
+def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:
+    cms_doc_annotations.labels(handler=handler).observe(annotation_num)
+
+
+def _send_accuracy_metric(annotations: List[Dict], handler: str) -> None:
     if annotations and annotations[0].get("accuracy", None) is not None:
         avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
-        cms_avg_anno_acc_per_doc.labels(handler=PATH_PROCESS).observe(avg_acc)
+        cms_avg_anno_acc_per_doc.labels(handler=handler).set(avg_acc)
 
 
-def _send_confidence_metric(annotations: List[Dict]) -> None:
+def _send_confidence_metric(annotations: List[Dict], handler: str) -> None:
     if annotations and annotations[0].get("meta_anns", None):
         avg_conf = statistics.mean([meta_value["confidence"] for annotation in annotations for _, meta_value in annotation["meta_anns"].items()])
-        cms_avg_meta_anno_conf_per_doc.labels(handler=PATH_PROCESS).observe(avg_conf)
+        cms_avg_meta_anno_conf_per_doc.labels(handler=handler).set(avg_conf)
