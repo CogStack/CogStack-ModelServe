@@ -9,7 +9,7 @@ from app.model_services.trf_model_deid import TransformersModelDeIdentification
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function")
 def trf_model():
     config = Settings()
     config.BASE_MODEL_FILE = "trf_deid_model.zip"

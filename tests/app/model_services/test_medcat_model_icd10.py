@@ -10,10 +10,11 @@ from app.model_services.medcat_model_icd10 import MedCATModelIcd10
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function")
 def medcat_model():
     config = Settings()
     config.BASE_MODEL_FILE = "icd10_model.zip"
+    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
     return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
 
 
@@ -43,9 +44,22 @@ def test_get_records_from_doc(medcat_model):
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_init_model(medcat_model):
+def test_init_model_with_no_tui_filter(medcat_model):
+    original = MedCATModelIcd10.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "icd10_model.zip"))
+    medcat_model._whitelisted_tuis = set([""])
     medcat_model.init_model()
     assert medcat_model.model is not None
+    assert medcat_model.model.cdb.config.linking.filters.get("cuis") == original.cdb.config.linking.filters.get("cuis")
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_init_model(medcat_model):
+    medcat_model.init_model()
+    target_tuis = medcat_model._config.TYPE_UNIQUE_ID_WHITELIST.split(",")
+    target_cuis = {cui for tui in target_tuis for cui in medcat_model.model.cdb.addl_info.get("type_id2cuis").get(tui, {})}
+    assert medcat_model.model is not None
+    assert medcat_model.model.cdb.config.linking.filters.get("cuis") == target_cuis
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),

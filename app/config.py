@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     SKIP_SAVE_TRAINING_DATASET: str = "true"
     PROCESS_RATE_LIMIT: str = "180/minute"
     PROCESS_BULK_RATE_LIMIT: str = "90/minute"
+    TYPE_UNIQUE_ID_WHITELIST: str = ""  # empty means all TUIs are whitelisted
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")

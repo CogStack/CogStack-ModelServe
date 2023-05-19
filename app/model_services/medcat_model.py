@@ -31,6 +31,7 @@ class MedCATModel(AbstractModelService):
         self._supervised_trainer = None
         self._unsupervised_trainer = None
         self._metacat_trainer = None
+        self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
         self.model_name = model_name or "MedCAT model"
 
     @property
@@ -78,6 +79,7 @@ class MedCATModel(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+            self._set_tuis_filtering()
             if self._enable_trainer:
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
@@ -145,3 +147,14 @@ class MedCATModel(AbstractModelService):
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
+
+    def _set_tuis_filtering(self) -> None:
+        tuis2cuis = self._model.cdb.addl_info.get("type_id2cuis")
+        model_tuis = set(tuis2cuis.keys())
+        if self._whitelisted_tuis == set([""]):
+            return
+        assert self._whitelisted_tuis.issubset(model_tuis), f"Unrecognisable Type Unique Identifier(s): {self._whitelisted_tuis - model_tuis}"
+        whitelisted_cuis = set()
+        for tui in self._whitelisted_tuis:
+            whitelisted_cuis.update(tuis2cuis.get(tui, {}))
+        self._model.cdb.config.linking.filters = {"cuis": whitelisted_cuis}

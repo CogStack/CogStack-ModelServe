@@ -10,7 +10,7 @@ from app.model_services.medcat_model_umls import MedCATModelUmls
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="function")
 def medcat_model():
     config = Settings()
     config.BASE_MODEL_FILE = "umls_model.zip"
