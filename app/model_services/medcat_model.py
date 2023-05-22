@@ -10,6 +10,7 @@ from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedT
 from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
+from utils import TYPE_ID_TO_NAME_PATCH
 from exception import ConfigurationException
 
 logger = logging.getLogger(__name__)
@@ -149,6 +150,10 @@ class MedCATModel(AbstractModelService):
         return records
 
     def _set_tuis_filtering(self) -> None:
+        # this patching may not be needed after the base 1.4.x model is fixed in the future
+        if self._model.cdb.addl_info.get("type_id2name", {}) == {}:
+            self._model.cdb.addl_info["type_id2name"] = TYPE_ID_TO_NAME_PATCH
+
         tuis2cuis = self._model.cdb.addl_info.get("type_id2cuis")
         model_tuis = set(tuis2cuis.keys())
         if self._whitelisted_tuis == set([""]):
