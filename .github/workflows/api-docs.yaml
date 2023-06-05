@@ -31,11 +31,11 @@ jobs:
           pip install -r app/requirements.txt -r app/requirements-dev.txt
       - name: Generate API docs
         run: |
-          python app/cli/cli.py apidoc --model-type medcat_snomed --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
-          python app/cli/cli.py apidoc --model-type medcat_icd10 --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
-          python app/cli/cli.py apidoc --model-type medcat_umls --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
-          python app/cli/cli.py apidoc --model-type medcat_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
-          python app/cli/cli.py apidoc --model-type transformers_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
+          python app/cli/cli.py export-model-apis --model-type medcat_snomed --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
+          python app/cli/cli.py export-model-apis --model-type medcat_icd10 --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
+          python app/cli/cli.py export-model-apis --model-type medcat_umls --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
+          python app/cli/cli.py export-model-apis --model-type medcat_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
+          python app/cli/cli.py export-model-apis --model-type transformers_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
           git fetch origin gh-pages:gh-pages
           git checkout gh-pages
           mv ./medcat_snomed_model_apis.json ./docs/medcat_snomed_model_apis.json

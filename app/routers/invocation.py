@@ -22,7 +22,7 @@ limiter = get_rate_limiter()
 
 
 @router.get(PATH_INFO, response_model=ModelCard, tags=[Tags.Metadata.name])
-async def model_card(model_service: AbstractModelService = Depends(globals.model_service_dep)) -> ModelCard:
+async def get_model_card(model_service: AbstractModelService = Depends(globals.model_service_dep)) -> ModelCard:
     return model_service.info()
 
 
@@ -31,9 +31,9 @@ async def model_card(model_service: AbstractModelService = Depends(globals.model
              response_model_exclude_none=True,
              tags=[Tags.Annotations.name])
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
-def process_a_single_note(request: Request,
-                          text: str = Body(..., media_type="text/plain"),
-                          model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
+def get_entities_from_text(request: Request,
+                           text: str = Body(..., media_type="text/plain"),
+                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
     annotations = model_service.annotate(text)
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
@@ -48,9 +48,9 @@ def process_a_single_note(request: Request,
              response_model_exclude_none=True,
              tags=[Tags.Annotations.name])
 @limiter.limit(get_settings().PROCESS_BULK_RATE_LIMIT)
-def process_a_list_of_notes(request: Request,
-                            texts: List[str],
-                            model_service: AbstractModelService = Depends(globals.model_service_dep)) -> List[Dict]:
+def get_entities_from_multiple_texts(request: Request,
+                                     texts: List[str],
+                                     model_service: AbstractModelService = Depends(globals.model_service_dep)) -> List[Dict]:
     annotations_list = model_service.batch_annotate(texts)
     body = []
     annotation_sum = 0

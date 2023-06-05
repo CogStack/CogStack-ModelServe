@@ -18,6 +18,7 @@ from typing import Optional
 from urllib.parse import urlparse
 from hypercorn.config import Config
 from hypercorn.asyncio import serve
+from fastapi.routing import APIRoute
 from domain import ModelType
 from registry import model_service_registry
 from api import get_model_server
@@ -30,33 +31,6 @@ from management.tracker_client import TrackerClient
 warnings.filterwarnings("ignore")
 warnings.simplefilter("ignore")
 cmd_app = typer.Typer(add_completion=False)
-
-
-@cmd_app.command("apidoc")
-def generate_api_doc(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                     add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
-                     add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
-                     add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
-                     exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
-                     exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
-                     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
-    """
-    This script generates API docs for enabled endpoints
-    """
-
-    settings = get_settings()
-    settings.ENABLE_TRAINING_APIS = "true" if add_training_apis else "false"
-    settings.DISABLE_UNSUPERVISED_TRAINING = "true" if exclude_unsupervised_training else "false"
-    settings.DISABLE_METACAT_TRAINING = "true" if exclude_metacat_training else "false"
-    settings.ENABLE_EVALUATION_APIS = "true" if add_evaluation_apis else "false"
-    settings.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
-    model_service_dep = ModelServiceDep(model_type, settings, model_name)
-    globals.model_service_dep = model_service_dep
-    app = get_model_server()
-    doc_name = f"{model_name or model_type}_model_apis.json"
-    with open(doc_name, "w") as api_doc:
-        json.dump(app.openapi(), api_doc, indent=4)
-    print(f"OpenAPI doc exported to {doc_name}")
 
 
 @cmd_app.command("serve")
@@ -162,6 +136,66 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                                          model_metrics=m_metrics,
                                          model_tags=m_tags)
     print(f"Pushed {model_path} as a new model version ({run_name})")
+
+
+@cmd_app.command("export-model-apis")
+def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+                               add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
+                               add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
+                               add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
+                               exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
+                               exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
+                               model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
+    """
+    This script generates API docs for enabled endpoints
+    """
+
+    settings = get_settings()
+    settings.ENABLE_TRAINING_APIS = "true" if add_training_apis else "false"
+    settings.DISABLE_UNSUPERVISED_TRAINING = "true" if exclude_unsupervised_training else "false"
+    settings.DISABLE_METACAT_TRAINING = "true" if exclude_metacat_training else "false"
+    settings.ENABLE_EVALUATION_APIS = "true" if add_evaluation_apis else "false"
+    settings.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
+
+    model_service_dep = ModelServiceDep(model_type, settings, model_name)
+    globals.model_service_dep = model_service_dep
+    doc_name = f"{model_name or model_type}_model_apis.json"
+    app = get_model_server()
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            route.operation_id = route.name
+
+    with open(doc_name, "w") as api_doc:
+        json.dump(app.openapi(), api_doc, indent=4)
+    print(f"OpenAPI doc exported to {doc_name}")
+
+
+@cmd_app.command("export-openapi-spec")
+def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")):
+    """
+    This script generates API docs for enabled endpoints
+    """
+
+    settings = get_settings()
+    settings.ENABLE_TRAINING_APIS = "true"
+    settings.DISABLE_UNSUPERVISED_TRAINING = "false"
+    settings.DISABLE_METACAT_TRAINING = "false"
+    settings.ENABLE_EVALUATION_APIS = "true"
+    settings.ENABLE_PREVIEWS_APIS = "true"
+
+    model_service_dep = ModelServiceDep(ModelType.MEDCAT_SNOMED, settings, api_title)
+    globals.model_service_dep = model_service_dep
+    doc_name = f"{api_title.lower().replace(' ', '_')}.json"
+    app = get_model_server()
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            route.operation_id = route.name
+
+    with open(doc_name, "w") as api_doc:
+        openapi = app.openapi()
+        openapi["info"]["title"] = api_title
+        json.dump(app.openapi(), api_doc, indent=4)
+    print(f"OpenAPI doc exported to {doc_name}")
 
 
 if __name__ == "__main__":

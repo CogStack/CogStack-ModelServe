@@ -27,8 +27,8 @@ logger = logging.getLogger(__name__)
 @router.post("/evaluate",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse)
-def evaluate_using_trainer_export(trainer_export: UploadFile,
-                                  model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+def get_evaluation_with_trainer_export(trainer_export: UploadFile,
+                                       model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
     with tempfile.NamedTemporaryFile() as file:
         for line in trainer_export.file:
             file.write(line)
@@ -47,10 +47,10 @@ def evaluate_using_trainer_export(trainer_export: UploadFile,
 @router.post("/iaa-scores",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse)
-def intra_annotator_agreement_scores(trainer_export: List[UploadFile],
-                                     annotator_a_project_id: int,
-                                     annotator_b_project_id: int,
-                                     scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:
+def get_intra_annotator_agreement_scores(trainer_export: List[UploadFile],
+                                         annotator_a_project_id: int,
+                                         annotator_b_project_id: int,
+                                         scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()

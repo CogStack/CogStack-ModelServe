@@ -18,8 +18,8 @@ router = APIRouter()
 @router.post("/preview",
              tags=[Tags.Rendering.name],
              response_class=HTMLResponse)
-async def preview_processing_result(text: str = Body(..., media_type="text/plain"),
-                                    model_service: AbstractModelService = Depends(globals.model_service_dep)) -> HTMLResponse:
+async def get_rendered_entities_from_text(text: str = Body(..., media_type="text/plain"),
+                                          model_service: AbstractModelService = Depends(globals.model_service_dep)) -> HTMLResponse:
     annotations = model_service.annotate(text)
     entities = annotations_to_entities(annotations, model_service.model_name)
     ent_input = Doc(text=text, ents=entities)
@@ -32,9 +32,9 @@ async def preview_processing_result(text: str = Body(..., media_type="text/plain
 @router.post("/preview_trainer_export",
              tags=[Tags.Rendering.name],
              response_class=HTMLResponse)
-def preview_trainer_export(trainer_export: UploadFile,
-                           project_id: Union[int, None] = None,
-                           document_id: Union[int, None] = None) -> HTMLResponse:
+def get_rendered_entities_from_trainer_export(trainer_export: UploadFile,
+                                              project_id: Union[int, None] = None,
+                                              document_id: Union[int, None] = None) -> HTMLResponse:
     data = json.load(trainer_export.file)
     htmls = []
     for project in data["projects"]:
