@@ -19,6 +19,7 @@ from processors.metrics_collector import (
     get_iaa_scores_per_span,
     concat_trainer_exports,
 )
+from auth.users import props
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 @router.post("/evaluate",
              tags=[Tags.Evaluating.name],
-             response_class=StreamingResponse)
+             response_class=StreamingResponse,
+             dependencies=[Depends(props.current_active_user)])
 def get_evaluation_with_trainer_export(trainer_export: UploadFile,
                                        model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
     with tempfile.NamedTemporaryFile() as file:
@@ -46,7 +48,8 @@ def get_evaluation_with_trainer_export(trainer_export: UploadFile,
 
 @router.post("/iaa-scores",
              tags=[Tags.Evaluating.name],
-             response_class=StreamingResponse)
+             response_class=StreamingResponse,
+             dependencies=[Depends(props.current_active_user)])
 def get_intra_annotator_agreement_scores(trainer_export: List[UploadFile],
                                          annotator_a_project_id: int,
                                          annotator_b_project_id: int,

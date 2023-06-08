@@ -143,6 +143,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
                                add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
                                add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
                                add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
+                               add_user_authentication: bool = typer.Option(False, help="Add user authentication APIs to the doc"),
                                exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
                                exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
                                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
@@ -156,6 +157,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
     settings.DISABLE_METACAT_TRAINING = "true" if exclude_metacat_training else "false"
     settings.ENABLE_EVALUATION_APIS = "true" if add_evaluation_apis else "false"
     settings.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
+    settings.AUTH_USER_ENABLED = "true" if add_user_authentication else "false"
 
     model_service_dep = ModelServiceDep(model_type, settings, model_name)
     globals.model_service_dep = model_service_dep
@@ -182,6 +184,7 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
     settings.DISABLE_METACAT_TRAINING = "false"
     settings.ENABLE_EVALUATION_APIS = "true"
     settings.ENABLE_PREVIEWS_APIS = "true"
+    settings.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep(ModelType.MEDCAT_SNOMED, settings, api_title)
     globals.model_service_dep = model_service_dep

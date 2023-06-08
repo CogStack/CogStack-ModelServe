@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     PROCESS_RATE_LIMIT: str = "180/minute"          # the rate limit on the /process route
     PROCESS_BULK_RATE_LIMIT: str = "90/minute"      # the rate limit on the /process_bulk route
     TYPE_UNIQUE_ID_WHITELIST: str = ""              # the comma-separated TUIs used for filtering and if set to "", all TUIs are whitelisted
+    AUTH_USER_ENABLED: str = "false"                # if "true", enable user authentication on API access
+    AUTH_JWT_SECRET: str = ""                       # the JWT secret and will be ignored if AUTH_USER_ENABLED is not "true"
+    AUTH_ACCESS_TOKEN_EXPIRE_SECONDS: int = 3600    # the seconds after which the JWT will expire
+    AUTH_DATABASE_URL: str = "sqlite+aiosqlite:///./test.db"     # the URL of the authentication database
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")

@@ -12,6 +12,7 @@ get_settings().ENABLE_TRAINING_APIS = "true"
 get_settings().DISABLE_UNSUPERVISED_TRAINING = "false"
 get_settings().ENABLE_EVALUATION_APIS = "true"
 get_settings().ENABLE_PREVIEWS_APIS = "true"
+get_settings().AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")

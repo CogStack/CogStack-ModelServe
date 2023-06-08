@@ -11,13 +11,15 @@ import globals
 from domain import Doc, Tags
 from model_services.base import AbstractModelService
 from utils import annotations_to_entities
+from auth.users import props
 
 router = APIRouter()
 
 
 @router.post("/preview",
              tags=[Tags.Rendering.name],
-             response_class=HTMLResponse)
+             response_class=HTMLResponse,
+             dependencies=[Depends(props.current_active_user)])
 async def get_rendered_entities_from_text(text: str = Body(..., media_type="text/plain"),
                                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> HTMLResponse:
     annotations = model_service.annotate(text)
@@ -31,7 +33,8 @@ async def get_rendered_entities_from_text(text: str = Body(..., media_type="text
 
 @router.post("/preview_trainer_export",
              tags=[Tags.Rendering.name],
-             response_class=HTMLResponse)
+             response_class=HTMLResponse,
+             dependencies=[Depends(props.current_active_user)])
 def get_rendered_entities_from_trainer_export(trainer_export: UploadFile,
                                               project_id: Union[int, None] = None,
                                               document_id: Union[int, None] = None) -> HTMLResponse:

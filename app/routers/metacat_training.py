@@ -8,11 +8,15 @@ from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 import globals
 from domain import Tags
 from model_services.base import AbstractModelService
+from auth.users import props
 
 router = APIRouter()
 
 
-@router.post("/train_metacat", status_code=HTTP_202_ACCEPTED, tags=[Tags.Training.name])
+@router.post("/train_metacat",
+             status_code=HTTP_202_ACCEPTED,
+             tags=[Tags.Training.name],
+             dependencies=[Depends(props.current_active_user)])
 async def train_metacat(trainer_export: UploadFile,
                         response: Response,
                         epochs: int = Query(default=1, description="The number of training epochs", ge=0),

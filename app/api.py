@@ -13,6 +13,8 @@ from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+
+from auth.db import make_sure_db_and_tables
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
@@ -29,7 +31,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         globals.model_service_dep = msd_overwritten
 
     @app.on_event("startup")
-    def on_startup():
+    async def on_startup():
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))
@@ -38,6 +40,8 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
             .instrument(app)
             .expose(app, include_in_schema=False, should_gzip=False)
         )
+        if get_settings().AUTH_USER_ENABLED == "true":
+            await make_sure_db_and_tables()
 
     @app.middleware("http")
     async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
@@ -71,6 +75,9 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
+    if get_settings().AUTH_USER_ENABLED == "true":
+        app = _load_auth_router(app)
+
     app = _load_static_router(app)
     app = _load_invocation_router(app)
     if get_settings().ENABLE_TRAINING_APIS == "true":
@@ -87,6 +94,13 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
     app.openapi = custom_openapi  # type: ignore
 
+    return app
+
+
+def _load_auth_router(app: FastAPI) -> FastAPI:
+    from routers import authentication
+    importlib.reload(authentication)
+    app.include_router(authentication.router)
     return app
 
 

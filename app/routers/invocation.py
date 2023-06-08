@@ -12,6 +12,7 @@ from management.prometheus_metrics import (
     cms_avg_anno_acc_per_doc,
     cms_avg_meta_anno_conf_per_doc,
 )
+from auth.users import props
 
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
@@ -21,7 +22,10 @@ router = APIRouter()
 limiter = get_rate_limiter()
 
 
-@router.get(PATH_INFO, response_model=ModelCard, tags=[Tags.Metadata.name])
+@router.get(PATH_INFO,
+            response_model=ModelCard,
+            tags=[Tags.Metadata.name],
+            dependencies=[Depends(props.current_active_user)])
 async def get_model_card(model_service: AbstractModelService = Depends(globals.model_service_dep)) -> ModelCard:
     return model_service.info()
 
@@ -29,7 +33,8 @@ async def get_model_card(model_service: AbstractModelService = Depends(globals.m
 @router.post(PATH_PROCESS,
              response_model=TextwithAnnotations,
              response_model_exclude_none=True,
-             tags=[Tags.Annotations.name])
+             tags=[Tags.Annotations.name],
+             dependencies=[Depends(props.current_active_user)])
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
 def get_entities_from_text(request: Request,
                            text: str = Body(..., media_type="text/plain"),
@@ -46,7 +51,8 @@ def get_entities_from_text(request: Request,
 @router.post(PATH_PROCESS_BULK,
              response_model=List[TextwithAnnotations],
              response_model_exclude_none=True,
-             tags=[Tags.Annotations.name])
+             tags=[Tags.Annotations.name],
+             dependencies=[Depends(props.current_active_user)])
 @limiter.limit(get_settings().PROCESS_BULK_RATE_LIMIT)
 def get_entities_from_multiple_texts(request: Request,
                                      texts: List[str],
