@@ -26,12 +26,13 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - GELF_INPUT_URI=http://graylog:12201
+      - AUTH_USER_ENABLED=false
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,graylog,localhost
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
     expose:
       - 8000
     ports:
@@ -67,12 +68,13 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - GELF_INPUT_URI=http://graylog:12201
+      - AUTH_USER_ENABLED=false
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,graylog,localhost
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
     expose:
       - 8000
     ports:
@@ -107,12 +109,13 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - GELF_INPUT_URI=http://graylog:12201
+      - AUTH_USER_ENABLED=false
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,graylog,localhost
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
     expose:
       - 8000
     ports:
@@ -148,12 +151,13 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - GELF_INPUT_URI=http://graylog:12201
+      - AUTH_USER_ENABLED=false
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,graylog,localhost
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
     expose:
       - 8000
     ports:
@@ -181,7 +185,7 @@ services:
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained
-      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
+      - ./docker/medcat-umls/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
@@ -189,12 +193,13 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_TRACKING_URI=http://mlflow-ui:5000
       - GELF_INPUT_URI=http://graylog:12201
+      - AUTH_USER_ENABLED=false
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=mlflow-ui,minio,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=mlflow-ui,minio,graylog,localhost
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
     expose:
       - 8000
     ports:
@@ -208,6 +213,8 @@ services:
 
 volumes:
   retrained-models:
+    driver: local
+  auth-users:
     driver: local
 
 networks:
