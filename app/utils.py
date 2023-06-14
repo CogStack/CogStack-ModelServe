@@ -2,24 +2,46 @@ import json
 import socket
 import random
 import struct
+import hashlib
+import re
 
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional
+from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from domain import Annotation, Entity, CodeType
 from config import Settings
+from fastapi_users.jwt import decode_jwt
 
 
 @lru_cache()
-def get_settings():
+def get_settings() -> Settings:
     return Settings()
 
 
-@lru_cache
-def get_rate_limiter():
-    return Limiter(key_func=get_remote_address)
+@lru_cache()
+def get_rate_limiter(auth_user_enabled: Optional[bool] = None) -> Limiter:
+    def get_user_auth(request: Request) -> str:
+        request_headers = request.scope.get("headers", [])
+        limiter_prefix = request.scope.get("root_path", "") + request.scope.get("path") + ":"
+
+        for headers in request_headers:
+            if headers[0].decode() == "authorization":
+                token = headers[1].decode().split("Bearer ")[1]
+                payload = decode_jwt(token, get_settings().AUTH_JWT_SECRET, ["fastapi-users:auth"])
+                sub = payload.get("sub")
+                assert sub is not None, "Cannot find 'sub' in the decoded payload"
+                hash_object = hashlib.sha256(sub.encode())
+                current_key = hash_object.hexdigest()
+                break
+
+        limiter_key = re.sub(r":+", ":", re.sub(r"/+", ":", limiter_prefix + current_key))
+        return limiter_key
+
+    auth_user_enabled = get_settings().AUTH_USER_ENABLED == "true" if auth_user_enabled is None else auth_user_enabled
+    return Limiter(key_func=get_user_auth) if auth_user_enabled else Limiter(key_func=get_remote_address)
 
 
 def get_code_base_uri(model_name: str) -> Optional[str]:

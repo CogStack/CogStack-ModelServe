@@ -3,6 +3,7 @@ from app.utils import (
     get_code_base_uri,
     annotations_to_entities,
     send_gelf_message,
+    get_rate_limiter,
 )
 
 
@@ -39,3 +40,13 @@ def test_send_gelf_message(mocker):
     assert b"\x1e\x0f" in mocked_socket.sendall.call_args[0][0]
     assert b"\x00\x00" in mocked_socket.sendall.call_args[0][0]
     mocked_socket.close.assert_called_once()
+
+
+def test_get_per_address_rate_limiter():
+    limiter = get_rate_limiter(auth_user_enabled=False)
+    assert limiter._key_func.__name__ == "get_remote_address"
+
+
+def test_get_per_user_rate_limiter():
+    limiter = get_rate_limiter(auth_user_enabled=True)
+    assert limiter._key_func.__name__ == "get_user_auth"
