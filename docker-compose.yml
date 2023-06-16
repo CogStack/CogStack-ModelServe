@@ -32,7 +32,7 @@ services:
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio,localhost
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
@@ -77,7 +77,7 @@ services:
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio,localhost
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
@@ -121,7 +121,7 @@ services:
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio,localhost
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
@@ -166,7 +166,7 @@ services:
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio,localhost
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
@@ -211,7 +211,7 @@ services:
       - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=mlflow-ui,minio,localhost
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost

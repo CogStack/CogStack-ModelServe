@@ -7,7 +7,7 @@ import logging
 from typing import List
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST
 from fastapi import APIRouter, Query, Depends, UploadFile, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 
 import globals
 from domain import Tags, Scope
@@ -84,3 +84,23 @@ def get_intra_annotator_agreement_scores(trainer_export: List[UploadFile],
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
         response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
         return response
+
+
+@router.post("/concat_trainer_exports",
+             tags=[Tags.Evaluating.name],
+             response_class=JSONResponse,
+             dependencies=[Depends(props.current_active_user)])
+def get_concatenated_trainer_exports(trainer_export: List[UploadFile]) -> JSONResponse:
+    files = []
+    for te in trainer_export:
+        temp_te = tempfile.NamedTemporaryFile()
+        for line in te.file:
+            temp_te.write(line)
+        temp_te.flush()
+        files.append(temp_te)
+    concatenated = concat_trainer_exports([file.name for file in files])
+    for file in files:
+        file.close()
+    response = JSONResponse(concatenated, media_type="application/json; charset=utf-8")
+    response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{str(uuid.uuid4())}.json"'
+    return response

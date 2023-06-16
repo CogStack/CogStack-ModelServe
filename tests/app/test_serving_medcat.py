@@ -16,6 +16,7 @@ get_settings().AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "another_trainer_export.json")
 TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
 
 
@@ -222,8 +223,10 @@ def test_evaluate_with_trainer_export():
 
 
 def test_intra_annotator_agreement_scores_per_concept():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
-        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept", files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
@@ -239,24 +242,41 @@ def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
 
 
 def test_unknown_scope_on_getting_iaa_scores():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
-        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=unknown", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=unknown", files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": "Unknown scope: \"unknown\""}
 
 
 def test_intra_annotator_agreement_scores_per_doc():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
-        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_document", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document", files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
 
 
 def test_intra_annotator_agreement_scores_per_span():
-    with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
-        response = client.post("/iaa-scores?annotator_a_project_id=1&annotator_b_project_id=2&scope=per_span", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span", files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "doc_id,span_start,span_end,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
+
+
+def test_concat_trainer_exports():
+    response = client.post("/concat_trainer_exports", files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json; charset=utf-8"
+    assert len(response.text) == 36842
