@@ -17,7 +17,7 @@ data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fix
 
 
 def test_medcat_deid_supervised_trainer():
-    ensure_no_active_run(120)
+    ensure_no_active_run()
     with patch.object(deid_trainer, "run", wraps=deid_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             deid_trainer.train(f, 1, 1, "training_id", "input_file_name")

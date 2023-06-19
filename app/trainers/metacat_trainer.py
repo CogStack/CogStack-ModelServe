@@ -3,6 +3,7 @@ import logging
 import shutil
 import gc
 from typing import Dict, TextIO, Optional
+from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from exception import TrainingFailedException
@@ -103,6 +104,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
+            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False

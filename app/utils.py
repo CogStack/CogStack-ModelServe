@@ -9,6 +9,7 @@ from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional
 from fastapi import Request
+from starlette.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from domain import Annotation, Entity, CodeType
@@ -41,7 +42,19 @@ def get_rate_limiter(auth_user_enabled: Optional[bool] = None) -> Limiter:
         return limiter_key
 
     auth_user_enabled = get_settings().AUTH_USER_ENABLED == "true" if auth_user_enabled is None else auth_user_enabled
-    return Limiter(key_func=get_user_auth) if auth_user_enabled else Limiter(key_func=get_remote_address)
+    return Limiter(key_func=get_user_auth, strategy="moving-window") if auth_user_enabled else Limiter(key_func=get_remote_address, strategy="moving-window")
+
+
+def rate_limit_exceeded_handler(*args, **kwargs) -> JSONResponse:
+    return JSONResponse({"error": "Too many requests. Please wait and try your request again."}, status_code=429)
+
+
+def adjust_rate_limit_str(rate_limit: str) -> str:
+    print(rate_limit)
+    if "per" in rate_limit:
+        return f"{int(rate_limit.split('per')[0]) * 2} per {rate_limit.split('per')[1]}"
+    else:
+        return f"{int(rate_limit.split('/')[0]) * 2}/{rate_limit.split('/')[1]}"
 
 
 def get_code_base_uri(model_name: str) -> Optional[str]:

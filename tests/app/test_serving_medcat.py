@@ -36,7 +36,7 @@ def test_process():
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
-        "start": 1,
+        "start": 0,
         "end": 15,
         "accuracy": 1.0,
         "meta_anns": {
@@ -62,7 +62,7 @@ def test_process_bulk():
         [{
             "label_name": "Spinal stenosis",
             "label_id": "76107001",
-            "start": 1,
+            "start": 0,
             "end": 15,
             "accuracy": 1.0,
             "meta_anns": {
@@ -76,7 +76,7 @@ def test_process_bulk():
         [{
             "label_name": "Spinal stenosis",
             "label_id": "76107001",
-            "start": 1,
+            "start": 0,
             "end": 15,
             "accuracy": 1.0,
             "meta_anns": {
@@ -96,7 +96,7 @@ def test_process_bulk():
             "annotations": [{
                 "label_name": "Spinal stenosis",
                 "label_id": "76107001",
-                "start": 1,
+                "start": 0,
                 "end": 15,
                 "accuracy": 1.0,
                 "meta_anns": {
@@ -113,7 +113,7 @@ def test_process_bulk():
             "annotations": [{
                 "label_name": "Spinal stenosis",
                 "label_id": "76107001",
-                "start": 1,
+                "start": 0,
                 "end": 15,
                 "accuracy": 1.0,
                 "meta_anns": {
@@ -128,11 +128,33 @@ def test_process_bulk():
     ]
 
 
+def test_redact():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.text == "[Spinal stenosis]"
+
+
 def test_preview():
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
-        "start": 1,
+        "start": 0,
         "end": 15,
         "accuracy": 1.0,
         "meta_anns": {

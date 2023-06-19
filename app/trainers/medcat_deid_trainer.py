@@ -4,6 +4,7 @@ import shutil
 import gc
 import pandas as pd
 from typing import Dict, TextIO
+from medcat import __version__ as medcat_version
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
@@ -112,6 +113,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
+            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False

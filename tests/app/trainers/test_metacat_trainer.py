@@ -43,7 +43,7 @@ def test_save_model():
 
 
 def test_metacat_trainer():
-    ensure_no_active_run(120)
+    ensure_no_active_run()
     with patch.object(metacat_trainer, "run", wraps=metacat_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             metacat_trainer.train(f, 1, 1, "training_id", "input_file_name")

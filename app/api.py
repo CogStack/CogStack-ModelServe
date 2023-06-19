@@ -11,7 +11,6 @@ from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
 from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -19,14 +18,14 @@ from auth.db import make_sure_db_and_tables
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
-from utils import get_settings, get_rate_limiter
+from utils import get_settings, get_rate_limiter, rate_limit_exceeded_handler
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
     app = FastAPI(openapi_tags=tags_metadata)
     app.state.limiter = get_rate_limiter()
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
 
     if msd_overwritten is not None:

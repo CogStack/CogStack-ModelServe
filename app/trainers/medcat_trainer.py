@@ -311,7 +311,6 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
-            trainer._tracker_client.log_trainer_version(medcat_version)
             trainer._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Unsupervised training failed")
@@ -319,6 +318,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
+            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
