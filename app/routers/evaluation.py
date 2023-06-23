@@ -50,7 +50,7 @@ def get_evaluation_with_trainer_export(trainer_export: UploadFile,
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-def get_intra_annotator_agreement_scores(trainer_export: List[UploadFile],
+def get_inter_annotator_agreement_scores(trainer_export: List[UploadFile],
                                          annotator_a_project_id: int,
                                          annotator_b_project_id: int,
                                          scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:

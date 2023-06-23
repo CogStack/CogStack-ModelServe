@@ -73,6 +73,20 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         openapi_schema["info"]["x-logo"] = {
             "url": "https://avatars.githubusercontent.com/u/28688163?s=200&v=4"
         }
+        for path in openapi_schema["paths"].values():
+            for method_data in path.values():
+                if "requestBody" in method_data:
+                    for content_type, content in method_data["requestBody"]["content"].items():
+                        if content_type == "multipart/form-data":
+                            schema_name = content["schema"]["$ref"].lstrip("#/components/schemas/")
+                            schema_data = openapi_schema["components"]["schemas"].pop(schema_name)
+                            schema_data["title"] = "UploadFile"
+                            content["schema"] = schema_data
+                        elif content_type == "application/x-www-form-urlencoded":
+                            schema_name = content["schema"]["$ref"].lstrip("#/components/schemas/")
+                            schema_data = openapi_schema["components"]["schemas"].pop(schema_name)
+                            schema_data["title"] = "FormData"
+                            content["schema"] = schema_data
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 

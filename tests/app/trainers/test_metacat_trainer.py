@@ -1,10 +1,10 @@
 import os
+import pytest
 from unittest.mock import create_autospec, patch, Mock
 from medcat.config_meta_cat import General, Model, Train
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.metacat_trainer import MetacatTrainer
-from ..utils import ensure_no_active_run
 
 model_service = create_autospec(MedCATModel,
                                 _config=Settings(),
@@ -16,6 +16,25 @@ metacat_trainer = MetacatTrainer(model_service)
 metacat_trainer.model_name = "metacat_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
+
+
+@pytest.fixture
+def mlflow_fixture(mocker):
+    active_run = Mock()
+    active_run.info.run_id = "run_id"
+    mocker.patch("mlflow.set_tracking_uri")
+    mocker.patch("mlflow.get_experiment_by_name", return_value=None)
+    mocker.patch("mlflow.create_experiment", return_value="experiment_id")
+    mocker.patch("mlflow.start_run", return_value=active_run)
+    mocker.patch("mlflow.set_tags")
+    mocker.patch("mlflow.set_tag")
+    mocker.patch("mlflow.log_params")
+    mocker.patch("mlflow.log_metrics")
+    mocker.patch("mlflow.log_artifact")
+    mocker.patch("mlflow.pyfunc.log_model")
+    mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
+    mocker.patch("mlflow.register_model")
+    mocker.patch("mlflow.end_run")
 
 
 def test_get_flattened_config():
@@ -42,8 +61,7 @@ def test_save_model():
     model.create_model_pack.called_once_with("retrained_models_dir", "model")
 
 
-def test_metacat_trainer():
-    ensure_no_active_run()
+def test_metacat_trainer(mlflow_fixture):
     with patch.object(metacat_trainer, "run", wraps=metacat_trainer.run) as run:
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             metacat_trainer.train(f, 1, 1, "training_id", "input_file_name")

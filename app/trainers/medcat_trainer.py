@@ -103,7 +103,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
-            cui_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+            cui_counts, cui_unique_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
             trainer._tracker_client.log_document_size(num_of_docs)
             training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
             logger.info("Performing supervised training...")
@@ -140,7 +140,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 })
                 cuis.append(cui)
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            trainer._save_trained_concepts(cui_counts, model)
+            trainer._save_trained_concepts(cui_counts, cui_unique_counts, model)
             trainer._tracker_client.log_classes(cuis)
             trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
             if not skip_save_model:
@@ -189,7 +189,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             }
             self._tracker_client.send_model_stats(metrics, int(metric[0]))
 
-    def _save_trained_concepts(self, training_concepts: Dict, model: CAT) -> None:
+    def _save_trained_concepts(self, training_concepts: Dict, training_unique_concepts: Dict, model: CAT) -> None:
         if len(training_concepts.keys()) != 0:
             unknown_concepts = set(training_concepts.keys()) - set(model.cdb.cui2names.keys())
             unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
@@ -204,17 +204,20 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             train_count = []
             concept_names = []
             annotation_count = []
+            annotation_unique_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
                 train_count.append(model.cdb.cui2count_train[c] if c in model.cdb.cui2count_train else 0)
                 concept_names.append(model.cdb.get_name(c))
                 annotation_count.append(training_concepts[c])
+                annotation_unique_count.append(training_unique_concepts[c])
             self._tracker_client.save_dataframe("trained_concepts.csv",
                                                 pd.DataFrame({
                                                     "concept": concepts,
                                                     "name": concept_names,
                                                     "train_count": train_count,
                                                     "anno_count": annotation_count,
+                                                    "anno_unique_count": annotation_unique_count,
                                                 }),
                                                 self._model_name)
 

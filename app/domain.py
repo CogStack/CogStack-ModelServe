@@ -14,7 +14,7 @@ class Annotation(BaseModel):
     meta_anns: Optional[dict] = None
 
 
-class TextwithAnnotations(BaseModel):
+class TextWithAnnotations(BaseModel):
     text: str
     annotations: List[Annotation]
 

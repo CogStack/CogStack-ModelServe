@@ -4,7 +4,7 @@ from typing import Dict, List
 from fastapi import APIRouter, Depends, Body, Request, Response
 
 import globals
-from domain import TextwithAnnotations, ModelCard, Tags
+from domain import TextWithAnnotations, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings, get_rate_limiter
 from management.prometheus_metrics import (
@@ -32,7 +32,7 @@ async def get_model_card(model_service: AbstractModelService = Depends(globals.m
 
 
 @router.post(PATH_PROCESS,
-             response_model=TextwithAnnotations,
+             response_model=TextWithAnnotations,
              response_model_exclude_none=True,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(props.current_active_user)])
@@ -50,7 +50,7 @@ def get_entities_from_text(request: Request,
 
 
 @router.post(PATH_PROCESS_BULK,
-             response_model=List[TextwithAnnotations],
+             response_model=List[TextWithAnnotations],
              response_model_exclude_none=True,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(props.current_active_user)])

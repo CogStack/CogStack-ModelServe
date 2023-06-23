@@ -36,6 +36,7 @@ jobs:
           python app/cli/cli.py export-model-apis --model-type medcat_umls --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
           python app/cli/cli.py export-model-apis --model-type medcat_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
           python app/cli/cli.py export-model-apis --model-type transformers_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
+          python app/cli/cli.py export-openapi-spec
           git fetch origin gh-pages:gh-pages
           git checkout gh-pages
           mv ./medcat_snomed_model_apis.json ./docs/medcat_snomed_model_apis.json
@@ -43,10 +44,11 @@ jobs:
           mv ./medcat_umls_model_apis.json ./docs/medcat_umls_model_apis.json
           mv ./medcat_deid_model_apis.json ./docs/medcat_deid_model_apis.json
           mv ./transformers_deid_model_apis.json ./docs/transformers_deid_model_apis.json
+          mv ./cogstack_model_serve_apis.json ./docs/cogstack_model_serve_apis.json
           git config --global user.name "Xi Bai"
           git config --global user.email "baixiac@gmail.com"
           if [[ `git status --porcelain --untracked-files=no` ]]; then
-            git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/medcat_deid_model_apis.json ./docs/transformers_deid_model_apis.json
+            git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/medcat_deid_model_apis.json ./docs/transformers_deid_model_apis.json ./docs/cogstack_model_serve_apis.json
             git commit -m "update api docs"
           else
             echo "No API doc changes detected and publishing skipped."

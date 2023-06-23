@@ -244,7 +244,7 @@ def test_evaluate_with_trainer_export():
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
 
 
-def test_intra_annotator_agreement_scores_per_concept():
+def test_inter_annotator_agreement_scores_per_concept():
     response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept", files=[
         ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
         ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
@@ -273,7 +273,7 @@ def test_unknown_scope_on_getting_iaa_scores():
     assert response.json() == {"detail": "Unknown scope: \"unknown\""}
 
 
-def test_intra_annotator_agreement_scores_per_doc():
+def test_inter_annotator_agreement_scores_per_doc():
     response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document", files=[
         ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
         ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
@@ -283,7 +283,7 @@ def test_intra_annotator_agreement_scores_per_doc():
     assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
 
 
-def test_intra_annotator_agreement_scores_per_span():
+def test_inter_annotator_agreement_scores_per_span():
     response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span", files=[
         ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
         ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),

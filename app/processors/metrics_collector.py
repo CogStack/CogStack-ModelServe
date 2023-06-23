@@ -145,8 +145,8 @@ def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: 
         return combined
 
 
-def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], int]:
-    cui_counts: Dict = defaultdict(int)
+def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], Dict[str, int], int]:
+    cui_values: Dict = defaultdict(list)
     num_of_docs = 0
     with open(file_path, "r") as f:
         export_object = json.load(f)
@@ -158,9 +158,11 @@ def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], int]:
                 elif type(doc["annotations"]) == dict:
                     annotations = list(doc["annotations"].values())
                 for annotation in annotations:
-                    cui_counts[annotation["cui"]] += 1
+                    cui_values[annotation["cui"]].append(annotation["value"].lower())
                 num_of_docs += 1
-    return dict(cui_counts), num_of_docs
+    cui_counts = {cui: len(values) for cui, values in cui_values.items()}
+    cui_unique_counts = {cui: len(set(values)) for cui, values in cui_values.items()}
+    return cui_counts, cui_unique_counts, num_of_docs
 
 
 def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
