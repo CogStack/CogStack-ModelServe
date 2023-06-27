@@ -31,11 +31,12 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             ner = model._addl_ner[0]
 
-            params = {f"transformers.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()}
-            for key, val in params.items():
-                # Otherwise it will trigger an MLflow bug
-                params[key] = "<EMPTY>" if val == "" else val
-            trainer._tracker_client.log_model_config(params)
+            ner_config = {f"transformers.cat_config.{arg}": str(val) for arg, val in ner.config.general.dict().items()}
+            ner_config.update({f"transformers.training.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()})
+            for key, val in ner_config.items():
+                ner_config[key] = "<EMPTY>" if val == "" else val
+            trainer._tracker_client.log_model_config(ner_config)
+            trainer._tracker_client.log_trainer_version(medcat_version)
 
             eval_results: pd.DataFrame = None
             examples = None
@@ -113,7 +114,6 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
-            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False

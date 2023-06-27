@@ -4,10 +4,11 @@ import random
 import struct
 import hashlib
 import re
+import inspect
 
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional
+from typing import List, Optional, Dict, Callable
 from fastapi import Request
 from starlette.responses import JSONResponse
 from slowapi import Limiter
@@ -97,6 +98,12 @@ def send_gelf_message(message: str, gelf_input_uri: ParseResult) -> None:
     message_id = struct.pack("<Q", random.getrandbits(64))
     sock.sendall(b'\x1e\x0f' + message_id + b'\x00\x00' + bytes(json.dumps(message), "utf-8"))
     sock.close()
+
+
+def get_func_params_as_dict(func: Callable) -> Dict:
+    signature = inspect.signature(func)
+    params = {name: param.default for name, param in signature.parameters.items() if param.default is not inspect.Parameter.empty}
+    return params
 
 
 TYPE_ID_TO_NAME_PATCH = {

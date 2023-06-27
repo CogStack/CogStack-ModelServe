@@ -4,6 +4,7 @@ from app.utils import (
     annotations_to_entities,
     send_gelf_message,
     get_rate_limiter,
+    get_func_params_as_dict,
 )
 
 
@@ -50,3 +51,10 @@ def test_get_per_address_rate_limiter():
 def test_get_per_user_rate_limiter():
     limiter = get_rate_limiter(auth_user_enabled=True)
     assert limiter._key_func.__name__ == "get_user_auth"
+
+
+def test_get_func_params_as_dict():
+    def func(arg1, arg2=None, arg3="arg3"):
+        pass
+    params = get_func_params_as_dict(func)
+    assert params == {"arg2": None, "arg3": "arg3"}

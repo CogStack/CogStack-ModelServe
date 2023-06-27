@@ -16,6 +16,7 @@ from model_services.base import AbstractModelService
 from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
 from processors.metrics_collector import evaluate_model_with_trainer_export, get_stats_from_trainer_export
+from utils import get_func_params_as_dict
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class _MedcatTrainerCommon(object):
         params[f"{prefix}punct_checker"] = str(model.cdb.config.punct_checker)
         params.pop(f"{prefix}linking.filters", None)  # deal with the length value in the older model
         for key, val in params.items():
-            if val == "":  # otherwise it will trigger an MLflow bug
+            if val == "":
                 params[key] = "<EMPTY>"
         return params
 
@@ -103,12 +104,15 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
+            trainer._tracker_client.log_trainer_version(medcat_version)
             cui_counts, cui_unique_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
             trainer._tracker_client.log_document_size(num_of_docs)
             training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
             logger.info("Performing supervised training...")
+            train_supervised_params = get_func_params_as_dict(model.train_supervised)
+            train_supervised_params.update(training_params)
             with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
-                fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**training_params)
+                fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**train_supervised_params)
             trainer._save_examples(examples, ["tp", "tn"])
             del examples
             gc.collect()
@@ -158,7 +162,6 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Supervised training finished")
-            trainer._tracker_client.log_trainer_version(medcat_version)
             trainer._tracker_client.end_with_success()
         except Exception as e:
             logger.error("Supervised training failed")
@@ -274,14 +277,17 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
             model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
+            trainer._tracker_client.log_trainer_version(medcat_version)
             logger.info("Performing unsupervised training...")
             step = 0
             trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
             before_cui2count_train = dict(model.cdb.cui2count_train)
             num_of_docs = 0
+            train_unsupervised_params = get_func_params_as_dict(model.train)
+            train_unsupervised_params.update(training_params)
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
-                model.train(batch, **training_params)
+                model.train(batch, **train_unsupervised_params)
                 num_of_docs += len(batch)
                 trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
 
@@ -321,7 +327,6 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
-            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False

@@ -24,7 +24,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         for key, val in model.config.train.__dict__.items():
             params[f"{prefix}train.{key}"] = str(val)
         for key, val in params.items():
-            if val == "":  # otherwise it will trigger an MLflow bug
+            if val == "":
                 params[key] = "<EMPTY>"
         return params
 
@@ -49,6 +49,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             for meta_cat in model._meta_cats:
                 category_name = meta_cat.config.general["category_name"]
                 trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
+                trainer._tracker_client.log_trainer_version(medcat_version)
                 logger.info(f'Performing supervised training on category "{category_name}"...')
 
                 for epoch in range(training_params["nepochs"]):
@@ -104,7 +105,6 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
-            trainer._tracker_client.log_trainer_version(medcat_version)
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False

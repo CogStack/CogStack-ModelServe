@@ -47,8 +47,8 @@ jobs:
           mv ./cogstack_model_serve_apis.json ./docs/cogstack_model_serve_apis.json
           git config --global user.name "Xi Bai"
           git config --global user.email "baixiac@gmail.com"
+          git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/medcat_deid_model_apis.json ./docs/transformers_deid_model_apis.json ./docs/cogstack_model_serve_apis.json
           if [[ `git status --porcelain --untracked-files=no` ]]; then
-            git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/medcat_deid_model_apis.json ./docs/transformers_deid_model_apis.json ./docs/cogstack_model_serve_apis.json
             git commit -m "update api docs"
           else
             echo "No API doc changes detected and publishing skipped."
