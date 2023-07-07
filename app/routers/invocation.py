@@ -1,11 +1,14 @@
 import statistics
 import tempfile
+from io import BytesIO
+
+import json
 import ijson
 import uuid
 from typing import Dict, List
 
 from fastapi import APIRouter, Depends, Body, Request, Response, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
 
 import globals
 from domain import TextWithAnnotations, ModelCard, Tags
@@ -83,11 +86,11 @@ def get_entities_from_multiple_texts(request: Request,
 @router.post(PATH_PROCESS_BULK_FILE,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(props.current_active_user)])
-def get_entities_from_mult_texts_file(response: Response,
-                                      mult_texts_file: UploadFile = File(...),
-                                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+def extract_entities_from_text_list_file_as_json_file(response: Response,
+                                                      text_list_file: UploadFile = File(...),
+                                                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
     with tempfile.NamedTemporaryFile() as data_file:
-        for line in mult_texts_file.file:
+        for line in text_list_file.file:
             data_file.write(line)
         data_file.flush()
 
@@ -110,7 +113,8 @@ def get_entities_from_mult_texts_file(response: Response,
         _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
         _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
 
-        response = JSONResponse(body, media_type="application/json; charset=utf-8")
+        json_file = BytesIO(json.dumps(body).encode())
+        response = StreamingResponse(json_file, media_type="application/json")
         response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{str(uuid.uuid4())}.json"'
         return response
 

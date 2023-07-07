@@ -89,4 +89,4 @@ def test_preview():
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"

@@ -1,5 +1,8 @@
 import os
 import tempfile
+
+import httpx
+import json
 import pytest
 from fastapi.testclient import TestClient
 from app.api import get_model_server
@@ -171,14 +174,14 @@ def test_preview():
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"
 
 
 def test_preview_trainer_export():
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 2
 
 
@@ -186,7 +189,7 @@ def test_preview_trainer_export_with_project_id():
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 2
 
 
@@ -194,7 +197,7 @@ def test_preview_trainer_export_with_document_id():
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 1
 
 
@@ -202,7 +205,7 @@ def test_preview_trainer_export_with_project_and_document_ids():
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 200
-    assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+    assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 1
 
 
@@ -305,7 +308,7 @@ def test_concat_trainer_exports():
     assert len(response.text) == 36842
 
 
-def test_get_entities_from_mult_texts_file():
+def test_extract_entities_from_text_list_file_as_json_file():
     annotations_list = [
         [{
             "label_name": "Spinal stenosis",
@@ -325,11 +328,11 @@ def test_get_entities_from_mult_texts_file():
     model_service.batch_annotate.return_value = annotations_list
 
     response = client.post("/process_bulk_file", files=[
-        ("mult_texts_file", open(MULTI_TEXTS_FILE_PATH, "rb")),
+        ("text_list_file", open(MULTI_TEXTS_FILE_PATH, "rb")),
     ])
 
-    assert response.json() == [
-        {
+    assert isinstance(response, httpx.Response)
+    assert json.loads(response.content) == [{
             "text": "Description: Intracerebral hemorrhage (very acute clinical changes occurred immediately).\nCC: Left hand numbness on presentation; then developed lethargy later that day.\nHX: On the day of presentation, this 72 y/o RHM suddenly developed generalized weakness and lightheadedness, and could not rise from a chair. Four hours later he experienced sudden left hand numbness lasting two hours. There were no other associated symptoms except for the generalized weakness and lightheadedness. He denied vertigo.\nHe had been experiencing falling spells without associated LOC up to several times a month for the past year.\nMEDS: procardia SR, Lasix, Ecotrin, KCL, Digoxin, Colace, Coumadin.\nPMH: 1)8/92 evaluation for presyncope (Echocardiogram showed: AV fibrosis/calcification, AV stenosis/insufficiency, MV stenosis with annular calcification and regurgitation, moderate TR, Decreased LV systolic function, severe LAE. MRI brain: focal areas of increased T2 signal in the left cerebellum and in the brainstem probably representing microvascular ischemic disease. IVG (MUGA scan)revealed: global hypokinesis of the LV and biventricular dysfunction, RV ejection Fx 45% and LV ejection Fx 39%. He was subsequently placed on coumadin severe valvular heart disease), 2)HTN, 3)Rheumatic fever and heart disease, 4)COPD, 5)ETOH abuse, 6)colonic polyps, 7)CAD, 8)CHF, 9)Appendectomy, 10)Junctional tachycardia.",
             "annotations": [{
                 "label_name": "Spinal stenosis",
