@@ -6,11 +6,12 @@ from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.metacat_trainer import MetacatTrainer
 
+model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 model_service = create_autospec(MedCATModel,
                                 _config=Settings(),
-                                _model_parent_dir="model_parent_dir",
+                                _model_parent_dir=model_parent_dir,
                                 _enable_trainer=True,
-                                _model_pack_path="model_parent_dir/mode.zip",
+                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
                                 _meta_cat_config_dict={"general": {"device": "cpu"}})
 metacat_trainer = MetacatTrainer(model_service)
 metacat_trainer.model_name = "metacat_trainer"
@@ -63,7 +64,9 @@ def test_save_model():
 
 def test_metacat_trainer(mlflow_fixture):
     with patch.object(metacat_trainer, "run", wraps=metacat_trainer.run) as run:
+        metacat_trainer._tracker_client = Mock()
+        metacat_trainer._tracker_client.start_tracking = Mock(return_value=("experiment_id", "run_id"))
         with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
             metacat_trainer.train(f, 1, 1, "training_id", "input_file_name")
-            metacat_trainer._tracker_client.end_with_success()
+    metacat_trainer._tracker_client.start_tracking.assert_called_once()
     run.assert_called_once()
