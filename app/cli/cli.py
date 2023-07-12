@@ -7,7 +7,7 @@ import uuid
 
 from parent_dir import parent_dir  # noqa
 
-import asyncio
+import uvicorn
 import shutil
 import warnings
 import typer
@@ -16,8 +16,6 @@ import globals
 
 from typing import Optional
 from urllib.parse import urlparse
-from hypercorn.config import Config
-from hypercorn.asyncio import serve
 from fastapi.routing import APIRoute
 from domain import ModelType
 from registry import model_service_registry
@@ -93,11 +91,11 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         print("Error: Neither the model path or the mlflow model uri was passed in")
         sys.exit(1)
 
-    config = Config()
-    config.bind = [f"{host}:{port}"]
-    config.access_log_format = "%(R)s %(s)s %(st)s %(D)s %({Header}o)s"
-    config.accesslog = logger
-    asyncio.run(serve(app, config))  # type: ignore
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
+    log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
+    logger.info(f'Start serving model "{model_type}" on {host}:{host}')
+    uvicorn.run(app, host=host, port=int(port), log_config=log_config)
 
 
 @cmd_app.command("register")
