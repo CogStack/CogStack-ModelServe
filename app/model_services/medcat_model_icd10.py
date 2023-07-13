@@ -31,9 +31,9 @@ class MedCATModelIcd10(MedCATModel):
         else:
             new_rows = []
             for _, row in df.iterrows():
-                if self.ICD10_KEY not in row:
-                    logger.error("No mapped ICD-10 code found in the record")
-                if row[self.ICD10_KEY]:
+                if self.ICD10_KEY not in row or not row[self.ICD10_KEY]:
+                    logger.debug(f"No mapped ICD-10 code associated with the entity: {row}")
+                else:
                     for icd10 in row[self.ICD10_KEY]:
                         output_row = row.copy()
                         if isinstance(icd10, str):
@@ -41,10 +41,16 @@ class MedCATModelIcd10(MedCATModel):
                         elif isinstance(icd10, dict):
                             output_row[self.ICD10_KEY] = icd10.get("code")
                             output_row["pretty_name"] = icd10.get("name")
-                new_rows.append(output_row)
+                        elif isinstance(icd10, list) and icd10:
+                            output_row[self.ICD10_KEY] = icd10[-1]
+                        else:
+                            logger.error(f"Unknown format for the ICD-10 code(s): {icd10}")
+                    new_rows.append(output_row)
             if new_rows:
                 df = pd.DataFrame(new_rows)
-            df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "acc": "accuracy"}, inplace=True)
-            df = self._retrieve_meta_annotations(df)
+                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "acc": "accuracy"}, inplace=True)
+                df = self._retrieve_meta_annotations(df)
+            else:
+                df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         records = df.to_dict("records")
         return records

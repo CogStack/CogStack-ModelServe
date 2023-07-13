@@ -23,7 +23,7 @@ from utils import get_settings, get_rate_limiter, rate_limit_exceeded_handler
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
-    app = FastAPI(openapi_tags=tags_metadata)
+    app = FastAPI(debug=(get_settings().DEBUG == "true"), openapi_tags=tags_metadata)
     app.state.limiter = get_rate_limiter()
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)

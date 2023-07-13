@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     AUTH_JWT_SECRET: str = ""                       # the JWT secret and will be ignored if AUTH_USER_ENABLED is not "true"
     AUTH_ACCESS_TOKEN_EXPIRE_SECONDS: int = 3600    # the seconds after which the JWT will expire
     AUTH_DATABASE_URL: str = "sqlite+aiosqlite:///./cms-users.db"     # the URL of the authentication database
+    DEBUG: str = "false"                            # if "true", the debug mode is switched on
 
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")
