@@ -94,7 +94,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-    logger.info(f'Start serving model "{model_type}" on {host}:{host}')
+    logger.info(f'Start serving model "{model_type}" on {host}:{port}')
     uvicorn.run(app, host=host, port=int(port), log_config=log_config)
 
 

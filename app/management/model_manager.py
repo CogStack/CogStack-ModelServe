@@ -10,8 +10,6 @@ from mlflow.pyfunc import PythonModel, PythonModelContext
 from model_services.base import AbstractModelService
 from config import Settings
 
-os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
-
 
 class ModelManager(PythonModel):
 

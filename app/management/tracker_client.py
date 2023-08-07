@@ -12,7 +12,6 @@ from mlflow.tracking import MlflowClient
 from management.model_manager import ModelManager
 from exception import StartTrainingException
 
-os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
 logger = logging.getLogger(__name__)
 
 

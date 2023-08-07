@@ -5,6 +5,7 @@ import struct
 import hashlib
 import re
 import inspect
+import os
 
 from urllib.parse import ParseResult
 from functools import lru_cache
@@ -20,6 +21,7 @@ from fastapi_users.jwt import decode_jwt
 
 @lru_cache()
 def get_settings() -> Settings:
+    os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     return Settings()
 
 

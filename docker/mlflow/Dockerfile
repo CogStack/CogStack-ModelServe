@@ -18,9 +18,11 @@ COPY docker/mlflow/requirements.txt /requirements.txt
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
     pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p ${MLFLOW_HOME}/scripts
-COPY docker/mlflow/scripts/run.sh ${MLFLOW_HOME}/scripts/run.sh
-RUN chmod +x ${MLFLOW_HOME}/scripts/run.sh
+RUN mkdir -p ${MLFLOW_HOME}/../auth
+COPY docker/mlflow/auth/basic_auth.ini ${MLFLOW_HOME}/../auth/basic_auth.ini
+RUN mkdir -p ${MLFLOW_HOME}/../scripts
+COPY docker/mlflow/scripts/run.sh ${MLFLOW_HOME}/../scripts/run.sh
+RUN chmod +x ${MLFLOW_HOME}/../scripts/run.sh
 
 WORKDIR ${MLFLOW_HOME}
-ENTRYPOINT ["./scripts/run.sh"]
+ENTRYPOINT ["./../scripts/run.sh"]
