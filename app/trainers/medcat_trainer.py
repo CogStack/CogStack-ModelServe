@@ -201,9 +201,9 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 "unknown_concept_pct": unknown_concept_pct,
             }, 0)
             if unknown_concepts:
-                self._tracker_client.save_dataframe("unknown_concepts.csv",
-                                                    pd.DataFrame({"concept": list(unknown_concepts)}),
-                                                    self._model_name)
+                self._tracker_client.save_dataframe_as_csv("unknown_concepts.csv",
+                                                           pd.DataFrame({"concept": list(unknown_concepts)}),
+                                                           self._model_name)
             train_count = []
             concept_names = []
             annotation_count = []
@@ -214,23 +214,23 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 concept_names.append(model.cdb.get_name(c))
                 annotation_count.append(training_concepts[c])
                 annotation_unique_count.append(training_unique_concepts[c])
-            self._tracker_client.save_dataframe("trained_concepts.csv",
-                                                pd.DataFrame({
-                                                    "concept": concepts,
-                                                    "name": concept_names,
-                                                    "train_count": train_count,
-                                                    "anno_count": annotation_count,
-                                                    "anno_unique_count": annotation_unique_count,
-                                                }),
-                                                self._model_name)
+            self._tracker_client.save_dataframe_as_csv("trained_concepts.csv",
+                                                       pd.DataFrame({
+                                                            "concept": concepts,
+                                                            "name": concept_names,
+                                                            "train_count": train_count,
+                                                            "anno_count": annotation_count,
+                                                            "anno_unique_count": annotation_unique_count,
+                                                       }),
+                                                       self._model_name)
 
     def _evaluate_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
-        self._tracker_client.save_dataframe("evaluation.csv",
-                                            evaluate_model_with_trainer_export(data_file_path,
-                                                                               medcat_model,
-                                                                               return_df=True,
-                                                                               include_anchors=True),
-                                            self._model_name)
+        self._tracker_client.save_dataframe_as_csv("evaluation.csv",
+                                                   evaluate_model_with_trainer_export(data_file_path,
+                                                                                      medcat_model,
+                                                                                      return_df=True,
+                                                                                      include_anchors=True),
+                                                   self._model_name)
 
     def _save_examples(self, examples: Dict, excluded_example_keys: List = []):
         for e_key, e_items in examples.items():
@@ -245,7 +245,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 for item in items:
                     rows.append([concept] + list(item.values())[:len(columns)-1])
             if rows:
-                self._tracker_client.save_dataframe(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
+                self._tracker_client.save_dataframe_as_csv(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
 
 
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):

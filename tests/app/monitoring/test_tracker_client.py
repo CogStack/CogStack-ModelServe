@@ -20,6 +20,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.log_params")
     mocker.patch("mlflow.log_metrics")
     mocker.patch("mlflow.log_artifact")
+    mocker.patch("mlflow.log_table")
     mocker.patch("mlflow.pyfunc.log_model")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.register_model")
@@ -90,16 +91,22 @@ def test_save_model_artifact(mlflow_fixture):
     mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
 
 
-def test_save_dataframe(mlflow_fixture):
+def test_save_dataframe_as_csv(mlflow_fixture):
     tracker_client = TrackerClient("")
-    tracker_client.save_dataframe("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
+    tracker_client.save_dataframe_as_csv("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")
     mlflow.log_artifact.assert_called_once_with(StringContains("test.csv"), artifact_path=os.path.join("model_name", "stats"))
 
 
-def test_save_dict(mlflow_fixture):
+def test_save_dict_as_json(mlflow_fixture):
     tracker_client = TrackerClient("")
-    tracker_client.save_dict("test.json", {"key": {"value": ["v1", "v2"]}}, "model_name")
+    tracker_client.save_dict_as_json("test.json", {"key": {"value": ["v1", "v2"]}}, "model_name")
     mlflow.log_artifact.assert_called_once_with(StringContains("test.json"), artifact_path=os.path.join("model_name", "stats"))
+
+
+def test_save_table_dict(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_table_dict({"col1": ["cell1", "cell2"], "col2": ["cell3", "cell4"]}, "model_name", "table.json")
+    mlflow.log_table.assert_called_once_with(data={"col1": ["cell1", "cell2"], "col2": ["cell3", "cell4"]}, artifact_file=os.path.join("model_name", "tables", "table.json"))
 
 
 def test_save_model_local(mlflow_fixture_file_uri):

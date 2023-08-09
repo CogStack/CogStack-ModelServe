@@ -92,7 +92,7 @@ class TrackerClient(object):
         mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts"))
 
     @staticmethod
-    def save_dataframe(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
+    def save_dataframe_as_csv(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
         model_name = model_name.replace(" ", "_")
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, file_name), "w") as f:
@@ -101,13 +101,18 @@ class TrackerClient(object):
                 mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
 
     @staticmethod
-    def save_dict(file_name: str, data: Dict, model_name: str) -> None:
+    def save_dict_as_json(file_name: str, data: Dict, model_name: str) -> None:
         model_name = model_name.replace(" ", "_")
         with tempfile.TemporaryDirectory() as d:
             with open(os.path.join(d, file_name), "w") as f:
                 json.dump(data, f)
                 f.flush()
                 mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
+
+    @staticmethod
+    def save_table_dict(table_dict: Dict, model_name: str, file_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
+        mlflow.log_table(data=table_dict, artifact_file=os.path.join(model_name, "tables", file_name))
 
     @staticmethod
     def log_exceptions(es: Union[Exception, List[Exception]]) -> None:
