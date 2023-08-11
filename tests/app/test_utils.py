@@ -1,3 +1,6 @@
+import os
+import json
+
 from urllib.parse import urlparse
 from app.utils import (
     get_code_base_uri,
@@ -5,6 +8,9 @@ from app.utils import (
     send_gelf_message,
     get_rate_limiter,
     get_func_params_as_dict,
+    json_normalize_medcat_entities,
+    json_normalize_trainer_export,
+    json_denormalize,
 )
 
 
@@ -58,3 +64,30 @@ def test_get_func_params_as_dict():
         pass
     params = get_func_params_as_dict(func)
     assert params == {"arg2": None, "arg3": "arg3"}
+
+
+def test_json_normalize_medcat_entities():
+    medcat_entities_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "medcat_entities.json")
+    with open(medcat_entities_path, "r") as f:
+        medcat_entities = json.load(f)
+    df = json_normalize_medcat_entities(medcat_entities)
+    assert len(df) == 25
+    assert df.columns.tolist() == ["pretty_name", "cui", "type_ids", "types", "source_value", "detected_name", "acc", "context_similarity", "start", "end", "icd10", "ontologies", "snomed", "id", "meta_anns.Presence.value", "meta_anns.Presence.confidence", "meta_anns.Presence.name", "meta_anns.Subject.value", "meta_anns.Subject.confidence", "meta_anns.Subject.name", "meta_anns.Time.value", "meta_anns.Time.confidence", "meta_anns.Time.name"]
+
+
+def test_json_normalize_trainer_export():
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    df = json_normalize_trainer_export(trainer_export)
+    assert len(df) == 30
+    assert df.columns.tolist() == ["id", "user", "cui", "value", "start", "end", "validated", "correct", "deleted", "alternative", "killed", "last_modified", "manually_created", "acc", "meta_anns.Status.name", "meta_anns.Status.value", "meta_anns.Status.acc", "meta_anns.Status.validated", "projects.name", "projects.id", "projects.cuis", "projects.tuis", "projects.documents.id", "projects.documents.name", "projects.documents.text", "projects.documents.last_modified"]
+
+
+def test_json_denormalize():
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    df = json_normalize_trainer_export(trainer_export)
+    trainer_export = json_denormalize(df)
+    assert len(trainer_export) == 30

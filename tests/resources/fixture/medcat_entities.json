@@ -1,0 +1,896 @@
+{
+	"entities": {
+		"1": {
+			"pretty_name": "Cerebral hemorrhage (disorder)",
+			"cui": "274100004",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "Intracerebral hemorrhage",
+			"detected_name": "intracerebral~hemorrhage",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 13,
+			"end": 37,
+			"icd10": [{
+				"name": "Intracerebral haemorrhage, unspecified",
+				"code": "I61.9"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 1,
+			"meta_anns": {
+				"Presence": {
+					"value": "Hypothetical",
+					"confidence": 0.9521139860153198,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Other",
+					"confidence": 0.6052746772766113,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9993126392364502,
+					"name": "Time"
+				}
+			}
+		},
+		"8": {
+			"pretty_name": "Numbness of hand (finding)",
+			"cui": "309521004",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "hand numbness",
+			"detected_name": "hand~numbness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 99,
+			"end": 112,
+			"icd10": [{
+				"name": "Other and unspecified disturbances of skin sensation",
+				"code": "R20.8"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 8,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999984502792358,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 1.0,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999914169311523,
+					"name": "Time"
+				}
+			}
+		},
+		"11": {
+			"pretty_name": "Lethargy (finding)",
+			"cui": "214264003",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "lethargy",
+			"detected_name": "lethargy",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 145,
+			"end": 153,
+			"icd10": [{
+				"name": "Malaise and fatigue",
+				"code": "R53"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 11,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999998807907104,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999991655349731,
+					"name": "Time"
+				}
+			}
+		},
+		"18": {
+			"pretty_name": "Asthenia (finding)",
+			"cui": "13791008",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "generalized weakness",
+			"detected_name": "generalized~weakness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 237,
+			"end": 257,
+			"icd10": [{
+				"name": "Malaise and fatigue",
+				"code": "R53"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 18,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999986886978149,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999918937683105,
+					"name": "Time"
+				}
+			}
+		},
+		"20": {
+			"pretty_name": "Lightheadedness (finding)",
+			"cui": "386705008",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "lightheadedness",
+			"detected_name": "lightheadedness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 262,
+			"end": 277,
+			"icd10": [{
+				"name": "Dizziness and giddiness",
+				"code": "R42"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 20,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999998807907104,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 1.0,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999978542327881,
+					"name": "Time"
+				}
+			}
+		},
+		"27": {
+			"pretty_name": "Numbness of hand (finding)",
+			"cui": "309521004",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "hand numbness",
+			"detected_name": "hand~numbness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 356,
+			"end": 369,
+			"icd10": [{
+				"name": "Other and unspecified disturbances of skin sensation",
+				"code": "R20.8"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 27,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 1.0,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9992420673370361,
+					"name": "Time"
+				}
+			}
+		},
+		"35": {
+			"pretty_name": "Asthenia (finding)",
+			"cui": "13791008",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "generalized weakness",
+			"detected_name": "generalized~weakness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 444,
+			"end": 464,
+			"icd10": [{
+				"name": "Malaise and fatigue",
+				"code": "R53"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 35,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9988435506820679,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999988079071045,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 1.0,
+					"name": "Time"
+				}
+			}
+		},
+		"37": {
+			"pretty_name": "Lightheadedness (finding)",
+			"cui": "386705008",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "lightheadedness",
+			"detected_name": "lightheadedness",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 469,
+			"end": 484,
+			"icd10": [{
+				"name": "Dizziness and giddiness",
+				"code": "R42"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 37,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.976036012172699,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 1.0,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 1.0,
+					"name": "Time"
+				}
+			}
+		},
+		"39": {
+			"pretty_name": "Vertigo (finding)",
+			"cui": "399153001",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "vertigo",
+			"detected_name": "vertigo",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 496,
+			"end": 503,
+			"icd10": [{
+				"name": "Dizziness and giddiness",
+				"code": "R42"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 39,
+			"meta_anns": {
+				"Presence": {
+					"value": "False",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999998807907104,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 1.0,
+					"name": "Time"
+				}
+			}
+		},
+		"42": {
+			"pretty_name": "Loss of consciousness (finding)",
+			"cui": "419045004",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "LOC",
+			"detected_name": "loc",
+			"acc": 0.7170857175091296,
+			"context_similarity": 0.7170857175091296,
+			"start": 564,
+			"end": 567,
+			"icd10": [{
+				"name": "Coma, unspecified",
+				"code": "R40.2"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 42,
+			"meta_anns": {
+				"Presence": {
+					"value": "False",
+					"confidence": 0.999992847442627,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999997615814209,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 1.0,
+					"name": "Time"
+				}
+			}
+		},
+		"50": {
+			"pretty_name": "Digoxin (substance)",
+			"cui": "387461009",
+			"type_ids": ["T-55"],
+			"types": ["substance"],
+			"source_value": "Digoxin",
+			"detected_name": "digoxin",
+			"acc": 0.99,
+			"context_similarity": 0.99,
+			"start": 656,
+			"end": 663,
+			"icd10": [],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 50,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999974966049194,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999833106994629,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999982118606567,
+					"name": "Time"
+				}
+			}
+		},
+		"52": {
+			"pretty_name": "Near syncope (disorder)",
+			"cui": "427461000",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "presyncope",
+			"detected_name": "presyncope",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 709,
+			"end": 719,
+			"icd10": [{
+				"name": "Syncope and collapse",
+				"code": "R55"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 52,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.999996542930603,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.821280300617218,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.6789293885231018,
+					"name": "Time"
+				}
+			}
+		},
+		"53": {
+			"pretty_name": "Echocardiography (procedure)",
+			"cui": "40701008",
+			"type_ids": ["T-39"],
+			"types": ["procedure"],
+			"source_value": "Echocardiogram",
+			"detected_name": "echocardiogram",
+			"acc": 0.8349037478685338,
+			"context_similarity": 0.8349037478685338,
+			"start": 721,
+			"end": 735,
+			"icd10": [],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 53,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999971389770508,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.5881109237670898,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Past",
+					"confidence": 0.9915233850479126,
+					"name": "Time"
+				}
+			}
+		},
+		"54": {
+			"pretty_name": "Calcinosis (disorder)",
+			"cui": "6595006",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "calcification",
+			"detected_name": "calcification",
+			"acc": 0.6683188667297009,
+			"context_similarity": 0.6683188667297009,
+			"start": 756,
+			"end": 769,
+			"icd10": [{
+				"name": "Disorders of calcium metabolism",
+				"code": "E83.5"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 54,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9987930059432983,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.999981164932251,
+					"name": "Time"
+				}
+			}
+		},
+		"56": {
+			"pretty_name": "Insufficiency (finding)",
+			"cui": "87828008",
+			"type_ids": ["T-18"],
+			"types": ["finding"],
+			"source_value": "insufficiency",
+			"detected_name": "insufficiency",
+			"acc": 0.5179692502534732,
+			"context_similarity": 0.5179692502534732,
+			"start": 783,
+			"end": 796,
+			"icd10": [],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 56,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9996638298034668,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999874830245972,
+					"name": "Time"
+				}
+			}
+		},
+		"59": {
+			"pretty_name": "Calcinosis (disorder)",
+			"cui": "6595006",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "calcification",
+			"detected_name": "calcification",
+			"acc": 0.6675687241715835,
+			"context_similarity": 0.6675687241715835,
+			"start": 823,
+			"end": 836,
+			"icd10": [{
+				"name": "Disorders of calcium metabolism",
+				"code": "E83.5"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 59,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999985694885254,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 1.0,
+					"name": "Time"
+				}
+			}
+		},
+		"87": {
+			"pretty_name": "Heart valve disorder (disorder)",
+			"cui": "368009",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "valvular heart disease",
+			"detected_name": "valvular~heart~disease",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 1231,
+			"end": 1253,
+			"icd10": [{
+				"name": "Endocarditis, valve unspecified",
+				"code": "I38"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 87,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999995231628418,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.8468316793441772,
+					"name": "Time"
+				}
+			}
+		},
+		"91": {
+			"pretty_name": "Hypertensive disorder, systemic arterial (disorder)",
+			"cui": "38341003",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "HTN",
+			"detected_name": "htn",
+			"acc": 0.8598866737152155,
+			"context_similarity": 0.8598866737152155,
+			"start": 1258,
+			"end": 1261,
+			"icd10": [{
+				"name": "Essential (primary) hypertension",
+				"code": "I10"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 91,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 1.0,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.7847487926483154,
+					"name": "Time"
+				}
+			}
+		},
+		"93": {
+			"pretty_name": "Rheumatic fever (disorder)",
+			"cui": "58718002",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "Rheumatic fever",
+			"detected_name": "rheumatic~fever",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 1265,
+			"end": 1280,
+			"icd10": [{
+				"name": "Rheumatic fever without mention of heart involvement",
+				"code": "I00"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 93,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999977350234985,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999990463256836,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.7224982380867004,
+					"name": "Time"
+				}
+			}
+		},
+		"96": {
+			"pretty_name": "Heart disease (disorder)",
+			"cui": "56265001",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "heart disease",
+			"detected_name": "heart~disease",
+			"acc": 0.99,
+			"context_similarity": 0.99,
+			"start": 1285,
+			"end": 1298,
+			"icd10": [{
+				"name": "Heart disease, unspecified",
+				"code": "I51.9"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 96,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999990463256836,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9864515066146851,
+					"name": "Time"
+				}
+			}
+		},
+		"99": {
+			"pretty_name": "Chronic obstructive lung disease (disorder)",
+			"cui": "13645005",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "COPD",
+			"detected_name": "copd",
+			"acc": 0.7357001753904576,
+			"context_similarity": 0.7357001753904576,
+			"start": 1302,
+			"end": 1306,
+			"icd10": [{
+				"name": "Chronic obstructive pulmonary disease, unspecified",
+				"code": "J44.9"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 99,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999994039535522,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999525547027588,
+					"name": "Time"
+				}
+			}
+		},
+		"100": {
+			"pretty_name": "Alcohol abuse (disorder)",
+			"cui": "15167005",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "ETOH abuse",
+			"detected_name": "etoh~abuse",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 1310,
+			"end": 1320,
+			"icd10": [{
+				"name": "Mental and behavioural disorders due to use of alcohol",
+				"code": "F10.1"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 100,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 0.9999998807907104,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999852180480957,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.99237459897995,
+					"name": "Time"
+				}
+			}
+		},
+		"102": {
+			"pretty_name": "Polyp of colon (disorder)",
+			"cui": "68496003",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "colonic polyps",
+			"detected_name": "colonic~polyp",
+			"acc": 1.0,
+			"context_similarity": 1.0,
+			"start": 1324,
+			"end": 1338,
+			"icd10": [{
+				"name": "Polyp of colon",
+				"code": "K63.5"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 102,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999991655349731,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999872446060181,
+					"name": "Time"
+				}
+			}
+		},
+		"104": {
+			"pretty_name": "Coronary arteriosclerosis (disorder)",
+			"cui": "53741008",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "CAD",
+			"detected_name": "cad",
+			"acc": 0.5740592909765572,
+			"context_similarity": 0.5740592909765572,
+			"start": 1342,
+			"end": 1345,
+			"icd10": [{
+				"name": "Chronic ischaemic heart disease, unspecified",
+				"code": "I25.9"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 104,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999984502792358,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9997603297233582,
+					"name": "Time"
+				}
+			}
+		},
+		"105": {
+			"pretty_name": "Heart failure (disorder)",
+			"cui": "84114007",
+			"type_ids": ["T-11"],
+			"types": ["disorder"],
+			"source_value": "CHF",
+			"detected_name": "chf",
+			"acc": 0.5217193522099598,
+			"context_similarity": 0.5217193522099598,
+			"start": 1349,
+			"end": 1352,
+			"icd10": [{
+				"name": "Heart failure, unspecified",
+				"code": "I50.9"
+			}],
+			"ontologies": ["SNOMED"],
+			"snomed": [],
+			"id": 105,
+			"meta_anns": {
+				"Presence": {
+					"value": "True",
+					"confidence": 1.0,
+					"name": "Presence"
+				},
+				"Subject": {
+					"value": "Patient",
+					"confidence": 0.9999997615814209,
+					"name": "Subject"
+				},
+				"Time": {
+					"value": "Recent",
+					"confidence": 0.9999767541885376,
+					"name": "Time"
+				}
+			}
+		}
+	},
+	"tokens": []
+}

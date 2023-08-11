@@ -6,6 +6,7 @@ import hashlib
 import re
 import inspect
 import os
+import pandas as pd
 
 from urllib.parse import ParseResult
 from functools import lru_cache
@@ -106,6 +107,43 @@ def get_func_params_as_dict(func: Callable) -> Dict:
     signature = inspect.signature(func)
     params = {name: param.default for name, param in signature.parameters.items() if param.default is not inspect.Parameter.empty}
     return params
+
+
+def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
+    return pd.json_normalize(trainer_export,
+                             record_path=["projects", "documents", "annotations"],
+                             meta=[
+                                    ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
+                                    ["projects", "documents", "id"], ["projects", "documents", "name"],
+                                    ["projects", "documents", "text"], ["projects", "documents", "last_modified"]
+                             ],
+                             sep=".")
+
+
+def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
+    result = pd.DataFrame()
+    for _, ent in medcat_entities["entities"].items():
+        ent_df = pd.json_normalize(ent)
+        result = pd.concat([result, ent_df], ignore_index=True)
+    return result
+
+
+def json_denormalize(df: pd.DataFrame, sep=".") -> List[Dict]:
+    result = []
+    for idx, row in df.iterrows():
+        result_row: Dict = {}
+        for col, cell in row.items():
+            keys = col.split(sep)
+            current = result_row
+            for i, k in enumerate(keys):
+                if i == len(keys)-1:
+                    current[k] = cell
+                else:
+                    if k not in current.keys():
+                        current[k] = {}
+                    current = current[k]
+        result.append(result_row)
+    return result
 
 
 TYPE_ID_TO_NAME_PATCH = {
