@@ -64,6 +64,7 @@ services:
       - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
       - ARTIFACTS_DESTINATION=s3://cms-model-bucket
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
+      - MLFLOW_BASIC_AUTH_ENABLED=false
       - MLFLOW_AUTH_CONFIG_PATH=/opt/auth/basic_auth.ini
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
@@ -75,8 +76,6 @@ services:
       - no_proxy=minio,localhost
     expose:
       - 5000
-#    ports:
-#      - 8200:5000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 60s

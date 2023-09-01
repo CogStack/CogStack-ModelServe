@@ -1,10 +1,16 @@
 #!/bin/sh
 
+if [ -n "$MLFLOW_BASIC_AUTH_ENABLED" ] && [ "$MLFLOW_BASIC_AUTH_ENABLED" = "true" ]; then
+  app_name_option="--app-name basic-auth"
+else
+  app_name_option=""
+fi
+
 mlflow server \
   --backend-store-uri "postgresql://${MLFLOW_DB_USERNAME}:${MLFLOW_DB_PASSWORD}@mlflow-db:5432/mlflow-backend-store" \
   --artifacts-destination "${ARTIFACTS_DESTINATION}" \
   --default-artifact-root mlflow-artifacts:/ \
-  --app-name basic-auth \
+  $app_name_option \
   --serve-artifacts \
   --host 0.0.0.0 \
   --port 5000
