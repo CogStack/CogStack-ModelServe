@@ -17,8 +17,7 @@ ENV PYTHONUNBUFFERED=1
 
 COPY docker/medcat-deid/requirements.txt /requirements.txt
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
-    pip install --no-cache-dir -r requirements.txt &&\
-    pip install --no-cache-dir "transformers<=4.21.3" # pin down the version due to incompatibility with the base model
+    pip install --no-cache-dir -r requirements.txt
 
 RUN python -m spacy download en_core_web_md
 
