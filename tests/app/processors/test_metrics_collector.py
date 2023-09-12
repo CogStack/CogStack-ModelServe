@@ -137,16 +137,24 @@ def test_concat_trainer_exports():
     path_1 = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
     path_2 = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
     with tempfile.NamedTemporaryFile() as f:
-        concat_trainer_exports([path_1, path_2], f.name)
+        concat_trainer_exports([path_1, path_2], f.name, True)
         new_export = json.load(f)
         assert len(new_export["projects"]) == 3
 
 
-def test_concat_trainer_exports_with_duplicated_id_found():
+def test_concat_trainer_exports_with_duplicated_project_ids():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
     with pytest.raises(ValueError) as e:
         concat_trainer_exports([path, path, path])
         assert "Found multiple projects share the same ID:" in str(e)
+
+
+def test_concat_trainer_exports_with_recurring_document_ids():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+    another_path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    with pytest.raises(ValueError) as e:
+        concat_trainer_exports([path, another_path], allow_recurring_doc_ids=False)
+        assert str(e) == "Found multiple documents share the the same ID(s): [3204, 3205, 3204, 3205]"
 
 
 def test_get_stats_from_trainer_export():

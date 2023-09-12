@@ -124,7 +124,9 @@ def evaluate_model_with_trainer_export(export_file: Union[str, TextIO],
         return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors if include_anchors else None
 
 
-def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: Optional[str] = None) -> Union[Dict, str]:
+def concat_trainer_exports(data_file_paths: List[str],
+                           combined_data_file_path: Optional[str] = None,
+                           allow_recurring_doc_ids: bool = True) -> Union[Dict, str]:
     combined: Dict = {"projects": []}
     project_ids = []
     for path in data_file_paths:
@@ -135,6 +137,10 @@ def concat_trainer_exports(data_file_paths: List[str], combined_data_file_path: 
                     raise ValueError(f'Found multiple projects share the same ID: {project["id"]}')
                 project_ids.append(project["id"])
         combined["projects"].extend(data["projects"])
+    document_ids = [doc["id"] for project in combined["projects"] for doc in project["documents"]]
+    if not allow_recurring_doc_ids and len(document_ids) > len(set(document_ids)):
+        recurring_ids = [doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1]
+        raise ValueError(f'Found multiple documents share the the same ID(s): {recurring_ids}')
 
     if isinstance(combined_data_file_path, str):
         with open(combined_data_file_path, "w") as f:

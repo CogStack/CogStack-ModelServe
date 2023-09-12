@@ -98,7 +98,7 @@ def get_concatenated_trainer_exports(trainer_export: List[UploadFile]) -> JSONRe
             temp_te.write(line)
         temp_te.flush()
         files.append(temp_te)
-    concatenated = concat_trainer_exports([file.name for file in files])
+    concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
     for file in files:
         file.close()
     response = JSONResponse(concatenated, media_type="application/json; charset=utf-8")
