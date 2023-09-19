@@ -46,7 +46,7 @@ def test_start_new(mlflow_fixture):
     assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
-    assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "False"
+    assert mlflow.set_tags.call_args.args[0]["training.is.tracked"] == "True"
     assert mlflow.set_tags.call_args.args[0]["training.metrics.log_frequency"] == 10
 
 
@@ -138,7 +138,7 @@ def test_save_pretrained_model(mlflow_fixture):
     assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"
     assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "model_path"
     assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "Unknown"
-    assert mlflow.set_tags.call_args.args[0]["training.is.pretrained"] == "True"
+    assert mlflow.set_tags.call_args.args[0]["training.is.tracked"] == "False"
     assert mlflow.set_tags.call_args.args[0]["training.mlflow.run_id"] == "run_id"
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"

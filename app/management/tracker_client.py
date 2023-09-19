@@ -43,7 +43,7 @@ class TrackerClient(object):
             "training.mlflow.run_id": active_run.info.run_id,
             "training.input_data.filename": input_file_name,
             "training.base_model.origin": base_model_original,
-            "training.is.pretrained": "False",
+            "training.is.tracked": "True",
             "training.metrics.log_frequency": log_frequency,
         })
         mlflow.log_params(training_params)
@@ -166,7 +166,7 @@ class TrackerClient(object):
                 "training.mlflow.run_id": active_run.info.run_id,
                 "training.input_data.filename": "Unknown",
                 "training.base_model.origin": model_path,
-                "training.is.pretrained": "True",
+                "training.is.tracked": "False",
             }
             if model_tags is not None:
                 tags = {**tags, **model_tags}

@@ -225,7 +225,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                        self._model_name)
 
     def _evaluate_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
-        self._tracker_client.save_dataframe_as_csv("evaluation.csv",
+        self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
                                                    evaluate_model_with_trainer_export(data_file_path,
                                                                                       medcat_model,
                                                                                       return_df=True,
