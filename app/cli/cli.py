@@ -146,7 +146,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
                                exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
                                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
     """
-    This script generates API docs for enabled endpoints
+    This script generates model-specific API docs for enabled endpoints
     """
 
     settings = get_settings()
@@ -173,7 +173,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
 @cmd_app.command("export-openapi-spec")
 def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")):
     """
-    This script generates API docs for enabled endpoints
+    This script generates a single API doc for all endpoints
     """
 
     settings = get_settings()
