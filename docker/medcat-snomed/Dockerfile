@@ -1,10 +1,13 @@
 FROM python:3.10
 LABEL "org.cogstack.model_serve"="medcat_snomed"
 
+ARG BUILD_MODE=development
 ARG CMS_MODEL_NAME
 ARG HTTP_PROXY
 ARG HTTPS_PROXY
 ARG NO_PROXY
+ARG CMS_UID=1000
+ARG CMS_GID=1000
 
 ENV CMS_MODEL_NAME=$CMS_MODEL_NAME
 ENV HTTP_PROXY=$HTTP_PROXY
@@ -15,12 +18,23 @@ ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
 
-COPY docker/medcat-snomed/requirements.txt /requirements.txt
+RUN apt-get update && apt-get install -y nano telnet
+RUN addgroup --gid $CMS_GID cms || true && \
+    adduser --uid $CMS_UID --gid $CMS_GID --disabled-password --gecos "" cms || true && \
+    echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+
+USER cms
+WORKDIR /app
+
+COPY --chown=$CMS_UID:$CMS_GID app /app
+COPY --chown=$CMS_UID:$CMS_GID docker/medcat-snomed/requirements.txt .
+RUN mkdir -p /app/model/model
+RUN chown $CMS_UID:$CMS_GID /app/model/model
+RUN mkdir -p /app/model/retrained
+RUN chown $CMS_UID:$CMS_GID /app/model/retrained
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
     pip install --no-cache-dir -r requirements.txt
 RUN python -m spacy download en_core_web_md
 
-COPY app /app
-WORKDIR /app
 EXPOSE 8000
 CMD ["sh", "-c", "python cli/cli.py serve --model-type medcat_snomed --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
