@@ -1,5 +1,5 @@
 FROM python:3.10
-LABEL "org.cogstack.model_serve"="trf-deid"
+LABEL "org.cogstack.model-serve"="trf-deid"
 
 ARG CMS_MODEL_NAME
 ARG HTTP_PROXY
@@ -17,7 +17,8 @@ ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y nano telnet
+RUN apt-get update && apt-get install -y --no-install-recommends nano telnet && \
+    rm -rf /var/lib/apt/lists/*
 RUN addgroup --gid $CMS_GID cms || true && \
     adduser --uid $CMS_UID --gid $CMS_GID --disabled-password --gecos "" cms || true && \
     echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
@@ -27,13 +28,13 @@ WORKDIR /app
 
 COPY --chown=$CMS_UID:$CMS_GID app /app
 COPY --chown=$CMS_UID:$CMS_GID docker/trf-deid/requirements.txt .
-RUN mkdir -p /app/model/model
-RUN chown $CMS_UID:$CMS_GID /app/model/model
-RUN mkdir -p /app/model/retrained
-RUN chown $CMS_UID:$CMS_GID /app/model/retrained
+RUN mkdir -p /app/model/model && \
+    chown $CMS_UID:$CMS_GID /app/model/model && \
+    mkdir -p /app/model/retrained && \
+    chown $CMS_UID:$CMS_GID /app/model/retrained
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
-    pip install --no-cache-dir -r requirements.txt
-RUN python -m spacy download en_core_web_md
+    pip install --no-cache-dir -r requirements.txt && \
+    python -m spacy download en_core_web_md
 
 EXPOSE 8000
 CMD ["sh", "-c", "python cli/cli.py serve --model-type transformers_deid --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
