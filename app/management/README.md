@@ -1,7 +1,7 @@
 # Management
 
 ## MLflow Users
-To enable user authentication and authorisation in MLflow, you will need to provide the following environement variables located in this [Docker Compose file](./../../docker-compose-auth.yaml):
+To enable user authentication and authorisation in MLflow, you will need to provide the following environement variables located in this [Docker Compose file](./../../docker-compose-auth.yml):
 
 * MLFLOW_BASIC_AUTH_ENABLED=true
 * MLFLOW_AUTH_CONFIG_PATH=/opt/auth/basic_auth.ini
