@@ -80,9 +80,9 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             trainer._save_examples(examples, ["tp", "tn"])
             trainer._tracker_client.log_classes_and_names(cui2names)
-            cui_counts, cui_unique_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+            cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
             trainer._tracker_client.log_document_size(num_of_docs)
-            trainer._save_trained_concepts(cui_counts, cui_unique_counts, model)
+            trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
             trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
             if not eval_mode:
                 if not skip_save_model:

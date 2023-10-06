@@ -151,8 +151,9 @@ def concat_trainer_exports(data_file_paths: List[str],
         return combined
 
 
-def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], Dict[str, int], int]:
+def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]:
     cui_values: Dict = defaultdict(list)
+    cui_ignorance_counts: Dict = defaultdict(int)
     num_of_docs = 0
     with open(file_path, "r") as f:
         export_object = json.load(f)
@@ -164,11 +165,16 @@ def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], Dict[
                 elif type(doc["annotations"]) == dict:
                     annotations = list(doc["annotations"].values())
                 for annotation in annotations:
+                    if (not annotation.get("validated", True) or
+                            annotation.get("deleted", False) or
+                            annotation.get("killed", False) or
+                            annotation.get("irrelevant", False)):
+                        cui_ignorance_counts[annotation["cui"]] += 1
                     cui_values[annotation["cui"]].append(annotation["value"].lower())
                 num_of_docs += 1
     cui_counts = {cui: len(values) for cui, values in cui_values.items()}
     cui_unique_counts = {cui: len(set(values)) for cui, values in cui_values.items()}
-    return cui_counts, cui_unique_counts, num_of_docs
+    return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
 def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
@@ -305,7 +311,7 @@ def get_iaa_scores_per_span(export_file: Union[str, TextIO],
     for document in filtered_projects[0]["documents"]:
         for annotation in document["annotations"]:
             docspan_key = _get_docspan_key(document, annotation)
-            docspan2state_proj_a[docspan_key] = [str(annotation[key]) for key in state_keys]
+            docspan2state_proj_a[docspan_key] = [str(annotation.get(key)) for key in state_keys]
             docspan2statemeta_proj_a[docspan_key] = [str(meta_ann) for meta_ann in annotation["meta_anns"].items()] if annotation["meta_anns"] else [META_STATE_MISSING]
 
     docspan2state_proj_b = {}
@@ -313,7 +319,7 @@ def get_iaa_scores_per_span(export_file: Union[str, TextIO],
     for document in filtered_projects[1]["documents"]:
         for annotation in document["annotations"]:
             docspan_key = _get_docspan_key(document, annotation)
-            docspan2state_proj_b[docspan_key] = [str(annotation[key]) for key in state_keys]
+            docspan2state_proj_b[docspan_key] = [str(annotation.get(key)) for key in state_keys]
             docspan2statemeta_proj_b[docspan_key] = [str(meta_ann) for meta_ann in annotation["meta_anns"].items()] if annotation["meta_anns"] else [META_STATE_MISSING]
 
     docspans = set(docspan2state_proj_a.keys()).union(set(docspan2state_proj_b.keys()))
@@ -377,7 +383,7 @@ def _extract_project_pair(export_file: Union[str, TextIO],
 
 
 def _get_docspan_key(document: Dict, annotation: Dict) -> str:
-    return f"{document['id']}{DOC_SPAN_DELIMITER}{annotation['start']}{DOC_SPAN_DELIMITER}{annotation['end']}"
+    return f"{document['id']}{DOC_SPAN_DELIMITER}{annotation.get('start')}{DOC_SPAN_DELIMITER}{annotation.get('end')}"
 
 
 def _filter_common_docs(projects: List[Dict]) -> List[Dict]:
@@ -397,7 +403,7 @@ def _filter_docspan_by_value(docspan2value: Dict, value: str) -> Dict:
 
 
 def _get_hashed_annotation_state(annotation: Dict, state_keys: Set[str]) -> str:
-    return hashlib.sha1("_".join([str(annotation[key]) for key in state_keys]).encode("utf-8")).hexdigest()
+    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8")).hexdigest()
 
 
 def _get_hashed_meta_annotation_state(meta_anno: Dict) -> str:

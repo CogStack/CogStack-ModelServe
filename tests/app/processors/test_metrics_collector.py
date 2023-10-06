@@ -159,7 +159,7 @@ def test_concat_trainer_exports_with_recurring_document_ids():
 
 def test_get_stats_from_trainer_export():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
-    cui_counts, cui_unique_counts, num_of_docs = get_stats_from_trainer_export(path)
+    cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(path)
     assert cui_counts == {
         "C0003864": 2,
         "C0007222": 1,
@@ -180,24 +180,25 @@ def test_get_stats_from_trainer_export():
         "C0878544": 1
     }
     assert cui_unique_counts == {
-        'C0017168': 1,
-        'C0020538': 1,
-        'C0012634': 1,
-        'C0038454': 1,
-        'C0007787': 1,
-        'C0155626': 1,
-        'C0011860': 3,
-        'C0042029': 2,
-        'C0010068': 1,
-        'C0007222': 1,
-        'C0027051': 1,
-        'C0878544': 1,
-        'C0020473': 1,
-        'C0037284': 2,
-        'C0003864': 1,
-        'C0011849': 1,
-        'C0338614': 1
+        "C0017168": 1,
+        "C0020538": 1,
+        "C0012634": 1,
+        "C0038454": 1,
+        "C0007787": 1,
+        "C0155626": 1,
+        "C0011860": 3,
+        "C0042029": 2,
+        "C0010068": 1,
+        "C0007222": 1,
+        "C0027051": 1,
+        "C0878544": 1,
+        "C0020473": 1,
+        "C0037284": 2,
+        "C0003864": 1,
+        "C0011849": 1,
+        "C0338614": 1
     }
+    assert cui_ignorance_counts == {"C0012634": 1, "C0338614": 1}
     assert num_of_docs == 2
 
 
