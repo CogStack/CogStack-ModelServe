@@ -178,6 +178,12 @@ def test_log_trainer_version(mlflow_fixture):
     mlflow.set_tag.assert_called_once_with("training.trainer.version", "1.2.3")
 
 
+def test_log_trainer_mode(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.log_trainer_mode(training=False)
+    mlflow.set_tag.assert_called_once_with("training.trainer.mode", "eval")
+
+
 def test_log_document_size(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.log_document_size(10)

@@ -27,6 +27,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     app.state.limiter = get_rate_limiter()
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
+    instrumentator = Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
 
     if msd_overwritten is not None:
         globals.model_service_dep = msd_overwritten
@@ -36,11 +37,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))
-        (
-            Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "/favicon.ico", "none"])
-            .instrument(app)
-            .expose(app, include_in_schema=False, should_gzip=False)
-        )
+        instrumentator.expose(app, include_in_schema=False, should_gzip=False)
         if get_settings().AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
 

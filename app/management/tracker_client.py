@@ -135,6 +135,10 @@ class TrackerClient(object):
         mlflow.set_tag("training.trainer.version", trainer_version)
 
     @staticmethod
+    def log_trainer_mode(training: bool = True) -> None:
+        mlflow.set_tag("training.trainer.mode", "train" if training else "eval")
+
+    @staticmethod
     def log_document_size(num_of_docs: int) -> None:
         mlflow.set_tag("training.document.size", num_of_docs)
 
