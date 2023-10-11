@@ -8,8 +8,8 @@ services:
         dockerfile: ./docker/medcat-snomed/Dockerfile
         args:
           - CMS_MODEL_NAME=SNOMED MedCAT model
-          - CMS_UID=${UID:-1000}
-          - CMS_GID=${GID:-1000}
+          - CMS_UID=${CMS_UID:-1000}
+          - CMS_GID=${CMS_GID:-1000}
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -57,8 +57,8 @@ services:
         dockerfile: ./docker/medcat-icd10/Dockerfile
         args:
           - CMS_MODEL_NAME=ICD-10 MedCAT model
-          - CMS_UID=${UID:-1000}
-          - CMS_GID=${GID:-1000}
+          - CMS_UID=${CMS_UID:-1000}
+          - CMS_GID=${CMS_GID:-1000}
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -106,8 +106,8 @@ services:
         dockerfile: ./docker/trf-deid/Dockerfile
         args:
           - CMS_MODEL_NAME=De-identification model
-          - CMS_UID=${UID:-1000}
-          - CMS_GID=${GID:-1000}
+          - CMS_UID=${CMS_UID:-1000}
+          - CMS_GID=${CMS_GID:-1000}
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
@@ -154,8 +154,8 @@ services:
       dockerfile: ./docker/medcat-deid/Dockerfile
       args:
         - CMS_MODEL_NAME=De-Identification MedCAT model
-        - CMS_UID=${UID:-1000}
-        - CMS_GID=${GID:-1000}
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
@@ -203,8 +203,8 @@ services:
       dockerfile: ./docker/medcat-umls/Dockerfile
       args:
         - CMS_MODEL_NAME=UMLS MedCAT model
-        - CMS_UID=${UID:-1000}
-        - CMS_GID=${GID:-1000}
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY

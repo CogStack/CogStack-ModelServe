@@ -123,6 +123,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._tracker_client.log_model_config(trainer.get_flattened_config(trainer._model_service._model))
                 trainer._tracker_client.log_trainer_version(medcat_version)
                 eval_results, examples = trainer._model_service._model._addl_ner[0].eval(data_file.name)
+                cui2names = {}
+                eval_results.sort_values(by=["cui"])
                 aggregated_metrics = []
                 for _, row in eval_results.iterrows():
                     if row["support"] == 0:  # the concept has not been used for annotation
@@ -135,8 +137,10 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
                         "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
                     })
+                    cui2names[row["cui"]] = trainer._model_service._model.cdb.get_name(row["cui"])
                 trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
                 trainer._save_examples(examples, ["tp", "tn"])
+                trainer._tracker_client.log_classes_and_names(cui2names)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
                 trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service)
