@@ -99,83 +99,106 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         copied_model_pack_path = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        try:
-            logger.info("Loading a new model copy for training...")
-            copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
-            model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
-            trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
-            trainer._tracker_client.log_trainer_version(medcat_version)
-            cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
-            trainer._tracker_client.log_document_size(num_of_docs)
-            training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
-            logger.info("Performing supervised training...")
-            train_supervised_params = get_func_params_as_dict(model.train_supervised)
-            train_supervised_params.update(training_params)
-            with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
-                fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**train_supervised_params)
-            trainer._save_examples(examples, ["tp", "tn"])
-            del examples
-            gc.collect()
-            cuis = []
-            f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
-            fp_accumulated = 0
-            fn_accumulated = 0
-            tp_accumulated = 0
-            cc_accumulated = 0
-            aggregated_metrics = []
-            for cui, f1_val in f1.items():
-                fp_accumulated += fps.get(cui, 0)
-                fn_accumulated += fns.get(cui, 0)
-                tp_accumulated += tps.get(cui, 0)
-                cc_accumulated += cc.get(cui, 0)
-                aggregated_metrics.append({
-                    "per_concept_fp": fps.get(cui, 0),
-                    "per_concept_fn": fns.get(cui, 0),
-                    "per_concept_tp": tps.get(cui, 0),
-                    "per_concept_counts": cc.get(cui, 0),
-                    "per_concept_count_train": model.cdb.cui2count_train.get(cui, 0),
-                    "per_concept_acc_fp": fp_accumulated,
-                    "per_concept_acc_fn": fn_accumulated,
-                    "per_concept_acc_tp": tp_accumulated,
-                    "per_concept_acc_cc": cc_accumulated,
-                    "per_concept_precision": p[cui],
-                    "per_concept_recall": r[cui],
-                    "per_concept_f1": f1_val,
-                })
-                cuis.append(cui)
-            trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-            trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-            trainer._tracker_client.log_classes(cuis)
-            trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
-            if not skip_save_model:
-                model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
-                cdb_config_path = model_pack_path.replace(".zip", "_config.json")
-                model.cdb.config.save(cdb_config_path)
-                trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
-                trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
-            else:
-                logger.info("Skipped saving on the retrained model")
-            if redeploy:
-                trainer.deploy_model(trainer._model_service, model, skip_save_model)
-            else:
-                del model
+        eval_mode = training_params["nepochs"] == 0
+        trainer._tracker_client.log_trainer_mode(not eval_mode)
+        if not eval_mode:
+            try:
+                logger.info("Loading a new model copy for training...")
+                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
+                model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
+                trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
+                trainer._tracker_client.log_trainer_version(medcat_version)
+                cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+                trainer._tracker_client.log_document_size(num_of_docs)
+                training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
+                logger.info("Performing supervised training...")
+                train_supervised_params = get_func_params_as_dict(model.train_supervised)
+                train_supervised_params.update(training_params)
+                with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
+                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**train_supervised_params)
+                trainer._save_examples(examples, ["tp", "tn"])
+                del examples
                 gc.collect()
-                logger.info("Skipped deployment on the retrained model")
-            logger.info("Supervised training finished")
-            trainer._tracker_client.end_with_success()
-        except Exception as e:
-            logger.error("Supervised training failed")
-            logger.exception(e)
-            trainer._tracker_client.log_exceptions(e)
-            trainer._tracker_client.end_with_failure()
-        finally:
-            data_file.close()
-            with trainer._training_lock:
-                trainer._training_in_progress = False
-            trainer._housekeep_file(model_pack_path)
-            trainer._housekeep_file(copied_model_pack_path)
-            if cdb_config_path:
-                os.remove(cdb_config_path)
+                cuis = []
+                f1 = {c: f for c, f in sorted(f1.items(), key=lambda item: item[0])}
+                fp_accumulated = 0
+                fn_accumulated = 0
+                tp_accumulated = 0
+                cc_accumulated = 0
+                aggregated_metrics = []
+                for cui, f1_val in f1.items():
+                    fp_accumulated += fps.get(cui, 0)
+                    fn_accumulated += fns.get(cui, 0)
+                    tp_accumulated += tps.get(cui, 0)
+                    cc_accumulated += cc.get(cui, 0)
+                    aggregated_metrics.append({
+                        "per_concept_fp": fps.get(cui, 0),
+                        "per_concept_fn": fns.get(cui, 0),
+                        "per_concept_tp": tps.get(cui, 0),
+                        "per_concept_counts": cc.get(cui, 0),
+                        "per_concept_count_train": model.cdb.cui2count_train.get(cui, 0),
+                        "per_concept_acc_fp": fp_accumulated,
+                        "per_concept_acc_fn": fn_accumulated,
+                        "per_concept_acc_tp": tp_accumulated,
+                        "per_concept_acc_cc": cc_accumulated,
+                        "per_concept_precision": p[cui],
+                        "per_concept_recall": r[cui],
+                        "per_concept_f1": f1_val,
+                    })
+                    cuis.append(cui)
+                trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+                trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
+                trainer._tracker_client.log_classes(cuis)
+                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
+                if not skip_save_model:
+                    model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
+                    cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                    model.cdb.config.save(cdb_config_path)
+                    trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                else:
+                    logger.info("Skipped saving on the retrained model")
+                if redeploy:
+                    trainer.deploy_model(trainer._model_service, model, skip_save_model)
+                else:
+                    del model
+                    gc.collect()
+                    logger.info("Skipped deployment on the retrained model")
+                logger.info("Supervised training finished")
+                trainer._tracker_client.end_with_success()
+            except Exception as e:
+                logger.error("Supervised training failed")
+                logger.exception(e)
+                trainer._tracker_client.log_exceptions(e)
+                trainer._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with trainer._training_lock:
+                    trainer._training_in_progress = False
+                trainer._housekeep_file(model_pack_path)
+                trainer._housekeep_file(copied_model_pack_path)
+                if cdb_config_path:
+                    os.remove(cdb_config_path)
+        else:
+            try:
+                logger.info("Evaluating the running model...")
+                trainer._tracker_client.log_model_config(trainer.get_flattened_config(trainer._model_service._model))
+                trainer._tracker_client.log_trainer_version(medcat_version)
+                cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(
+                    data_file.name)
+                trainer._tracker_client.log_document_size(num_of_docs)
+                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service)
+                trainer._tracker_client.end_with_success()
+                logger.info("Model evaluation finished")
+            except Exception as e:
+                logger.error("Model evaluation failed")
+                logger.exception(e)
+                trainer._tracker_client.log_exceptions(e)
+                trainer._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with trainer._training_lock:
+                    trainer._training_in_progress = False
 
     @staticmethod
     def _get_concept_filter(training_concepts: Dict, model: CAT) -> Set[str]:
