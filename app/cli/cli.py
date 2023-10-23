@@ -4,7 +4,6 @@ import os
 import sys
 import uuid
 
-
 from parent_dir import parent_dir  # noqa
 
 import uvicorn
@@ -14,7 +13,8 @@ import typer
 import graypy
 import globals
 
-from typing import Optional
+from logging import LogRecord
+from typing import Optional, Tuple, Dict, Any
 from urllib.parse import urlparse
 from fastapi.routing import APIRoute
 from domain import ModelType
@@ -37,7 +37,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
                 host: str = typer.Option("0.0.0.0", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),):
+                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),) -> None:
     """
     This script serves various CogStack NLP models
     """
@@ -52,7 +52,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
             lrf = logging.getLogRecordFactory()
 
-            def log_record_factory(*args, **kwargs):
+            def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
                 record = lrf(*args, **kwargs)
                 record.model_type = model_type
                 record.model_name = model_name or "NULL"
@@ -105,7 +105,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                    training_type: Optional[str] = typer.Option(None, help="The type of training the model went through"),
                    model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
-                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")):
+                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")) -> None:
     """
     This script pushes a pretrained NLP model to the Cogstack ModelServe registry
     """
@@ -144,7 +144,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
                                add_user_authentication: bool = typer.Option(False, help="Add user authentication APIs to the doc"),
                                exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
                                exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
-                               model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")):
+                               model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
     """
     This script generates model-specific API docs for enabled endpoints
     """
@@ -171,7 +171,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
 
 
 @cmd_app.command("export-openapi-spec")
-def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")):
+def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")) -> None:
     """
     This script generates a single API doc for all endpoints
     """

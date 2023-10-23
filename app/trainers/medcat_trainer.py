@@ -262,7 +262,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                                                       include_anchors=True),
                                                    self._model_name)
 
-    def _save_examples(self, examples: Dict, excluded_example_keys: List = []):
+    def _save_examples(self, examples: Dict, excluded_example_keys: List) -> None:
         for e_key, e_items in examples.items():
             if e_key in excluded_example_keys:
                 continue

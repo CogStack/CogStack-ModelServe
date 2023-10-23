@@ -39,7 +39,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         return self._model
 
     @model.setter
-    def model(self, model) -> None:
+    def model(self, model: PreTrainedModel) -> None:
         self._model = model
 
     @model.deleter

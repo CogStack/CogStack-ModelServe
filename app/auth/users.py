@@ -28,7 +28,7 @@ class _UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
 class Props(object):
 
-    def __init__(self, auth_user_enabled) -> None:
+    def __init__(self, auth_user_enabled: bool) -> None:
         self._auth_backends: List = []
         self._fastapi_users = None
         self._current_active_user = lambda: None

@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 
 from multiprocessing import cpu_count
-from typing import Dict, List, Optional, TextIO
+from typing import Dict, List, Optional, TextIO, Tuple, Any
 from medcat.cat import CAT
 from model_services.base import AbstractModelService
 from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
@@ -40,7 +40,7 @@ class MedCATModel(AbstractModelService):
         return self._model
 
     @model.setter
-    def model(self, model) -> None:
+    def model(self, model: CAT) -> None:
         self._model = model
 
     @model.deleter
@@ -58,7 +58,7 @@ class MedCATModel(AbstractModelService):
         return model_service
 
     @staticmethod
-    def load_model(model_file_path: str, *args, **kwargs) -> CAT:
+    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
         logger.info(f"Model pack loaded from {os.path.normpath(model_file_path)}")
         return cat
@@ -144,7 +144,7 @@ class MedCATModel(AbstractModelService):
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "acc": "accuracy"}, inplace=True)
+            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

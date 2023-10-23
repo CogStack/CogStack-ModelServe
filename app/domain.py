@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 
 
 class Annotation(BaseModel):
@@ -9,9 +9,16 @@ class Annotation(BaseModel):
     end: int
     label_name: str
     label_id: str
+    categories: Optional[List[str]] = None
     accuracy: Optional[float] = None
     text: Optional[str] = None
     meta_anns: Optional[dict] = None
+
+    @root_validator()
+    def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if values["start"] >= values["end"]:
+            raise ValueError("The start index should be lower than the end index")
+        return values
 
 
 class TextWithAnnotations(BaseModel):
@@ -32,6 +39,12 @@ class Entity(BaseModel):
     label: str
     kb_id: str
     kb_url: str
+
+    @root_validator()
+    def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        if values["start"] >= values["end"]:
+            raise ValueError("The start index should be lower than the end index")
+        return values
 
 
 class Doc(BaseModel):

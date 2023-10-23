@@ -3,7 +3,7 @@ from typing import Callable
 
 class LogCaptor(object):
 
-    def __init__(self, processor: Callable):
+    def __init__(self, processor: Callable[[str], None]):
         self.buffer = ""
         self.log_processor = processor
 

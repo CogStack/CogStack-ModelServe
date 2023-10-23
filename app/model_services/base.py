@@ -7,7 +7,7 @@ from domain import ModelCard
 class AbstractModelService(ABC):
 
     @abstractmethod
-    def __init__(self, config: Settings, *args, **kwargs) -> None:
+    def __init__(self, config: Settings, *args: Tuple, **kwargs: Dict[str, Any]) -> None:
         self._config = config
         self._model_name = "CMS model"
 
@@ -21,7 +21,7 @@ class AbstractModelService(ABC):
 
     @staticmethod
     @abstractmethod
-    def load_model(model_file_path: str, *args, **kwargs) -> Any:
+    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
         raise NotImplementedError
 
     @staticmethod
@@ -34,11 +34,11 @@ class AbstractModelService(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def annotate(self, text: str) -> List[Dict]:
+    def annotate(self, text: str) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
     @abstractmethod
-    def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Dict[str, Any]]]:
         raise NotImplementedError
 
     @abstractmethod

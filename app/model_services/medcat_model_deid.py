@@ -59,6 +59,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
+                    entity["types"] = ["PII"]
                     aggregated_entities[ent_key] = entity
                     ent_key += 1
                 chunk = chunk[last_token_start_idx:]
@@ -70,6 +71,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
+                    entity["types"] = ["PII"]
                     aggregated_entities[ent_key] = entity
                     ent_key += 1
             processed_char_len += len(c_text)

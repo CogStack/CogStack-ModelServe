@@ -10,7 +10,7 @@ import pandas as pd
 
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable
+from typing import List, Optional, Dict, Callable, Tuple, Any
 from fastapi import Request
 from starlette.responses import JSONResponse
 from slowapi import Limiter
@@ -49,12 +49,11 @@ def get_rate_limiter(auth_user_enabled: Optional[bool] = None) -> Limiter:
     return Limiter(key_func=get_user_auth, strategy="moving-window") if auth_user_enabled else Limiter(key_func=get_remote_address, strategy="moving-window")
 
 
-def rate_limit_exceeded_handler(*args, **kwargs) -> JSONResponse:
+def rate_limit_exceeded_handler(*args: Tuple, **kwargs: Dict[str, Any]) -> JSONResponse:
     return JSONResponse({"error": "Too many requests. Please wait and try your request again."}, status_code=429)
 
 
 def adjust_rate_limit_str(rate_limit: str) -> str:
-    print(rate_limit)
     if "per" in rate_limit:
         return f"{int(rate_limit.split('per')[0]) * 2} per {rate_limit.split('per')[1]}"
     else:
@@ -128,8 +127,8 @@ def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
     return result
 
 
-def json_denormalize(df: pd.DataFrame, sep=".") -> List[Dict]:
-    result = []
+def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
+    result: List[Dict] = []
     for idx, row in df.iterrows():
         result_row: Dict = {}
         for col, cell in row.items():

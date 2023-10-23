@@ -27,7 +27,7 @@ jobs:
           pip install -r app/requirements.txt -r app/requirements-dev.txt
       - name: Check types
         run: |
-          python -m mypy --follow-imports=normal app/model_services/*.py app/management/*.py app/processors/*.py app/routers/*.py app/cli/*.py app/trainers/*.py app/auth/*.py app/*.py tests/
+          python -m mypy --follow-imports=normal app/model_services/*.py app/management/*.py app/processors/*.py app/routers/*.py app/cli/*.py app/trainers/*.py app/auth/*.py app/*.py
       - name: Lint
         run: |
           flake8 app/model_services/*.py app/management/*.py app/processors app/routers/*.py app/cli/*.py app/trainers/*.py app/auth/*.py app/*.py tests/

@@ -15,7 +15,7 @@ class ModelServiceDep(object):
         return self._model_sevice
 
     @model_service.setter
-    def model_service(self, model_service):
+    def model_service(self, model_service: AbstractModelService) -> None:
         self._model_sevice = model_service
 
     def __init__(self, model_type: str, config: Settings, model_name: Optional[str] = None) -> None:

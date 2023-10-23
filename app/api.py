@@ -33,10 +33,10 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         globals.model_service_dep = msd_overwritten
 
     @app.on_event("startup")
-    async def on_startup():
+    async def on_startup() -> None:
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
-        RunVar("_default_thread_limiter").set(CapacityLimiter(50))
+        RunVar("_default_thread_limiter").set(CapacityLimiter(50))  # type: ignore
         instrumentator.expose(app, include_in_schema=False, should_gzip=False)
         if get_settings().AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
@@ -55,7 +55,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         return await call_next(Request(scope, request.receive, request._send))
 
     @app.on_event("shutdown")
-    async def on_shutdown():
+    async def on_shutdown() -> None:
         TrackerClient.end_with_interruption()
 
     def custom_openapi() -> Dict[str, Any]:

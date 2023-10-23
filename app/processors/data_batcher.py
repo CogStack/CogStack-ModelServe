@@ -1,9 +1,9 @@
-from typing import Iterable, List
+from typing import Iterable, List, Any
 
 
-def mini_batch(data: Iterable, batch_size: int) -> Iterable[List]:
+def mini_batch(data: Iterable[Any], batch_size: Any) -> Iterable[List[Any]]:
     if batch_size <= 0:
-        yield [text for text in data]
+        yield [item for item in data]
         return
     batch: List = []
     for item in data:

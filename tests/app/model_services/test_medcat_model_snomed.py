@@ -33,10 +33,11 @@ def test_from_model(medcat_model):
 
 
 def test_get_records_from_doc(medcat_model):
-    records = medcat_model.get_records_from_doc({"entities": {"0": {"pretty_name": "pretty_name", "cui": "cui", "meta_anns": {}}}})
+    records = medcat_model.get_records_from_doc({"entities": {"0": {"pretty_name": "pretty_name", "cui": "cui", "types": ["type"], "meta_anns": {}}}})
     assert len(records) == 1
     assert records[0]["label_name"] == "pretty_name"
     assert records[0]["label_id"] == "cui"
+    assert records[0]["categories"] == ["type"]
     assert records[0]["meta_anns"] == {}
 
 

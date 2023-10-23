@@ -184,7 +184,7 @@ class TrackerClient(object):
             TrackerClient.log_exceptions(e)
             TrackerClient.end_with_failure()
 
-    def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000):
+    def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000) -> None:
         if batch_size <= 0:
             return
         batch = []
