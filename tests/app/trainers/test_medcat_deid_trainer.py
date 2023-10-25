@@ -1,9 +1,9 @@
 import os
 import pytest
 from unittest.mock import create_autospec, patch, Mock
-from app.config import Settings
-from app.model_services.medcat_model_deid import MedCATModelDeIdentification
-from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
+from config import Settings
+from model_services.medcat_model_deid import MedCATModelDeIdentification
+from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 model_service = create_autospec(MedCATModelDeIdentification,

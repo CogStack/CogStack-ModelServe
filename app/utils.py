@@ -13,6 +13,7 @@ from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Tuple, Any
 from fastapi import Request
 from starlette.responses import JSONResponse
+from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from domain import Annotation, Entity, CodeType
@@ -50,7 +51,7 @@ def get_rate_limiter(auth_user_enabled: Optional[bool] = None) -> Limiter:
 
 
 def rate_limit_exceeded_handler(*args: Tuple, **kwargs: Dict[str, Any]) -> JSONResponse:
-    return JSONResponse({"error": "Too many requests. Please wait and try your request again."}, status_code=429)
+    return JSONResponse({"error": "Too many requests. Please wait and try your request again."}, status_code=HTTP_429_TOO_MANY_REQUESTS)
 
 
 def adjust_rate_limit_str(rate_limit: str) -> str:

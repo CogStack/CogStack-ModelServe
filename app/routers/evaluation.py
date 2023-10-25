@@ -5,7 +5,7 @@ import tempfile
 import logging
 
 from typing import List
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_400_BAD_REQUEST
+from starlette.status import HTTP_400_BAD_REQUEST
 from fastapi import APIRouter, Query, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 
@@ -20,6 +20,7 @@ from processors.metrics_collector import (
     concat_trainer_exports,
 )
 from auth.users import props
+from exception import AnnotationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -76,9 +77,9 @@ def get_inter_annotator_agreement_scores(trainer_export: List[UploadFile],
                 iaa_scores = get_iaa_scores_per_span(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
             else:
                 raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f'Unknown scope: "{scope}"')
-        except ValueError as e:
+        except AnnotationException as e:
             logger.exception(e)
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str(e))
+            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(e))
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
-from app.api import get_model_server
-from app.model_services.trf_model_deid import TransformersModelDeIdentification
+from api import get_model_server
+from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
 
 model_service = create_autospec(TransformersModelDeIdentification)

@@ -1,8 +1,8 @@
 import tempfile
 import uuid
-from typing import Dict
+from typing import Dict, List
 
-from fastapi import APIRouter, Depends, Response, File, UploadFile, Query
+from fastapi import APIRouter, Depends, Response, UploadFile, Query
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
 import globals
@@ -18,15 +18,19 @@ router = APIRouter()
              tags=[Tags.Training.name],
              dependencies=[Depends(props.current_active_user)])
 async def train_unsupervised(response: Response,
-                             training_data: UploadFile = File(...),
+                             training_data: List[UploadFile],
                              log_frequency: int = Query(default=1000, description="log after every number of processed documents", ge=1),
                              model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
     data_file = tempfile.NamedTemporaryFile()
-    for line in training_data.file:
-        data_file.write(line)
+    file_names = []
+    for td in training_data:
+        for line in td.file:
+            data_file.write(line)
+        file_names.append("" if td.filename is None else td.filename)
     data_file.flush()
+    data_file.seek(0)
     training_id = str(uuid.uuid4())
-    training_accepted = model_service.train_unsupervised(data_file, 1, log_frequency, training_id, training_data.filename)
+    training_accepted = model_service.train_unsupervised(data_file, 1, log_frequency, training_id, ",".join(file_names))
     return _get_training_response(training_accepted, response, training_id)
 
 

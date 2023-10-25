@@ -3,8 +3,8 @@ import tempfile
 import json
 import pytest
 from unittest.mock import create_autospec
-from app.model_services.base import AbstractModelService
-from app.processors.metrics_collector import (
+from model_services.base import AbstractModelService
+from processors.metrics_collector import (
     evaluate_model_with_trainer_export,
     concat_trainer_exports,
     get_stats_from_trainer_export,
@@ -12,6 +12,7 @@ from app.processors.metrics_collector import (
     get_iaa_scores_per_doc,
     get_iaa_scores_per_span,
 )
+from exception import AnnotationException
 
 
 @pytest.fixture
@@ -144,7 +145,7 @@ def test_concat_trainer_exports():
 
 def test_concat_trainer_exports_with_duplicated_project_ids():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(AnnotationException) as e:
         concat_trainer_exports([path, path, path])
         assert "Found multiple projects share the same ID:" in str(e)
 
@@ -152,7 +153,7 @@ def test_concat_trainer_exports_with_duplicated_project_ids():
 def test_concat_trainer_exports_with_recurring_document_ids():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
     another_path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(AnnotationException) as e:
         concat_trainer_exports([path, another_path], allow_recurring_doc_ids=False)
         assert str(e) == "Found multiple documents share the the same ID(s): [3204, 3205, 3204, 3205]"
 

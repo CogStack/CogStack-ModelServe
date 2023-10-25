@@ -1,4 +1,4 @@
-from app.dependencies import ModelServiceDep
+from dependencies import ModelServiceDep
 from config import Settings
 from model_services.medcat_model import MedCATModel
 from model_services.medcat_model_icd10 import MedCATModelIcd10

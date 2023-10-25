@@ -3,8 +3,8 @@ import tempfile
 import pytest
 from unittest.mock import Mock
 from medcat.cat import CAT
-from app.config import Settings
-from app.model_services.medcat_model_umls import MedCATModelUmls
+from config import Settings
+from model_services.medcat_model_umls import MedCATModelUmls
 
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")

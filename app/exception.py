@@ -8,3 +8,7 @@ class TrainingFailedException(Exception):
 
 class ConfigurationException(Exception):
     """ An exception raised due to configuration errors"""
+
+
+class AnnotationException(Exception):
+    """ An exception raised due to annotation errors"""

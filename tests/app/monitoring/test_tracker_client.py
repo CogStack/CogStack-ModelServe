@@ -3,7 +3,7 @@ import pytest
 import mlflow
 import pandas as pd
 
-from app.management.tracker_client import TrackerClient
+from management.tracker_client import TrackerClient
 from unittest.mock import Mock, call
 
 

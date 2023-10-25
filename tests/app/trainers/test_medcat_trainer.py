@@ -2,9 +2,9 @@ import os
 import pytest
 from unittest.mock import create_autospec, patch, Mock
 from medcat.config import General
-from app.config import Settings
-from app.model_services.medcat_model import MedCATModel
-from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
+from config import Settings
+from model_services.medcat_model import MedCATModel
+from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
 
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")

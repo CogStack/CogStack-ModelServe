@@ -1,4 +1,4 @@
-from app.trainers.base import TrainerCommon
+from trainers.base import TrainerCommon
 
 
 def test_get_experiment_name():

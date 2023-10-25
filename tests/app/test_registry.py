@@ -1,5 +1,5 @@
-from app.domain import ModelType
-from app.registry import model_service_registry
+from domain import ModelType
+from registry import model_service_registry
 from model_services.trf_model_deid import TransformersModelDeIdentification
 from model_services.medcat_model_snomed import MedCATModelSnomed
 from model_services.medcat_model_umls import MedCATModelUmls

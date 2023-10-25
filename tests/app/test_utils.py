@@ -2,7 +2,7 @@ import os
 import json
 
 from urllib.parse import urlparse
-from app.utils import (
+from utils import (
     get_code_base_uri,
     annotations_to_entities,
     send_gelf_message,

@@ -6,6 +6,7 @@ from collections import defaultdict
 from sklearn.metrics import cohen_kappa_score
 from tqdm.autonotebook import tqdm
 from model_services.base import AbstractModelService
+from exception import AnnotationException
 
 
 ANCHOR_DELIMITER = ";"
@@ -134,13 +135,13 @@ def concat_trainer_exports(data_file_paths: List[str],
             data = json.load(f)
             for project in data["projects"]:
                 if project["id"] in project_ids:
-                    raise ValueError(f'Found multiple projects share the same ID: {project["id"]}')
+                    raise AnnotationException(f'Found multiple projects share the same ID: {project["id"]}')
                 project_ids.append(project["id"])
         combined["projects"].extend(data["projects"])
     document_ids = [doc["id"] for project in combined["projects"] for doc in project["documents"]]
     if not allow_recurring_doc_ids and len(document_ids) > len(set(document_ids)):
         recurring_ids = [doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1]
-        raise ValueError(f'Found multiple documents share the the same ID(s): {recurring_ids}')
+        raise AnnotationException(f'Found multiple documents share the the same ID(s): {recurring_ids}')
 
     if isinstance(combined_data_file_path, str):
         with open(combined_data_file_path, "w") as f:
@@ -375,9 +376,9 @@ def _extract_project_pair(export_file: Union[str, TextIO],
         if another_project_id == project["id"]:
             project_b = project
     if project_a is None:
-        raise ValueError(f"Cannot find the project with ID: {project_id}")
+        raise AnnotationException(f"Cannot find the project with ID: {project_id}")
     if project_b is None:
-        raise ValueError(f"Cannot find the project with ID: {another_project_id}")
+        raise AnnotationException(f"Cannot find the project with ID: {another_project_id}")
 
     return project_a, project_b
 

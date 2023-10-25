@@ -2,8 +2,8 @@ import os
 import pytest
 from transformers.models.bert.modeling_bert import BertForTokenClassification
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
-from app.config import Settings
-from app.model_services.trf_model_deid import TransformersModelDeIdentification
+from config import Settings
+from model_services.trf_model_deid import TransformersModelDeIdentification
 
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")

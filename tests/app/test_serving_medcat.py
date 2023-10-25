@@ -5,9 +5,9 @@ import httpx
 import json
 import pytest
 from fastapi.testclient import TestClient
-from app.api import get_model_server
-from app.utils import get_settings
-from app.model_services.medcat_model import MedCATModel
+from api import get_model_server
+from utils import get_settings
+from model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
@@ -19,6 +19,7 @@ get_settings().AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "note.txt")
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "another_trainer_export.json")
 TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
 MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "sample_texts.json")
@@ -224,7 +225,7 @@ def test_train_supervised():
                            '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
                            '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
                            '"acc":1,"validated":true}]}]}]}]}'))
-        response = client.post("/train_supervised", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post("/train_supervised", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -234,7 +235,7 @@ def test_train_supervised():
 def test_train_unsupervised():
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("Spinal stenosis"))
-        response = client.post("/train_unsupervised", files={"training_data": ("note.txt", f, "multipart/form-data")})
+        response = client.post("/train_unsupervised", files=[("training_data", f)])
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
@@ -262,7 +263,7 @@ def test_inter_annotator_agreement_scores_per_concept():
 def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
     with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
-    assert response.status_code == 404
+    assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"detail": error_message}
 
