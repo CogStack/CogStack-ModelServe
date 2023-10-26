@@ -83,9 +83,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         self._model_service = model_service
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
-        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained")
+        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
         self._meta_cat_config_dict = model_service._meta_cat_config_dict
         self._model_manager = ModelManager(type(self), model_service._config)
+        os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
     def run(trainer: SupervisedTrainer,
@@ -112,10 +113,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.log_document_size(num_of_docs)
                 training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
                 logger.info("Performing supervised training...")
-                train_supervised_params = get_func_params_as_dict(model.train_supervised)
+                train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
                 train_supervised_params.update(training_params)
                 with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
-                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised(**train_supervised_params)
+                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(**train_supervised_params)
                 trainer._save_examples(examples, ["tp", "tn"])
                 del examples
                 gc.collect()
@@ -285,9 +286,10 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         self._model_service = model_service
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
-        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained")
+        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
         self._meta_cat_config_dict = model_service._meta_cat_config_dict
         self._model_manager = ModelManager(type(self), model_service._config)
+        os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
     def run(trainer: UnsupervisedTrainer,
