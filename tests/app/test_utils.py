@@ -1,6 +1,7 @@
 import os
 import json
 
+from utils import get_settings
 from urllib.parse import urlparse
 from utils import (
     get_code_base_uri,
@@ -11,6 +12,7 @@ from utils import (
     json_normalize_medcat_entities,
     json_normalize_trainer_export,
     json_denormalize,
+    filter_by_concept_ids,
 )
 
 
@@ -91,3 +93,15 @@ def test_json_denormalize():
     df = json_normalize_trainer_export(trainer_export)
     trainer_export = json_denormalize(df)
     assert len(trainer_export) == 30
+
+
+def test_filter_by_concept_ids():
+    get_settings().TRAINING_CONCEPT_ID_WHITELIST = "C0017168"
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    filtered = filter_by_concept_ids(trainer_export)
+    for project in filtered["projects"]:
+        for document in project["documents"]:
+            for annotation in document["annotations"]:
+                assert annotation["cui"] == "C0017168"

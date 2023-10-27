@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     AUTH_JWT_SECRET: str = ""                       # the JWT secret and will be ignored if AUTH_USER_ENABLED is not "true"
     AUTH_ACCESS_TOKEN_EXPIRE_SECONDS: int = 3600    # the seconds after which the JWT will expire
     AUTH_DATABASE_URL: str = "sqlite+aiosqlite:///./cms-users.db"     # the URL of the authentication database
+    TRAINING_CONCEPT_ID_WHITELIST: str = ""         # the comma-separated concept IDs used for filtering annotations of interest
     DEBUG: str = "false"                            # if "true", the debug mode is switched on
 
     class Config:

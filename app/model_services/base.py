@@ -12,6 +12,10 @@ class AbstractModelService(ABC):
         self._model_name = "CMS model"
 
     @property
+    def service_config(self) -> Settings:
+        return self._config
+
+    @property
     def model_name(self) -> str:
         return self._model_name
 

@@ -12,6 +12,7 @@ from domain import Tags
 from model_services.base import AbstractModelService
 from auth.users import props
 from processors.metrics_collector import concat_trainer_exports
+from utils import filter_by_concept_ids
 from exception import AnnotationException
 
 router = APIRouter()
@@ -45,6 +46,7 @@ async def train_supervised(trainer_export: List[UploadFile],
         for file in files:
             file.close()
     data_file = tempfile.NamedTemporaryFile(mode="w")
+    concatenated = filter_by_concept_ids(concatenated)
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)

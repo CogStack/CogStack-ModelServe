@@ -6,6 +6,7 @@ import hashlib
 import re
 import inspect
 import os
+import copy
 import pandas as pd
 
 from urllib.parse import ParseResult
@@ -144,6 +145,26 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
                     current = current[k]
         result.append(result_row)
     return result
+
+
+def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
+    concept_ids = get_settings().TRAINING_CONCEPT_ID_WHITELIST.split(",")
+    if concept_ids == [""]:
+        return trainer_export
+    filtered = copy.deepcopy(trainer_export)
+
+    # special merging for the DeID annotations and consider removing this.
+    for project in filtered["projects"]:
+        for document in project["documents"]:
+            for annotation in document["annotations"]:
+                if annotation["cui"] == "N1100" or annotation["cui"] == "N1200":
+                    annotation["cui"] = "N1000"
+
+    for project in filtered["projects"]:
+        for document in project["documents"]:
+            document["annotations"] = [anno for anno in document["annotations"] if anno["cui"] in concept_ids and anno["correct"] and not anno["deleted"] and not anno["killed"]]
+
+    return filtered
 
 
 TYPE_ID_TO_NAME_PATCH = {
