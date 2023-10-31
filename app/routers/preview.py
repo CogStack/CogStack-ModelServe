@@ -3,8 +3,8 @@ import json
 from io import BytesIO
 from typing import Union
 
-from fastapi import APIRouter, Depends, Body, UploadFile, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Body, UploadFile, Request, Response
+from fastapi.responses import StreamingResponse, JSONResponse
 from spacy import displacy
 from starlette.status import HTTP_404_NOT_FOUND
 
@@ -21,8 +21,14 @@ router = APIRouter()
              tags=[Tags.Rendering.name],
              response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-async def get_rendered_entities_from_text(text: str = Body(..., media_type="text/plain"),
+async def get_rendered_entities_from_text(request: Request,
+                                          text: str = Body(..., media_type="text/plain"),
                                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+    """
+    Extract the NER entities in HTML for preview
+
+    - **text**: the text to be sent to the model for NER
+    """
     annotations = model_service.annotate(text)
     entities = annotations_to_entities(annotations, model_service.model_name)
     ent_input = Doc(text=text, ents=entities)
@@ -36,9 +42,17 @@ async def get_rendered_entities_from_text(text: str = Body(..., media_type="text
              tags=[Tags.Rendering.name],
              response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-def get_rendered_entities_from_trainer_export(trainer_export: UploadFile,
+def get_rendered_entities_from_trainer_export(request: Request,
+                                              trainer_export: UploadFile,
                                               project_id: Union[int, None] = None,
-                                              document_id: Union[int, None] = None) -> StreamingResponse:
+                                              document_id: Union[int, None] = None) -> Response:
+    """
+    Get existing entities in HTML from a trainer export for preview
+
+    - **trainer_export**: the trainer export file to be uploaded
+    - **project_id**: the target project ID, and if not provided, all projects will be included
+    - **document_id**: the target document ID, and if not provided, all documents of the target project(s) will be included
+    """
     data = json.load(trainer_export.file)
     htmls = []
     for project in data["projects"]:
@@ -64,5 +78,5 @@ def get_rendered_entities_from_trainer_export(trainer_export: UploadFile,
         response = StreamingResponse(BytesIO("<br/>".join(htmls).encode()), media_type="application/octet-stream")
         response.headers["Content-Disposition"] = f'attachment ; filename="preview_{str(uuid.uuid4())}.html"'
     else:
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str("Cannot find any matching documents to preview"))
+        return JSONResponse(content={"message": "Cannot find any matching documents to preview"}, status_code=HTTP_404_NOT_FOUND)
     return response

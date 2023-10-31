@@ -5,8 +5,7 @@ import tempfile
 import logging
 
 from typing import List
-from starlette.status import HTTP_400_BAD_REQUEST
-from fastapi import APIRouter, Query, Depends, UploadFile, HTTPException
+from fastapi import APIRouter, Query, Depends, UploadFile, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 
 import globals
@@ -30,8 +29,14 @@ logger = logging.getLogger(__name__)
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-def get_evaluation_with_trainer_export(trainer_export: UploadFile,
+def get_evaluation_with_trainer_export(request: Request,
+                                       trainer_export: UploadFile,
                                        model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+    """
+    Evaluate a trainer export against the current served model
+
+    - **trainer_export**: the trainer export file to be uploaded
+    """
     with tempfile.NamedTemporaryFile() as file:
         for line in trainer_export.file:
             file.write(line)
@@ -51,10 +56,19 @@ def get_evaluation_with_trainer_export(trainer_export: UploadFile,
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-def get_inter_annotator_agreement_scores(trainer_export: List[UploadFile],
+def get_inter_annotator_agreement_scores(request: Request,
+                                         trainer_export: List[UploadFile],
                                          annotator_a_project_id: int,
                                          annotator_b_project_id: int,
                                          scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:
+    """
+    Calculate inter annotator agreement scores between two projects
+
+    -- **trainer_export**: a list of trainer export files to be uploaded
+    -- **annotator_a_project_id**: the ID of the first project
+    -- **annotator_b_project_id**: the ID of the second project
+    -- **scope**: the scope for which the score will be calculated, e.g., per-concept, per-document or per-span
+    """
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -68,18 +82,14 @@ def get_inter_annotator_agreement_scores(trainer_export: List[UploadFile],
     with tempfile.NamedTemporaryFile(mode="w+") as combined:
         json.dump(concatenated, combined)
         combined.seek(0)
-        try:
-            if scope == Scope.PER_CONCEPT.value:
-                iaa_scores = get_iaa_scores_per_concept(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
-            elif scope == Scope.PER_DOCUMENT.value:
-                iaa_scores = get_iaa_scores_per_doc(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
-            elif scope == Scope.PER_SPAN.value:
-                iaa_scores = get_iaa_scores_per_span(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
-            else:
-                raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f'Unknown scope: "{scope}"')
-        except AnnotationException as e:
-            logger.exception(e)
-            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(e))
+        if scope == Scope.PER_CONCEPT.value:
+            iaa_scores = get_iaa_scores_per_concept(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
+        elif scope == Scope.PER_DOCUMENT.value:
+            iaa_scores = get_iaa_scores_per_doc(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
+        elif scope == Scope.PER_SPAN.value:
+            iaa_scores = get_iaa_scores_per_span(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
+        else:
+            raise AnnotationException(f'Unknown scope: "{scope}"')
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
@@ -91,7 +101,13 @@ def get_inter_annotator_agreement_scores(trainer_export: List[UploadFile],
              tags=[Tags.Evaluating.name],
              response_class=JSONResponse,
              dependencies=[Depends(props.current_active_user)])
-def get_concatenated_trainer_exports(trainer_export: List[UploadFile]) -> JSONResponse:
+def get_concatenated_trainer_exports(request: Request,
+                                     trainer_export: List[UploadFile]) -> JSONResponse:
+    """
+    Concatenate multiple trainer export files into a single file for download
+
+    -- **trainer_export**: a list of trainer export files to be uploaded
+    """
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()

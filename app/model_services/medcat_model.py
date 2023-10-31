@@ -115,7 +115,7 @@ class MedCATModel(AbstractModelService):
                          training_id: str,
                          input_file_name: str) -> bool:
         if self._supervised_trainer is None:
-            raise ConfigurationException("Trainers are not enabled")
+            raise ConfigurationException("The supervised trainer is not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
 
     def train_unsupervised(self,
@@ -125,7 +125,7 @@ class MedCATModel(AbstractModelService):
                            training_id: str,
                            input_file_name: str) -> bool:
         if self._unsupervised_trainer is None:
-            raise ConfigurationException("Trainers are not enabled")
+            raise ConfigurationException("The unsupervised trainer is not enabled")
         return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
 
     def train_metacat(self,
@@ -135,7 +135,7 @@ class MedCATModel(AbstractModelService):
                       training_id: str,
                       input_file_name: str) -> bool:
         if self._metacat_trainer is None:
-            raise ConfigurationException("Trainers are not enabled")
+            raise ConfigurationException("The metacat trainer is not enabled")
         return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
 
     def get_records_from_doc(self, doc: Dict) -> Dict:
@@ -156,7 +156,7 @@ class MedCATModel(AbstractModelService):
 
         tuis2cuis = self._model.cdb.addl_info.get("type_id2cuis")
         model_tuis = set(tuis2cuis.keys())
-        if self._whitelisted_tuis == set([""]):
+        if self._whitelisted_tuis == {""}:
             return
         assert self._whitelisted_tuis.issubset(model_tuis), f"Unrecognisable Type Unique Identifier(s): {self._whitelisted_tuis - model_tuis}"
         whitelisted_cuis = set()

@@ -10,7 +10,6 @@ from functools import partial
 from typing import TextIO, Callable, Dict, Optional
 from config import Settings
 from management.tracker_client import TrackerClient
-from exception import StartTrainingException
 
 logger = logging.getLogger(__name__)
 
@@ -50,19 +49,15 @@ class TrainerCommon(object):
                 return False
             else:
                 loop = asyncio.get_event_loop()
-                try:
-                    experiment_id, run_id = self._tracker_client.start_tracking(
-                        model_name=self._model_name,
-                        input_file_name=input_file_name,
-                        base_model_original=self._config.BASE_MODEL_FULL_PATH,
-                        training_type=training_type,
-                        training_params=training_params,
-                        run_name=training_id,
-                        log_frequency=log_frequency,
-                    )
-                except StartTrainingException as e:
-                    logger.exception(e)
-                    return False
+                experiment_id, run_id = self._tracker_client.start_tracking(
+                    model_name=self._model_name,
+                    input_file_name=input_file_name,
+                    base_model_original=self._config.BASE_MODEL_FULL_PATH,
+                    training_type=training_type,
+                    training_params=training_params,
+                    run_name=training_id,
+                    log_frequency=log_frequency,
+                )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     self._tracker_client.save_model_artifact(dataset.name, self._model_name)
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")

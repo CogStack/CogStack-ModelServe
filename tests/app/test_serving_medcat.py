@@ -215,7 +215,7 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post(f"/preview_trainer_export?project_id={pid}&document_id={did}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 404
-    assert response.json() == {"detail": "Cannot find any matching documents to preview"}
+    assert response.json() == {"message": "Cannot find any matching documents to preview"}
 
 
 def test_train_supervised():
@@ -234,7 +234,7 @@ def test_train_supervised():
 
 def test_train_unsupervised():
     with tempfile.TemporaryFile("r+b") as f:
-        f.write(str.encode("Spinal stenosis"))
+        f.write(str.encode("[\"Spinal stenosis\"]"))
         response = client.post("/train_unsupervised", files=[("training_data", f)])
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -265,7 +265,7 @@ def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
         response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
-    assert response.json() == {"detail": error_message}
+    assert response.json() == {"message": error_message}
 
 
 def test_unknown_scope_on_getting_iaa_scores():
@@ -275,7 +275,7 @@ def test_unknown_scope_on_getting_iaa_scores():
     ])
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
-    assert response.json() == {"detail": "Unknown scope: \"unknown\""}
+    assert response.json() == {"message": "Unknown scope: \"unknown\""}
 
 
 def test_inter_annotator_agreement_scores_per_doc():

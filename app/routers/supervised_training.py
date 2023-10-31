@@ -2,10 +2,11 @@ import tempfile
 import uuid
 import json
 import logging
-from typing import Dict, List
+from typing import List
 
-from fastapi import APIRouter, Depends, Response, UploadFile, Query, HTTPException
-from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE, HTTP_400_BAD_REQUEST
+from fastapi import APIRouter, Depends, UploadFile, Query, Request
+from fastapi.responses import JSONResponse
+from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
 import globals
 from domain import Tags
@@ -13,7 +14,6 @@ from model_services.base import AbstractModelService
 from auth.users import props
 from processors.metrics_collector import concat_trainer_exports
 from utils import filter_by_concept_ids
-from exception import AnnotationException
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -21,13 +21,21 @@ logger = logging.getLogger(__name__)
 
 @router.post("/train_supervised",
              status_code=HTTP_202_ACCEPTED,
+             response_class=JSONResponse,
              tags=[Tags.Training.name],
              dependencies=[Depends(props.current_active_user)])
-async def train_supervised(trainer_export: List[UploadFile],
-                           response: Response,
+async def train_supervised(request: Request,
+                           trainer_export: List[UploadFile],
                            epochs: int = Query(default=1, description="The number of training epochs", ge=0),
                            log_frequency: int = Query(default=1, description="log after every number of finished epochs", ge=1),
-                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
+                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+    """
+    Upload one or more trainer export files and trigger the supervised training
+
+    - **trainer_export**: one or more trainer export files to be uploaded
+    - **epochs**: the number of training epochs
+    - **log_frequency**: the number of processed documents after which training metrics will be logged
+    """
     files = []
     file_names = []
     for te in trainer_export:
@@ -39,9 +47,6 @@ async def train_supervised(trainer_export: List[UploadFile],
         file_names.append("" if te.filename is None else te.filename)
     try:
         concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
-    except AnnotationException as e:
-        logger.exception(e)
-        raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=str(e))
     finally:
         for file in files:
             file.close()
@@ -52,12 +57,11 @@ async def train_supervised(trainer_export: List[UploadFile],
     data_file.seek(0)
     training_id = str(uuid.uuid4())
     training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, ",".join(file_names))
-    return _get_training_response(training_accepted, response, training_id)
+    return _get_training_response(training_accepted, training_id)
 
 
-def _get_training_response(training_accepted: bool, response: Response, training_id: str) -> Dict:
+def _get_training_response(training_accepted: bool, training_id: str) -> JSONResponse:
     if training_accepted:
-        return {"message": "Your training started successfully.", "training_id": training_id}
+        return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
     else:
-        response.status_code = HTTP_503_SERVICE_UNAVAILABLE
-        return {"message": "Another training on this model is still active. Please retry your training later."}
+        return JSONResponse(content={"message": "Another training on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)

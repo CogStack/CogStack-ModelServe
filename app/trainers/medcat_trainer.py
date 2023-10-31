@@ -302,7 +302,6 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         copied_model_pack_path = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        data_file.seek(0)
         texts = ijson.items(data_file, "item")
         try:
             logger.info("Loading a new model copy for training...")

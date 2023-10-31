@@ -1,6 +1,7 @@
 import asyncio
 import globals
 import importlib
+import logging
 
 from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
@@ -9,7 +10,9 @@ from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import JSONResponse
 from starlette.datastructures import QueryParams
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUEST
 from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -18,7 +21,11 @@ from auth.db import make_sure_db_and_tables
 from domain import Tags
 from management.tracker_client import TrackerClient
 from dependencies import ModelServiceDep
+from exception import StartTrainingException, AnnotationException
 from utils import get_settings, get_rate_limiter, rate_limit_exceeded_handler
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
@@ -53,6 +60,16 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
         scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
         return await call_next(Request(scope, request.receive, request._send))
+
+    @app.exception_handler(StartTrainingException)
+    async def start_training_exception_handler(_: Request, exception: StartTrainingException) -> JSONResponse:
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
+
+    @app.exception_handler(AnnotationException)
+    async def annotation_exception_handler(_: Request, exception: AnnotationException) -> JSONResponse:
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:

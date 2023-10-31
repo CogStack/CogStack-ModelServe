@@ -7,8 +7,8 @@ import ijson
 import uuid
 from typing import Dict, List
 
-from fastapi import APIRouter, Depends, Body, Request, Response, UploadFile, File
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Body, UploadFile, File, Request
+from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 
 import globals
 from domain import TextWithAnnotations, ModelCard, Tags
@@ -37,26 +37,36 @@ limiter = get_rate_limiter()
             response_model=ModelCard,
             tags=[Tags.Metadata.name],
             dependencies=[Depends(props.current_active_user)])
-async def get_model_card(model_service: AbstractModelService = Depends(globals.model_service_dep)) -> ModelCard:
+async def get_model_card(request: Request,
+                         model_service: AbstractModelService = Depends(globals.model_service_dep)) -> ModelCard:
+    """
+    Get information about the model being served
+    """
     return model_service.info()
 
 
 @router.post(PATH_PROCESS,
              response_model=TextWithAnnotations,
              response_model_exclude_none=True,
+             response_class=JSONResponse,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(props.current_active_user)])
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
 def get_entities_from_text(request: Request,
                            text: str = Body(..., media_type="text/plain"),
-                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Dict:
+                           model_service: AbstractModelService = Depends(globals.model_service_dep)) -> TextWithAnnotations:
+    """
+    Extract the NER entities from a single piece of plain text
+
+    - **text**: the plain text to be sent to the model for NER
+    """
     annotations = model_service.annotate(text)
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
     _send_accuracy_metric(annotations, PATH_PROCESS)
     _send_confidence_metric(annotations, PATH_PROCESS)
 
-    return {"text": text, "annotations": annotations}
+    return TextWithAnnotations(text=text, annotations=annotations)
 
 
 @router.post(PATH_PROCESS_BULK,
@@ -67,7 +77,12 @@ def get_entities_from_text(request: Request,
 @limiter.limit(get_settings().PROCESS_BULK_RATE_LIMIT)
 def get_entities_from_multiple_texts(request: Request,
                                      texts: List[str],
-                                     model_service: AbstractModelService = Depends(globals.model_service_dep)) -> List[Dict]:
+                                     model_service: AbstractModelService = Depends(globals.model_service_dep)) -> List[TextWithAnnotations]:
+    """
+    Extract the NER entities from multiple plain texts
+
+    - **text**: a list of plain texts to be sent to the model for NER, in the format of ["text_1", "text_2", ..., "text_n"]
+    """
     annotations_list = model_service.batch_annotate(texts)
     body = []
     annotation_sum = 0
@@ -85,10 +100,16 @@ def get_entities_from_multiple_texts(request: Request,
 
 @router.post(PATH_PROCESS_BULK_FILE,
              tags=[Tags.Annotations.name],
+             response_class=StreamingResponse,
              dependencies=[Depends(props.current_active_user)])
-def extract_entities_from_text_list_file_as_json_file(response: Response,
-                                                      text_list_file: UploadFile = File(...),
-                                                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+def extract_entities_from_multi_text_file(request: Request,
+                                          text_list_file: UploadFile = File(...),
+                                          model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+    """
+    Upload a file containing a list of plain text and extract the NER entities in JSON
+
+    - **text_list_file**: a file containing a list of plain texts, in the format of ["text_1", "text_2", ..., "text_n"]
+    """
     with tempfile.NamedTemporaryFile() as data_file:
         for line in text_list_file.file:
             data_file.write(line)
@@ -125,7 +146,12 @@ def extract_entities_from_text_list_file_as_json_file(response: Response,
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
 def get_redacted_text(request: Request,
                       text: str = Body(..., media_type="text/plain"),
-                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> Response:
+                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> PlainTextResponse:
+    """
+    Extract and redact NER entities from a single piece of plain text
+
+    - **text**: the plain text to be sent to the model for NER and redaction
+    """
     annotations = model_service.annotate(text)
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
@@ -139,7 +165,7 @@ def get_redacted_text(request: Request,
         start_index = annotation["end"]
     redacted_text += text[start_index:]
 
-    return Response(redacted_text, media_type="text/plain")
+    return PlainTextResponse(redacted_text)
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:
