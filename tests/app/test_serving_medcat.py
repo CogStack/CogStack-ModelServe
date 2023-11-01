@@ -155,6 +155,50 @@ def test_redact():
     assert response.text == "[Spinal stenosis]"
 
 
+def test_redact_with_mask():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact?mask=***",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.text == "***"
+
+
+def test_redact_with_hash():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact?mask=any&hash=true",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.text == "4c86af83314100034ad83fae3227e595fc54cb864c69ea912cd5290b8d0f41a4"
+
+
 def test_preview():
     annotations = [{
         "label_name": "Spinal stenosis",
@@ -329,7 +373,7 @@ def test_extract_entities_from_text_list_file_as_json_file():
     model_service.batch_annotate.return_value = annotations_list
 
     response = client.post("/process_bulk_file", files=[
-        ("text_list_file", open(MULTI_TEXTS_FILE_PATH, "rb")),
+        ("multi_text_file", open(MULTI_TEXTS_FILE_PATH, "rb")),
     ])
 
     assert isinstance(response, httpx.Response)

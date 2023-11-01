@@ -3,8 +3,9 @@ import uuid
 import json
 import logging
 from typing import List
+from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, Query, Request
+from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
@@ -23,19 +24,13 @@ logger = logging.getLogger(__name__)
              status_code=HTTP_202_ACCEPTED,
              response_class=JSONResponse,
              tags=[Tags.Training.name],
-             dependencies=[Depends(props.current_active_user)])
+             dependencies=[Depends(props.current_active_user)],
+             description="Upload one or more trainer export files and trigger the supervised training")
 async def train_supervised(request: Request,
-                           trainer_export: List[UploadFile],
-                           epochs: int = Query(default=1, description="The number of training epochs", ge=0),
-                           log_frequency: int = Query(default=1, description="log after every number of finished epochs", ge=1),
+                           trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+                           epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+                           log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
-    """
-    Upload one or more trainer export files and trigger the supervised training
-
-    - **trainer_export**: one or more trainer export files to be uploaded
-    - **epochs**: the number of training epochs
-    - **log_frequency**: the number of processed documents after which training metrics will be logged
-    """
     files = []
     file_names = []
     for te in trainer_export:

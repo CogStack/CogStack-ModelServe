@@ -3,8 +3,9 @@ import tempfile
 import uuid
 import ijson
 from typing import List
+from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, Query, Request
+from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
@@ -22,14 +23,11 @@ router = APIRouter()
              tags=[Tags.Training.name],
              dependencies=[Depends(props.current_active_user)])
 async def train_unsupervised(request: Request,
-                             training_data: List[UploadFile],
-                             log_frequency: int = Query(default=1000, description="log after every number of processed documents", ge=1),
+                             training_data: Annotated[List[UploadFile], File(description="One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+                             log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                              model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
     """
     Upload one or more plain text files and trigger the unsupervised training
-
-    - **training_data**: one or more files to be uploaded and each contains a list of plain texts, in the format of ["text_1", "text_2", ..., "text_n"]
-    - **log_frequency**: the number of processed documents after which training metrics will be logged
     """
     data_file = tempfile.NamedTemporaryFile(mode="r+")
     file_names = []

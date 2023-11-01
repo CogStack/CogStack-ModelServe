@@ -5,7 +5,8 @@ import tempfile
 import logging
 
 from typing import List
-from fastapi import APIRouter, Query, Depends, UploadFile, Request
+from typing_extensions import Annotated
+from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse
 
 import globals
@@ -28,15 +29,11 @@ logger = logging.getLogger(__name__)
 @router.post("/evaluate",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)])
+             dependencies=[Depends(props.current_active_user)],
+             description="Evaluate a trainer export against the current served model")
 def get_evaluation_with_trainer_export(request: Request,
-                                       trainer_export: UploadFile,
+                                       trainer_export: Annotated[UploadFile, File(description="The trainer export file to be uploaded")],
                                        model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
-    """
-    Evaluate a trainer export against the current served model
-
-    - **trainer_export**: the trainer export file to be uploaded
-    """
     with tempfile.NamedTemporaryFile() as file:
         for line in trainer_export.file:
             file.write(line)
@@ -55,20 +52,13 @@ def get_evaluation_with_trainer_export(request: Request,
 @router.post("/iaa-scores",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)])
+             dependencies=[Depends(props.current_active_user)],
+             description="Calculate inter annotator agreement scores between two projects")
 def get_inter_annotator_agreement_scores(request: Request,
-                                         trainer_export: List[UploadFile],
-                                         annotator_a_project_id: int,
-                                         annotator_b_project_id: int,
-                                         scope: str = Query("scope", enum=[s.value for s in Scope])) -> StreamingResponse:
-    """
-    Calculate inter annotator agreement scores between two projects
-
-    -- **trainer_export**: a list of trainer export files to be uploaded
-    -- **annotator_a_project_id**: the ID of the first project
-    -- **annotator_b_project_id**: the ID of the second project
-    -- **scope**: the scope for which the score will be calculated, e.g., per-concept, per-document or per-span
-    """
+                                         trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
+                                         annotator_a_project_id: Annotated[int, Query(description="The project ID from one annotator")],
+                                         annotator_b_project_id: Annotated[int, Query(description="The project ID from another annotator")],
+                                         scope: Annotated[str, Query(enum=[s.value for s in Scope], description="The scope for which the score will be calculated, e.g., per_concept, per_document or per_span")]) -> StreamingResponse:
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -100,14 +90,10 @@ def get_inter_annotator_agreement_scores(request: Request,
 @router.post("/concat_trainer_exports",
              tags=[Tags.Evaluating.name],
              response_class=JSONResponse,
-             dependencies=[Depends(props.current_active_user)])
+             dependencies=[Depends(props.current_active_user)],
+             description="Concatenate multiple trainer export files into a single file for download")
 def get_concatenated_trainer_exports(request: Request,
-                                     trainer_export: List[UploadFile]) -> JSONResponse:
-    """
-    Concatenate multiple trainer export files into a single file for download
-
-    -- **trainer_export**: a list of trainer export files to be uploaded
-    """
+                                     trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")]) -> JSONResponse:
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
