@@ -26,6 +26,11 @@ class TextWithAnnotations(BaseModel):
     annotations: List[Annotation]
 
 
+class TextWithPublicKey(BaseModel):
+    text: str
+    public_key_pem: str
+
+
 class ModelCard(BaseModel):
     api_version: str
     model_description: str
@@ -54,12 +59,13 @@ class Doc(BaseModel):
 
 
 class Tags(str, Enum):
-    Metadata = "Get the model card."
-    Annotations = "Retrieve recognised entities by running the model."
-    Rendering = "Get embeddable annotation snippet in HTML."
-    Training = "Trigger model training on input annotations."
-    Evaluating = "Evaluate the deployed model using trainer export"
-    Authentication = "Authenticate registered users."
+    Metadata = "Get the model card"
+    Annotations = "Retrieve NER entities by running the model"
+    Redaction = "Redact the extracted NER entities"
+    Rendering = "Preview embeddable annotation snippet in HTML"
+    Training = "Trigger model training on input annotations"
+    Evaluating = "Evaluate the deployed model with trainer export"
+    Authentication = "Authenticate registered users"
 
 
 class ModelType(str, Enum):

@@ -7,10 +7,15 @@ import re
 import inspect
 import os
 import copy
+import base64
 import pandas as pd
 
 from urllib.parse import ParseResult
 from functools import lru_cache
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from typing import List, Optional, Dict, Callable, Tuple, Any
 from fastapi import Request
 from starlette.responses import JSONResponse
@@ -165,6 +170,20 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
             document["annotations"] = [anno for anno in document["annotations"] if anno["cui"] in concept_ids and anno["correct"] and not anno["deleted"] and not anno["killed"]]
 
     return filtered
+
+
+def encrypt(raw: str, public_key_pem: str) -> str:
+    public_key = serialization.load_pem_public_key(public_key_pem.encode(), backend=default_backend)
+    encrypted = public_key.encrypt(raw.encode(),  # type: ignore
+                                   padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    return base64.b64encode(encrypted).decode()
+
+
+def decrypt(b64_encoded: str, private_key_pem: str) -> str:
+    private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+    decrypted = private_key.decrypt(base64.b64decode(b64_encoded),  # type: ignore
+                                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    return decrypted.decode()
 
 
 TYPE_ID_TO_NAME_PATCH = {

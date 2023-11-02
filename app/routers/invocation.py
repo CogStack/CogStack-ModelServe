@@ -13,9 +13,9 @@ from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 
 import globals
-from domain import TextWithAnnotations, ModelCard, Tags
+from domain import TextWithAnnotations, TextWithPublicKey, ModelCard, Tags
 from model_services.base import AbstractModelService
-from utils import get_settings, get_rate_limiter
+from utils import get_settings, get_rate_limiter, encrypt
 from management.prometheus_metrics import (
     cms_doc_annotations,
     cms_avg_anno_acc_per_doc,
@@ -30,6 +30,7 @@ PATH_PROCESS = "/process"
 PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
+PATH_REDACT_WITH_ENCRYPTION = "/redact_with_encryption"
 
 router = APIRouter()
 limiter = get_rate_limiter()
@@ -129,7 +130,7 @@ def extract_entities_from_multi_text_file(request: Request,
 
 
 @router.post(PATH_REDACT,
-             tags=[Tags.Annotations.name],
+             tags=[Tags.Redaction.name],
              dependencies=[Depends(props.current_active_user)],
              description="Extract and redact NER entities from a single piece of plain text")
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
@@ -158,6 +159,34 @@ def get_redacted_text(request: Request,
     redacted_text += text[start_index:]
 
     return PlainTextResponse(redacted_text)
+
+
+@router.post(PATH_REDACT_WITH_ENCRYPTION,
+             tags=[Tags.Redaction.name],
+             dependencies=[Depends(props.current_active_user)],
+             description="Redact and encrypt NER entities from a single piece of plain text")
+@limiter.limit(get_settings().PROCESS_RATE_LIMIT)
+def get_redacted_text_with_encryption(request: Request,
+                                      twpk: Annotated[TextWithPublicKey, Body(description="The plain text to be sent to the model for NER and redaction and the public PEM key used for encrypting detected spans")],
+                                      model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+    annotations = model_service.annotate(twpk.text)
+    _send_annotation_num_metric(len(annotations), PATH_PROCESS)
+
+    _send_accuracy_metric(annotations, PATH_PROCESS)
+    _send_confidence_metric(annotations, PATH_PROCESS)
+
+    redacted_text = ""
+    start_index = 0
+    encryptions = []
+    for idx, annotation in enumerate(annotations):
+        label = f"[REDACTED_{idx}]"
+        encrypted = encrypt(twpk.text[annotation["start"]:annotation["end"]], twpk.public_key_pem)
+        redacted_text += twpk.text[start_index:annotation["start"]] + label
+        encryptions.append({"label": label, "encryption": encrypted})
+        start_index = annotation["end"]
+    redacted_text += twpk.text[start_index:]
+
+    return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:

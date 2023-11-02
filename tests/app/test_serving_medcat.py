@@ -199,6 +199,36 @@ def test_redact_with_hash():
     assert response.text == "4c86af83314100034ad83fae3227e595fc54cb864c69ea912cd5290b8d0f41a4"
 
 
+def test_redact_with_encryption():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    body = {
+      "text": "Spinal stenosis",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
+    }
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact_with_encryption",
+                           json=body,
+                           headers={"Content-Type": "application/json"})
+    assert response.json()["redacted_text"] == "[REDACTED_0]"
+    assert len(response.json()["encryptions"]) == 1
+    assert response.json()["encryptions"][0]["label"] == "[REDACTED_0]"
+    assert isinstance(response.json()["encryptions"][0]["encryption"], str)
+    assert len(response.json()["encryptions"][0]["encryption"]) > 0
+
+
 def test_preview():
     annotations = [{
         "label_name": "Spinal stenosis",
