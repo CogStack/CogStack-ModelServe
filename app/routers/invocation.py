@@ -167,9 +167,9 @@ def get_redacted_text(request: Request,
              description="Redact and encrypt NER entities from a single piece of plain text")
 @limiter.limit(get_settings().PROCESS_RATE_LIMIT)
 def get_redacted_text_with_encryption(request: Request,
-                                      twpk: Annotated[TextWithPublicKey, Body(description="The plain text to be sent to the model for NER and redaction and the public PEM key used for encrypting detected spans")],
+                                      text_with_public_key: Annotated[TextWithPublicKey, Body()],
                                       model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
-    annotations = model_service.annotate(twpk.text)
+    annotations = model_service.annotate(text_with_public_key.text)
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
     _send_accuracy_metric(annotations, PATH_PROCESS)
@@ -180,11 +180,11 @@ def get_redacted_text_with_encryption(request: Request,
     encryptions = []
     for idx, annotation in enumerate(annotations):
         label = f"[REDACTED_{idx}]"
-        encrypted = encrypt(twpk.text[annotation["start"]:annotation["end"]], twpk.public_key_pem)
-        redacted_text += twpk.text[start_index:annotation["start"]] + label
+        encrypted = encrypt(text_with_public_key.text[annotation["start"]:annotation["end"]], text_with_public_key.public_key_pem)
+        redacted_text += text_with_public_key.text[start_index:annotation["start"]] + label
         encryptions.append({"label": label, "encryption": encrypted})
         start_index = annotation["end"]
-    redacted_text += twpk.text[start_index:]
+    redacted_text += text_with_public_key.text[start_index:]
 
     return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
 

@@ -36,13 +36,13 @@ def test_download_model_package(mlflow_fixture):
 
 def test_load_context(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
-    model_manager.load_context(PythonModelContext({"model_path": "model_path"}))
+    model_manager.load_context(PythonModelContext({"model_path": "model_path"}, None))
     assert type(model_manager._model_service) == _MockedModelService
 
 
 def test_predict(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
-    model_service = model_manager.predict(PythonModelContext({"model_path": "model_path"}), pd.DataFrame())
+    model_service = model_manager.predict(PythonModelContext({"model_path": "model_path"}, None), pd.DataFrame())
     assert model_service == model_manager._model_service
 
 

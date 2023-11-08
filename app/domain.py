@@ -1,61 +1,63 @@
 from enum import Enum
 from typing import List, Optional, Dict, Any
 
-from pydantic import BaseModel, root_validator
+from fastapi import HTTPException
+from starlette.status import HTTP_400_BAD_REQUEST
+from pydantic import BaseModel, Field, root_validator
 
 
 class Annotation(BaseModel):
-    start: int
-    end: int
-    label_name: str
-    label_id: str
-    categories: Optional[List[str]] = None
-    accuracy: Optional[float] = None
-    text: Optional[str] = None
-    meta_anns: Optional[dict] = None
+    start: int = Field(description="The start index of the annotation span")
+    end: int = Field(description="The first index after the annotation span")
+    label_name: str = Field(description="The pretty name of the annotation concept")
+    label_id: str = Field(description="The ID of the annotation concept")
+    categories: Optional[List[str]] = Field(default=None, description="The categories to which the annotation concept belongs")
+    accuracy: Optional[float] = Field(default=None, description="The confidence score of the annotation")
+    text: Optional[str] = Field(default=None, description="The string literal of the annotation span")
+    meta_anns: Optional[dict] = Field(default=None, description="The meta annotations")
 
     @root_validator()
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         if values["start"] >= values["end"]:
-            raise ValueError("The start index should be lower than the end index")
+            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="The start index should be lower than the end index")
         return values
 
 
 class TextWithAnnotations(BaseModel):
-    text: str
-    annotations: List[Annotation]
+    text: str = Field(description="The text from which the annotations are extracted")
+    annotations: List[Annotation] = Field(description="The list of extracted annotations")
 
 
 class TextWithPublicKey(BaseModel):
-    text: str
-    public_key_pem: str
+    text: str = Field(description="The plain text to be sent to the model for NER and redaction")
+    public_key_pem: str = Field(description="the public PEM key used for encrypting detected spans")
 
 
 class ModelCard(BaseModel):
-    api_version: str
-    model_description: str
-    model_type: str
-    model_card: Optional[dict] = None
+    api_version: str = Field(description="The version of the model serve APIs")
+    model_description: str = Field(description="The description about the served model")
+    model_type: str = Field(description="The type of the served model")
+    model_card: Optional[dict] = Field(default=None, description="The metadata of the served model")
 
 
 class Entity(BaseModel):
-    start: int
-    end: int
-    label: str
-    kb_id: str
-    kb_url: str
+    start: int = Field(description="The start index of the preview entity")
+    end: int = Field(description="The first index after the preview entity")
+    label: str = Field(description="The pretty name of the preview entity")
+    kb_id: str = Field(description="The knowledge base ID of the preview entity")
+    kb_url: str = Field(description="The knowledge base URL of the preview entity")
 
     @root_validator()
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         if values["start"] >= values["end"]:
-            raise ValueError("The start index should be lower than the end index")
+            raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="The start index should be lower than the end index")
         return values
 
 
 class Doc(BaseModel):
-    text: str
-    ents: List[Entity]
-    title: Optional[str]
+    text: str = Field(description="The text from which the entities are extracted")
+    ents: List[Entity] = Field(description="The list of extracted entities")
+    title: Optional[str] = Field(description="The headline of the text")
 
 
 class Tags(str, Enum):
