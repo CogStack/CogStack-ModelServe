@@ -80,10 +80,10 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service.init_model()
     elif mlflow_model_uri:
-        model_service = ModelManager.get_model_service(settings.MLFLOW_TRACKING_URI,
-                                                       mlflow_model_uri,
-                                                       settings,
-                                                       dst_model_path)
+        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri,
+                                                                     settings.MLFLOW_TRACKING_URI,
+                                                                     settings,
+                                                                     dst_model_path)
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         app = get_model_server()

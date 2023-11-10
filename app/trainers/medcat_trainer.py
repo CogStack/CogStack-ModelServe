@@ -85,7 +85,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         self._model_pack_path = model_service._model_pack_path
         self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
         self._meta_cat_config_dict = model_service._meta_cat_config_dict
-        self._model_manager = ModelManager(type(self), model_service._config)
+        self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
@@ -288,7 +288,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         self._model_pack_path = model_service._model_pack_path
         self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
         self._meta_cat_config_dict = model_service._meta_cat_config_dict
-        self._model_manager = ModelManager(type(self), model_service._config)
+        self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod

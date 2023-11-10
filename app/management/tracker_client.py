@@ -71,17 +71,24 @@ class TrackerClient(object):
                    model_name: str,
                    pyfunc_model: ModelManager) -> None:
         model_name = model_name.replace(" ", "_")
+
         if not mlflow.get_tracking_uri().startswith("file:/"):
             mlflow.pyfunc.log_model(
                 artifact_path=model_name,
                 python_model=pyfunc_model,
                 artifacts={"model_path": filepath},
+                signature=pyfunc_model.get_model_signature(),
+                code_path=TrackerClient._get_code_path_list(),
+                pip_requirements=os.path.join(os.path.dirname(__file__), "..", "requirements.txt"),
                 registered_model_name=model_name,
             )
         else:
             mlflow.pyfunc.log_model(
                 artifact_path=model_name,
                 python_model=pyfunc_model,
+                signature=pyfunc_model.get_model_signature(),
+                code_path=TrackerClient._get_code_path_list(),
+                pip_requirements=os.path.join(os.path.dirname(__file__), "..", "requirements.txt"),
                 artifacts={"model_path": filepath},
             )
 
@@ -205,3 +212,20 @@ class TrackerClient(object):
     @staticmethod
     def _get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
         return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")
+
+    @staticmethod
+    def _get_code_path_list() -> List[str]:
+        return [
+            os.path.join(os.path.dirname(__file__), "..", "auth"),
+            os.path.join(os.path.dirname(__file__), "..", "management"),
+            os.path.join(os.path.dirname(__file__), "..", "model_services"),
+            os.path.join(os.path.dirname(__file__), "..", "processors"),
+            os.path.join(os.path.dirname(__file__), "..", "trainers"),
+            os.path.join(os.path.dirname(__file__), "..", "__init__.py"),
+            os.path.join(os.path.dirname(__file__), "..", "config.py"),
+            os.path.join(os.path.dirname(__file__), "..", "domain.py"),
+            os.path.join(os.path.dirname(__file__), "..", "exception.py"),
+            os.path.join(os.path.dirname(__file__), "..", "registry.py"),
+            os.path.join(os.path.dirname(__file__), "..", "utils.py"),
+            os.path.join(os.path.dirname(__file__), "..", "logging.ini"),
+        ]

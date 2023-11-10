@@ -3,10 +3,13 @@ import os
 import shutil
 import tempfile
 import mlflow
+from typing import Type, Optional, Dict, Any
+
 import pandas as pd
-from typing import Type, Optional
 from pandas import DataFrame
 from mlflow.pyfunc import PythonModel, PythonModelContext
+from mlflow.models.signature import ModelSignature
+from mlflow.types import DataType, Schema, ColSpec
 from model_services.base import AbstractModelService
 from config import Settings
 
@@ -19,15 +22,15 @@ class ModelManager(PythonModel):
         self._model_service = None
 
     @staticmethod
-    def get_model_service(mlflow_tracking_uri: str,
-                          mlflow_model_uri: str,
-                          config: Optional[Settings] = None,
-                          downloaded_model_path: Optional[str] = None) -> AbstractModelService:
+    def retrieve_model_service_from_uri(mlflow_model_uri: str,
+                                        mlflow_tracking_uri: str,
+                                        config: Optional[Settings] = None,
+                                        downloaded_model_path: Optional[str] = None) -> AbstractModelService:
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
         # In case the load_model overwrote the tracking URI
         mlflow.set_tracking_uri(mlflow_tracking_uri)
-        model_service = pyfunc_model.predict(pd.DataFrame())
+        model_service = pyfunc_model._model_impl.python_model.get_model_service()
         if config is not None:
             config.BASE_MODEL_FULL_PATH = mlflow_model_uri
             model_service._config = config
@@ -49,14 +52,41 @@ class ModelManager(PythonModel):
             else:
                 raise ValueError(f"Cannot find the model .zip file inside artifacts downloaded from {model_artifact_uri}")
 
+    @staticmethod
+    def get_model_signature() -> ModelSignature:
+        input_schema = Schema([
+            ColSpec(DataType.string, "name"),
+            ColSpec(DataType.string, "text"),
+        ])
+
+        output_schema = Schema([
+            ColSpec(DataType.string, "doc_name"),
+            ColSpec(DataType.integer, "start"),
+            ColSpec(DataType.integer, "end"),
+            ColSpec(DataType.string, "label_name"),
+            ColSpec(DataType.string, "label_id"),
+            ColSpec(DataType.string, "categories"),
+            ColSpec(DataType.float, "accuracy"),
+            ColSpec(DataType.string, "text"),
+            ColSpec(DataType.string, "meta_anns")
+        ])
+
+        return ModelSignature(inputs=input_schema, outputs=output_schema, params=None)
+
     def load_context(self, context: PythonModelContext) -> None:
         model_service = self._model_service_type(self._config)
         model_service._model_file_path = context.artifacts["model_path"]
         model_service.init_model()
         self._model_service = model_service
 
-    # This is hacky and used for getting a model service rather than making prediction
-    def predict(self, context: PythonModelContext, model_input: DataFrame) -> AbstractModelService:
-        del context
-        del model_input
+    def predict(self, context: PythonModelContext, model_input: DataFrame, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+        output = []
+        for _, row in model_input.iterrows():
+            annotations = self._model_service.annotate(row["text"])  # type: ignore
+            for annotation in annotations:
+                annotation = {"doc_name": row["name"], **annotation}
+                output.append(annotation)
+        return pd.DataFrame(output)
+
+    def get_model_service(self) -> AbstractModelService:
         return self._model_service

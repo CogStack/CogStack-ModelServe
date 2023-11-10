@@ -4,7 +4,7 @@ import mlflow
 import pandas as pd
 
 from management.tracker_client import TrackerClient
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, ANY
 
 
 @pytest.fixture
@@ -81,6 +81,9 @@ def test_save_model(mlflow_fixture):
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "filepath"},
+                                                    signature=ANY,
+                                                    code_path=ANY,
+                                                    pip_requirements=ANY,
                                                     registered_model_name="model_name")
     mlflow.register_model.assert_not_called()
 
@@ -115,6 +118,9 @@ def test_save_model_local(mlflow_fixture_file_uri):
     tracker_client.save_model("filepath", "model name", pyfunc_model)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
+                                                    signature=ANY,
+                                                    code_path=ANY,
+                                                    pip_requirements=ANY,
                                                     artifacts={"model_path": "filepath"})
     mlflow.register_model.assert_not_called()
 
@@ -145,6 +151,9 @@ def test_save_pretrained_model(mlflow_fixture):
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=pyfunc_model,
                                                     artifacts={"model_path": "model_path"},
+                                                    signature=ANY,
+                                                    code_path=ANY,
+                                                    pip_requirements=ANY,
                                                     registered_model_name="model_name")
 
 
