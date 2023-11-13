@@ -12,9 +12,27 @@ from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
 from model_services.base import AbstractModelService
 from config import Settings
+from exception import ManagedModelException
 
 
 class ModelManager(PythonModel):
+
+    input_schema = Schema([
+        ColSpec(DataType.string, "name", optional=True),
+        ColSpec(DataType.string, "text"),
+    ])
+
+    output_schema = Schema([
+        ColSpec(DataType.string, "doc_name"),
+        ColSpec(DataType.integer, "start"),
+        ColSpec(DataType.integer, "end"),
+        ColSpec(DataType.string, "label_name"),
+        ColSpec(DataType.string, "label_id"),
+        ColSpec(DataType.string, "categories", optional=True),
+        ColSpec(DataType.float, "accuracy", optional=True),
+        ColSpec(DataType.string, "text", optional=True),
+        ColSpec(DataType.string, "meta_anns", optional=True)
+    ])
 
     def __init__(self, model_service_type: Type, config: Settings) -> None:
         self._model_service_type = model_service_type
@@ -50,43 +68,31 @@ class ModelManager(PythonModel):
                 shutil.copy(file_path, dst_file_path)
                 return dst_file_path
             else:
-                raise ValueError(f"Cannot find the model .zip file inside artifacts downloaded from {model_artifact_uri}")
+                raise ManagedModelException(f"Cannot find the model .zip file inside artifacts downloaded from {model_artifact_uri}")
 
     @staticmethod
     def get_model_signature() -> ModelSignature:
-        input_schema = Schema([
-            ColSpec(DataType.string, "name"),
-            ColSpec(DataType.string, "text"),
-        ])
 
-        output_schema = Schema([
-            ColSpec(DataType.string, "doc_name"),
-            ColSpec(DataType.integer, "start"),
-            ColSpec(DataType.integer, "end"),
-            ColSpec(DataType.string, "label_name"),
-            ColSpec(DataType.string, "label_id"),
-            ColSpec(DataType.string, "categories"),
-            ColSpec(DataType.float, "accuracy"),
-            ColSpec(DataType.string, "text"),
-            ColSpec(DataType.string, "meta_anns")
-        ])
-
-        return ModelSignature(inputs=input_schema, outputs=output_schema, params=None)
+        return ModelSignature(inputs=ModelManager.input_schema, outputs=ModelManager.output_schema, params=None)
 
     def load_context(self, context: PythonModelContext) -> None:
-        model_service = self._model_service_type(self._config)
-        model_service._model_file_path = context.artifacts["model_path"]
+        artifact_root = os.path.join(os.path.dirname(__file__), "..", "..")
+        model_service = self._model_service_type(self._config,
+                                                 model_parent_dir=os.path.join(artifact_root, os.path.split(context.artifacts["model_path"])[0]),
+                                                 base_model_file=os.path.split(context.artifacts["model_path"])[1])
         model_service.init_model()
         self._model_service = model_service
 
     def predict(self, context: PythonModelContext, model_input: DataFrame, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         output = []
-        for _, row in model_input.iterrows():
+        for idx, row in model_input.iterrows():
             annotations = self._model_service.annotate(row["text"])  # type: ignore
             for annotation in annotations:
-                annotation = {"doc_name": row["name"], **annotation}
+                annotation = {"doc_name": row["name"] if "name" in row else str(idx), **annotation}
                 output.append(annotation)
-        return pd.DataFrame(output)
+        df = pd.DataFrame(output)
+        df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
+        return df
 
     def get_model_service(self) -> AbstractModelService:
         return self._model_service

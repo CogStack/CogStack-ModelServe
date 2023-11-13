@@ -6,6 +6,7 @@ from mlflow.pyfunc import PythonModelContext
 from model_services.base import AbstractModelService
 from management.model_manager import ModelManager
 from config import Settings
+from exception import ManagedModelException
 
 pyfunc_model = Mock()
 
@@ -29,29 +30,29 @@ def test_retrieve_model_service_from_uri(mlflow_fixture):
 def test_download_model_package(mlflow_fixture):
     try:
         ModelManager.download_model_package("mlflow_tracking_uri", "/tmp")
-    except ValueError as e:
+    except ManagedModelException as e:
         assert "Cannot find the model .zip file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
 
 
 def test_load_context(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
-    model_manager.load_context(PythonModelContext({"model_path": "model_path"}, None))
+    model_manager.load_context(PythonModelContext({"model_path": "artifacts/model.zip"}, None))
     assert type(model_manager._model_service) == _MockedModelService
 
 
 def test_get_model_signature():
     signature = ModelManager.get_model_signature()
-    assert signature.inputs.to_dict() == [{"type": "string", "name": "name"}, {"type": "string", "name": "text"}]
+    assert signature.inputs.to_dict() == [{"type": "string", "name": "name", "optional": True}, {"type": "string", "name": "text"}]
     assert signature.outputs.to_dict() == [
         {"type": "string", "name": "doc_name"},
         {"type": "integer", "name": "start"},
         {"type": "integer", "name": "end"},
         {"type": "string", "name": "label_name"},
         {"type": "string", "name": "label_id"},
-        {"type": "string", "name": "categories"},
-        {"type": "float", "name": "accuracy"},
-        {"type": "string", "name": "text"},
-        {"type": "string", "name": "meta_anns"}
+        {"type": "string", "name": "categories", "optional": True},
+        {"type": "float", "name": "accuracy", "optional": True},
+        {"type": "string", "name": "text", "optional": True},
+        {"type": "string", "name": "meta_anns", "optional": True},
     ]
 
 
@@ -81,8 +82,6 @@ def test_predict(mlflow_fixture):
         "start": {0: 0, 1: 0}, "end": {0: 15, 1: 15},
         "accuracy": {0: 1.0, 1: 1.0},
         "meta_anns": {0: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}, 1: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}}}
-
-    # assert model_manager._model_service.annotate.assert_called_once_with("text_1")
 
 
 class _MockedModelService(AbstractModelService):

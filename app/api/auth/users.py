@@ -5,8 +5,8 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin
 from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.authentication import AuthenticationBackend
-from auth.db import User, get_user_db
-from auth.backends import get_backends
+from api.auth.db import User, get_user_db
+from api.auth.backends import get_backends
 from utils import get_settings
 
 logger = logging.getLogger(__name__)

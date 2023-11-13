@@ -12,3 +12,7 @@ class ConfigurationException(Exception):
 
 class AnnotationException(Exception):
     """ An exception raised due to annotation errors"""
+
+
+class ManagedModelException(Exception):
+    """ An exception raised due to erroneous models"""

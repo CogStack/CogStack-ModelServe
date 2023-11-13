@@ -123,6 +123,6 @@ analysis/
 *.log
 
 tests/resources/model
-tests/resources/model.zip
+tests/resources/*.zip
 
 .DS_Store

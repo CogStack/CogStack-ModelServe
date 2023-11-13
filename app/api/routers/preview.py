@@ -9,11 +9,11 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from spacy import displacy
 from starlette.status import HTTP_404_NOT_FOUND
 
-import globals
+import api.globals as globals
 from domain import Doc, Tags
 from model_services.base import AbstractModelService
 from utils import annotations_to_entities
-from auth.users import props
+from api.auth.users import props
 
 router = APIRouter()
 

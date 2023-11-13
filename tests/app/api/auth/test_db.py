@@ -1,6 +1,6 @@
 import pytest
 from fastapi_users.db import SQLAlchemyUserDatabase
-from auth.db import make_sure_db_and_tables, get_user_db
+from api.auth.db import make_sure_db_and_tables, get_user_db
 
 
 @pytest.mark.asyncio

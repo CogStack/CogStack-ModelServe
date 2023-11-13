@@ -3,32 +3,37 @@ import logging.config
 import os
 import sys
 import uuid
+import inspect
 
-from parent_dir import parent_dir  # noqa
+current_frame = inspect.currentframe()
+if current_frame is None:  # noqa
+    raise Exception("Cannot detect the parent directory!")  # noqa
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(current_frame))))  # noqa
+sys.path.insert(0, parent_dir)  # noqa
 
-import uvicorn
-import shutil
-import warnings
-import typer
-import graypy
-import globals
+import uvicorn  # noqa
+import shutil  # noqa
+import warnings  # noqa
+import typer  # noqa
+import graypy  # noqa
+import api.globals as globals  # noqa
 
-from logging import LogRecord
-from typing import Optional, Tuple, Dict, Any
-from urllib.parse import urlparse
-from fastapi.routing import APIRoute
-from domain import ModelType
-from registry import model_service_registry
-from api import get_model_server
-from utils import get_settings, send_gelf_message
-from management.model_manager import ModelManager
-from dependencies import ModelServiceDep
-from config import Settings
-from management.tracker_client import TrackerClient
+from logging import LogRecord  # noqa
+from typing import Optional, Tuple, Dict, Any  # noqa
+from urllib.parse import urlparse  # noqa
+from fastapi.routing import APIRoute  # noqa
+from domain import ModelType  # noqa
+from registry import model_service_registry  # noqa
+from api.api import get_model_server  # noqa
+from utils import get_settings, send_gelf_message  # noqa
+from management.model_manager import ModelManager  # noqa
+from api.dependencies import ModelServiceDep  # noqa
+from config import Settings  # noqa
+from management.tracker_client import TrackerClient  # noqa
 
 warnings.filterwarnings("ignore")
 warnings.simplefilter("ignore")
-cmd_app = typer.Typer(add_completion=False)
+cmd_app = typer.Typer(name="CMS CLI", help="CLI for various CogStack ModelServe operations", add_completion=False)
 
 
 @cmd_app.command("serve")
@@ -39,7 +44,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),) -> None:
     """
-    This script serves various CogStack NLP models
+    This serves various CogStack NLP models
     """
     logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
     logger = logging.getLogger(__name__)
@@ -107,7 +112,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
                    model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")) -> None:
     """
-    This script pushes a pretrained NLP model to the Cogstack ModelServe registry
+    This pushes a pretrained NLP model to the Cogstack ModelServe registry
     """
 
     config = Settings()
@@ -127,7 +132,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     run_name = str(uuid.uuid4())
     tracker_client.save_pretrained_model(model_name=model_name,
                                          model_path=model_path,
-                                         pyfunc_model=ModelManager(model_service_type, config),
+                                         model_manager=ModelManager(model_service_type, config),
                                          training_type=t_type,
                                          run_name=run_name,
                                          model_config=m_config,
@@ -146,7 +151,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
                                exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
                                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
     """
-    This script generates model-specific API docs for enabled endpoints
+    This generates model-specific API docs for enabled endpoints
     """
 
     settings = get_settings()
@@ -173,7 +178,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
 @cmd_app.command("export-openapi-spec")
 def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")) -> None:
     """
-    This script generates a single API doc for all endpoints
+    This generates a single API doc for all endpoints
     """
 
     settings = get_settings()

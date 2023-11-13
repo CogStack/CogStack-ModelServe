@@ -22,11 +22,12 @@ class MedCATModel(AbstractModelService):
                  config: Settings,
                  model_parent_dir: Optional[str] = None,
                  enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None) -> None:
+                 model_name: Optional[str] = None,
+                 base_model_file: Optional[str] = None) -> None:
         self._model: CAT = None
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
-        self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE)
+        self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
         self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None

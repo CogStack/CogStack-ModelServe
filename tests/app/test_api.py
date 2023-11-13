@@ -1,6 +1,6 @@
 from config import Settings
-from api import get_model_server
-from dependencies import ModelServiceDep
+from api.api import get_model_server
+from api.dependencies import ModelServiceDep
 
 
 def test_get_model_server():

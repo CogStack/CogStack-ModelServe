@@ -13,6 +13,8 @@ from management.model_manager import ModelManager
 from exception import StartTrainingException
 
 logger = logging.getLogger(__name__)
+urllib3_logger = logging.getLogger("urllib3")
+urllib3_logger.setLevel(logging.CRITICAL)
 
 
 class TrackerClient(object):
@@ -69,15 +71,15 @@ class TrackerClient(object):
     @staticmethod
     def save_model(filepath: str,
                    model_name: str,
-                   pyfunc_model: ModelManager) -> None:
+                   model_manager: ModelManager) -> None:
         model_name = model_name.replace(" ", "_")
 
         if not mlflow.get_tracking_uri().startswith("file:/"):
             mlflow.pyfunc.log_model(
                 artifact_path=model_name,
-                python_model=pyfunc_model,
+                python_model=model_manager,
                 artifacts={"model_path": filepath},
-                signature=pyfunc_model.get_model_signature(),
+                signature=model_manager.get_model_signature(),
                 code_path=TrackerClient._get_code_path_list(),
                 pip_requirements=os.path.join(os.path.dirname(__file__), "..", "requirements.txt"),
                 registered_model_name=model_name,
@@ -85,8 +87,8 @@ class TrackerClient(object):
         else:
             mlflow.pyfunc.log_model(
                 artifact_path=model_name,
-                python_model=pyfunc_model,
-                signature=pyfunc_model.get_model_signature(),
+                python_model=model_manager,
+                signature=model_manager.get_model_signature(),
                 code_path=TrackerClient._get_code_path_list(),
                 pip_requirements=os.path.join(os.path.dirname(__file__), "..", "requirements.txt"),
                 artifacts={"model_path": filepath},
@@ -156,12 +158,12 @@ class TrackerClient(object):
     @staticmethod
     def save_pretrained_model(model_name: str,
                               model_path: str,
-                              pyfunc_model: ModelManager,
+                              model_manager: ModelManager,
                               training_type: Optional[str] = "",
                               run_name: Optional[str] = "",
                               model_config: Optional[Dict] = None,
                               model_metrics: Optional[List[Dict]] = None,
-                              model_tags: Optional[Dict] = None,) -> None:
+                              model_tags: Optional[Dict] = None, ) -> None:
         experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         active_run = mlflow.start_run(experiment_id=experiment_id)
@@ -182,7 +184,7 @@ class TrackerClient(object):
             if model_tags is not None:
                 tags = {**tags, **model_tags}
             mlflow.set_tags(tags)
-            TrackerClient.save_model(model_path, model_name.replace(" ", "_"), pyfunc_model)
+            TrackerClient.save_model(model_path, model_name.replace(" ", "_"), model_manager)
             TrackerClient.end_with_success()
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
@@ -216,7 +218,6 @@ class TrackerClient(object):
     @staticmethod
     def _get_code_path_list() -> List[str]:
         return [
-            os.path.join(os.path.dirname(__file__), "..", "auth"),
             os.path.join(os.path.dirname(__file__), "..", "management"),
             os.path.join(os.path.dirname(__file__), "..", "model_services"),
             os.path.join(os.path.dirname(__file__), "..", "processors"),

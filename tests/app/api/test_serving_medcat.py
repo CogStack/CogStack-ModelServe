@@ -5,7 +5,7 @@ import httpx
 import json
 import pytest
 from fastapi.testclient import TestClient
-from api import get_model_server
+from api.api import get_model_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
@@ -18,11 +18,11 @@ get_settings().ENABLE_PREVIEWS_APIS = "true"
 get_settings().AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
-TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
-NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "note.txt")
-ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "another_trainer_export.json")
-TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export_multi_projs.json")
-MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "sample_texts.json")
+TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
+NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
+ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
+TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export_multi_projs.json")
+MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
 
 
 def test_info():

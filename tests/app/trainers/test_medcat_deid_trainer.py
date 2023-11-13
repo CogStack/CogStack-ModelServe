@@ -5,7 +5,7 @@ from config import Settings
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
 
-model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
+model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 model_service = create_autospec(MedCATModelDeIdentification,
                                 _config=Settings(),
                                 _model_parent_dir=model_parent_dir,

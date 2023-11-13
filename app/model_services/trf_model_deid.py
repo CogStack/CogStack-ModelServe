@@ -19,11 +19,13 @@ class TransformersModelDeIdentification(AbstractModelService):
     def __init__(self,
                  config: Settings,
                  model_parent_dir: Optional[str] = None,
-                 model_name: Optional[str] = None) -> None:
+                 model_name: Optional[str] = None,
+                 base_model_file: Optional[str] = None) -> None:
         super().__init__(config)
         self._config = config
         model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
-        self._model_file_path = os.path.join(model_parent_dir, config.BASE_MODEL_FILE)
+        self._model_parent_dir = model_parent_dir or os.path.join(os.path.dirname(__file__), "..", "model")
+        self._model_file_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
         if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
             logger.warning("Service is configured to using GPUs but no GPUs were found.")
             self._device = "cpu"

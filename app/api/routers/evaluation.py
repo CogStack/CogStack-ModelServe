@@ -9,7 +9,7 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse
 
-import globals
+import api.globals as globals
 from domain import Tags, Scope
 from model_services.base import AbstractModelService
 from processors.metrics_collector import (
@@ -19,7 +19,7 @@ from processors.metrics_collector import (
     get_iaa_scores_per_span,
     concat_trainer_exports,
 )
-from auth.users import props
+from api.auth.users import props
 from exception import AnnotationException
 
 router = APIRouter()

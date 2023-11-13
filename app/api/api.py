@@ -1,7 +1,7 @@
 import asyncio
-import globals
 import importlib
 import logging
+import api.globals as globals
 
 from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
@@ -17,10 +17,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from auth.db import make_sure_db_and_tables
+from api.auth.db import make_sure_db_and_tables
 from domain import Tags
 from management.tracker_client import TrackerClient
-from dependencies import ModelServiceDep
+from api.dependencies import ModelServiceDep
 from exception import StartTrainingException, AnnotationException
 from utils import get_settings, get_rate_limiter, rate_limit_exceeded_handler
 
@@ -127,56 +127,56 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
 
 def _load_auth_router(app: FastAPI) -> FastAPI:
-    from routers import authentication
+    from api.routers import authentication
     importlib.reload(authentication)
     app.include_router(authentication.router)
     return app
 
 
 def _load_static_router(app: FastAPI) -> FastAPI:
-    from routers import static
+    from api.routers import static
     importlib.reload(static)
     app.include_router(static.router)
     return app
 
 
 def _load_invocation_router(app: FastAPI) -> FastAPI:
-    from routers import invocation
+    from api.routers import invocation
     importlib.reload(invocation)
     app.include_router(invocation.router)
     return app
 
 
 def _load_supervised_training_router(app: FastAPI) -> FastAPI:
-    from routers import supervised_training
+    from api.routers import supervised_training
     importlib.reload(supervised_training)
     app.include_router(supervised_training.router)
     return app
 
 
 def _load_evaluation_router(app: FastAPI) -> FastAPI:
-    from routers import evaluation
+    from api.routers import evaluation
     importlib.reload(evaluation)
     app.include_router(evaluation.router)
     return app
 
 
 def _load_preview_router(app: FastAPI) -> FastAPI:
-    from routers import preview
+    from api.routers import preview
     importlib.reload(preview)
     app.include_router(preview.router)
     return app
 
 
 def _load_unsupervised_training_router(app: FastAPI) -> FastAPI:
-    from routers import unsupervised_training
+    from api.routers import unsupervised_training
     importlib.reload(unsupervised_training)
     app.include_router(unsupervised_training.router)
     return app
 
 
 def _load_metacat_training_router(app: FastAPI) -> FastAPI:
-    from routers import metacat_training
+    from api.routers import metacat_training
     importlib.reload(metacat_training)
     app.include_router(metacat_training.router)
     return app

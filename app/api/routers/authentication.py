@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter
 from domain import Tags
-from auth.users import props
+from api.auth.users import props
 router = APIRouter()
 logger = logging.getLogger(__name__)
 

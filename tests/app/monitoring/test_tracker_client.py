@@ -76,10 +76,10 @@ def test_send_model_stats(mlflow_fixture):
 
 def test_save_model(mlflow_fixture):
     tracker_client = TrackerClient("")
-    pyfunc_model = Mock()
-    tracker_client.save_model("filepath", "model name", pyfunc_model)
+    model_manager = Mock()
+    tracker_client.save_model("filepath", "model name", model_manager)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=pyfunc_model,
+                                                    python_model=model_manager,
                                                     artifacts={"model_path": "filepath"},
                                                     signature=ANY,
                                                     code_path=ANY,
@@ -114,10 +114,10 @@ def test_save_table_dict(mlflow_fixture):
 
 def test_save_model_local(mlflow_fixture_file_uri):
     tracker_client = TrackerClient("")
-    pyfunc_model = Mock()
-    tracker_client.save_model("filepath", "model name", pyfunc_model)
+    model_manager = Mock()
+    tracker_client.save_model("filepath", "model name", model_manager)
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=pyfunc_model,
+                                                    python_model=model_manager,
                                                     signature=ANY,
                                                     code_path=ANY,
                                                     pip_requirements=ANY,
@@ -127,10 +127,10 @@ def test_save_model_local(mlflow_fixture_file_uri):
 
 def test_save_pretrained_model(mlflow_fixture):
     tracker_client = TrackerClient("")
-    pyfunc_model = Mock()
+    model_manager = Mock()
     tracker_client.save_pretrained_model("model_name",
                                          "model_path",
-                                         pyfunc_model,
+                                         model_manager,
                                          "training_type",
                                          "run_name",
                                          {"param": "value"},
@@ -149,7 +149,7 @@ def test_save_pretrained_model(mlflow_fixture):
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=pyfunc_model,
+                                                    python_model=model_manager,
                                                     artifacts={"model_path": "model_path"},
                                                     signature=ANY,
                                                     code_path=ANY,

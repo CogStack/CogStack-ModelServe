@@ -9,10 +9,10 @@ from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
-import globals
+import api.globals as globals
 from domain import Tags
 from model_services.base import AbstractModelService
-from auth.users import props
+from api.auth.users import props
 
 router = APIRouter()
 

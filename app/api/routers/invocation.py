@@ -12,7 +12,7 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 
-import globals
+import api.globals as globals
 from domain import TextWithAnnotations, TextWithPublicKey, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings, get_rate_limiter, encrypt
@@ -22,7 +22,7 @@ from management.prometheus_metrics import (
     cms_avg_meta_anno_conf_per_doc,
     cms_bulk_processed_docs,
 )
-from auth.users import props
+from api.auth.users import props
 from processors.data_batcher import mini_batch
 
 PATH_INFO = "/info"
