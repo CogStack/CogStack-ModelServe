@@ -1,6 +1,8 @@
 import asyncio
 import importlib
 import logging
+import os.path
+
 import api.globals as globals
 
 from typing import Dict, Callable, Any, Optional
@@ -10,7 +12,9 @@ from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from starlette.datastructures import QueryParams
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUEST
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -30,14 +34,21 @@ logger = logging.getLogger(__name__)
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
-    app = FastAPI(debug=(get_settings().DEBUG == "true"), openapi_tags=tags_metadata)
+    app = FastAPI(title="CogStack ModelServe",
+                  summary="A model serving and governance system for CogStack NLP solutions",
+                  docs_url=None,
+                  redoc_url=None,
+                  debug=(get_settings().DEBUG == "true"),
+                  openapi_tags=tags_metadata)
     app.state.limiter = get_rate_limiter()
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
-    instrumentator = Instrumentator(excluded_handlers=["/docs", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
+    instrumentator = Instrumentator(excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
 
     if msd_overwritten is not None:
         globals.model_service_dep = msd_overwritten
+
+    app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 
     @app.on_event("startup")
     async def on_startup() -> None:
@@ -60,6 +71,36 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 
         scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
         return await call_next(Request(scope, request.receive, request._send))
+
+    @app.get("/docs", include_in_schema=False)
+    async def swagger_doc(req: Request) -> HTMLResponse:
+        root_path = req.scope.get("root_path", "").rstrip("/")
+        openapi_url = root_path + app.openapi_url
+        oauth2_redirect_url = app.swagger_ui_oauth2_redirect_url
+        if oauth2_redirect_url:
+            oauth2_redirect_url = root_path + oauth2_redirect_url
+        return get_swagger_ui_html(
+            openapi_url=openapi_url,
+            title="CogStack ModelServe",
+            oauth2_redirect_url=oauth2_redirect_url,
+            init_oauth=app.swagger_ui_init_oauth,
+            swagger_favicon_url="/static/images/favicon.ico",
+            swagger_ui_parameters=app.swagger_ui_parameters,
+        )
+
+    @app.get("/redoc", include_in_schema=False)
+    async def redoc_doc(req: Request) -> HTMLResponse:
+        root_path = req.scope.get("root_path", "").rstrip("/")
+        openapi_url = root_path + app.openapi_url
+        return get_redoc_html(
+            openapi_url=openapi_url,
+            title="CogStack ModelServe",
+            redoc_favicon_url="/static/images/favicon.ico",
+        )
+
+    @app.get("/", include_in_schema=False)
+    async def root_redirect() -> RedirectResponse:
+        return RedirectResponse(url="/docs")
 
     @app.exception_handler(StartTrainingException)
     async def start_training_exception_handler(_: Request, exception: StartTrainingException) -> JSONResponse:
@@ -107,7 +148,6 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     if get_settings().AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
 
-    app = _load_static_router(app)
     app = _load_invocation_router(app)
     if get_settings().ENABLE_TRAINING_APIS == "true":
         app = _load_supervised_training_router(app)
@@ -130,13 +170,6 @@ def _load_auth_router(app: FastAPI) -> FastAPI:
     from api.routers import authentication
     importlib.reload(authentication)
     app.include_router(authentication.router)
-    return app
-
-
-def _load_static_router(app: FastAPI) -> FastAPI:
-    from api.routers import static
-    importlib.reload(static)
-    app.include_router(static.router)
     return app
 
 
