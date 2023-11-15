@@ -120,6 +120,9 @@ app/dist
 
 analysis/
 
+docker/mlflow/models/model_dir/*
+!docker/mlflow/models/model_dir/.gitkeep
+
 *.log
 
 tests/resources/model

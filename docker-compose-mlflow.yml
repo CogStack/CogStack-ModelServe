@@ -91,6 +91,8 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
+    profiles:
+      - wip
     container_name: cms_mlflow-gateway
     restart: always
     networks:
@@ -110,6 +112,40 @@ services:
       interval: 60s
       timeout: 20s
       retries: 3
+
+  mlflow-models:
+    build:
+      context: ./
+      dockerfile: ./docker/mlflow/models/Dockerfile
+      args:
+        - MLFLOW_MODEL_NAME=$MLFLOW_MODEL_NAME
+        - ARCH=${ARCH:-amd64}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    profiles:
+      - wip
+    container_name: cms_mlflow-${MODEL_NAME:-model}
+    restart: always
+    networks:
+      - cogstack-model-serve_cms
+    environment:
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=localhost
+    expose:
+      - 8000
+    ports:
+      - 5001:8000
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/ping" ]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+
 
 volumes:
   mlflow-backend-store:

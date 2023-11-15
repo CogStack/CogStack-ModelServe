@@ -16,7 +16,7 @@ ENV PYTHONUNBUFFERED=1
 COPY docker/mlflow/server/requirements.txt /requirements.txt
 
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /requirements.txt
 
 RUN mkdir -p ${MLFLOW_HOME}/../auth
 COPY docker/mlflow/server/auth/basic_auth.ini ${MLFLOW_HOME}/../auth/basic_auth.ini

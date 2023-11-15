@@ -16,7 +16,7 @@ ENV PYTHONUNBUFFERED=1
 COPY docker/mlflow/gateway/requirements.txt /requirements.txt
 
 RUN pip install --no-cache-dir pip~=22.2.1 &&\
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r /requirements.txt
 
 RUN mkdir -p ${MLFLOW_HOME}/../config
 COPY docker/mlflow/gateway/config/config.yml ${MLFLOW_HOME}/../config/config.yml

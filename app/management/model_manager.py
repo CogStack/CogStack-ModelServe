@@ -39,6 +39,10 @@ class ModelManager(PythonModel):
         self._config = config
         self._model_service = None
 
+    @property
+    def model_service(self) -> AbstractModelService:
+        return self._model_service
+
     @staticmethod
     def retrieve_model_service_from_uri(mlflow_model_uri: str,
                                         mlflow_tracking_uri: str,
@@ -48,7 +52,7 @@ class ModelManager(PythonModel):
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
         # In case the load_model overwrote the tracking URI
         mlflow.set_tracking_uri(mlflow_tracking_uri)
-        model_service = pyfunc_model._model_impl.python_model.get_model_service()
+        model_service = pyfunc_model._model_impl.python_model.model_service
         if config is not None:
             config.BASE_MODEL_FULL_PATH = mlflow_model_uri
             model_service._config = config
@@ -93,6 +97,3 @@ class ModelManager(PythonModel):
         df = pd.DataFrame(output)
         df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
         return df
-
-    def get_model_service(self) -> AbstractModelService:
-        return self._model_service
