@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 import mlflow
-from typing import Type, Optional, Dict, Any
+from typing import Type, Optional, Dict, Any, List
 
 import pandas as pd
 from pandas import DataFrame
@@ -38,10 +38,15 @@ class ModelManager(PythonModel):
         self._model_service_type = model_service_type
         self._config = config
         self._model_service = None
+        self._model_signature = ModelSignature(inputs=ModelManager.input_schema, outputs=ModelManager.output_schema, params=None)
 
     @property
     def model_service(self) -> AbstractModelService:
         return self._model_service
+
+    @property
+    def model_signature(self) -> ModelSignature:
+        return self._model_signature
 
     @staticmethod
     def retrieve_model_service_from_uri(mlflow_model_uri: str,
@@ -74,10 +79,29 @@ class ModelManager(PythonModel):
             else:
                 raise ManagedModelException(f"Cannot find the model .zip file inside artifacts downloaded from {model_artifact_uri}")
 
-    @staticmethod
-    def get_model_signature() -> ModelSignature:
+    def log_model(self,
+                  model_name: str,
+                  model_path: str,
+                  registered_model_name: Optional[str] = None) -> None:
+        mlflow.pyfunc.log_model(
+            artifact_path=model_name,
+            python_model=self,
+            artifacts={"model_path": model_path},
+            signature=self.model_signature,
+            code_path=self._get_code_path_list(),
+            pip_requirements=self._get_pip_requirements(),
+            registered_model_name=registered_model_name,
+        )
 
-        return ModelSignature(inputs=ModelManager.input_schema, outputs=ModelManager.output_schema, params=None)
+    def save_model(self, local_dir: str, model_path: str) -> None:
+        mlflow.pyfunc.save_model(
+            path=local_dir,
+            python_model=self,
+            artifacts={"model_path": model_path},
+            signature=self.model_signature,
+            code_path=self._get_code_path_list(),
+            pip_requirements=self._get_pip_requirements(),
+        )
 
     def load_context(self, context: PythonModelContext) -> None:
         artifact_root = os.path.join(os.path.dirname(__file__), "..", "..")
@@ -97,3 +121,21 @@ class ModelManager(PythonModel):
         df = pd.DataFrame(output)
         df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
         return df
+
+    def _get_code_path_list(self) -> List[str]:
+        return [
+            os.path.join(os.path.dirname(__file__), "..", "management"),
+            os.path.join(os.path.dirname(__file__), "..", "model_services"),
+            os.path.join(os.path.dirname(__file__), "..", "processors"),
+            os.path.join(os.path.dirname(__file__), "..", "trainers"),
+            os.path.join(os.path.dirname(__file__), "..", "__init__.py"),
+            os.path.join(os.path.dirname(__file__), "..", "config.py"),
+            os.path.join(os.path.dirname(__file__), "..", "domain.py"),
+            os.path.join(os.path.dirname(__file__), "..", "exception.py"),
+            os.path.join(os.path.dirname(__file__), "..", "registry.py"),
+            os.path.join(os.path.dirname(__file__), "..", "utils.py"),
+            os.path.join(os.path.dirname(__file__), "..", "logging.ini"),
+        ]
+
+    def _get_pip_requirements(self) -> str:
+        return os.path.join(os.path.dirname(__file__), "..", "requirements.txt")

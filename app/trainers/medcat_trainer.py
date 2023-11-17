@@ -59,10 +59,10 @@ class _MedcatTrainerCommon(object):
         logger.info("Retrained model deployed")
 
     @staticmethod
-    def save_model(model: CAT, retrained_models_dir: str) -> str:
-        logger.info(f"Saving retrained model to {retrained_models_dir}...")
-        model_pack_name = model.create_model_pack(retrained_models_dir, "model")
-        model_pack_path = f"{os.path.join(retrained_models_dir, model_pack_name)}.zip"
+    def save_model_pack(model: CAT, model_dir: str) -> str:
+        logger.info(f"Saving retrained model to {model_dir}...")
+        model_pack_name = model.create_model_pack(model_dir, "model")
+        model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
         logger.debug(f"Retrained model saved to {model_pack_path}")
         return model_pack_path
 
@@ -152,7 +152,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.log_classes(cuis)
                 trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
+                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
@@ -337,7 +337,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 })
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             if not skip_save_model:
-                model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
+                model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

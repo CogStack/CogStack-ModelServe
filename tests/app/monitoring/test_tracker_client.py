@@ -4,7 +4,7 @@ import mlflow
 import pandas as pd
 
 from management.tracker_client import TrackerClient
-from unittest.mock import Mock, call, ANY
+from unittest.mock import Mock, call
 
 
 @pytest.fixture
@@ -21,9 +21,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.log_metrics")
     mocker.patch("mlflow.log_artifact")
     mocker.patch("mlflow.log_table")
-    mocker.patch("mlflow.pyfunc.log_model")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
-    mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.end_run")
 
 
@@ -74,20 +72,6 @@ def test_send_model_stats(mlflow_fixture):
     mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)
 
 
-def test_save_model(mlflow_fixture):
-    tracker_client = TrackerClient("")
-    model_manager = Mock()
-    tracker_client.save_model("filepath", "model name", model_manager)
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=model_manager,
-                                                    artifacts={"model_path": "filepath"},
-                                                    signature=ANY,
-                                                    code_path=ANY,
-                                                    pip_requirements=ANY,
-                                                    registered_model_name="model_name")
-    mlflow.register_model.assert_not_called()
-
-
 def test_save_model_artifact(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.save_model_artifact("filepath", "model name")
@@ -112,17 +96,18 @@ def test_save_table_dict(mlflow_fixture):
     mlflow.log_table.assert_called_once_with(data={"col1": ["cell1", "cell2"], "col2": ["cell3", "cell4"]}, artifact_file=os.path.join("model_name", "tables", "table.json"))
 
 
-def test_save_model_local(mlflow_fixture_file_uri):
+def test_save_model(mlflow_fixture):
     tracker_client = TrackerClient("")
     model_manager = Mock()
-    tracker_client.save_model("filepath", "model name", model_manager)
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=model_manager,
-                                                    signature=ANY,
-                                                    code_path=ANY,
-                                                    pip_requirements=ANY,
-                                                    artifacts={"model_path": "filepath"})
-    mlflow.register_model.assert_not_called()
+    tracker_client.save_model("filepath", "model_name", model_manager)
+    model_manager.log_model.assert_called_once_with("model_name", "filepath", "model_name")
+
+
+def test_save_model_local(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    model_manager = Mock()
+    tracker_client.save_model_local("local_dir", "filepath", model_manager)
+    model_manager.save_model.assert_called_once_with("local_dir", "filepath")
 
 
 def test_save_pretrained_model(mlflow_fixture):
@@ -148,13 +133,7 @@ def test_save_pretrained_model(mlflow_fixture):
     assert mlflow.set_tags.call_args.args[0]["training.mlflow.run_id"] == "run_id"
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=model_manager,
-                                                    artifacts={"model_path": "model_path"},
-                                                    signature=ANY,
-                                                    code_path=ANY,
-                                                    pip_requirements=ANY,
-                                                    registered_model_name="model_name")
+    model_manager.log_model.assert_called_once_with("model_name", "model_path", "model_name")
 
 
 def test_log_single_exception(mlflow_fixture):

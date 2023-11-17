@@ -1,5 +1,6 @@
 import pytest
 import mlflow
+import tempfile
 import pandas as pd
 from unittest.mock import Mock, call
 from mlflow.pyfunc import PythonModelContext
@@ -15,7 +16,10 @@ pyfunc_model = Mock()
 def mlflow_fixture(mocker):
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.pyfunc.load_model", return_value=pyfunc_model)
+    mocker.patch("mlflow.pyfunc.log_model")
     mocker.patch("mlflow.artifacts.download_artifacts")
+    mocker.patch("mlflow.register_model")
+    mocker.patch("mlflow.pyfunc.save_model")
 
 
 def test_retrieve_model_service_from_uri(mlflow_fixture):
@@ -34,6 +38,42 @@ def test_download_model_package(mlflow_fixture):
         assert "Cannot find the model .zip file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
 
 
+def test_log_model_with_registration(mlflow_fixture):
+    model_manager = ModelManager(_MockedModelService, Settings())
+    model_manager.log_model("model_name", "filepath", "model_name")
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
+                                                    python_model=model_manager,
+                                                    signature=model_manager.model_signature,
+                                                    code_path=model_manager._get_code_path_list(),
+                                                    pip_requirements=model_manager._get_pip_requirements(),
+                                                    artifacts={"model_path": "filepath"},
+                                                    registered_model_name="model_name")
+
+
+def test_log_model_without_registration(mlflow_fixture):
+    model_manager = ModelManager(_MockedModelService, Settings())
+    model_manager.log_model("model_name", "filepath")
+    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
+                                                    python_model=model_manager,
+                                                    signature=model_manager.model_signature,
+                                                    code_path=model_manager._get_code_path_list(),
+                                                    pip_requirements=model_manager._get_pip_requirements(),
+                                                    artifacts={"model_path": "filepath"},
+                                                    registered_model_name=None)
+
+
+def test_save_model(mlflow_fixture):
+    model_manager = ModelManager(_MockedModelService, Settings())
+    with tempfile.TemporaryDirectory() as local_dir:
+        model_manager.save_model(local_dir, ".")
+        mlflow.pyfunc.save_model.assert_called_once_with(path=local_dir,
+                                                         python_model=model_manager,
+                                                         signature=model_manager.model_signature,
+                                                         code_path=model_manager._get_code_path_list(),
+                                                         pip_requirements=model_manager._get_pip_requirements(),
+                                                         artifacts={"model_path": "."})
+
+
 def test_load_context(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager.load_context(PythonModelContext({"model_path": "artifacts/model.zip"}, None))
@@ -41,9 +81,9 @@ def test_load_context(mlflow_fixture):
 
 
 def test_get_model_signature():
-    signature = ModelManager.get_model_signature()
-    assert signature.inputs.to_dict() == [{"type": "string", "name": "name", "optional": True}, {"type": "string", "name": "text"}]
-    assert signature.outputs.to_dict() == [
+    model_manager = ModelManager(_MockedModelService, Settings())
+    assert model_manager.model_signature.inputs.to_dict() == [{"type": "string", "name": "name", "optional": True}, {"type": "string", "name": "text"}]
+    assert model_manager.model_signature.outputs.to_dict() == [
         {"type": "string", "name": "doc_name"},
         {"type": "integer", "name": "start"},
         {"type": "integer", "name": "end"},

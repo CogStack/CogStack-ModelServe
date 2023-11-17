@@ -84,7 +84,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model(model, trainer._retrained_models_dir)
+                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
