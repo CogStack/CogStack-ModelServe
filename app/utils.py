@@ -154,9 +154,13 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
 
 def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
     concept_ids = get_settings().TRAINING_CONCEPT_ID_WHITELIST.split(",")
-    if concept_ids == [""]:
-        return trainer_export
     filtered = copy.deepcopy(trainer_export)
+    for project in filtered["projects"]:
+        for document in project["documents"]:
+            if concept_ids == [""]:
+                document["annotations"] = [anno for anno in document["annotations"] if anno["correct"] and not anno["deleted"] and not anno["killed"]]
+            else:
+                document["annotations"] = [anno for anno in document["annotations"] if anno["cui"] in concept_ids and anno["correct"] and not anno["deleted"] and not anno["killed"]]
 
     # special merging for the DeID annotations and consider removing this.
     for project in filtered["projects"]:
@@ -164,10 +168,6 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
             for annotation in document["annotations"]:
                 if annotation["cui"] == "N1100" or annotation["cui"] == "N1200":
                     annotation["cui"] = "N1000"
-
-    for project in filtered["projects"]:
-        for document in project["documents"]:
-            document["annotations"] = [anno for anno in document["annotations"] if anno["cui"] in concept_ids and anno["correct"] and not anno["deleted"] and not anno["killed"]]
 
     return filtered
 

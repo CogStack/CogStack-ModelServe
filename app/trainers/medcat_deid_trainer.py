@@ -49,7 +49,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                     if dataset is not None:
                         dataset["train"] = dataset["train"].shuffle()
                         dataset["test"] = dataset["test"].shuffle()
-                    eval_results, examples, dataset = ner.train(data_file.name, dataset=dataset)
+                    eval_results, examples, dataset = ner.train(data_file.name, ignore_extra_labels=True, dataset=dataset)
                     if (training + 1) % log_frequency == 0:
                         metrics = {
                             "precision": eval_results["p"].mean(),
@@ -101,7 +101,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._tracker_client.end_with_success()
 
                 # Remove intermediate results folder on successful training
-                results_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "results")
+                results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
                 if results_path and os.path.isdir(results_path):
                     shutil.rmtree(results_path)
             except Exception as e:

@@ -49,18 +49,22 @@ class ModelManager(PythonModel):
         return self._model_signature
 
     @staticmethod
-    def retrieve_model_service_from_uri(mlflow_model_uri: str,
-                                        mlflow_tracking_uri: str,
-                                        config: Optional[Settings] = None,
-                                        downloaded_model_path: Optional[str] = None) -> AbstractModelService:
-        mlflow.set_tracking_uri(mlflow_tracking_uri)
+    def retrieve_python_model_from_uri(mlflow_model_uri: str,
+                                       config: Settings) -> PythonModel:
+        mlflow.set_tracking_uri(config.MLFLOW_TRACKING_URI)
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
         # In case the load_model overwrote the tracking URI
-        mlflow.set_tracking_uri(mlflow_tracking_uri)
-        model_service = pyfunc_model._model_impl.python_model.model_service
-        if config is not None:
-            config.BASE_MODEL_FULL_PATH = mlflow_model_uri
-            model_service._config = config
+        mlflow.set_tracking_uri(config.MLFLOW_TRACKING_URI)
+        return pyfunc_model._model_impl.python_model
+
+    @staticmethod
+    def retrieve_model_service_from_uri(mlflow_model_uri: str,
+                                        config: Settings,
+                                        downloaded_model_path: Optional[str] = None) -> AbstractModelService:
+        model_manager = ModelManager.retrieve_python_model_from_uri(mlflow_model_uri, config)
+        model_service = model_manager.model_service
+        config.BASE_MODEL_FULL_PATH = mlflow_model_uri
+        model_service._config = config
         if downloaded_model_path:
             ModelManager.download_model_package(os.path.join(mlflow_model_uri, "artifacts"), downloaded_model_path)
         return model_service
@@ -104,7 +108,7 @@ class ModelManager(PythonModel):
         )
 
     def load_context(self, context: PythonModelContext) -> None:
-        artifact_root = os.path.join(os.path.dirname(__file__), "..", "..")
+        artifact_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         model_service = self._model_service_type(self._config,
                                                  model_parent_dir=os.path.join(artifact_root, os.path.split(context.artifacts["model_path"])[0]),
                                                  base_model_file=os.path.split(context.artifacts["model_path"])[1])
@@ -124,18 +128,18 @@ class ModelManager(PythonModel):
 
     def _get_code_path_list(self) -> List[str]:
         return [
-            os.path.join(os.path.dirname(__file__), "..", "management"),
-            os.path.join(os.path.dirname(__file__), "..", "model_services"),
-            os.path.join(os.path.dirname(__file__), "..", "processors"),
-            os.path.join(os.path.dirname(__file__), "..", "trainers"),
-            os.path.join(os.path.dirname(__file__), "..", "__init__.py"),
-            os.path.join(os.path.dirname(__file__), "..", "config.py"),
-            os.path.join(os.path.dirname(__file__), "..", "domain.py"),
-            os.path.join(os.path.dirname(__file__), "..", "exception.py"),
-            os.path.join(os.path.dirname(__file__), "..", "registry.py"),
-            os.path.join(os.path.dirname(__file__), "..", "utils.py"),
-            os.path.join(os.path.dirname(__file__), "..", "logging.ini"),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model_services")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "processors")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trainers")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "__init__.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "domain.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exception.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "registry.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "utils.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logging.ini")),
         ]
 
     def _get_pip_requirements(self) -> str:
-        return os.path.join(os.path.dirname(__file__), "..", "requirements.txt")
+        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))

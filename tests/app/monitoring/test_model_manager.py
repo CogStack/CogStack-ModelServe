@@ -22,10 +22,17 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.pyfunc.save_model")
 
 
+def test_retrieve_python_model_from_uri(mlflow_fixture):
+    config = Settings()
+    ModelManager.retrieve_python_model_from_uri("model_uri", config)
+    mlflow.set_tracking_uri.assert_has_calls([call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)])
+    mlflow.pyfunc.load_model.assert_called_once_with(model_uri="model_uri")
+
+
 def test_retrieve_model_service_from_uri(mlflow_fixture):
     config = Settings()
-    model_service = ModelManager.retrieve_model_service_from_uri("model_uri", "mlflow_tracking_uri", config)
-    mlflow.set_tracking_uri.assert_has_calls([call("mlflow_tracking_uri"), call("mlflow_tracking_uri")])
+    model_service = ModelManager.retrieve_model_service_from_uri("model_uri", config)
+    mlflow.set_tracking_uri.assert_has_calls([call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)])
     mlflow.pyfunc.load_model.assert_called_once_with(model_uri="model_uri")
     assert model_service._config.BASE_MODEL_FULL_PATH == "model_uri"
     assert model_service._config == config

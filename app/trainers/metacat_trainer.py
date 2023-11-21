@@ -102,7 +102,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 trainer._tracker_client.end_with_success()
 
                 # Remove intermediate results folder on successful training
-                results_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "results")
+                results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
                 if results_path and os.path.isdir(results_path):
                     shutil.rmtree(results_path)
             except Exception as e:
