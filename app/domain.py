@@ -89,3 +89,8 @@ class Scope(str, Enum):
     PER_CONCEPT = "per_concept"
     PER_DOCUMENT = "per_document"
     PER_SPAN = "per_span"
+
+
+class TrainingType(str, Enum):
+    SUPERVISED = "supervised"
+    UNSUPERVISED = "unsupervised"

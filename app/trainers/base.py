@@ -3,6 +3,7 @@ import threading
 import shutil
 import os
 import logging
+import datasets
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
@@ -10,6 +11,8 @@ from functools import partial
 from typing import TextIO, Callable, Dict, Optional
 from config import Settings
 from management.tracker_client import TrackerClient
+from data import doc_dataset, anno_dataset
+from domain import TrainingType
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +35,11 @@ class TrainerCommon(object):
     def model_name(self, model_name: str) -> None:
         self._model_name = model_name
 
-    @staticmethod
-    def get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
-        return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")
-
     def start_training(self,
                        run: Callable,
                        training_type: str,
                        training_params: Dict,
-                       dataset: TextIO,
+                       data_file: TextIO,
                        log_frequency: int,
                        training_id: str,
                        input_file_name: str) -> bool:
@@ -59,11 +58,28 @@ class TrainerCommon(object):
                     log_frequency=log_frequency,
                 )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
-                    self._tracker_client.save_model_artifact(dataset.name, self._model_name)
+                    # This may not be needed once Dataset can be stored as an artifact
+                    self._tracker_client.save_model_artifact(data_file.name, self._model_name)
+
+                    if training_type == TrainingType.UNSUPERVISED.value:
+                        dataset = datasets.load_dataset(doc_dataset.__file__,
+                                                        data_files={"documents": data_file.name},
+                                                        split="train",
+                                                        cache_dir=None)
+                        self._tracker_client.save_train_dataset(dataset)
+                    elif training_type == TrainingType.SUPERVISED.value:
+                        dataset = datasets.load_dataset(anno_dataset.__file__,
+                                                        data_files={"annotations": data_file.name},
+                                                        split="train",
+                                                        cache_dir=None)
+                        self._tracker_client.save_train_dataset(dataset)
+                    else:
+                        raise ValueError(f"Unknown training type: {training_type}")
+
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
                 asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                           partial(run, self, training_params, dataset, log_frequency, run_id)))
+                                                           partial(run, self, training_params, data_file, log_frequency, run_id)))
                 return True
 
     @staticmethod
@@ -86,7 +102,7 @@ class SupervisedTrainer(ABC, TrainerCommon):
               log_frequency: int,
               training_id: str,
               input_file_name: str) -> bool:
-        training_type = "supervised"
+        training_type = TrainingType.SUPERVISED.value
         training_params = {
             "data_path": data_file.name,
             "nepochs": epochs,
@@ -115,7 +131,7 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               log_frequency: int,
               training_id: str,
               input_file_name: str) -> bool:
-        training_type = "unsupervised"
+        training_type = TrainingType.UNSUPERVISED.value
         training_params = {
             "nepochs": epochs,
         }

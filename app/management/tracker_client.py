@@ -4,6 +4,7 @@ import mlflow
 import tempfile
 import json
 import logging
+import datasets
 import pandas as pd
 from typing import Dict, Tuple, List, Optional, Union
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
@@ -31,7 +32,7 @@ class TrackerClient(object):
                        training_params: Dict,
                        run_name: str,
                        log_frequency: int) -> Tuple[str, str]:
-        experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
+        experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         try:
             active_run = mlflow.start_run(experiment_id=experiment_id)
@@ -115,6 +116,11 @@ class TrackerClient(object):
         mlflow.log_table(data=table_dict, artifact_file=os.path.join(model_name, "tables", file_name))
 
     @staticmethod
+    def save_train_dataset(dataset: datasets.Dataset) -> None:
+        ds = mlflow.data.huggingface_dataset.from_huggingface(dataset)
+        mlflow.log_input(ds, context="train")
+
+    @staticmethod
     def log_exceptions(es: Union[Exception, List[Exception]]) -> None:
         if isinstance(es, list):
             for idx, e in enumerate(es):
@@ -155,7 +161,7 @@ class TrackerClient(object):
                               model_config: Optional[Dict] = None,
                               model_metrics: Optional[List[Dict]] = None,
                               model_tags: Optional[Dict] = None, ) -> None:
-        experiment_name = TrackerClient._get_experiment_name(model_name, training_type)
+        experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         active_run = mlflow.start_run(experiment_id=experiment_id)
         try:
@@ -185,6 +191,10 @@ class TrackerClient(object):
             TrackerClient.log_exceptions(e)
             TrackerClient.end_with_failure()
 
+    @staticmethod
+    def get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
+        return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")
+
     def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000) -> None:
         if batch_size <= 0:
             return
@@ -202,7 +212,3 @@ class TrackerClient(object):
     def _get_experiment_id(experiment_name: str) -> str:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         return mlflow.create_experiment(name=experiment_name) if experiment is None else experiment.experiment_id
-
-    @staticmethod
-    def _get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
-        return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")

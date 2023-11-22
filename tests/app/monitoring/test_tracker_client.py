@@ -1,9 +1,11 @@
 import os
 import pytest
 import mlflow
+import datasets
 import pandas as pd
 
 from management.tracker_client import TrackerClient
+from data import doc_dataset
 from unittest.mock import Mock, call
 
 
@@ -21,6 +23,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.log_metrics")
     mocker.patch("mlflow.log_artifact")
     mocker.patch("mlflow.log_table")
+    mocker.patch("mlflow.log_input")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.end_run")
 
@@ -94,6 +97,16 @@ def test_save_table_dict(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.save_table_dict({"col1": ["cell1", "cell2"], "col2": ["cell3", "cell4"]}, "model_name", "table.json")
     mlflow.log_table.assert_called_once_with(data={"col1": ["cell1", "cell2"], "col2": ["cell3", "cell4"]}, artifact_file=os.path.join("model_name", "tables", "table.json"))
+
+
+def test_save_train_dataset(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    sample_texts = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
+    dataset = datasets.load_dataset(doc_dataset.__file__, data_files={"documents": sample_texts}, split="train", cache_dir="/tmp")
+    tracker_client.save_train_dataset(dataset)
+    assert mlflow.log_input.call_count == 1
+    assert isinstance(mlflow.log_input.call_args[0][0], mlflow.data.huggingface_dataset.HuggingFaceDataset)
+    assert mlflow.log_input.call_args[1]["context"] == "train"
 
 
 def test_save_model(mlflow_fixture):
@@ -192,6 +205,11 @@ def test_send_batched_model_stats(mlflow_fixture):
         [{"m1": "v1", "m2": "v1"}, {"m1": "v2", "m2": "v2"}, {"m1": "v3", "m2": "v3"}],
         "run_id", 3)
     mlflow_client.log_batch.assert_has_calls([call(run_id='run_id', metrics=[]), call(run_id='run_id', metrics=[])])
+
+
+def test_get_experiment_name():
+    assert TrackerClient.get_experiment_name("SNOMED model") == "SNOMED_model"
+    assert TrackerClient.get_experiment_name("SNOMED model", "unsupervised") == "SNOMED_model_unsupervised"
 
 
 class StringContains(str):

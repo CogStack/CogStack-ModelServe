@@ -97,6 +97,7 @@ def test_json_denormalize():
 
 
 def test_filter_by_concept_ids():
+    backup = get_settings().TRAINING_CONCEPT_ID_WHITELIST
     get_settings().TRAINING_CONCEPT_ID_WHITELIST = "C0017168"
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
@@ -106,6 +107,7 @@ def test_filter_by_concept_ids():
         for document in project["documents"]:
             for annotation in document["annotations"]:
                 assert annotation["cui"] == "C0017168"
+    get_settings().TRAINING_CONCEPT_ID_WHITELIST = backup
 
 
 def test_encrypt():
