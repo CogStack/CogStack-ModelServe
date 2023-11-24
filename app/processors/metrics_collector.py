@@ -15,15 +15,17 @@ STATE_MISSING = hashlib.sha1("MISSING".encode("utf-8")).hexdigest()
 META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8")).hexdigest()
 
 
-def evaluate_model_with_trainer_export(export_file: Union[str, TextIO],
-                                       model_service: AbstractModelService,
-                                       return_df: bool = False,
-                                       include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
-    if isinstance(export_file, str):
-        with open(export_file, "r") as file:
+def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Dict],
+                                           model_service: AbstractModelService,
+                                           return_df: bool = False,
+                                           include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
+    if isinstance(trainer_export, str):
+        with open(trainer_export, "r") as file:
             data = json.load(file)
+    elif isinstance(trainer_export, Dict):
+        data = trainer_export
     else:
-        data = json.load(export_file)
+        data = json.load(trainer_export)
 
     correct_cuis: Dict = {}
     for project in data["projects"]:

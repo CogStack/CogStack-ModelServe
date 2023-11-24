@@ -59,4 +59,4 @@ def _get_training_response(training_accepted: bool, training_id: str) -> JSONRes
     if training_accepted:
         return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
     else:
-        return JSONResponse(content={"message": "Another training on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)
+        return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)

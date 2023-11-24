@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import create_autospec
 from model_services.base import AbstractModelService
 from processors.metrics_collector import (
-    evaluate_model_with_trainer_export,
+    sanity_check_model_with_trainer_export,
     concat_trainer_exports,
     get_stats_from_trainer_export,
     get_iaa_scores_per_concept,
@@ -20,7 +20,7 @@ def model_service():
     return create_autospec(AbstractModelService)
 
 
-def test_evaluate_model_with_trainer_export_path(model_service):
+def test_sanity_check_model_with_trainer_export_path(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",
@@ -38,7 +38,7 @@ def test_evaluate_model_with_trainer_export_path(model_service):
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
-    precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors = evaluate_model_with_trainer_export(path, model_service)
+    precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors = sanity_check_model_with_trainer_export(path, model_service)
     assert precision == 0.5
     assert recall == 0.07142857142857142
     assert f1 == 0.125
@@ -67,7 +67,7 @@ def test_evaluate_model_and_return_dataframe(model_service):
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
-    result = evaluate_model_with_trainer_export(path, model_service, return_df=True)
+    result = sanity_check_model_with_trainer_export(path, model_service, return_df=True)
 
     assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
     assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
@@ -77,7 +77,7 @@ def test_evaluate_model_and_return_dataframe(model_service):
     assert "anchors" not in result
 
 
-def test_evaluate_model_with_trainer_export_file(model_service):
+def test_sanity_check_model_with_trainer_export_file(model_service):
     annotations = [
         {
             "label_name": "gastroesophageal reflux",
@@ -96,7 +96,36 @@ def test_evaluate_model_with_trainer_export_file(model_service):
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
     with open(path, "r") as file:
-        result = evaluate_model_with_trainer_export(file, model_service, return_df=True)
+        result = sanity_check_model_with_trainer_export(file, model_service, return_df=True)
+
+        assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
+        assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
+        assert set(result["precision"].to_list()) == {0.5, 0.5}
+        assert set(result["recall"].to_list()) == {0.25, 1.0}
+        assert set(result["f1"].to_list()) == {0.3333333333333333, 0.6666666666666666}
+        assert "anchors" not in result
+
+
+def test_sanity_check_model_with_trainer_export_dict(model_service):
+    annotations = [
+        {
+            "label_name": "gastroesophageal reflux",
+            "label_id": "C0017168",
+            "start": 332,
+            "end": 355,
+        },
+        {
+            "label_name": "hypertension",
+            "label_id": "C0020538",
+            "start": 255,
+            "end": 267,
+        }
+    ]
+    model_service.annotate.return_value = annotations
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+
+    with open(path, "r") as file:
+        result = sanity_check_model_with_trainer_export(json.load(file), model_service, return_df=True)
 
         assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
         assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}
@@ -124,7 +153,7 @@ def test_evaluate_model_and_include_anchors(model_service):
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
 
-    result = evaluate_model_with_trainer_export(path, model_service, return_df=True, include_anchors=True)
+    result = sanity_check_model_with_trainer_export(path, model_service, return_df=True, include_anchors=True)
 
     assert set(result["concept"].to_list()) == {"C0020538", "C0017168"}
     assert set(result["name"].to_list()) == {"gastroesophageal reflux", "hypertension"}

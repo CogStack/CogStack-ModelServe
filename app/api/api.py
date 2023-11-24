@@ -2,7 +2,6 @@ import asyncio
 import importlib
 import logging
 import os.path
-
 import api.globals as globals
 
 from typing import Dict, Callable, Any, Optional

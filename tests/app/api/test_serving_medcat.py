@@ -316,8 +316,16 @@ def test_train_unsupervised():
 
 
 def test_evaluate_with_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/evaluate", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    with open(TRAINER_EXPORT_PATH, "rb") as _:
+        response = client.post("/evaluate", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    assert response.status_code == 202
+    assert response.json()["message"] == "Your evaluation started successfully."
+    assert "evaluation_id" in response.json()
+
+
+def test_sanity_check_with_trainer_export():
+    with open(TRAINER_EXPORT_PATH, "rb") as _:
+        response = client.post("/sanity-check", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"

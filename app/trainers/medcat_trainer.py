@@ -15,7 +15,7 @@ from management.model_manager import ModelManager
 from model_services.base import AbstractModelService
 from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
-from processors.metrics_collector import evaluate_model_with_trainer_export, get_stats_from_trainer_export
+from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
 from utils import get_func_params_as_dict
 
 logger = logging.getLogger(__name__)
@@ -257,10 +257,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
     def _evaluate_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
         self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
-                                                   evaluate_model_with_trainer_export(data_file_path,
-                                                                                      medcat_model,
-                                                                                      return_df=True,
-                                                                                      include_anchors=True),
+                                                   sanity_check_model_with_trainer_export(data_file_path,
+                                                                                          medcat_model,
+                                                                                          return_df=True,
+                                                                                          include_anchors=True),
                                                    self._model_name)
 
     def _save_examples(self, examples: Dict, excluded_example_keys: List) -> None:
