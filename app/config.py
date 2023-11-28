@@ -1,4 +1,5 @@
 import os
+import json
 from pydantic import BaseSettings
 
 
@@ -30,3 +31,6 @@ class Settings(BaseSettings):
     class Config:
         env_file = os.path.join(os.path.dirname(__file__), "envs", ".env")
         env_file_encoding = "utf-8"
+
+    def __hash__(self) -> int:
+        return hash(json.dumps(vars(self)))

@@ -2,69 +2,22 @@ import json
 import socket
 import random
 import struct
-import hashlib
-import re
 import inspect
 import os
 import copy
-import base64
 import pandas as pd
 
 from urllib.parse import ParseResult
 from functools import lru_cache
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from typing import List, Optional, Dict, Callable, Tuple, Any
-from fastapi import Request
-from starlette.responses import JSONResponse
-from starlette.status import HTTP_429_TOO_MANY_REQUESTS
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from typing import List, Optional, Dict, Callable, Any
 from domain import Annotation, Entity, CodeType
 from config import Settings
-from fastapi_users.jwt import decode_jwt
 
 
 @lru_cache()
 def get_settings() -> Settings:
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     return Settings()
-
-
-@lru_cache()
-def get_rate_limiter(auth_user_enabled: Optional[bool] = None) -> Limiter:
-    def get_user_auth(request: Request) -> str:
-        request_headers = request.scope.get("headers", [])
-        limiter_prefix = request.scope.get("root_path", "") + request.scope.get("path") + ":"
-
-        for headers in request_headers:
-            if headers[0].decode() == "authorization":
-                token = headers[1].decode().split("Bearer ")[1]
-                payload = decode_jwt(token, get_settings().AUTH_JWT_SECRET, ["fastapi-users:auth"])
-                sub = payload.get("sub")
-                assert sub is not None, "Cannot find 'sub' in the decoded payload"
-                hash_object = hashlib.sha256(sub.encode())
-                current_key = hash_object.hexdigest()
-                break
-
-        limiter_key = re.sub(r":+", ":", re.sub(r"/+", ":", limiter_prefix + current_key))
-        return limiter_key
-
-    auth_user_enabled = get_settings().AUTH_USER_ENABLED == "true" if auth_user_enabled is None else auth_user_enabled
-    return Limiter(key_func=get_user_auth, strategy="moving-window") if auth_user_enabled else Limiter(key_func=get_remote_address, strategy="moving-window")
-
-
-def rate_limit_exceeded_handler(*args: Tuple, **kwargs: Dict[str, Any]) -> JSONResponse:
-    return JSONResponse({"error": "Too many requests. Please wait and try your request again."}, status_code=HTTP_429_TOO_MANY_REQUESTS)
-
-
-def adjust_rate_limit_str(rate_limit: str) -> str:
-    if "per" in rate_limit:
-        return f"{int(rate_limit.split('per')[0]) * 2} per {rate_limit.split('per')[1]}"
-    else:
-        return f"{int(rate_limit.split('/')[0]) * 2}/{rate_limit.split('/')[1]}"
 
 
 def get_code_base_uri(model_name: str) -> Optional[str]:
@@ -170,20 +123,6 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
                     annotation["cui"] = "N1000"
 
     return filtered
-
-
-def encrypt(raw: str, public_key_pem: str) -> str:
-    public_key = serialization.load_pem_public_key(public_key_pem.encode(), backend=default_backend)
-    encrypted = public_key.encrypt(raw.encode(),  # type: ignore
-                                   padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
-    return base64.b64encode(encrypted).decode()
-
-
-def decrypt(b64_encoded: str, private_key_pem: str) -> str:
-    private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
-    decrypted = private_key.decrypt(base64.b64decode(b64_encoded),  # type: ignore
-                                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
-    return decrypted.decode()
 
 
 TYPE_ID_TO_NAME_PATCH = {

@@ -83,8 +83,8 @@ class TrainerCommon(object):
                 return True
 
     @staticmethod
-    def _make_model_file_copy(model_file_path: str) -> str:
-        copied_model_pack_path = model_file_path.replace(".zip", "_copied.zip")
+    def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
+        copied_model_pack_path = model_file_path.replace(".zip", f"_copied_{run_id}.zip")
         shutil.copy2(model_file_path, copied_model_pack_path)
         if os.path.exists(copied_model_pack_path.replace(".zip", "")):
             shutil.rmtree(copied_model_pack_path.replace(".zip", ""))

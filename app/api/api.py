@@ -11,21 +11,18 @@ from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
 from fastapi import FastAPI, Request, Response
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from starlette.datastructures import QueryParams
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUEST
 from prometheus_fastapi_instrumentator import Instrumentator
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 from api.auth.db import make_sure_db_and_tables
+from api.utils import add_exception_handlers, add_middlewares
 from domain import Tags
 from management.tracker_client import TrackerClient
 from api.dependencies import ModelServiceDep
-from exception import StartTrainingException, AnnotationException
-from utils import get_settings, get_rate_limiter, rate_limit_exceeded_handler
+from utils import get_settings
 
 
 logger = logging.getLogger(__name__)
@@ -33,15 +30,16 @@ logger = logging.getLogger(__name__)
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
+    config = get_settings()
     app = FastAPI(title="CogStack ModelServe",
                   summary="A model serving and governance system for CogStack NLP solutions",
                   docs_url=None,
                   redoc_url=None,
-                  debug=(get_settings().DEBUG == "true"),
+                  debug=(config.DEBUG == "true"),
                   openapi_tags=tags_metadata)
-    app.state.limiter = get_rate_limiter()
-    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
-    app.add_middleware(SlowAPIMiddleware)
+    add_exception_handlers(app)
+    add_middlewares(app, config)
+
     instrumentator = Instrumentator(excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
 
     if msd_overwritten is not None:
@@ -100,16 +98,6 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     @app.get("/", include_in_schema=False)
     async def root_redirect() -> RedirectResponse:
         return RedirectResponse(url="/docs")
-
-    @app.exception_handler(StartTrainingException)
-    async def start_training_exception_handler(_: Request, exception: StartTrainingException) -> JSONResponse:
-        logger.exception(exception)
-        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
-
-    @app.exception_handler(AnnotationException)
-    async def annotation_exception_handler(_: Request, exception: AnnotationException) -> JSONResponse:
-        logger.exception(exception)
-        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
 
     @app.on_event("shutdown")
     async def on_shutdown() -> None:

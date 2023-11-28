@@ -46,7 +46,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
+                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
                 model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
 
                 is_retrained = False

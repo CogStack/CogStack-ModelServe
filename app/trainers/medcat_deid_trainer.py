@@ -2,13 +2,66 @@ import os
 import logging
 import shutil
 import gc
+from collections import defaultdict
+
+import mlflow
 import pandas as pd
-from typing import Dict, TextIO
+from typing import Dict, TextIO, Any, Optional
+
 from medcat import __version__ as medcat_version
+from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer  # type: ignore
+
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
 logger = logging.getLogger(__name__)
+METRICS_LOGGING_INTERVAL = 5
+
+
+class MetricsCallback(TrainerCallback):
+
+    def __init__(self, trainer: Trainer) -> None:
+        self._trainer = trainer
+        self._step = 0
+        self._interval = METRICS_LOGGING_INTERVAL
+
+    def on_step_end(self,
+                    args: TrainingArguments,
+                    state: TrainerState,
+                    control: TrainerControl,
+                    **kwargs: Dict[str, Any]) -> None:
+        if self._step == 0:
+            self._step += 1
+            return
+        if self._step % self._interval == 0 and state.log_history:
+            metrics = state.log_history[-1]
+            mlflow.log_metrics(metrics, step=self._step)
+        self._step += 1
+
+
+class LabelCountCallback(TrainerCallback):
+
+    def __init__(self, trainer: Trainer) -> None:
+        self._trainer = trainer
+        self._label_counts: Dict = defaultdict(int)
+        self._interval = METRICS_LOGGING_INTERVAL
+
+    def on_step_end(self,
+                    args: TrainingArguments,
+                    state: TrainerState,
+                    control: TrainerControl,
+                    model: Optional[PreTrainedModel] = None,
+                    **kwargs: Dict[str, Any]) -> None:
+        step = state.global_step
+        train_dataset = self._trainer.train_dataset  # type: ignore
+        batch_ids = train_dataset[step]["labels"]
+        for id_ in batch_ids:
+            self._label_counts[f"count_{model.config.id2label[id_]}"] += 1  # type: ignore
+        self._label_counts.pop("count_O", None)
+        self._label_counts.pop("count_X", None)
+
+        if step % self._interval == 0:
+            mlflow.log_metrics(self._label_counts, step=step)
 
 
 class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
@@ -29,7 +82,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path)
+                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
                 model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
                 ner = model._addl_ner[0]
 
@@ -43,13 +96,20 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 eval_results: pd.DataFrame = None
                 examples = None
                 ner.training_arguments.num_train_epochs = 1
+                ner.training_arguments.logging_steps = 1
+                ner.training_arguments.evaluation_strategy = "steps"
+                ner.training_arguments.eval_steps = 1
                 logger.info("Performing supervised training...")
                 dataset = None
                 for training in range(training_params["nepochs"]):
                     if dataset is not None:
                         dataset["train"] = dataset["train"].shuffle()
                         dataset["test"] = dataset["test"].shuffle()
-                    eval_results, examples, dataset = ner.train(data_file.name, ignore_extra_labels=True, dataset=dataset)
+                    eval_results, examples, dataset = ner.train(data_file.name,
+                                                                ignore_extra_labels=True,
+                                                                dataset=dataset,
+                                                                # trainer_callbacks=[MetricsCallback, LabelCountCallback]
+                                                                )
                     if (training + 1) % log_frequency == 0:
                         metrics = {
                             "precision": eval_results["p"].mean(),

@@ -15,7 +15,8 @@ from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 import api.globals as globals
 from domain import TextWithAnnotations, TextWithPublicKey, ModelCard, Tags
 from model_services.base import AbstractModelService
-from utils import get_settings, get_rate_limiter, encrypt
+from utils import get_settings
+from api.utils import get_rate_limiter, encrypt
 from management.prometheus_metrics import (
     cms_doc_annotations,
     cms_avg_anno_acc_per_doc,
@@ -33,7 +34,7 @@ PATH_REDACT = "/redact"
 PATH_REDACT_WITH_ENCRYPTION = "/redact_with_encryption"
 
 router = APIRouter()
-limiter = get_rate_limiter()
+limiter = get_rate_limiter(get_settings())
 
 
 @router.get(PATH_INFO,
