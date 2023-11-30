@@ -10,12 +10,11 @@ from typing import Dict, TextIO, Any, Optional
 
 from medcat import __version__ as medcat_version
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer  # type: ignore
-
+from utils import get_settings
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
 logger = logging.getLogger(__name__)
-METRICS_LOGGING_INTERVAL = 5
 
 
 class MetricsCallback(TrainerCallback):
@@ -23,7 +22,7 @@ class MetricsCallback(TrainerCallback):
     def __init__(self, trainer: Trainer) -> None:
         self._trainer = trainer
         self._step = 0
-        self._interval = METRICS_LOGGING_INTERVAL
+        self._interval = get_settings().TRAINING_METRICS_LOGGING_INTERVAL
 
     def on_step_end(self,
                     args: TrainingArguments,
@@ -44,7 +43,7 @@ class LabelCountCallback(TrainerCallback):
     def __init__(self, trainer: Trainer) -> None:
         self._trainer = trainer
         self._label_counts: Dict = defaultdict(int)
-        self._interval = METRICS_LOGGING_INTERVAL
+        self._interval = get_settings().TRAINING_METRICS_LOGGING_INTERVAL
 
     def on_step_end(self,
                     args: TrainingArguments,

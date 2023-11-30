@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     AUTH_ACCESS_TOKEN_EXPIRE_SECONDS: int = 3600    # the seconds after which the JWT will expire
     AUTH_DATABASE_URL: str = "sqlite+aiosqlite:///./cms-users.db"     # the URL of the authentication database
     TRAINING_CONCEPT_ID_WHITELIST: str = ""         # the comma-separated concept IDs used for filtering annotations of interest
+    TRAINING_METRICS_LOGGING_INTERVAL: int = 5      # the number of steps after which training metrics will be collected
     DEBUG: str = "false"                            # if "true", the debug mode is switched on
 
     class Config:

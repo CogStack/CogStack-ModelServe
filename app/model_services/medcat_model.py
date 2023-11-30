@@ -10,7 +10,7 @@ from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedT
 from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
-from utils import TYPE_ID_TO_NAME_PATCH
+from utils import get_settings, TYPE_ID_TO_NAME_PATCH
 from exception import ConfigurationException
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class MedCATModel(AbstractModelService):
 
     @classmethod
     def from_model(cls, model: CAT) -> "MedCATModel":
-        model_service = cls(Settings(), enable_trainer=False)
+        model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         return model_service
 

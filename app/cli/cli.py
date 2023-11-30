@@ -112,7 +112,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     This pushes a pretrained NLP model to the Cogstack ModelServe registry
     """
 
-    config = Settings()
+    config = get_settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
 
     if model_type in model_service_registry.keys():

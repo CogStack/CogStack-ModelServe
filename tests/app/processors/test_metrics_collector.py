@@ -176,7 +176,7 @@ def test_concat_trainer_exports_with_duplicated_project_ids():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
     with pytest.raises(AnnotationException) as e:
         concat_trainer_exports([path, path, path])
-        assert "Found multiple projects share the same ID:" in str(e)
+    assert "Found multiple projects share the same ID:" in str(e.value)
 
 
 def test_concat_trainer_exports_with_recurring_document_ids():
@@ -184,7 +184,7 @@ def test_concat_trainer_exports_with_recurring_document_ids():
     another_path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
     with pytest.raises(AnnotationException) as e:
         concat_trainer_exports([path, another_path], allow_recurring_doc_ids=False)
-        assert str(e) == "Found multiple documents share the the same ID(s): [3204, 3205, 3204, 3205]"
+    assert str(e.value) == "Found multiple documents share the same ID(s): [3204, 3205]"
 
 
 def test_get_stats_from_trainer_export():

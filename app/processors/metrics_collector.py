@@ -142,8 +142,8 @@ def concat_trainer_exports(data_file_paths: List[str],
         combined["projects"].extend(data["projects"])
     document_ids = [doc["id"] for project in combined["projects"] for doc in project["documents"]]
     if not allow_recurring_doc_ids and len(document_ids) > len(set(document_ids)):
-        recurring_ids = [doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1]
-        raise AnnotationException(f'Found multiple documents share the the same ID(s): {recurring_ids}')
+        recurring_ids = list(set([doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1]))
+        raise AnnotationException(f'Found multiple documents share the same ID(s): {recurring_ids}')
 
     if isinstance(combined_data_file_path, str):
         with open(combined_data_file_path, "w") as f:
