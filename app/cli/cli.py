@@ -49,7 +49,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
     logger = logging.getLogger(__name__)
 
-    if "GELF_INPUT_URI" in os.environ:
+    if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:
         try:
             uri = urlparse(os.environ["GELF_INPUT_URI"])
             send_gelf_message(f"Model service {model_type} is starting", uri)

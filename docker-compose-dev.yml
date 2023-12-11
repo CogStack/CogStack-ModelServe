@@ -4,183 +4,141 @@ version: "3.6"
 services:
 
   medcat-snomed:
-    build:
-        context: ./
-        dockerfile: ./docker/medcat-snomed/Dockerfile
-        args:
-          - CMS_MODEL_NAME=SNOMED MedCAT model
-          - HTTP_PROXY=$HTTP_PROXY
-          - HTTPS_PROXY=$HTTPS_PROXY
-          - NO_PROXY=$NO_PROXY
-    image: ccogstack-model-serve_medcat-snomed:dev
-    container_name: cms-dev_medcat-snomed
-    restart: always
-    networks:
-      - cms-dev
+    extends:
+      file: ./docker-compose.yml
+      service: medcat-snomed
+    image: cogstack-model-serve_medcat-snomed:dev
+    container_name: dev-cms_medcat-snomed
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
-      - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8180:8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - NO_PROXY=localhost
 
   medcat-icd10:
-    build:
-        context: ./
-        dockerfile: ./docker/medcat-icd10/Dockerfile
-        args:
-          - CMS_MODEL_NAME=ICD-10 MedCAT model
-          - HTTP_PROXY=$HTTP_PROXY
-          - HTTPS_PROXY=$HTTPS_PROXY
-          - NO_PROXY=$NO_PROXY
+    extends:
+      file: ./docker-compose.yml
+      service: medcat-icd10
     image: cogstack-model-serve_medcat-icd10:dev
-    container_name: cms-dev_medcat-icd10
-    restart: always
-    networks:
-      - cms-dev
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
-      - ./docker/medcat-icd10/.env:/app/envs/.env:ro
+    container_name: dev-cms_medcat-icd10
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8181:8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - NO_PROXY=localhost
 
   de-identification:
-    build:
-        context: ./
-        dockerfile: ./docker/trf-deid/Dockerfile
-        args:
-          - CMS_MODEL_NAME=De-identification model
-          - HTTP_PROXY=$HTTP_PROXY
-          - HTTPS_PROXY=$HTTPS_PROXY
-          - NO_PROXY=$NO_PROXY
+    extends:
+      file: ./docker-compose.yml
+      service: de-identification
     image: cogstack-model-serve_de-identification:dev
-    container_name: cms-dev_trf-deid
-    restart: always
-    networks:
-      - cms-dev
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - ./docker/trf-deid/.env:/app/envs/.env:ro
+    container_name: dev-cms_trf-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8182:8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - NO_PROXY=localhost
 
   medcat-deid:
-    build:
-        context: ./
-        dockerfile: ./docker/medcat-deid/Dockerfile
-        args:
-          - CMS_MODEL_NAME=De-Identification MedCAT model
-          - HTTP_PROXY=$HTTP_PROXY
-          - HTTPS_PROXY=$HTTPS_PROXY
-          - NO_PROXY=$NO_PROXY
+    extends:
+      file: ./docker-compose.yml
+      service: medcat-deid
     image: cogstack-model-serve_medcat-deid:dev
-    container_name: cms-dev_medcat-deid
-    restart: always
-    networks:
-      - cms-dev
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
-      - ./docker/medcat-deid/.env:/app/envs/.env:ro
+    container_name: dev-cms_medcat-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8183:8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - NO_PROXY=localhost
 
   medcat-umls:
-    build:
-      context: ./
-      dockerfile: ./docker/medcat-umls/Dockerfile
-      args:
-        - CMS_MODEL_NAME=UMLS MedCAT model
-        - HTTP_PROXY=$HTTP_PROXY
-        - HTTPS_PROXY=$HTTPS_PROXY
-        - NO_PROXY=$NO_PROXY
+    extends:
+      file: ./docker-compose.yml
+      service: medcat-umls
     image: cogstack-model-serve_medcat-umls:dev
-    container_name: cms-dev_medcat-umls
-    restart: always
-    networks:
-      - cms-dev
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
-      - ./docker/medcat-umls/.env:/app/envs/.env:ro
+    container_name: dev-cms_medcat-umls
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-    expose:
-      - 8000
-    ports:
-      - 8184:8000
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/info" ]
-      interval: 1m30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      - NO_PROXY=localhost
 
 volumes:
   retrained-models:
     driver: local
 
 networks:
-  cms-dev:
+  cms:
     driver: bridge
