@@ -66,15 +66,16 @@ services:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - MLFLOW_BASIC_AUTH_ENABLED=false
       - MLFLOW_AUTH_CONFIG_PATH=/opt/auth/basic_auth.ini
-      - MLFLOW_GATEWAY_URI=http://mlflow-gateway:7000
+      - MLFLOW_SERVER_DEBUG=true
+      - MLFLOW_DEPLOYMENTS_TARGET= #http://mlflow-deployments:7000
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - HTTP_PROXY=$HTTP_PROXY
       - HTTPS_PROXY=$HTTPS_PROXY
-      - NO_PROXY=minio,mlflow-gateway,localhost
+      - NO_PROXY=minio,mlflow-deployments,localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - no_proxy=minio,mlflow-gateway,localhost
+      - no_proxy=minio,mlflow-deployments,localhost
     expose:
       - 5000
     healthcheck:
@@ -83,17 +84,17 @@ services:
       timeout: 20s
       retries: 3
 
-  mlflow-gateway:
+  mlflow-deployments:
     build:
       context: ./
-      dockerfile: ./docker/mlflow/gateway/Dockerfile
+      dockerfile: ./docker/mlflow/deployments/Dockerfile
       args:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
     profiles:
       - wip
-    container_name: cms_mlflow-gateway
+    container_name: cms_mlflow-deployments
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -138,8 +139,6 @@ services:
       - no_proxy=localhost
     expose:
       - 8000
-    ports:
-      - 5001:8000
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/ping" ]
       interval: 60s
