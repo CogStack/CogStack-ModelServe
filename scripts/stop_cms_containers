@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -eu
+
+usage() { echo "Usage: $0 -e <dev|prod>" 1>&2; exit 1; }
+
+while getopts ":e:" opt; do
+    case $opt in
+        e)
+            env=${OPTARG}
+            [ "$env" == "dev" ] || [ "$env" == "prod" ] || usage
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ "$env" == "dev" ]; then
+    prefix="dev-cms_"
+elif [ "$env" == "prod" ]; then
+    prefix="cms_"
+fi
+
+container_ids=$(docker ps -q --filter "name=$prefix")
+
+if [ -n "$container_ids" ]; then
+    docker stop $container_ids
+else
+    echo "No CMS containers are running"
+fi
