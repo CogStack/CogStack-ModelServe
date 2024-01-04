@@ -1,9 +1,9 @@
 import os
 import json
 
-from utils import get_settings
 from urllib.parse import urlparse
 from utils import (
+    get_settings,
     get_code_base_uri,
     annotations_to_entities,
     send_gelf_message,

@@ -111,6 +111,11 @@ class TrackerClient(object):
                 mlflow.log_artifact(f.name, artifact_path=os.path.join(model_name, "stats"))
 
     @staticmethod
+    def save_plot(file_name: str, model_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
+        mlflow.log_artifact(file_name, artifact_path=os.path.join(model_name, "stats"))
+
+    @staticmethod
     def save_table_dict(table_dict: Dict, model_name: str, file_name: str) -> None:
         model_name = model_name.replace(" ", "_")
         mlflow.log_table(data=table_dict, artifact_file=os.path.join(model_name, "tables", file_name))

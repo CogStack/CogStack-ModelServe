@@ -6,6 +6,7 @@ import pandas as pd
 
 from management.tracker_client import TrackerClient
 from data import doc_dataset
+from tests.app.helper import StringContains
 from unittest.mock import Mock, call
 
 
@@ -91,6 +92,12 @@ def test_save_dict_as_json(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.save_dict_as_json("test.json", {"key": {"value": ["v1", "v2"]}}, "model_name")
     mlflow.log_artifact.assert_called_once_with(StringContains("test.json"), artifact_path=os.path.join("model_name", "stats"))
+
+
+def test_save_plot(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_plot("test.png", "model_name")
+    mlflow.log_artifact.assert_called_once_with(StringContains("test.png"), artifact_path=os.path.join("model_name", "stats"))
 
 
 def test_save_table_dict(mlflow_fixture):
@@ -210,8 +217,3 @@ def test_send_batched_model_stats(mlflow_fixture):
 def test_get_experiment_name():
     assert TrackerClient.get_experiment_name("SNOMED model") == "SNOMED_model"
     assert TrackerClient.get_experiment_name("SNOMED model", "unsupervised") == "SNOMED_model_unsupervised"
-
-
-class StringContains(str):
-    def __eq__(self, other):
-        return self in other

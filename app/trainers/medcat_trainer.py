@@ -150,7 +150,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
                 trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
                 trainer._tracker_client.log_classes(cuis)
-                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -188,7 +188,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(
                     data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service)
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
                 trainer._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
             except Exception as e:
@@ -255,7 +255,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                        }),
                                                        self._model_name)
 
-    def _evaluate_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
+    def _sanity_check_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
         self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
                                                    sanity_check_model_with_trainer_export(data_file_path,
                                                                                           medcat_model,

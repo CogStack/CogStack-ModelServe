@@ -2,15 +2,16 @@ import os
 import logging
 import shutil
 import gc
-from collections import defaultdict
-
 import mlflow
+import tempfile
 import pandas as pd
-from typing import Dict, TextIO, Any, Optional
-
+from collections import defaultdict
+from typing import Dict, TextIO, Any, Optional, List
+from evaluate.visualization import radar_plot
 from medcat import __version__ as medcat_version
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer  # type: ignore
 from utils import get_settings
+from management import tracker_client
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
@@ -96,8 +97,9 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 examples = None
                 ner.training_arguments.num_train_epochs = 1
                 ner.training_arguments.logging_steps = 1
-                ner.training_arguments.evaluation_strategy = "steps"
-                ner.training_arguments.eval_steps = 1
+                # This default evaluation strategy is "epoch"
+                # ner.training_arguments.evaluation_strategy = "steps"
+                # ner.training_arguments.eval_steps = 1
                 logger.info("Performing supervised training...")
                 dataset = None
                 for training in range(training_params["nepochs"]):
@@ -134,13 +136,17 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
                     })
                     cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
+                MedcatDeIdentificationSupervisedTrainer._save_metrics_plot(aggregated_metrics,
+                                                                           list(cui2names.values()),
+                                                                           trainer._tracker_client,
+                                                                           trainer._model_name)
                 trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
                 trainer._save_examples(examples, ["tp", "tn"])
                 trainer._tracker_client.log_classes_and_names(cui2names)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
                 trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
 
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
@@ -202,7 +208,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._tracker_client.log_classes_and_names(cui2names)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._evaluate_model_and_save_results(data_file.name, trainer._model_service)
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
                 logger.info("Model evaluation finished")
                 trainer._tracker_client.end_with_success()
             except Exception as e:
@@ -214,3 +220,19 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 data_file.close()
                 with trainer._training_lock:
                     trainer._training_in_progress = False
+
+    @staticmethod
+    def _save_metrics_plot(metrics: List[Dict],
+                           concepts: List[str],
+                           tracker_client: tracker_client.TrackerClient,
+                           model_name: str) -> None:
+        try:
+            plot = radar_plot(data=metrics, model_names=concepts)
+            with tempfile.TemporaryDirectory() as d:
+                with open(os.path.join(d, "metrics.png"), "w") as f:
+                    plot.savefig(fname=f.name, format="png", bbox_inches="tight")
+                    f.flush()
+                    tracker_client.save_plot(f.name, model_name)
+        except Exception as e:
+            logger.error("Error occurred while plotting the metrics")
+            logger.exception(e)

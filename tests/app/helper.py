@@ -15,3 +15,8 @@ def ensure_no_active_run(timeout_seconds: int = 600) -> None:
                 raise TimeoutError(f"Run timed out with ID: {run_id}")
             mlflow.end_run()
             time.sleep(1)
+
+
+class StringContains(str):
+    def __eq__(self, other):
+        return self in other
