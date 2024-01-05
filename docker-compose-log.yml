@@ -50,9 +50,9 @@ services:
     container_name: cms_graylog
     depends_on:
       opensearch:
-        condition: "service_started"
+        condition: "service_healthy"
       mongodb:
-        condition: "service_started"
+        condition: "service_healthy"
     entrypoint: "/usr/bin/tini -- wait-for-it opensearch:9200 --  /docker-entrypoint.sh"
     restart: always
     networks:

@@ -10,7 +10,7 @@ set -e
 CA_ROOT_CERT="../etc/nginx/root-ca.pem"
 CA_ROOT_KEY="../etc/nginx/root-ca.key"
 
-CERTIFICATE_TIME_VAILIDITY_IN_DAYS=730
+CERTIFICATE_TIME_VAILIDITY_IN_DAYS=${1:-730}
 SUBJ_LINE="/C=UK/ST=UK/L=UK/O=cogstack/OU=cogstack/CN=cogstack.org"
 
 KEY_SIZE=4096
