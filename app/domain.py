@@ -10,11 +10,12 @@ class Annotation(BaseModel):
     start: int = Field(description="The start index of the annotation span")
     end: int = Field(description="The first index after the annotation span")
     label_name: str = Field(description="The pretty name of the annotation concept")
-    label_id: str = Field(description="The ID of the annotation concept")
+    label_id: str = Field(description="The code of the annotation concept")
     categories: Optional[List[str]] = Field(default=None, description="The categories to which the annotation concept belongs")
     accuracy: Optional[float] = Field(default=None, description="The confidence score of the annotation")
     text: Optional[str] = Field(default=None, description="The string literal of the annotation span")
     meta_anns: Optional[dict] = Field(default=None, description="The meta annotations")
+    concept_ids: Optional[str] = Field(default=None, description="The OHDSI Athena concept IDs")
 
     @root_validator()
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:

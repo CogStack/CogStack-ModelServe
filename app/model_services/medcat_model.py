@@ -145,7 +145,10 @@ class MedCATModel(AbstractModelService):
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy"}, inplace=True)
+            for _, row in df.iterrows():
+                if "athena_ids" in row and row["athena_ids"]:
+                    row["athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
+            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "concept_ids"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

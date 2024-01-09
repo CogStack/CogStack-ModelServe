@@ -46,10 +46,12 @@ class MedCATModelIcd10(MedCATModel):
                             output_row[self.ICD10_KEY] = icd10[-1]
                         else:
                             logger.error(f"Unknown format for the ICD-10 code(s): {icd10}")
+                        if "athena_ids" in output_row and output_row["athena_ids"]:
+                            output_row["athena_ids"] = [athena_id["code"] for athena_id in output_row["athena_ids"]]
                     new_rows.append(output_row)
             if new_rows:
                 df = pd.DataFrame(new_rows)
-                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy"}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "concept_ids"}, inplace=True)
                 df = self._retrieve_meta_annotations(df)
             else:
                 df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
