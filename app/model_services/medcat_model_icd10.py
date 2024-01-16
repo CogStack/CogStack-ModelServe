@@ -51,7 +51,7 @@ class MedCATModelIcd10(MedCATModel):
                     new_rows.append(output_row)
             if new_rows:
                 df = pd.DataFrame(new_rows)
-                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "concept_ids"}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
                 df = self._retrieve_meta_annotations(df)
             else:
                 df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])

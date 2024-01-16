@@ -52,7 +52,7 @@ def test_get_records_from_doc(medcat_model):
     assert records[0]["cui"] == "cui"
     assert records[0]["label_id"] == "code"
     assert records[0]["categories"] == ["type"]
-    assert records[0]["concept_ids"] == ["code_1", "code_2"]
+    assert records[0]["athena_ids"] == ["code_1", "code_2"]
     assert records[0]["accuracy"] == 1.0
     assert records[0]["meta_anns"] == {}
 

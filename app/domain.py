@@ -15,7 +15,7 @@ class Annotation(BaseModel):
     accuracy: Optional[float] = Field(default=None, description="The confidence score of the annotation")
     text: Optional[str] = Field(default=None, description="The string literal of the annotation span")
     meta_anns: Optional[dict] = Field(default=None, description="The meta annotations")
-    concept_ids: Optional[str] = Field(default=None, description="The OHDSI Athena concept IDs")
+    athena_ids: Optional[list[str]] = Field(default=None, description="The OHDSI Athena concept IDs")
 
     @root_validator()
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
