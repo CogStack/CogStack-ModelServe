@@ -18,10 +18,11 @@ from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.auth.db import make_sure_db_and_tables
+from api.dependencies import ModelServiceDep
+from api.routers import health_check
 from api.utils import add_exception_handlers, add_middlewares
 from domain import Tags
 from management.tracker_client import TrackerClient
-from api.dependencies import ModelServiceDep
 from utils import get_settings
 
 
@@ -46,6 +47,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         globals.model_service_dep = msd_overwritten
 
     app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
+    app.include_router(health_check.router)
 
     @app.on_event("startup")
     async def on_startup() -> None:

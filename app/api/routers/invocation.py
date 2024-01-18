@@ -159,7 +159,7 @@ def get_redacted_text(request: Request,
         start_index = annotation["end"]
     redacted_text += text[start_index:]
 
-    return PlainTextResponse(redacted_text)
+    return PlainTextResponse(content=redacted_text, status_code=200)
 
 
 @router.post(PATH_REDACT_WITH_ENCRYPTION,

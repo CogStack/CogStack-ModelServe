@@ -43,3 +43,4 @@ def test_get_model_server():
     assert "/iaa-scores" in paths
     assert "/concat_trainer_exports" in paths
     assert "/metrics" not in paths
+    assert "/healthz" not in paths

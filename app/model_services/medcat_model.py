@@ -94,7 +94,8 @@ class MedCATModel(AbstractModelService):
                          model_card=self.model.get_model_card(as_dict=True))
 
     def annotate(self, text: str) -> Dict:
-        doc = self.model.get_entities(text)
+        doc = self.model.get_entities(text,
+                                      addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
         return self.get_records_from_doc(doc)
 
     def batch_annotate(self, texts: List[str]) -> List[Dict]:
@@ -103,7 +104,7 @@ class MedCATModel(AbstractModelService):
         docs = self.model.multiprocessing(self._data_iterator(texts),
                                           batch_size_chars=batch_size_chars,
                                           nproc=max(int(cpu_count() / 2), 1),
-                                          addl_info=["cui2icd10", "cui2ontologies", "cui2snomed"])
+                                          addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append(self.get_records_from_doc(doc))

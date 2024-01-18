@@ -25,6 +25,10 @@ TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", 
 MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
 
 
+def test_healthz():
+    assert client.get("/healthz").content.decode("utf-8") == "OK"
+
+
 def test_info():
     model_card = {
         "api_version": "0.0.1",

@@ -44,7 +44,7 @@ services:
       - 8000
     ports:
       - 8180:8000
-    healthcheck:
+    healthcheck:  # readiness check
       test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
       interval: 1m30s
       timeout: 10s
@@ -93,7 +93,7 @@ services:
       - 8000
     ports:
       - 8181:8000
-    healthcheck:
+    healthcheck:  # readiness check
       test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
       interval: 1m30s
       timeout: 10s
@@ -141,7 +141,7 @@ services:
       - 8000
     ports:
       - 8182:8000
-    healthcheck:
+    healthcheck:  # readiness check
       test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
       interval: 1m30s
       timeout: 10s
@@ -190,7 +190,7 @@ services:
       - 8000
     ports:
       - 8183:8000
-    healthcheck:
+    healthcheck:  # readiness check
       test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
       interval: 1m30s
       timeout: 10s
@@ -239,7 +239,7 @@ services:
       - 8000
     ports:
       - 8184:8000
-    healthcheck:
+    healthcheck:  # readiness check
       test: [ "CMD", "curl", "-f", "http://localhost:8000/info" ]
       interval: 1m30s
       timeout: 10s

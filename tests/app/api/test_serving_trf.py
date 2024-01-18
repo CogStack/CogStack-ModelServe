@@ -8,6 +8,10 @@ app = get_model_server(lambda: model_service)
 client = TestClient(app)
 
 
+def test_healthz():
+    assert client.get("/healthz").content.decode("utf-8") == "OK"
+
+
 def test_info():
     model_card = {
         "api_version": "0.0.1",
