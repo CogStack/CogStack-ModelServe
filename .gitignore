@@ -127,5 +127,6 @@ docker/mlflow/models/model_dir/*
 
 tests/resources/model
 tests/resources/*.zip
+htmlcov
 
 .DS_Store
