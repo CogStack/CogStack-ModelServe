@@ -7,7 +7,7 @@ from config import Settings
 from model_services.medcat_model_umls import MedCATModelUmls
 
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 
 @pytest.fixture(scope="function")
@@ -41,7 +41,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModelUmls.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "umls_model.zip"))
+    cat = MedCATModelUmls.load_model(os.path.join(MODEL_PARENT_DIR, "umls_model.zip"))
     assert type(cat) is CAT
 
 

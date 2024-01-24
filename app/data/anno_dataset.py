@@ -39,25 +39,28 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
         ]
 
     def _generate_examples(self, filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
-        id_ = 1
-        for filepath in filepaths:
-            with (open(str(filepath), "r") as f):
-                annotations = json.load(f)
-                filtered = filter_by_concept_ids(annotations)
-                for project in filtered["projects"]:
-                    for document in project["documents"]:
-                        starts = []
-                        ends = []
-                        labels = []
-                        for annotation in document["annotations"]:
-                            starts.append(str(annotation["start"]))
-                            ends.append(str(annotation["end"]))
-                            labels.append(annotation["cui"])
-                        yield str(id_), {
-                            "name": document["name"],
-                            "text": document["text"],
-                            "starts": ",".join(starts),
-                            "ends": ",".join(ends),
-                            "labels": ",".join(labels),
-                        }
-                        id_ += 1
+        return generate_examples(filepaths)
+
+def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
+    id_ = 1
+    for filepath in filepaths:
+        with (open(str(filepath), "r") as f):
+            annotations = json.load(f)
+            filtered = filter_by_concept_ids(annotations)
+            for project in filtered["projects"]:
+                for document in project["documents"]:
+                    starts = []
+                    ends = []
+                    labels = []
+                    for annotation in document["annotations"]:
+                        starts.append(str(annotation["start"]))
+                        ends.append(str(annotation["end"]))
+                        labels.append(annotation["cui"])
+                    yield str(id_), {
+                        "name": document["name"],
+                        "text": document["text"],
+                        "starts": ",".join(starts),
+                        "ends": ",".join(ends),
+                        "labels": ",".join(labels),
+                    }
+                    id_ += 1

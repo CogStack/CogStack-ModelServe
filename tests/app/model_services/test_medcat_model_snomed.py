@@ -7,7 +7,7 @@ from config import Settings
 from model_services.medcat_model_snomed import MedCATModelSnomed
 
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 
 @pytest.fixture(scope="function")
@@ -65,7 +65,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_init_model_with_no_tui_filter(medcat_model):
-    original = MedCATModelSnomed.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "snomed_model.zip"))
+    original = MedCATModelSnomed.load_model(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip"))
     medcat_model._whitelisted_tuis = set([""])
     medcat_model.init_model()
     assert medcat_model.model is not None

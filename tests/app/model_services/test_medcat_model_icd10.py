@@ -7,7 +7,7 @@ from config import Settings
 from model_services.medcat_model_icd10 import MedCATModelIcd10
 
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 
 @pytest.fixture(scope="function")
@@ -60,7 +60,7 @@ def test_get_records_from_doc(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_init_model_with_no_tui_filter(medcat_model):
-    original = MedCATModelIcd10.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "icd10_model.zip"))
+    original = MedCATModelIcd10.load_model(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip"))
     medcat_model._whitelisted_tuis = set([""])
     medcat_model.init_model()
     assert medcat_model.model is not None
@@ -80,7 +80,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModelIcd10.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "icd10_model.zip"))
+    cat = MedCATModelIcd10.load_model(os.path.join(MODEL_PARENT_DIR, "icd10_model.zip"))
     assert type(cat) is CAT
 
 

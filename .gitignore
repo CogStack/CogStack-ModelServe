@@ -126,7 +126,10 @@ docker/mlflow/models/model_dir/*
 *.log
 
 tests/resources/model
+!tests/resources/model/.gitkeep
 tests/resources/*.zip
 htmlcov
+
+/Users/rmhixba/Workspace/cog-stack/cogstack-model-serve/tests/resources/model/.gitkeep
 
 .DS_Store

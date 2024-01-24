@@ -33,7 +33,8 @@ def test_get_per_address_rate_limiter():
 
 def test_get_per_user_rate_limiter():
     limiter = get_rate_limiter(get_settings(), auth_user_enabled=True)
-    assert limiter._key_func.__name__ == "get_user_auth"
+    key_func = limiter._key_func
+    assert key_func.__name__ == "get_user_auth"
 
 
 def test_encrypt():

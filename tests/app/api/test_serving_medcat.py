@@ -11,11 +11,12 @@ from model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
-get_settings().ENABLE_TRAINING_APIS = "true"
-get_settings().DISABLE_UNSUPERVISED_TRAINING = "false"
-get_settings().ENABLE_EVALUATION_APIS = "true"
-get_settings().ENABLE_PREVIEWS_APIS = "true"
-get_settings().AUTH_USER_ENABLED = "false"
+config = get_settings()
+config.ENABLE_TRAINING_APIS = "true"
+config.DISABLE_UNSUPERVISED_TRAINING = "false"
+config.ENABLE_EVALUATION_APIS = "true"
+config.ENABLE_PREVIEWS_APIS = "true"
+config.AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
@@ -315,6 +316,20 @@ def test_train_unsupervised():
         f.write(str.encode("[\"Spinal stenosis\"]"))
         response = client.post("/train_unsupervised", files=[("training_data", f)])
     model_service.train_unsupervised.assert_called()
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+
+
+def test_train_metacat():
+    with tempfile.TemporaryFile("r+b") as f:
+        f.write(str.encode('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
+                           '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
+                           '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
+                           '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
+                           '"acc":1,"validated":true}]}]}]}]}'))
+        response = client.post("/train_metacat", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    model_service.train_supervised.assert_called()
+    assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
 

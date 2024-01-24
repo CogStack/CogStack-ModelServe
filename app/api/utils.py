@@ -56,6 +56,7 @@ def get_rate_limiter(config: Settings, auth_user_enabled: Optional[bool] = None)
     def get_user_auth(request: Request) -> str:
         request_headers = request.scope.get("headers", [])
         limiter_prefix = request.scope.get("root_path", "") + request.scope.get("path") + ":"
+        current_key = ""
 
         for headers in request_headers:
             if headers[0].decode() == "authorization":

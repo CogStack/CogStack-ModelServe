@@ -55,7 +55,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))  # type: ignore
         instrumentator.expose(app, include_in_schema=False, should_gzip=False)
-        if get_settings().AUTH_USER_ENABLED == "true":
+        if config.AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
 
     @app.middleware("http")
@@ -134,20 +134,20 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    if get_settings().AUTH_USER_ENABLED == "true":
+    if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
 
     app = _load_invocation_router(app)
-    if get_settings().ENABLE_TRAINING_APIS == "true":
+    if config.ENABLE_TRAINING_APIS == "true":
         app = _load_supervised_training_router(app)
-        if get_settings().DISABLE_UNSUPERVISED_TRAINING != "true":
+        if config.DISABLE_UNSUPERVISED_TRAINING != "true":
             app = _load_unsupervised_training_router(app)
-        if get_settings().DISABLE_METACAT_TRAINING != "true":
+        if config.DISABLE_METACAT_TRAINING != "true":
             app = _load_metacat_training_router(app)
 
-    if get_settings().ENABLE_EVALUATION_APIS == "true":
+    if config.ENABLE_EVALUATION_APIS == "true":
         app = _load_evaluation_router(app)
-    if get_settings().ENABLE_PREVIEWS_APIS == "true":
+    if config.ENABLE_PREVIEWS_APIS == "true":
         app = _load_preview_router(app)
 
     app.openapi = custom_openapi  # type: ignore

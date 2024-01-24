@@ -35,10 +35,14 @@ class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
         ]
 
     def _generate_examples(self, filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
-        id_ = 1
-        for filepath in filepaths:
-            with open(str(filepath), "r") as f:
-                texts = ijson.items(f, "item")
-                for text in texts:
-                    yield str(id_), {"name": f"doc_{str(id_)}", "text": text}
-                    id_ += 1
+        return generate_examples(filepaths)
+
+
+def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
+    id_ = 1
+    for filepath in filepaths:
+        with open(str(filepath), "r") as f:
+            texts = ijson.items(f, "item")
+            for text in texts:
+                yield str(id_), {"name": f"doc_{str(id_)}", "text": text}
+                id_ += 1

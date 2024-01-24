@@ -9,3 +9,11 @@ def test_load_dataset():
     assert dataset.features.to_dict() == {"name": {"dtype": "string", "_type": "Value"}, "text": {"dtype": "string", "_type": "Value"}}
     assert len(dataset.to_list()) == 15
     assert dataset.to_list()[0]["name"] == "doc_1"
+
+
+def test_generate_examples():
+    example_gen = doc_dataset.generate_examples([os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")])
+    example = next(example_gen)
+    assert example[0] == "1"
+    assert "name" in example[1]
+    assert "text" in example[1]

@@ -1,16 +1,17 @@
-from config import Settings
 from api.api import get_model_server
 from api.dependencies import ModelServiceDep
+from utils import get_settings
 
 
 def test_get_model_server():
-    config = Settings()
+    config = get_settings()
     config.ENABLE_TRAINING_APIS = "true"
     config.DISABLE_UNSUPERVISED_TRAINING = "false"
     config.ENABLE_EVALUATION_APIS = "true"
     config.ENABLE_PREVIEWS_APIS = "true"
+    config.AUTH_USER_ENABLED = "false"
 
-    model_service_dep = ModelServiceDep("medcat_snomed", Settings())
+    model_service_dep = ModelServiceDep("medcat_snomed", config)
 
     app = get_model_server(model_service_dep)
     info = app.openapi()["info"]
@@ -44,3 +45,5 @@ def test_get_model_server():
     assert "/concat_trainer_exports" in paths
     assert "/metrics" not in paths
     assert "/healthz" not in paths
+    assert "/auth/jwt/login" not in paths
+    assert "/auth/jwt/logout" not in paths

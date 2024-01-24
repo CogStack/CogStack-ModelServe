@@ -6,7 +6,7 @@ from config import Settings
 from model_services.trf_model_deid import TransformersModelDeIdentification
 
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 
 @pytest.fixture(scope="function")
@@ -34,7 +34,7 @@ def test_init_model(trf_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(trf_model):
-    tokenizer, model = TransformersModelDeIdentification.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "trf_deid_model.zip"))
+    tokenizer, model = TransformersModelDeIdentification.load_model(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip"))
     assert type(tokenizer) is TransformersTokenizerNER
     assert type(model) is BertForTokenClassification
 

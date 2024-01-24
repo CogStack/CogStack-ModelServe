@@ -7,7 +7,7 @@ from config import Settings
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 
 @pytest.fixture(scope="function")
@@ -41,7 +41,7 @@ def test_init_model(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModelDeIdentification.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "deid_model.zip"))
+    cat = MedCATModelDeIdentification.load_model(os.path.join(MODEL_PARENT_DIR, "deid_model.zip"))
     assert type(cat) is CAT
 
 

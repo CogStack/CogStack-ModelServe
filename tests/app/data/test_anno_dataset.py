@@ -18,3 +18,14 @@ def test_load_dataset():
     assert dataset.to_list()[0]["starts"] == "332,255,276,272"
     assert dataset.to_list()[0]["ends"] == "355,267,282,275"
     assert dataset.to_list()[0]["labels"] == "C0017168,C0020538,C0038454,C0007787"
+
+
+def test_generate_examples():
+    example_gen = anno_dataset.generate_examples([os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")])
+    example = next(example_gen)
+    assert example[0] == "1"
+    assert "name" in example[1]
+    assert "text" in example[1]
+    assert "starts" in example[1]
+    assert "ends" in example[1]
+    assert "labels" in example[1]
