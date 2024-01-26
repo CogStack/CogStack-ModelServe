@@ -1,11 +1,14 @@
 from fastapi.testclient import TestClient
 from api.api import get_model_server
+from api.auth.users import props
 from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
 
 model_service = create_autospec(TransformersModelDeIdentification)
 app = get_model_server(lambda: model_service)
 client = TestClient(app)
+
+app.dependency_overrides[props.current_active_user] = lambda: None
 
 
 def test_healthz():

@@ -6,6 +6,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 from api.api import get_model_server
+from api.auth.users import props
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
@@ -18,6 +19,7 @@ config.ENABLE_EVALUATION_APIS = "true"
 config.ENABLE_PREVIEWS_APIS = "true"
 config.AUTH_USER_ENABLED = "false"
 app = get_model_server(lambda: model_service)
+app.dependency_overrides[props.current_active_user] = lambda: None
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
