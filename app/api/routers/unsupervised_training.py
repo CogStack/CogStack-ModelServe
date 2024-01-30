@@ -9,10 +9,9 @@ from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
-import api.globals as globals
+import api.globals as cms_globals
 from domain import Tags
 from model_services.base import AbstractModelService
-from api.auth.users import props
 
 router = APIRouter()
 
@@ -21,11 +20,11 @@ router = APIRouter()
              status_code=HTTP_202_ACCEPTED,
              response_class=JSONResponse,
              tags=[Tags.Training.name],
-             dependencies=[Depends(props.current_active_user)])
+             dependencies=[Depends(cms_globals.props.current_active_user)])
 async def train_unsupervised(request: Request,
                              training_data: Annotated[List[UploadFile], File(description="One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
-                             model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
     Upload one or more plain text files and trigger the unsupervised training
     """

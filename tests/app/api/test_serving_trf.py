@@ -1,18 +1,31 @@
+import api.globals as cms_globals
 from fastapi.testclient import TestClient
 from api.api import get_model_server
-from api.auth.users import props
+from utils import get_settings
 from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
 
 model_service = create_autospec(TransformersModelDeIdentification)
-app = get_model_server(lambda: model_service)
+config = get_settings()
+config.AUTH_USER_ENABLED = "true"
+app = get_model_server(msd_overwritten=lambda: model_service)
 client = TestClient(app)
-
-app.dependency_overrides[props.current_active_user] = lambda: None
+app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
 
 
 def test_healthz():
     assert client.get("/healthz").content.decode("utf-8") == "OK"
+
+
+def test_readyz():
+    model_card = {
+        "api_version": "0.0.1",
+        "model_description": "deid_model_description",
+        "model_type": "model_type",
+        "model_card": None,
+    }
+    model_service.info.return_value = model_card
+    assert client.get("/readyz").content.decode("utf-8") == "model_type"
 
 
 def test_info():

@@ -36,8 +36,8 @@ class TextWithPublicKey(BaseModel):
 
 class ModelCard(BaseModel):
     api_version: str = Field(description="The version of the model serve APIs")
-    model_description: str = Field(description="The description about the served model")
     model_type: str = Field(description="The type of the served model")
+    model_description: Optional[str] = Field(description="The description about the served model")
     model_card: Optional[dict] = Field(default=None, description="The metadata of the served model")
 
 

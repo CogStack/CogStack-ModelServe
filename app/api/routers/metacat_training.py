@@ -9,10 +9,9 @@ from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
-import api.globals as globals
+import api.globals as cms_globals
 from domain import Tags
 from model_services.base import AbstractModelService
-from api.auth.users import props
 from processors.metrics_collector import concat_trainer_exports
 
 router = APIRouter()
@@ -23,13 +22,13 @@ logger = logging.getLogger(__name__)
              status_code=HTTP_202_ACCEPTED,
              response_class=JSONResponse,
              tags=[Tags.Training.name],
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Upload one or more trainer export files and trigger the metacat training")
 async def train_metacat(request: Request,
                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                         epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                         log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
-                        model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+                        model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
     for te in trainer_export:

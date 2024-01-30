@@ -12,7 +12,7 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse
 
-import api.globals as globals
+import api.globals as cms_globals
 from domain import Tags, Scope
 from model_services.base import AbstractModelService
 from processors.metrics_collector import (
@@ -22,7 +22,6 @@ from processors.metrics_collector import (
     get_iaa_scores_per_span,
     concat_trainer_exports,
 )
-from api.auth.users import props
 from exception import AnnotationException
 from utils import filter_by_concept_ids
 
@@ -33,11 +32,11 @@ logger = logging.getLogger(__name__)
 @router.post("/evaluate",
              tags=[Tags.Evaluating.name],
              response_class=JSONResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Evaluate the model being served with a trainer export")
 async def get_evaluation_with_trainer_export(request: Request,
                                              trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                             model_service: AbstractModelService = Depends(globals.model_service_dep)) -> JSONResponse:
+                                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
     for te in trainer_export:
@@ -68,11 +67,11 @@ async def get_evaluation_with_trainer_export(request: Request,
 @router.post("/sanity-check",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Sanity check the model being served with a trainer export")
 def get_sanity_check_with_trainer_export(request: Request,
                                          trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                         model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+                                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
     files = []
     file_names = []
     for te in trainer_export:
@@ -98,7 +97,7 @@ def get_sanity_check_with_trainer_export(request: Request,
 @router.post("/iaa-scores",
              tags=[Tags.Evaluating.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Calculate inter annotator agreement scores between two projects")
 def get_inter_annotator_agreement_scores(request: Request,
                                          trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
@@ -136,7 +135,7 @@ def get_inter_annotator_agreement_scores(request: Request,
 @router.post("/concat_trainer_exports",
              tags=[Tags.Evaluating.name],
              response_class=JSONResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Concatenate multiple trainer export files into a single file for download")
 def get_concatenated_trainer_exports(request: Request,
                                      trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")]) -> JSONResponse:

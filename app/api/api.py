@@ -2,7 +2,7 @@ import asyncio
 import importlib
 import logging
 import os.path
-import api.globals as globals
+import api.globals as cms_globals
 
 from typing import Dict, Callable, Any, Optional
 from urllib.parse import urlencode
@@ -18,8 +18,8 @@ from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.auth.db import make_sure_db_and_tables
+from api.auth.users import Props
 from api.dependencies import ModelServiceDep
-from api.routers import health_check
 from api.utils import add_exception_handlers, add_middlewares
 from domain import Tags
 from management.tracker_client import TrackerClient
@@ -44,10 +44,11 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     instrumentator = Instrumentator(excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
 
     if msd_overwritten is not None:
-        globals.model_service_dep = msd_overwritten
+        cms_globals.model_service_dep = msd_overwritten
+
+    cms_globals.props = Props(config.AUTH_USER_ENABLED == "true")
 
     app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
-    app.include_router(health_check.router)
 
     @app.on_event("startup")
     async def on_startup() -> None:
@@ -109,8 +110,8 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         if app.openapi_schema:
             return app.openapi_schema
         openapi_schema = get_openapi(
-            title=f"{globals.model_service_dep().model_name} APIs",
-            version=globals.model_service_dep().api_version,
+            title=f"{cms_globals.model_service_dep().model_name} APIs",
+            version=cms_globals.model_service_dep().api_version,
             description="by CogStack ModelServe, a model serving and governance system for CogStack NLP solutions.",
             routes=app.routes
         )
@@ -134,10 +135,13 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
+    app = _load_health_check_router(app)
+
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
 
     app = _load_invocation_router(app)
+
     if config.ENABLE_TRAINING_APIS == "true":
         app = _load_supervised_training_router(app)
         if config.DISABLE_UNSUPERVISED_TRAINING != "true":
@@ -201,4 +205,11 @@ def _load_metacat_training_router(app: FastAPI) -> FastAPI:
     from api.routers import metacat_training
     importlib.reload(metacat_training)
     app.include_router(metacat_training.router)
+    return app
+
+
+def _load_health_check_router(app: FastAPI) -> FastAPI:
+    from api.routers import health_check
+    importlib.reload(health_check)
+    app.include_router(health_check.router)
     return app

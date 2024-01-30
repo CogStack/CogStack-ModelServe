@@ -52,6 +52,3 @@ class Props(object):
     @staticmethod
     async def _get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)) -> AsyncGenerator:
         yield _UserManager(user_db)
-
-
-props = Props(get_settings().AUTH_USER_ENABLED == "true")

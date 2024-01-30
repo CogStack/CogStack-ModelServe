@@ -16,7 +16,7 @@ import shutil  # noqa
 import warnings  # noqa
 import typer  # noqa
 import graypy  # noqa
-import api.globals as globals  # noqa
+import api.globals as cms_globals  # noqa
 
 from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
@@ -67,10 +67,10 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         except Exception:
             print(f"ERROR: $GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
 
-    settings = get_settings()
+    config = get_settings()
 
-    model_service_dep = ModelServiceDep(model_type, settings)
-    globals.model_service_dep = model_service_dep
+    model_service_dep = ModelServiceDep(model_type, config)
+    cms_globals.model_service_dep = model_service_dep
     app = get_model_server()
 
     dst_model_path = os.path.join(parent_dir, "model", "model.zip")
@@ -85,7 +85,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service.init_model()
     elif mlflow_model_uri:
-        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, settings, dst_model_path)
+        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         app = get_model_server()
@@ -160,7 +160,7 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
     settings.AUTH_USER_ENABLED = "true" if add_user_authentication else "false"
 
     model_service_dep = ModelServiceDep(model_type, settings, model_name)
-    globals.model_service_dep = model_service_dep
+    cms_globals.model_service_dep = model_service_dep
     doc_name = f"{model_name or model_type}_model_apis.json"
     app = get_model_server()
     for route in app.routes:
@@ -187,7 +187,7 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
     settings.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep(ModelType.MEDCAT_SNOMED, settings, api_title)
-    globals.model_service_dep = model_service_dep
+    cms_globals.model_service_dep = model_service_dep
     doc_name = f"{api_title.lower().replace(' ', '_')}.json"
     app = get_model_server()
     for route in app.routes:

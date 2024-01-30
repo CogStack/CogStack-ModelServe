@@ -9,11 +9,10 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from spacy import displacy
 from starlette.status import HTTP_404_NOT_FOUND
 
-import api.globals as globals
+import api.globals as cms_globals
 from domain import Doc, Tags
 from model_services.base import AbstractModelService
 from utils import annotations_to_entities
-from api.auth.users import props
 
 router = APIRouter()
 
@@ -21,11 +20,11 @@ router = APIRouter()
 @router.post("/preview",
              tags=[Tags.Rendering.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract the NER entities in HTML for preview")
 async def get_rendered_entities_from_text(request: Request,
                                           text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
-                                          model_service: AbstractModelService = Depends(globals.model_service_dep)) -> StreamingResponse:
+                                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
     annotations = model_service.annotate(text)
     entities = annotations_to_entities(annotations, model_service.model_name)
     ent_input = Doc(text=text, ents=entities)
@@ -38,7 +37,7 @@ async def get_rendered_entities_from_text(request: Request,
 @router.post("/preview_trainer_export",
              tags=[Tags.Rendering.name],
              response_class=StreamingResponse,
-             dependencies=[Depends(props.current_active_user)],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Get existing entities in HTML from a trainer export for preview")
 def get_rendered_entities_from_trainer_export(request: Request,
                                               trainer_export: Annotated[UploadFile, File(description="The trainer export file to be uploaded")],

@@ -9,10 +9,9 @@ def test_get_model_server():
     config.DISABLE_UNSUPERVISED_TRAINING = "false"
     config.ENABLE_EVALUATION_APIS = "true"
     config.ENABLE_PREVIEWS_APIS = "true"
-    config.AUTH_USER_ENABLED = "false"
+    config.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep("medcat_snomed", config)
-
     app = get_model_server(model_service_dep)
     info = app.openapi()["info"]
     tags = app.openapi_tags
@@ -43,7 +42,8 @@ def test_get_model_server():
     assert "/sanity-check" in paths
     assert "/iaa-scores" in paths
     assert "/concat_trainer_exports" in paths
+    assert "/auth/jwt/login" in paths
+    assert "/auth/jwt/logout" in paths
     assert "/metrics" not in paths
     assert "/healthz" not in paths
-    assert "/auth/jwt/login" not in paths
-    assert "/auth/jwt/logout" not in paths
+    assert "/readyz" not in paths

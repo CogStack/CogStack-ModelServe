@@ -4,9 +4,9 @@ import tempfile
 import httpx
 import json
 import pytest
+import api.globals as cms_globals
 from fastapi.testclient import TestClient
 from api.api import get_model_server
-from api.auth.users import props
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from unittest.mock import create_autospec
@@ -17,9 +17,9 @@ config.ENABLE_TRAINING_APIS = "true"
 config.DISABLE_UNSUPERVISED_TRAINING = "false"
 config.ENABLE_EVALUATION_APIS = "true"
 config.ENABLE_PREVIEWS_APIS = "true"
-config.AUTH_USER_ENABLED = "false"
-app = get_model_server(lambda: model_service)
-app.dependency_overrides[props.current_active_user] = lambda: None
+config.AUTH_USER_ENABLED = "true"
+app = get_model_server(msd_overwritten=lambda: model_service)
+app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
 client = TestClient(app)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
@@ -30,6 +30,17 @@ MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "res
 
 def test_healthz():
     assert client.get("/healthz").content.decode("utf-8") == "OK"
+
+
+def test_readyz():
+    model_card = {
+        "api_version": "0.0.1",
+        "model_description": "medcat_model_description",
+        "model_type": "model_type",
+        "model_card": None,
+    }
+    model_service.info.return_value = model_card
+    assert client.get("/readyz").content.decode("utf-8") == "model_type"
 
 
 def test_info():
@@ -330,7 +341,7 @@ def test_train_metacat():
                            '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
                            '"acc":1,"validated":true}]}]}]}]}'))
         response = client.post("/train_metacat", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
-    model_service.train_supervised.assert_called()
+    model_service.train_metacat.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
