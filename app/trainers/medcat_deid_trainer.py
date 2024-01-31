@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import Dict, TextIO, Any, Optional, List
 from evaluate.visualization import radar_plot
 from medcat import __version__ as medcat_version
-from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer  # type: ignore
+from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
 from utils import get_settings
 from management import tracker_client
 from trainers.medcat_trainer import MedcatSupervisedTrainer
@@ -53,7 +53,7 @@ class LabelCountCallback(TrainerCallback):
                     model: Optional[PreTrainedModel] = None,
                     **kwargs: Dict[str, Any]) -> None:
         step = state.global_step
-        train_dataset = self._trainer.train_dataset  # type: ignore
+        train_dataset = self._trainer.train_dataset
         batch_ids = train_dataset[step]["labels"]
         for id_ in batch_ids:
             self._label_counts[f"count_{model.config.id2label[id_]}"] += 1  # type: ignore

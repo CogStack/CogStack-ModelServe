@@ -77,7 +77,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         else:
             self._tokenizer, self._model = self.load_model(self._model_file_path)
             self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
-            self._model.to(self._device)    # type: ignore
+            self._model.to(self._device)
 
     def annotate(self, text: str) -> List[Dict]:
         return self._get_annotations(text)
@@ -91,7 +91,7 @@ class TransformersModelDeIdentification(AbstractModelService):
     def _get_annotations(self, text: str) -> List[Dict]:
         if not text.strip():
             return []
-        self._model.eval()  # type: ignore
+        self._model.eval()
         device = self._config.DEVICE
         cas = self._config.CONCAT_SIMILAR_ENTITIES == "true"
         ist = self._config.INCLUDE_SPAN_TEXT == "true"
@@ -99,7 +99,7 @@ class TransformersModelDeIdentification(AbstractModelService):
 
         for dataset, offset_mappings in self._get_chunked_tokens(text):
             predictions = self._model(torch.tensor([dataset["input_ids"]]).to(device),
-                                      torch.tensor([dataset["attention_mask"]]).to(device))  # type: ignore
+                                      torch.tensor([dataset["attention_mask"]]).to(device))
             predictions = softmax(predictions.logits.detach().numpy()[0], axis=-1)
             predictions = np.argmax(predictions, axis=-1)
 
