@@ -44,3 +44,8 @@ def test_medcat_deid_supervised_trainer(mlflow_fixture):
             deid_trainer.train(f, 1, 1, "training_id", "input_file_name")
     deid_trainer._tracker_client.start_tracking.assert_called_once()
     run.assert_called_once()
+
+
+def test_medcat_deid_supervised_run(mlflow_fixture):
+    with open(os.path.join(data_dir, "trainer_export.json"), "r") as data_file:
+        MedcatDeIdentificationSupervisedTrainer.run(deid_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")

@@ -83,3 +83,13 @@ def test_medcat_unsupervised_trainer(mlflow_fixture):
             unsupervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
     unsupervised_trainer._tracker_client.start_tracking.assert_called_once()
     run.assert_called_once()
+
+
+def test_medcat_supervised_run(mlflow_fixture):
+    with open(os.path.join(data_dir, "trainer_export.json"), "r") as data_file:
+        MedcatSupervisedTrainer.run(supervised_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")
+
+
+def test_medcat_unsupervised_run(mlflow_fixture):
+    with open(os.path.join(data_dir, "sample_texts.json"), "r") as data_file:
+        MedcatUnsupervisedTrainer.run(unsupervised_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")

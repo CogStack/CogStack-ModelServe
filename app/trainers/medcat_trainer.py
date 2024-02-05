@@ -178,7 +178,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     trainer._training_in_progress = False
                 trainer._housekeep_file(model_pack_path)
                 trainer._housekeep_file(copied_model_pack_path)
-                if cdb_config_path:
+                if cdb_config_path and os.path.exists(cdb_config_path):
                     os.remove(cdb_config_path)
         else:
             try:
@@ -363,5 +363,5 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 trainer._training_in_progress = False
             trainer._housekeep_file(model_pack_path)
             trainer._housekeep_file(copied_model_pack_path)
-            if cdb_config_path:
+            if cdb_config_path and os.path.exists(cdb_config_path):
                 os.remove(cdb_config_path)
