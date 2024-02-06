@@ -1,29 +1,62 @@
+import os
+import pytest
+from unittest.mock import patch
 from cli.cli import cmd_app
 from typer.testing import CliRunner
 
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
 runner = CliRunner()
 
 
-def test_serve_model():
+def test_serve_help():
     result = runner.invoke(cmd_app, ["serve", "--help"])
     assert result.exit_code == 0
     assert "This serves various CogStack NLP models" in result.output
 
 
-def test_register_model():
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_serve_model():
+    with patch("uvicorn.run", side_effect=KeyboardInterrupt):
+        result = runner.invoke(cmd_app, ["serve", "--model-type", "medcat_deid", "--model-name", "deid model", "--model-path", os.path.join(MODEL_PARENT_DIR, "deid_model.zip")])
+    assert result.exit_code == 1
+    assert "Start serving model" in result.output
+
+
+def test_register_help():
     result = runner.invoke(cmd_app, ["register", "--help"])
     assert result.exit_code == 0
     assert "This pushes a pretrained NLP model to the Cogstack ModelServe registry" in result.output
 
 
-def test_generate_api_doc_per_model():
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_register_nodel():
+    result = runner.invoke(cmd_app, ["register", "--model-type", "medcat_deid", "--model-name", "deid model", "--model-path", os.path.join(MODEL_PARENT_DIR, "deid_model.zip")])
+    assert result.exit_code == 0
+    assert "as a new model version" in result.output
+
+
+def test_generate_api_doc_per_model_help():
     result = runner.invoke(cmd_app, ["export-model-apis", "--help"])
     assert result.exit_code == 0
     assert "This generates model-specific API docs for enabled endpoints" in result.output
 
 
-def test_generate_api_doc():
+def test_generate_api_doc_per_model():
+    result = runner.invoke(cmd_app, ["export-model-apis", "--model-type", "medcat_deid"])
+    assert result.exit_code == 0
+    assert "OpenAPI doc exported to" in result.output
+
+
+def test_generate_api_doc_help():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--help"])
     assert result.exit_code == 0
     assert "This generates a single API doc for all endpoints" in result.output
+
+
+def test_generate_api_doc():
+    result = runner.invoke(cmd_app, ["export-openapi-spec", "--api-title", "TestAPIs"])
+    assert result.exit_code == 0
+    assert "OpenAPI doc exported to testapis.json" in result.output

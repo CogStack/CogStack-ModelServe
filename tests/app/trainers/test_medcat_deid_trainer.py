@@ -1,9 +1,12 @@
 import os
+import mlflow
 import pytest
 from unittest.mock import create_autospec, patch, Mock
+from transformers import TrainingArguments, TrainerState, TrainerControl
 from config import Settings
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
+from trainers.medcat_deid_trainer import MetricsCallback, LabelCountCallback
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 model_service = create_autospec(MedCATModelDeIdentification,
@@ -49,3 +52,14 @@ def test_medcat_deid_supervised_trainer(mlflow_fixture):
 def test_medcat_deid_supervised_run(mlflow_fixture):
     with open(os.path.join(data_dir, "trainer_export.json"), "r") as data_file:
         MedcatDeIdentificationSupervisedTrainer.run(deid_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")
+
+
+def test_trainer_callbacks(mlflow_fixture):
+    trainer = Mock()
+    trainer.train_dataset = [{"labels": []}]
+    metrics_callback = MetricsCallback(trainer)
+    metrics_callback.on_step_end(TrainingArguments("/tmp"), TrainerState(), TrainerControl())
+    assert mlflow.log_metrics.call_count == 0
+    label_count_callback = LabelCountCallback(trainer)
+    label_count_callback.on_step_end(TrainingArguments("/tmp"), TrainerState(), TrainerControl())
+    assert mlflow.log_metrics.call_count == 1

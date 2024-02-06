@@ -97,7 +97,11 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     logger.info(f'Start serving model "{model_type}" on {host}:{port}')
+    # interrupted = False
+    # while not interrupted:
     uvicorn.run(app, host=host, port=int(port), log_config=log_config)
+    # interrupted = True
+    print("Shutting down due to either keyboard interrupt or system exist")
 
 
 @cmd_app.command("register")
