@@ -12,6 +12,7 @@ from utils import (
     json_normalize_trainer_export,
     json_denormalize,
     filter_by_concept_ids,
+    replace_spans_of_concept,
 )
 
 
@@ -97,3 +98,16 @@ def test_filter_by_concept_ids():
             for annotation in document["annotations"]:
                 assert annotation["cui"] == "C0017168"
     config.TRAINING_CONCEPT_ID_WHITELIST = backup
+
+
+def test_replace_spans_of_concept():
+    def transform(source: str) -> str:
+        return source.upper()[:-7]
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    result = replace_spans_of_concept(trainer_export, "C0017168", transform)
+    updated = [(anno["value"], anno["start"], anno["end"]) for anno in result["projects"][0]["documents"][0]["annotations"] if anno["cui"] == "C0017168"]
+    assert updated[0][0] == "GASTROESOPHAGEAL"
+    assert updated[0][1] == 332
+    assert updated[0][2] == 348

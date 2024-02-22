@@ -125,6 +125,30 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any]) -> Dict[str, Any]:
     return filtered
 
 
+def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, transform: Callable) -> Dict[str, Any]:
+    doc_with_initials_ids = set()
+    copied = copy.deepcopy(trainer_export)
+    for project in copied["projects"]:
+        for document in project["documents"]:
+            text = document["text"]
+            offset = 0
+            document["annotations"] = sorted(document["annotations"], key=lambda annotation: annotation["start"])
+            for annotation in document["annotations"]:
+                annotation["start"] += offset
+                annotation["end"] += offset
+                if annotation["cui"] == concept_id and annotation["correct"] and not annotation["deleted"] and not annotation["killed"]:
+                    original = annotation["value"]
+                    modified = transform(original)
+                    extended = len(modified) - len(original)
+                    text = text[:annotation["start"]] + modified + text[annotation["end"]:]
+                    annotation["value"] = modified
+                    annotation["end"] += extended
+                    offset += extended
+                    doc_with_initials_ids.add(document["id"])
+            document["text"] = text
+    return copied
+
+
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
     "2680757": "observable entity",
