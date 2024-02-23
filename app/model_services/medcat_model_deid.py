@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class MedCATModelDeIdentification(MedCATModel):
 
     CHUNK_SIZE = 500
+    LEFT_CONTEXT_WORDS = 5
 
     def __init__(self,
                  config: Settings,
@@ -51,20 +52,28 @@ class MedCATModelDeIdentification(MedCATModel):
             chunk.append((input_id, (start, end)))
             if len(chunk) == MedCATModelDeIdentification.CHUNK_SIZE:
                 last_token_start_idx = 0
+                window_overlap_start_idx = 0
+                number_of_seen_words = 0
                 for i in range(MedCATModelDeIdentification.CHUNK_SIZE-1, -1, -1):
                     if " " in tokenizer.decode([chunk[i][0]], skip_special_tokens=True):
-                        last_token_start_idx = i
-                        break
+                        if last_token_start_idx == 0:
+                            last_token_start_idx = i
+                        if number_of_seen_words < MedCATModelDeIdentification.LEFT_CONTEXT_WORDS:
+                            window_overlap_start_idx = i
+                        else:
+                            break
+                        number_of_seen_words += 1
                 c_text = text[chunk[:last_token_start_idx][0][1][0]:chunk[:last_token_start_idx][-1][1][1]]
                 doc = self.model.get_entities(c_text)
+                doc["entities"] = {_id: entity for _id, entity in doc["entities"].items() if entity["end"]+processed_char_len < chunk[window_overlap_start_idx][1][0]}
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
                     entity["types"] = ["PII"]
                     aggregated_entities[ent_key] = entity
                     ent_key += 1
-                chunk = chunk[last_token_start_idx:]
-                processed_char_len += len(c_text)+1
+                processed_char_len = chunk[:window_overlap_start_idx][-1][1][1] + leading_ws_len + 1
+                chunk = chunk[window_overlap_start_idx:]
         if chunk:
             c_text = text[chunk[0][1][0]:chunk[-1][1][1]]
             doc = self.model.get_entities(c_text)
