@@ -75,6 +75,8 @@ class TrackerClient(object):
                    model_manager: ModelManager) -> None:
         model_name = model_name.replace(" ", "_")
 
+        mlflow.set_tag("training.output.package", os.path.basename(filepath))
+
         if not mlflow.get_tracking_uri().startswith("file:/"):
             model_manager.log_model(model_name, filepath, model_name)
         else:

@@ -20,6 +20,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.start_run", return_value=active_run)
     mocker.patch("mlflow.set_tags")
     mocker.patch("mlflow.set_tag")
+    mocker.patch("mlflow.log_param")
     mocker.patch("mlflow.log_params")
     mocker.patch("mlflow.log_metrics")
     mocker.patch("mlflow.log_artifact")
@@ -119,8 +120,9 @@ def test_save_train_dataset(mlflow_fixture):
 def test_save_model(mlflow_fixture):
     tracker_client = TrackerClient("")
     model_manager = Mock()
-    tracker_client.save_model("filepath", "model_name", model_manager)
-    model_manager.log_model.assert_called_once_with("model_name", "filepath", "model_name")
+    tracker_client.save_model("path/to/file.zip", "model_name", model_manager)
+    model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
+    assert mlflow.set_tag("training.output.package", "file.zip")
 
 
 def test_save_model_local(mlflow_fixture):
