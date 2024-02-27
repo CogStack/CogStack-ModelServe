@@ -89,17 +89,20 @@ def test_load_context(mlflow_fixture):
 
 def test_get_model_signature():
     model_manager = ModelManager(_MockedModelService, Settings())
-    assert model_manager.model_signature.inputs.to_dict() == [{"type": "string", "name": "name", "optional": True}, {"type": "string", "name": "text"}]
+    assert model_manager.model_signature.inputs.to_dict() == [
+        {"type": "string", "name": "name", "required": False},
+        {"type": "string", "name": "text", "required": True}
+    ]
     assert model_manager.model_signature.outputs.to_dict() == [
-        {"type": "string", "name": "doc_name"},
-        {"type": "integer", "name": "start"},
-        {"type": "integer", "name": "end"},
-        {"type": "string", "name": "label_name"},
-        {"type": "string", "name": "label_id"},
-        {"type": "string", "name": "categories", "optional": True},
-        {"type": "float", "name": "accuracy", "optional": True},
-        {"type": "string", "name": "text", "optional": True},
-        {"type": "string", "name": "meta_anns", "optional": True},
+        {"type": "string", "name": "doc_name", "required": True},
+        {"type": "integer", "name": "start", "required": True},
+        {"type": "integer", "name": "end", "required": True},
+        {"type": "string", "name": "label_name", "required": True},
+        {"type": "string", "name": "label_id", "required": True},
+        {"type": "string", "name": "categories", "required": False},
+        {"type": "float", "name": "accuracy", "required": False},
+        {"type": "string", "name": "text", "required": False},
+        {"type": "string", "name": "meta_anns", "required": False},
     ]
 
 

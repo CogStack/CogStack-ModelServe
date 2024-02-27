@@ -88,10 +88,7 @@ class MedCATModel(AbstractModelService):
                 self._metacat_trainer = MetacatTrainer(self)
 
     def info(self) -> ModelCard:
-        return ModelCard(model_description=self.model_name,
-                         model_type="MedCAT",
-                         api_version=self.api_version,
-                         model_card=self.model.get_model_card(as_dict=True))
+        raise NotImplementedError
 
     def annotate(self, text: str) -> Dict:
         doc = self.model.get_entities(text,

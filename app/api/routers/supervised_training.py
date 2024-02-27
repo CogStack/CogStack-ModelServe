@@ -45,7 +45,7 @@ async def train_supervised(request: Request,
         for file in files:
             file.close()
     data_file = tempfile.NamedTemporaryFile(mode="w")
-    concatenated = filter_by_concept_ids(concatenated)
+    concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)

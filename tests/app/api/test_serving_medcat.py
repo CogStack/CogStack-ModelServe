@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from api.api import get_model_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
+from domain import ModelCard, ModelType
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
@@ -33,23 +34,23 @@ def test_healthz():
 
 
 def test_readyz():
-    model_card = {
+    model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "medcat_model_description",
-        "model_type": "model_type",
+        "model_type": ModelType.MEDCAT_SNOMED,
         "model_card": None,
-    }
+    })
     model_service.info.return_value = model_card
-    assert client.get("/readyz").content.decode("utf-8") == "model_type"
+    assert client.get("/readyz").content.decode("utf-8") == ModelType.MEDCAT_SNOMED
 
 
 def test_info():
-    model_card = {
+    model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "medcat_model_description",
-        "model_type": "model_type",
+        "model_type": ModelType.MEDCAT_SNOMED,
         "model_card": None,
-    }
+    })
     model_service.info.return_value = model_card
     response = client.get("/info")
     assert response.json() == model_card

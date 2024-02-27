@@ -52,7 +52,7 @@ async def get_evaluation_with_trainer_export(request: Request,
         for file in files:
             file.close()
     data_file = tempfile.NamedTemporaryFile(mode="w")
-    concatenated = filter_by_concept_ids(concatenated)
+    concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
@@ -86,6 +86,7 @@ def get_sanity_check_with_trainer_export(request: Request,
     finally:
         for file in files:
             file.close()
+    concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
     metrics = sanity_check_model_with_trainer_export(concatenated, model_service, return_df=True, include_anchors=False)
     stream = io.StringIO()
     metrics.to_csv(stream, index=False)

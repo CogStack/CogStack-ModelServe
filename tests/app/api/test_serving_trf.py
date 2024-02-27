@@ -4,6 +4,7 @@ from api.api import get_model_server
 from utils import get_settings
 from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
+from domain import ModelCard, ModelType
 
 model_service = create_autospec(TransformersModelDeIdentification)
 config = get_settings()
@@ -18,23 +19,23 @@ def test_healthz():
 
 
 def test_readyz():
-    model_card = {
+    model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "deid_model_description",
-        "model_type": "model_type",
+        "model_type": ModelType.TRANSFORMERS_DEID,
         "model_card": None,
-    }
+    })
     model_service.info.return_value = model_card
-    assert client.get("/readyz").content.decode("utf-8") == "model_type"
+    assert client.get("/readyz").content.decode("utf-8") == ModelType.TRANSFORMERS_DEID
 
 
 def test_info():
-    model_card = {
+    model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "deid_model_description",
-        "model_type": "model_type",
+        "model_type": ModelType.TRANSFORMERS_DEID,
         "model_card": None,
-    }
+    })
     model_service.info.return_value = model_card
     response = client.get("/info")
     assert response.json() == model_card
