@@ -8,7 +8,7 @@ from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
 from model_services.base import AbstractModelService
-from domain import ModelCard
+from domain import ModelCard, ModelType
 from config import Settings
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class TransformersModelDeIdentification(AbstractModelService):
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
-                         model_type="Transformers",
+                         model_type=ModelType.TRANSFORMERS_DEID,
                          api_version=self.api_version)
 
     @staticmethod

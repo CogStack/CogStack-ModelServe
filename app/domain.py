@@ -34,9 +34,17 @@ class TextWithPublicKey(BaseModel):
     public_key_pem: str = Field(description="the public PEM key used for encrypting detected spans")
 
 
+class ModelType(str, Enum):
+    MEDCAT_SNOMED = "medcat_snomed"
+    MEDCAT_UMLS = "medcat_umls"
+    MEDCAT_ICD10 = "medcat_icd10"
+    MEDCAT_DEID = "medcat_deid"
+    TRANSFORMERS_DEID = "transformers_deid"
+
+
 class ModelCard(BaseModel):
     api_version: str = Field(description="The version of the model serve APIs")
-    model_type: str = Field(description="The type of the served model")
+    model_type: ModelType = Field(description="The type of the served model")
     model_description: Optional[str] = Field(description="The description about the served model")
     model_card: Optional[dict] = Field(default=None, description="The metadata of the served model")
 
@@ -69,14 +77,6 @@ class Tags(str, Enum):
     Training = "Trigger model training on input annotations"
     Evaluating = "Evaluate the deployed model with trainer export"
     Authentication = "Authenticate registered users"
-
-
-class ModelType(str, Enum):
-    MEDCAT_SNOMED = "medcat_snomed"
-    MEDCAT_UMLS = "medcat_umls"
-    MEDCAT_ICD10 = "medcat_icd10"
-    MEDCAT_DEID = "medcat_deid"
-    TRANSFORMERS_DEID = "transformers_deid"
 
 
 class CodeType(str, Enum):

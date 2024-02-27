@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 from model_services.medcat_model import MedCATModel
 from config import Settings
+from domain import ModelCard, ModelType
 
 logger = logging.getLogger(__name__)
 
@@ -20,3 +21,9 @@ class MedCATModelSnomed(MedCATModel):
     @property
     def api_version(self) -> str:
         return "0.0.1"
+
+    def info(self) -> ModelCard:
+        return ModelCard(model_description=self.model_name,
+                         model_type=ModelType.MEDCAT_SNOMED,
+                         api_version=self.api_version,
+                         model_card=self.model.get_model_card(as_dict=True))
