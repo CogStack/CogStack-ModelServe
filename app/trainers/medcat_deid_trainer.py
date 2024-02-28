@@ -97,6 +97,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 examples = None
                 ner.training_arguments.num_train_epochs = 1
                 ner.training_arguments.logging_steps = 1
+                ner.training_arguments.learning_rate = 2e-5
                 # This default evaluation strategy is "epoch"
                 # ner.training_arguments.evaluation_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1
