@@ -85,7 +85,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
                 model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
                 ner = model._addl_ner[0]
-
+                ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
+                ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
                 ner_config = {f"transformers.cat_config.{arg}": str(val) for arg, val in ner.config.general.dict().items()}
                 ner_config.update({f"transformers.training.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()})
                 for key, val in ner_config.items():
@@ -97,7 +98,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 examples = None
                 ner.training_arguments.num_train_epochs = 1
                 ner.training_arguments.logging_steps = 1
-                ner.training_arguments.learning_rate = 2e-5
+                if training_params.get("lr_override") is not None:
+                    ner.training_arguments.learning_rate = training_params["lr_override"]
                 # This default evaluation strategy is "epoch"
                 # ner.training_arguments.evaluation_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1
@@ -188,7 +190,10 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 logger.info("Evaluating the running model...")
                 trainer._tracker_client.log_model_config(trainer.get_flattened_config(trainer._model_service._model))
                 trainer._tracker_client.log_trainer_version(medcat_version)
-                eval_results, examples = trainer._model_service._model._addl_ner[0].eval(data_file.name)
+                ner = trainer._model_service._model._addl_ner[0]
+                ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
+                ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+                eval_results, examples = ner.eval(data_file.name)
                 cui2names = {}
                 eval_results.sort_values(by=["cui"])
                 aggregated_metrics = []

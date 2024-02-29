@@ -2,7 +2,7 @@ import tempfile
 import uuid
 import json
 import logging
-from typing import List
+from typing import List, Union
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 async def train_supervised(request: Request,
                            trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                            epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+                           lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
@@ -50,7 +51,7 @@ async def train_supervised(request: Request,
     data_file.flush()
     data_file.seek(0)
     training_id = str(uuid.uuid4())
-    training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, ",".join(file_names))
+    training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, ",".join(file_names), lr_override=lr_override)
     return _get_training_response(training_accepted, training_id)
 
 

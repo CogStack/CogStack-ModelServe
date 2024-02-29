@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, TextIO, Optional
+from typing import Dict, List, TextIO, Optional, Any
 from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
@@ -109,7 +109,8 @@ class MedCATModelDeIdentification(MedCATModel):
                          epochs: int,
                          log_frequency: int,
                          training_id: str,
-                         input_file_name: str) -> bool:
+                         input_file_name: str,
+                         **hyperparams: Dict[str, Any]) -> bool:
         if self._supervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name)
+        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, **hyperparams)

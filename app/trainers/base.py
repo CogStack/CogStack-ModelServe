@@ -8,7 +8,7 @@ import datasets
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional
+from typing import TextIO, Callable, Dict, Optional, Any
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
@@ -101,11 +101,13 @@ class SupervisedTrainer(ABC, TrainerCommon):
               epochs: int,
               log_frequency: int,
               training_id: str,
-              input_file_name: str) -> bool:
+              input_file_name: str,
+              **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.SUPERVISED.value
         training_params = {
             "data_path": data_file.name,
             "nepochs": epochs,
+            **hyperparams,
         }
         return self.start_training(self.run, training_type, training_params, data_file, log_frequency,
                                    training_id, input_file_name)
@@ -130,10 +132,12 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               epochs: int,
               log_frequency: int,
               training_id: str,
-              input_file_name: str) -> bool:
+              input_file_name: str,
+              **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
             "nepochs": epochs,
+            **hyperparams,
         }
         return self.start_training(self.run, training_type, training_params, data_file, log_frequency,
                                    training_id, input_file_name)
