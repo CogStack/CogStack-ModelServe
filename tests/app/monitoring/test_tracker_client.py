@@ -83,6 +83,18 @@ def test_save_model_artifact(mlflow_fixture):
     mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts"))
 
 
+def test_save_raw_artifact(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_raw_artifact("filepath", "model name")
+    mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts", "raw"))
+
+
+def test_save_processed_artifact(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    tracker_client.save_processed_artifact("filepath", "model name")
+    mlflow.log_artifact.assert_called_once_with("filepath", artifact_path=os.path.join("model_name", "artifacts", "processed"))
+
+
 def test_save_dataframe_as_csv(mlflow_fixture):
     tracker_client = TrackerClient("")
     tracker_client.save_dataframe_as_csv("test.csv", pd.DataFrame({"x": ["x1", "x2"], "y": ["y1", "y2"]}), "model_name")

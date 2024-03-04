@@ -8,7 +8,7 @@ import datasets
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional, Any
+from typing import TextIO, Callable, Dict, Optional, Any, List
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
@@ -42,7 +42,8 @@ class TrainerCommon(object):
                        data_file: TextIO,
                        log_frequency: int,
                        training_id: str,
-                       input_file_name: str) -> bool:
+                       input_file_name: str,
+                       raw_data_files: Optional[List[TextIO]] = None) -> bool:
         with self._training_lock:
             if self._training_in_progress:
                 return False
@@ -58,8 +59,12 @@ class TrainerCommon(object):
                     log_frequency=log_frequency,
                 )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
+                    if raw_data_files is not None:
+                        for odf in raw_data_files:
+                            self._tracker_client.save_raw_artifact(odf.name, self._model_name)
+
                     # This may not be needed once Dataset can be stored as an artifact
-                    self._tracker_client.save_model_artifact(data_file.name, self._model_name)
+                    self._tracker_client.save_processed_artifact(data_file.name, self._model_name)
 
                     if training_type == TrainingType.UNSUPERVISED.value:
                         dataset = datasets.load_dataset(doc_dataset.__file__,
@@ -102,6 +107,7 @@ class SupervisedTrainer(ABC, TrainerCommon):
               log_frequency: int,
               training_id: str,
               input_file_name: str,
+              raw_data_files: Optional[List[TextIO]] = None,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.SUPERVISED.value
         training_params = {
@@ -109,8 +115,14 @@ class SupervisedTrainer(ABC, TrainerCommon):
             "nepochs": epochs,
             **hyperparams,
         }
-        return self.start_training(self.run, training_type, training_params, data_file, log_frequency,
-                                   training_id, input_file_name)
+        return self.start_training(run=self.run,
+                                   training_type=training_type,
+                                   training_params=training_params,
+                                   data_file=data_file,
+                                   log_frequency=log_frequency,
+                                   training_id=training_id,
+                                   input_file_name=input_file_name,
+                                   raw_data_files=raw_data_files)
 
     @staticmethod
     @abstractmethod
@@ -133,14 +145,21 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               log_frequency: int,
               training_id: str,
               input_file_name: str,
+              raw_data_files: Optional[List[TextIO]] = None,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
             "nepochs": epochs,
             **hyperparams,
         }
-        return self.start_training(self.run, training_type, training_params, data_file, log_frequency,
-                                   training_id, input_file_name)
+        return self.start_training(run=self.run,
+                                   training_type=training_type,
+                                   training_params=training_params,
+                                   data_file=data_file,
+                                   log_frequency=log_frequency,
+                                   training_id=training_id,
+                                   input_file_name=input_file_name,
+                                   raw_data_files=raw_data_files)
 
     @staticmethod
     @abstractmethod

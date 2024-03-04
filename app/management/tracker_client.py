@@ -95,6 +95,18 @@ class TrackerClient(object):
         mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts"))
 
     @staticmethod
+    def save_raw_artifact(filepath: str,
+                          model_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
+        mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts", "raw"))
+
+    @staticmethod
+    def save_processed_artifact(filepath: str,
+                                model_name: str) -> None:
+        model_name = model_name.replace(" ", "_")
+        mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts", "processed"))
+
+    @staticmethod
     def save_dataframe_as_csv(file_name: str, data_frame: pd.DataFrame, model_name: str) -> None:
         model_name = model_name.replace(" ", "_")
         with tempfile.TemporaryDirectory() as d:

@@ -48,7 +48,17 @@ async def train_metacat(request: Request,
     data_file.flush()
     data_file.seek(0)
     training_id = str(uuid.uuid4())
-    training_accepted = model_service.train_metacat(data_file, epochs, log_frequency, training_id, ",".join(file_names))
+    try:
+        training_accepted = model_service.train_metacat(data_file,
+                                                        epochs,
+                                                        log_frequency,
+                                                        training_id,
+                                                        ",".join(file_names),
+                                                        raw_data_files=files)
+    finally:
+        for file in files:
+            file.close()
+
     return _get_training_response(training_accepted, training_id)
 
 

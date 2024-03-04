@@ -40,18 +40,26 @@ async def train_supervised(request: Request,
         temp_te.flush()
         files.append(temp_te)
         file_names.append("" if te.filename is None else te.filename)
-    try:
-        concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
-    finally:
-        for file in files:
-            file.close()
+
+    concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
     data_file = tempfile.NamedTemporaryFile(mode="w")
     concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
     training_id = str(uuid.uuid4())
-    training_accepted = model_service.train_supervised(data_file, epochs, log_frequency, training_id, ",".join(file_names), lr_override=lr_override)
+    try:
+        training_accepted = model_service.train_supervised(data_file,
+                                                           epochs,
+                                                           log_frequency,
+                                                           training_id,
+                                                           ",".join(file_names),
+                                                           raw_data_files=files,
+                                                           lr_override=lr_override)
+    finally:
+        for file in files:
+            file.close()
+
     return _get_training_response(training_accepted, training_id)
 
 

@@ -13,6 +13,7 @@ from utils import (
     json_denormalize,
     filter_by_concept_ids,
     replace_spans_of_concept,
+    breakdown_annotations,
 )
 
 
@@ -111,3 +112,27 @@ def test_replace_spans_of_concept():
     assert updated[0][0] == "GASTROESOPHAGEAL"
     assert updated[0][1] == 332
     assert updated[0][2] == 348
+
+
+def test_breakdown_annotations():
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    result = breakdown_annotations(trainer_export, ["C0017168"], " ", "e")
+    for project in result["projects"]:
+        for document in project["documents"]:
+            for annotation in document["annotations"]:
+                if annotation["cui"] == "C0017168":
+                    assert annotation["value"] in ["gastroe", "sophage", "al ", "re", "flux"]
+
+
+def test_breakdown_annotations_without_including_delimiter():
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    result = breakdown_annotations(trainer_export, ["C0017168"], " ", "e", False)
+    for project in result["projects"]:
+        for document in project["documents"]:
+            for annotation in document["annotations"]:
+                if annotation["cui"] == "C0017168":
+                    assert annotation["value"] in ["gastro", "sophag", "al", "r", "flux"]

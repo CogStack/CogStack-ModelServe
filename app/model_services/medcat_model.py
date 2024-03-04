@@ -113,10 +113,11 @@ class MedCATModel(AbstractModelService):
                          log_frequency: int,
                          training_id: str,
                          input_file_name: str,
+                         raw_data_files: Optional[List[TextIO]] = None,
                          **hyperparams: Dict[str, Any]) -> bool:
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, **hyperparams)
+        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, **hyperparams)
 
     def train_unsupervised(self,
                            data_file: TextIO,
@@ -124,10 +125,11 @@ class MedCATModel(AbstractModelService):
                            log_frequency: int,
                            training_id: str,
                            input_file_name: str,
+                           raw_data_files: Optional[List[TextIO]] = None,
                            **hyperparams: Dict[str, Any]) -> bool:
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
-        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, **hyperparams)
+        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, **hyperparams)
 
     def train_metacat(self,
                       data_file: TextIO,
@@ -135,10 +137,11 @@ class MedCATModel(AbstractModelService):
                       log_frequency: int,
                       training_id: str,
                       input_file_name: str,
+                      raw_data_files: Optional[List[TextIO]] = None,
                       **hyperparams: Dict[str, Any]) -> bool:
         if self._metacat_trainer is None:
             raise ConfigurationException("The metacat trainer is not enabled")
-        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, **hyperparams)
+        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, **hyperparams)
 
     def get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())

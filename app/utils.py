@@ -152,6 +152,52 @@ def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, tr
     return copied
 
 
+def breakdown_annotations(trainer_export: Dict[str, Any],
+                          target_concept_ids: List[str],
+                          primary_delimiter: str,
+                          secondary_delimiter: Optional[str] = None,
+                          include_delimiter: bool = True) -> Dict[str, Any]:
+    assert isinstance(target_concept_ids, list), "The target_concept_ids is not a list"
+    copied = copy.deepcopy(trainer_export)
+    for project in copied["projects"]:
+        for document in project["documents"]:
+            new_annotations = []
+            for annotation in document["annotations"]:
+                if annotation["cui"] in target_concept_ids and primary_delimiter in annotation["value"]:
+                    start_offset = 0
+                    for sub_text in annotation["value"].split(primary_delimiter):
+                        if secondary_delimiter is not None and secondary_delimiter in sub_text:
+                            for sub_sub_text in sub_text.split(secondary_delimiter):
+                                if sub_sub_text == "" or all(char.isspace() for char in sub_sub_text):
+                                    start_offset += len(sub_sub_text) + len(secondary_delimiter)
+                                    continue
+                                sub_sub_annotation = copy.deepcopy(annotation)
+                                sub_sub_annotation["start"] = annotation["start"] + start_offset
+                                sub_sub_annotation["end"] = sub_sub_annotation["start"] + len(sub_sub_text) + (len(secondary_delimiter) if include_delimiter else 0)
+                                sub_sub_annotation["value"] = sub_sub_text + (secondary_delimiter if include_delimiter else "")
+                                start_offset += len(sub_sub_text) + len(secondary_delimiter)
+                                new_annotations.append(sub_sub_annotation)
+                            if include_delimiter:
+                                new_annotations[-1]["value"] = new_annotations[-1]["value"][:-len(secondary_delimiter)] + primary_delimiter
+                        else:
+                            if sub_text == "" or all(char.isspace() for char in sub_text):
+                                start_offset += len(sub_text) + len(primary_delimiter)
+                                continue
+                            sub_annotation = copy.deepcopy(annotation)
+                            sub_annotation["start"] = annotation["start"] + start_offset
+                            sub_annotation["end"] = sub_annotation["start"] + len(sub_text) + (len(primary_delimiter) if include_delimiter else 0)
+                            sub_annotation["value"] = sub_text + (primary_delimiter if include_delimiter else "")
+                            start_offset += len(sub_text) + len(primary_delimiter)
+                            new_annotations.append(sub_annotation)
+                    if include_delimiter:
+                        new_annotations[-1]["end"] -= len(primary_delimiter)
+                        new_annotations[-1]["value"] = new_annotations[-1]["value"][:-len(primary_delimiter)]
+                else:
+                    new_annotations.append(annotation)
+            document["annotations"] = new_annotations
+    return copied
+
+
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
     "2680757": "observable entity",
