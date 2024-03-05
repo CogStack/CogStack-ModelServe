@@ -140,10 +140,10 @@ def get_redacted_text(request: Request,
                       hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> PlainTextResponse:
     annotations = model_service.annotate(text)
-    _send_annotation_num_metric(len(annotations), PATH_PROCESS)
+    _send_annotation_num_metric(len(annotations), PATH_REDACT)
 
-    _send_accuracy_metric(annotations, PATH_PROCESS)
-    _send_confidence_metric(annotations, PATH_PROCESS)
+    _send_accuracy_metric(annotations, PATH_REDACT)
+    _send_confidence_metric(annotations, PATH_REDACT)
 
     redacted_text = ""
     start_index = 0
@@ -170,10 +170,10 @@ def get_redacted_text_with_encryption(request: Request,
                                       text_with_public_key: Annotated[TextWithPublicKey, Body()],
                                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     annotations = model_service.annotate(text_with_public_key.text)
-    _send_annotation_num_metric(len(annotations), PATH_PROCESS)
+    _send_annotation_num_metric(len(annotations), PATH_REDACT_WITH_ENCRYPTION)
 
-    _send_accuracy_metric(annotations, PATH_PROCESS)
-    _send_confidence_metric(annotations, PATH_PROCESS)
+    _send_accuracy_metric(annotations, PATH_REDACT_WITH_ENCRYPTION)
+    _send_confidence_metric(annotations, PATH_REDACT_WITH_ENCRYPTION)
 
     redacted_text = ""
     start_index = 0

@@ -24,7 +24,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
+  "id": 4,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -54,7 +54,7 @@
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 5,
+            "pointSize": 19,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -117,6 +117,18 @@
           "legendFormat": "/process",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "round(increase(http_requests_total{handler=\"/redact\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[1y]))",
+          "hide": false,
+          "legendFormat": "/redact",
+          "range": true,
+          "refId": "B"
         }
       ],
       "title": "Number of Processed Docs",
@@ -191,7 +203,7 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "mode": "single",
@@ -206,7 +218,7 @@
           },
           "editorMode": "code",
           "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[1y]))",
-          "legendFormat": "/process_bulk",
+          "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
@@ -470,7 +482,7 @@
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 5,
+            "pointSize": 19,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -546,6 +558,18 @@
           "legendFormat": "/process_bulk",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[1y]))",
+          "hide": false,
+          "legendFormat": "/redact",
+          "range": true,
+          "refId": "C"
         }
       ],
       "title": "Number of Recognised Entities ",
@@ -657,6 +681,18 @@
           "legendFormat": "/process_bulk",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "increase(http_request_size_bytes_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[1y])",
+          "hide": false,
+          "legendFormat": "/redact",
+          "range": true,
+          "refId": "C"
         }
       ],
       "title": "Processed Doc Size",
@@ -720,26 +756,26 @@
         },
         "overrides": [
           {
+            "__systemRef": "hideSeriesFrom",
             "matcher": {
-              "id": "byName",
-              "options": "ave_size"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "/process"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
               }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "avg_entities"
             },
             "properties": [
               {
-                "id": "unit",
-                "value": "none"
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
               }
             ]
           }
@@ -747,11 +783,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 6,
+        "w": 12,
         "x": 12,
         "y": 8
       },
-      "id": 41,
+      "id": 20,
       "links": [],
       "options": {
         "legend": {
@@ -759,7 +795,7 @@
             "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true
         },
         "tooltip": {
@@ -776,166 +812,16 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-deid\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-deid\", handler=\"/process\"}[$__rate_interval])",
+          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-deid\", handler!=\"/favicon.ico\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-deid\", handler!=\"/favicon.ico\"}[$__rate_interval])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "ave_size",
+          "legendFormat": "{{ handler }}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "expr": "rate(cms_doc_annotations_sum{job=\"cms_medcat-deid\", handler=\"/process\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-deid\", handler=\"/process\"}[$__rate_interval])",
-          "hide": false,
-          "legendFormat": "avg_entities",
-          "range": true,
-          "refId": "B"
         }
       ],
-      "title": "Doc Size vs Entities (/process)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P7A53D3B2E146C92D"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ave_size"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "avg_entities"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "none"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 8
-      },
-      "id": 43,
-      "links": [],
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.3.2",
-      "targets": [
-        {
-          "$$hashKey": "object:146",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-deid\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-deid\", handler=\"/process_bulk\"}[$__rate_interval])",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "ave_size",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "expr": "rate(cms_doc_annotations_sum{job=\"cms_medcat-deid\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-deid\", handler=\"/process_bulk\"}[$__rate_interval])",
-          "hide": false,
-          "legendFormat": "avg_entities",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Doc Size vs Entities (/process_bulk)",
+      "title": "Average Request Size",
       "type": "timeseries"
     },
     {
@@ -1149,7 +1035,32 @@
           },
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "/redact"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -1329,220 +1240,6 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 24
-      },
-      "id": 47,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process\", job=\"cms_medcat-deid\"}",
-          "instant": false,
-          "legendFormat": "/process",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}",
-          "hide": false,
-          "legendFormat": "/process_bulk",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Average Accuracies of Recognised Entities ",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P7A53D3B2E146C92D"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 24
-      },
-      "id": 45,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "cms_avg_meta_anno_conf_per_doc{handler=\"/process\", job=\"cms_medcat-deid\"}",
-          "instant": false,
-          "legendFormat": "/process",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "P7A53D3B2E146C92D"
-          },
-          "editorMode": "code",
-          "expr": "cms_avg_meta_anno_conf_per_doc{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}",
-          "hide": false,
-          "legendFormat": "/process_bulk",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Average Confidences of Meta Annotations",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "P7A53D3B2E146C92D"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
             "axisPlacement": "hidden",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -1640,7 +1337,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 24
       },
       "id": 24,
       "links": [],
@@ -1819,7 +1516,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 24
       },
       "id": 35,
       "links": [],
@@ -1885,6 +1582,364 @@
         }
       ],
       "title": "Recognised Entities vs Duration (/process)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "hidden",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ratio"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "binBps"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "id": 41,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "$$hashKey": "object:146",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(http_request_duration_seconds_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "duration",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(http_request_size_bytes_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "size",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "ratio",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Request Size vs Duration (/redact)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "hidden",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "left"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "entities"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ratio"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "cps"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "id": 43,
+      "links": [],
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "9.3.2",
+      "targets": [
+        {
+          "$$hashKey": "object:146",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(http_request_duration_seconds_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "duration",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "rate(cms_doc_annotations_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])",
+          "format": "time_series",
+          "hide": false,
+          "instant": false,
+          "interval": "",
+          "legendFormat": "entities",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "(rate(cms_doc_annotations_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-deid\", handler=\"/redact\"}[$__rate_interval]))",
+          "hide": false,
+          "legendFormat": "ratio",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Recognised Entities vs Duration (/redact)",
       "type": "timeseries"
     },
     {
