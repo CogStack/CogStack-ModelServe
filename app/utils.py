@@ -5,6 +5,7 @@ import struct
 import inspect
 import os
 import copy
+from spacy.lang.en import English
 import pandas as pd
 
 from urllib.parse import ParseResult
@@ -195,6 +196,53 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
                 else:
                     new_annotations.append(annotation)
             document["annotations"] = new_annotations
+    return copied
+
+
+def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List]) -> Dict:
+    nlp = English()
+    patterns = []
+    for cui, regexes in zip(cuis, regex_lists):
+        pattern = {
+            "label": cui,
+            "pattern": [{"TEXT": {"REGEX": regex} for regex in regexes}],
+        }
+        patterns.append(pattern)
+    ruler = nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER"})
+    ruler.add_patterns(patterns)    # type: ignore
+    copied = copy.deepcopy(trainer_export)
+    for project in copied["projects"]:
+        for document in project["documents"]:
+            document["annotations"] = sorted(document["annotations"], key=lambda anno: anno["start"])
+            gaps = []
+            gap_start = 0
+            for annotation in document["annotations"]:
+                if gap_start < annotation["start"]:
+                    gaps.append((gap_start, annotation["start"]))
+                gap_start = annotation["end"]
+            if gap_start < len(document["text"]):
+                gaps.append((gap_start, len(document["text"])+1))
+            new_annotations = []
+            doc = nlp(document["text"])
+            for ent in doc.ents:
+                start = ent.start_char
+                end = ent.end_char
+                for gap in gaps:
+                    if start >= gap[0] and end <= gap[1]:
+                        annotation = {
+                            "cui": ent.label_,
+                            "value": ent.text,
+                            "start": start,
+                            "end": end,
+                            "correct": True,
+                            "killed": False,
+                            "manually_created": False,
+                        }
+                        new_annotations.append(annotation)
+                        break
+            document["annotations"] += new_annotations
+            document["annotations"] = sorted(document["annotations"], key=lambda anno: anno["start"])
+
     return copied
 
 

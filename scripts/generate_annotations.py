@@ -10,7 +10,7 @@ from spacy.lang.en import English
 from tqdm.autonotebook import tqdm
 
 
-def generate_annotations(cuis: List, texts: List, minimum_tokens: int, cui2original_names: Dict) -> Dict:
+def generate_annotations(cuis: List, texts: List, minimum_words: int, cui2original_names: Dict) -> Dict:
     original_names = {cui: cui2original_names[cui] for cui in cuis if cui in cui2original_names}
     new_snames = {}
     for cui, names in original_names.items():
@@ -37,7 +37,7 @@ def generate_annotations(cuis: List, texts: List, minimum_tokens: int, cui2origi
         doc = nlp(text)
         annotations = []
         for ent in doc.ents:
-            if len(ent.text.strip().split(" ")) < minimum_tokens:
+            if len(ent.text.strip().split(" ")) < minimum_words:
                 continue
             annotation = {
                 "cui": ent.label_,
@@ -82,10 +82,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-n",
-        "--min-tokens",
+        "--min-words",
         type=int,
         default=1,
-        help="The lowest number of tokens each generated annotation will have"
+        help="The lowest number of words each generated annotation will have"
     )
     parser.add_argument(
         "-m",
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         texts = random.sample(texts, FLAGS.sample_size)
 
     cat = CAT.load_model_pack(FLAGS.model_pack_path)
-    annotations = generate_annotations(cuis, texts, FLAGS.min_tokens, cat.cdb.addl_info["cui2original_names"])
+    annotations = generate_annotations(cuis, texts, FLAGS.min_words, cat.cdb.addl_info["cui2original_names"])
 
     with open(FLAGS.output, "w") as f:
         json.dump(annotations, f, indent=4)

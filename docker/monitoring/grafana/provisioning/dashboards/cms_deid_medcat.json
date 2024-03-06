@@ -112,7 +112,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "round(increase(http_requests_total{handler=\"/process\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[1y]))",
+          "expr": "round(increase(http_requests_total{handler=\"/process\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[10y]))",
           "instant": false,
           "legendFormat": "/process",
           "range": true,
@@ -124,7 +124,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "round(increase(http_requests_total{handler=\"/redact\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[1y]))",
+          "expr": "round(increase(http_requests_total{handler=\"/redact\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[10y]))",
           "hide": false,
           "legendFormat": "/redact",
           "range": true,
@@ -217,7 +217,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[1y]))",
+          "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-deid\", method=\"POST\", status=\"2xx\"}[10y]))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -541,7 +541,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/process\", job=\"cms_medcat-deid\"}[1y]))",
+          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/process\", job=\"cms_medcat-deid\"}[10y]))",
           "instant": false,
           "legendFormat": "/process",
           "range": true,
@@ -553,7 +553,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}[1y]))",
+          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}[10y]))",
           "hide": false,
           "legendFormat": "/process_bulk",
           "range": true,
@@ -565,7 +565,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[1y]))",
+          "expr": "round(increase(cms_doc_annotations_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[10y]))",
           "hide": false,
           "legendFormat": "/redact",
           "range": true,
@@ -662,7 +662,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "increase(http_request_size_bytes_sum{handler=\"/process\", job=\"cms_medcat-deid\"}[1y])",
+          "expr": "increase(http_request_size_bytes_sum{handler=\"/process\", job=\"cms_medcat-deid\"}[10y])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -676,7 +676,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "increase(http_request_size_bytes_sum{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}[1y])",
+          "expr": "increase(http_request_size_bytes_sum{handler=\"/process_bulk\", job=\"cms_medcat-deid\"}[10y])",
           "hide": false,
           "legendFormat": "/process_bulk",
           "range": true,
@@ -688,7 +688,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "increase(http_request_size_bytes_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[1y])",
+          "expr": "increase(http_request_size_bytes_sum{handler=\"/redact\", job=\"cms_medcat-deid\"}[10y])",
           "hide": false,
           "legendFormat": "/redact",
           "range": true,
