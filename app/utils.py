@@ -6,6 +6,7 @@ import inspect
 import os
 import copy
 from spacy.lang.en import English
+from spacy.util import filter_spans
 import pandas as pd
 
 from urllib.parse import ParseResult
@@ -199,13 +200,13 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
     return copied
 
 
-def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List]) -> Dict:
+def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List], case_sensitive: bool = True) -> Dict:
     nlp = English()
     patterns = []
     for cui, regexes in zip(cuis, regex_lists):
         pattern = {
             "label": cui,
-            "pattern": [{"TEXT": {"REGEX": regex} for regex in regexes}],
+            "pattern": [{"TEXT": {"REGEX": regex if case_sensitive else f"(?i){regex}"} for regex in regexes}],
         }
         patterns.append(pattern)
     ruler = nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER"})
@@ -224,16 +225,15 @@ def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List
                 gaps.append((gap_start, len(document["text"])+1))
             new_annotations = []
             doc = nlp(document["text"])
-            for ent in doc.ents:
-                start = ent.start_char
-                end = ent.end_char
+            spans = filter_spans(doc.ents)
+            for span in spans:
                 for gap in gaps:
-                    if start >= gap[0] and end <= gap[1]:
+                    if span.start_char >= gap[0] and span.end_char <= gap[1]:
                         annotation = {
-                            "cui": ent.label_,
-                            "value": ent.text,
-                            "start": start,
-                            "end": end,
+                            "cui": span.label_,
+                            "value": span.text,
+                            "start": span.start_char,
+                            "end": span.end_char,
                             "correct": True,
                             "killed": False,
                             "manually_created": False,

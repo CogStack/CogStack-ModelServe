@@ -155,3 +155,18 @@ def test_augment_annotations():
                     match_count_00002 += 1
     assert match_count_00001 == 5
     assert match_count_00002 == 1
+
+
+def test_augment_annotations_case_insensitive():
+    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
+    with open(trainer_export_path, "r") as f:
+        trainer_export = json.load(f)
+    result = augment_annotations(trainer_export, ["00001"], [["HiSToRy"]], False)
+
+    match_count_00001 = 0
+    for project in result["projects"]:
+        for document in project["documents"]:
+            for annotation in document["annotations"]:
+                if annotation["cui"] == "00001":
+                    match_count_00001 += 1
+    assert match_count_00001 == 10
