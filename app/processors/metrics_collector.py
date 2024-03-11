@@ -129,6 +129,7 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
 
 def concat_trainer_exports(data_file_paths: List[str],
                            combined_data_file_path: Optional[str] = None,
+                           allow_recurring_project_ids: bool = False,
                            allow_recurring_doc_ids: bool = True) -> Union[Dict, str]:
     combined: Dict = {"projects": []}
     project_ids = []
@@ -136,7 +137,7 @@ def concat_trainer_exports(data_file_paths: List[str],
         with open(path, "r") as f:
             data = json.load(f)
             for project in data["projects"]:
-                if project["id"] in project_ids:
+                if project["id"] in project_ids and not allow_recurring_project_ids:
                     raise AnnotationException(f'Found multiple projects share the same ID: {project["id"]}')
                 project_ids.append(project["id"])
         combined["projects"].extend(data["projects"])

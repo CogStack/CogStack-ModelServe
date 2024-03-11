@@ -272,8 +272,19 @@ def test_preview():
 
 
 def test_preview_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/preview_trainer_export", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+    response = client.post("/preview_trainer_export",  files=[
+        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
+        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
+    ])
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/octet-stream"
+    assert len(response.text.split("<br/>")) == 4
+
+
+def test_preview_trainer_export_str():
+    with open(TRAINER_EXPORT_PATH, "r") as f:
+        trainer_export_str = f.read()
+        response = client.post("/preview_trainer_export", data={"trainer_export_str": trainer_export_str}, headers={"Content-Type": "application/x-www-form-urlencoded"})
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 2
