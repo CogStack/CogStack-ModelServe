@@ -59,8 +59,9 @@ class _MedcatTrainerCommon(object):
         logger.info("Retrained model deployed")
 
     @staticmethod
-    def save_model_pack(model: CAT, model_dir: str) -> str:
+    def save_model_pack(model: CAT, model_dir: str, description: Optional[str] = None) -> str:
         logger.info(f"Saving retrained model to {model_dir}...")
+        model.config.version.description = description or model.config.version.description
         model_pack_name = model.create_model_pack(model_dir, "model")
         model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
         logger.debug(f"Retrained model saved to {model_pack_path}")
@@ -93,7 +94,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
@@ -115,6 +117,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 logger.info("Performing supervised training...")
                 train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
                 train_supervised_params.update(training_params)
+                model.config.version.description = description or model.config.version.description
                 with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
                     fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(**train_supervised_params)
                 trainer._save_examples(examples, ["tp", "tn"])
@@ -152,7 +155,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.log_classes(cuis)
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
+                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
@@ -296,7 +299,8 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -337,7 +341,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 })
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
             if not skip_save_model:
-                model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
+                model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

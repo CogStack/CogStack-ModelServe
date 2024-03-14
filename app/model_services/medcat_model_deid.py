@@ -111,7 +111,8 @@ class MedCATModelDeIdentification(MedCATModel):
                          training_id: str,
                          input_file_name: str,
                          raw_data_files: Optional[List[TextIO]] = None,
+                         description: Optional[str] = None,
                          **hyperparams: Dict[str, Any]) -> bool:
         if self._supervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, **hyperparams)
+        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, **hyperparams)

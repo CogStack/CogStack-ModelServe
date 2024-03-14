@@ -71,7 +71,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -104,6 +105,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 # ner.training_arguments.evaluation_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1
                 logger.info("Performing supervised training...")
+                model.config.version.description = description or model.config.version.description
+                ner.config.general.description = description or ner.config.general.description
                 dataset = None
                 for training in range(training_params["nepochs"]):
                     if dataset is not None:
@@ -152,7 +155,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
+                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

@@ -43,7 +43,8 @@ class TrainerCommon(object):
                        log_frequency: int,
                        training_id: str,
                        input_file_name: str,
-                       raw_data_files: Optional[List[TextIO]] = None) -> bool:
+                       raw_data_files: Optional[List[TextIO]] = None,
+                       description: Optional[str] = None) -> bool:
         with self._training_lock:
             if self._training_in_progress:
                 return False
@@ -57,6 +58,7 @@ class TrainerCommon(object):
                     training_params=training_params,
                     run_name=training_id,
                     log_frequency=log_frequency,
+                    description=description,
                 )
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     if raw_data_files is not None:
@@ -84,7 +86,7 @@ class TrainerCommon(object):
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
                 asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                           partial(run, self, training_params, data_file, log_frequency, run_id)))
+                                                           partial(run, self, training_params, data_file, log_frequency, run_id, description)))
                 return True
 
     @staticmethod
@@ -108,6 +110,7 @@ class SupervisedTrainer(ABC, TrainerCommon):
               training_id: str,
               input_file_name: str,
               raw_data_files: Optional[List[TextIO]] = None,
+              description: Optional[str] = None,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.SUPERVISED.value
         training_params = {
@@ -122,7 +125,8 @@ class SupervisedTrainer(ABC, TrainerCommon):
                                    log_frequency=log_frequency,
                                    training_id=training_id,
                                    input_file_name=input_file_name,
-                                   raw_data_files=raw_data_files)
+                                   raw_data_files=raw_data_files,
+                                   description=description)
 
     @staticmethod
     @abstractmethod
@@ -130,7 +134,8 @@ class SupervisedTrainer(ABC, TrainerCommon):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         raise NotImplementedError
 
 
@@ -146,6 +151,7 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               training_id: str,
               input_file_name: str,
               raw_data_files: Optional[List[TextIO]] = None,
+              description: Optional[str] = None,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
@@ -159,7 +165,8 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
                                    log_frequency=log_frequency,
                                    training_id=training_id,
                                    input_file_name=input_file_name,
-                                   raw_data_files=raw_data_files)
+                                   raw_data_files=raw_data_files,
+                                   description=description)
 
     @staticmethod
     @abstractmethod
@@ -167,5 +174,6 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         raise NotImplementedError

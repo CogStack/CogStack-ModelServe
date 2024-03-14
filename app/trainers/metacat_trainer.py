@@ -35,7 +35,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
-            run_id: str) -> None:
+            run_id: str,
+            description: Optional[str] = None) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -51,6 +52,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
 
                 is_retrained = False
                 exceptions = []
+                model.config.version.description = description or model.config.version.description
                 for meta_cat in model._meta_cats:
                     category_name = meta_cat.config.general["category_name"]
                     trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
@@ -85,7 +87,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         "No metacat model has been retrained. Double-check the presence of metacat models and your annotations.")
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir)
+                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

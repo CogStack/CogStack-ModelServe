@@ -2,7 +2,7 @@ import tempfile
 import uuid
 import json
 import logging
-from typing import List
+from typing import List, Union
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
@@ -28,6 +28,7 @@ async def train_metacat(request: Request,
                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                         epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                         log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
+                        description: Annotated[Union[str, None], Query(description="The description on the training or change logs")] = None,
                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
@@ -54,7 +55,8 @@ async def train_metacat(request: Request,
                                                         log_frequency,
                                                         training_id,
                                                         ",".join(file_names),
-                                                        raw_data_files=files)
+                                                        raw_data_files=files,
+                                                        description=description)
     finally:
         for file in files:
             file.close()

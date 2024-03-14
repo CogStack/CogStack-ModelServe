@@ -272,10 +272,12 @@ def test_preview():
 
 
 def test_preview_trainer_export():
-    response = client.post("/preview_trainer_export",  files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/preview_trainer_export",  files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 4
@@ -323,13 +325,8 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did):
 
 
 def test_train_supervised():
-    with tempfile.TemporaryFile("r+b") as f:
-        f.write(str.encode('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
-                           '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
-                           '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
-                           '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
-                           '"acc":1,"validated":true}]}]}]}]}'))
-        response = client.post("/train_supervised", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post("/train_supervised", files=[("trainer_export", f)])
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -346,13 +343,8 @@ def test_train_unsupervised():
 
 
 def test_train_metacat():
-    with tempfile.TemporaryFile("r+b") as f:
-        f.write(str.encode('{"projects":[{"name":"Project1","id":1,"cuis":"","tuis":"","documents":[{"id":1,"name":"1",' +
-                           '"text":"Spinal stenosis","last_modified":"","annotations":[{"id":1,"cui":"76107001","start":1,' +
-                           '"end":15,"validated":true,"correct":true,"deleted":false,"alternative":false,"killed":false,' +
-                           '"last_modified":"","manually_created":false,"acc":1,"meta_anns":[{"name":"Status","value":"Other",' +
-                           '"acc":1,"validated":true}]}]}]}]}'))
-        response = client.post("/train_metacat", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post("/train_metacat", files=[("trainer_export", f)])
     model_service.train_metacat.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -360,26 +352,28 @@ def test_train_metacat():
 
 
 def test_evaluate_with_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "rb") as _:
-        response = client.post("/evaluate", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post("/evaluate", files=[("trainer_export", f)])
     assert response.status_code == 202
     assert response.json()["message"] == "Your evaluation started successfully."
     assert "evaluation_id" in response.json()
 
 
 def test_sanity_check_with_trainer_export():
-    with open(TRAINER_EXPORT_PATH, "rb") as _:
-        response = client.post("/sanity-check", files=[("trainer_export", open(TRAINER_EXPORT_PATH, "rb"))])
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post("/sanity-check", files=[("trainer_export", f)])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
 
 
 def test_inter_annotator_agreement_scores_per_concept():
-    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept", files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
@@ -395,30 +389,36 @@ def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message):
 
 
 def test_unknown_scope_on_getting_iaa_scores():
-    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=unknown", files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=unknown", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"message": "Unknown scope: \"unknown\""}
 
 
 def test_inter_annotator_agreement_scores_per_doc():
-    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document", files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
 
 
 def test_inter_annotator_agreement_scores_per_span():
-    response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span", files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -426,10 +426,12 @@ def test_inter_annotator_agreement_scores_per_span():
 
 
 def test_concat_trainer_exports():
-    response = client.post("/concat_trainer_exports", files=[
-        ("trainer_export", open(TRAINER_EXPORT_PATH, "rb")),
-        ("trainer_export", open(ANOTHER_TRAINER_EXPORT_PATH, "rb")),
-    ])
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/concat_trainer_exports", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
     assert len(response.text) == 36842
@@ -454,9 +456,8 @@ def test_extract_entities_from_text_list_file_as_json_file():
     ] * 15
     model_service.batch_annotate.return_value = annotations_list
 
-    response = client.post("/process_bulk_file", files=[
-        ("multi_text_file", open(MULTI_TEXTS_FILE_PATH, "rb")),
-    ])
+    with open(MULTI_TEXTS_FILE_PATH, "rb") as f:
+        response = client.post("/process_bulk_file", files=[("multi_text_file", f)])
 
     assert isinstance(response, httpx.Response)
     assert json.loads(response.content) == [{
