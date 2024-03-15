@@ -83,7 +83,7 @@ def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
 
 def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
     result = pd.DataFrame()
-    for _, ent in medcat_entities["entities"].items():
+    for _, ent in medcat_entities.get("entities", {}).items():
         ent_df = pd.json_normalize(ent)
         result = pd.concat([result, ent_df], ignore_index=True)
     return result
@@ -110,12 +110,12 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
 def filter_by_concept_ids(trainer_export: Dict[str, Any], model_type: Optional[ModelType] = None) -> Dict[str, Any]:
     concept_ids = get_settings().TRAINING_CONCEPT_ID_WHITELIST.split(",")
     filtered = copy.deepcopy(trainer_export)
-    for project in filtered["projects"]:
-        for document in project["documents"]:
+    for project in filtered.get("projects", []):
+        for document in project.get("documents", []):
             if concept_ids == [""]:
-                document["annotations"] = [anno for anno in document["annotations"] if anno["correct"] and not anno["deleted"] and not anno["killed"]]
+                document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("correct", True) and not anno.get("deleted", False) and not anno.get("killed", False)]
             else:
-                document["annotations"] = [anno for anno in document["annotations"] if anno["cui"] in concept_ids and anno["correct"] and not anno["deleted"] and not anno["killed"]]
+                document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") in concept_ids and anno.get("correct", True) and not anno.get("deleted", False) and not anno.get("killed", False)]
 
     if model_type == ModelType.TRANSFORMERS_DEID or model_type == ModelType.MEDCAT_DEID:
         # special preprocessing for the DeID annotations and consider removing this.
@@ -133,15 +133,15 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any], model_type: Optional[M
 def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, transform: Callable) -> Dict[str, Any]:
     doc_with_initials_ids = set()
     copied = copy.deepcopy(trainer_export)
-    for project in copied["projects"]:
-        for document in project["documents"]:
-            text = document["text"]
+    for project in copied.get("projects", []):
+        for document in project.get("documents", []):
+            text = document.get("text", "")
             offset = 0
-            document["annotations"] = sorted(document["annotations"], key=lambda annotation: annotation["start"])
-            for annotation in document["annotations"]:
+            document["annotations"] = sorted(document.get("annotations", []), key=lambda annotation: annotation["start"])
+            for annotation in document.get("annotations", []):
                 annotation["start"] += offset
                 annotation["end"] += offset
-                if annotation["cui"] == concept_id and annotation["correct"] and not annotation["deleted"] and not annotation["killed"]:
+                if annotation["cui"] == concept_id and annotation.get("correct", True) and not annotation.get("deleted", False) and not annotation.get("killed", False):
                     original = annotation["value"]
                     modified = transform(original)
                     extended = len(modified) - len(original)
@@ -204,12 +204,12 @@ def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List
     nlp = English()
     patterns = []
     for cui, regexes in zip(cuis, regex_lists):
-        pattern = {
+        pts = [{
             "label": cui,
-            "pattern": [{"TEXT": {"REGEX": regex if case_sensitive else f"(?i){regex}"} for regex in regexes}],
-        }
-        patterns.append(pattern)
-    ruler = nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER"})
+            "pattern": [{"TEXT": {"REGEX": regex if case_sensitive else f"(?i){regex}"}}]
+        } for regex in regexes]
+        patterns += pts
+    ruler = nlp.add_pipe("entity_ruler", config={"overwrite_ents": True})
     ruler.add_patterns(patterns)    # type: ignore
     copied = copy.deepcopy(trainer_export)
     for project in copied["projects"]:
@@ -236,6 +236,7 @@ def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List
                             "end": span.end_char,
                             "correct": True,
                             "killed": False,
+                            "deleted": False,
                             "manually_created": False,
                         }
                         new_annotations.append(annotation)
