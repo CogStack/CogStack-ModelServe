@@ -143,7 +143,7 @@ def test_augment_annotations():
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
-    result = augment_annotations(trainer_export, ["00001", "00002"], [["HISTORY"], ["DISCHARGE"]])
+    result = augment_annotations(trainer_export, {"00001": [["HISTORY"]], "00002": [["DISCHARGE"]]})
     match_count_00001 = 0
     match_count_00002 = 0
     for project in result["projects"]:
@@ -161,12 +161,22 @@ def test_augment_annotations_case_insensitive():
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
-    result = augment_annotations(trainer_export, ["00001"], [["HiSToRy"]], False)
+    result = augment_annotations(trainer_export, {
+        "00001": [["HiSToRy"]],
+        "00002": [
+            [r"^\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4}$"],
+            [r"^\d{1,2}\s*$", r"^[-.\/]\s*$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
+        ]
+    }, False)
 
     match_count_00001 = 0
+    match_count_00002 = 0
     for project in result["projects"]:
         for document in project["documents"]:
             for annotation in document["annotations"]:
                 if annotation["cui"] == "00001":
                     match_count_00001 += 1
+                if annotation["cui"] == "00002":
+                    match_count_00002 += 1
     assert match_count_00001 == 10
+    assert match_count_00002 == 3

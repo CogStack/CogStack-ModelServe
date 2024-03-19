@@ -200,16 +200,16 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
     return copied
 
 
-def augment_annotations(trainer_export: Dict, cuis: List, regex_lists: List[List], case_sensitive: bool = True) -> Dict:
+def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], case_sensitive: bool = True) -> Dict:
     nlp = English()
     patterns = []
-    for cui, regexes in zip(cuis, regex_lists):
+    for cui, regexes in cui_regexes_lists.items():
         pts = [{
             "label": cui,
-            "pattern": [{"TEXT": {"REGEX": regex if case_sensitive else f"(?i){regex}"}}]
+            "pattern": [{"TEXT": {"REGEX": part if case_sensitive else r"(?i)" + part}} for part in regex]
         } for regex in regexes]
         patterns += pts
-    ruler = nlp.add_pipe("entity_ruler", config={"overwrite_ents": True})
+    ruler = nlp.add_pipe("entity_ruler")
     ruler.add_patterns(patterns)    # type: ignore
     copied = copy.deepcopy(trainer_export)
     for project in copied["projects"]:
