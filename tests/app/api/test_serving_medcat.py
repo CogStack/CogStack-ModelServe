@@ -434,7 +434,7 @@ def test_concat_trainer_exports():
             ])
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
-    assert len(response.text) == 36906
+    assert len(response.text) == 36918
 
 
 def test_extract_entities_from_text_list_file_as_json_file():

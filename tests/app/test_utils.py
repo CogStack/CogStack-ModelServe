@@ -164,8 +164,18 @@ def test_augment_annotations_case_insensitive():
     result = augment_annotations(trainer_export, {
         "00001": [["HiSToRy"]],
         "00002": [
-            [r"^\d{1,2}[-.\/]\d{1,2}[-.\/]\d{2,4}$"],
-            [r"^\d{1,2}\s*$", r"^[-.\/]\s*$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
+            [r"^\d{1,2}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{2,4}$"],
+            [r"^\d{1,2}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{2,4}$"],
+            [r"^\d{2,4}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{1,2}$"],
+            [r"^\d{2,4}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{1,2}$"],
+            [r"^\d{1,2}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
+            [r"^\d{2,4}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{1,2}$"],
+            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{4}$"],
+            [r"^\d{4}$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)$"],
+            [r"^\d{1,2}\s*$", r"-", r"^\s*\d{4}$"],
+            [r"^\d{1,2}\s*[\/]\s*\d{4}$"],
+            [r"^\d{4}\s*$", r"-", r"^\s*\d{1,2}$"],
+            [r"^\d{4}\s*[\/]\s*\d{1,2}$"],
         ]
     }, False)
 
@@ -179,4 +189,4 @@ def test_augment_annotations_case_insensitive():
                 if annotation["cui"] == "00002":
                     match_count_00002 += 1
     assert match_count_00001 == 10
-    assert match_count_00002 == 3
+    assert match_count_00002 == 4
