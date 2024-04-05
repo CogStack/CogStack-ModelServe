@@ -1,7 +1,7 @@
 import datasets
 import json
 from pathlib import Path
-from typing import List, Iterable, Tuple, Dict
+from typing import List, Iterable, Tuple, Dict, Optional
 from utils import filter_by_concept_ids
 
 
@@ -24,7 +24,8 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
             description="Annotation Dataset. This is a dataset containing flattened MedCAT Trainer export",
             features=datasets.Features(
                 {
-                    "name": datasets.Value("string"),
+                    "project": datasets.Value("string"),
+                    "name":datasets.Value("string"),
                     "text": datasets.Value("string"),
                     "starts": datasets.Value("string"), # Mlflow ColSpec schema does not support HF Dataset Sequence
                     "ends": datasets.Value("string"),   # Mlflow ColSpec schema does not support HF Dataset Sequence
@@ -57,8 +58,9 @@ def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
                         ends.append(str(annotation["end"]))
                         labels.append(annotation["cui"])
                     yield str(id_), {
-                        "name": document["name"],
-                        "text": document["text"],
+                        "project": project.get("name"),
+                        "name": document.get("name"),
+                        "text": document.get("text"),
                         "starts": ",".join(starts),
                         "ends": ",".join(ends),
                         "labels": ",".join(labels),

@@ -44,5 +44,5 @@ def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
         with open(str(filepath), "r") as f:
             texts = ijson.items(f, "item")
             for text in texts:
-                yield str(id_), {"name": f"doc_{str(id_)}", "text": text}
+                yield str(id_), {"name": f"{str(id_)}", "text": text}
                 id_ += 1

@@ -74,7 +74,7 @@ def get_rendered_entities_from_trainer_export(request: Request,
                 entities.append({
                     "start": annotation["start"],
                     "end": annotation["end"],
-                    "label": f"{annotation['cui']} ({'correct' if annotation['correct'] else 'incorrect'}{'; terminated' if annotation['killed'] else ''})",
+                    "label": f"{annotation['cui']} ({'correct' if annotation.get('correct', True) else 'incorrect'}{'; terminated' if annotation.get('deleted', False) and annotation.get('killed', False) else ''})",
                     "kb_id": annotation["cui"],
                     "kb_url": "#",
                 })

@@ -5,7 +5,7 @@ import logging
 from typing import List, Union
 from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
+from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
@@ -30,7 +30,7 @@ async def train_supervised(request: Request,
                            epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                            lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
-                           description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
+                           description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []

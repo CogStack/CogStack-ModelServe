@@ -225,7 +225,7 @@ def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
     per_cui_metaanno_iia_pct = {}
     per_cui_metaanno_cohens_kappa = {}
     for cui, cui_metastate_pairs in cui_metastates.items():
-        per_cui_metaanno_iia_pct[cui] = len([1 for csp in cui_metastate_pairs if csp[0] == csp[1]]) / len(cui_metastate_pairs) * 100
+        per_cui_metaanno_iia_pct[cui] = len([1 for cmp in cui_metastate_pairs if cmp[0] == cmp[1]]) / len(cui_metastate_pairs) * 100
         per_cui_metaanno_cohens_kappa[cui] = _get_cohens_kappa_coefficient(*map(list, zip(*cui_metastate_pairs)))
 
     if return_df:
@@ -286,7 +286,7 @@ def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
     per_doc_metaanno_iia_pct = {}
     per_doc_metaanno_cohens_kappa = {}
     for doc_id, doc_metastate_pairs in doc_metastates.items():
-        per_doc_metaanno_iia_pct[str(doc_id)] = len([1 for dsp in doc_metastate_pairs if dsp[0] == dsp[1]]) / len(doc_metastate_pairs) * 100
+        per_doc_metaanno_iia_pct[str(doc_id)] = len([1 for dmp in doc_metastate_pairs if dmp[0] == dmp[1]]) / len(doc_metastate_pairs) * 100
         per_doc_metaanno_cohens_kappa[str(doc_id)] = _get_cohens_kappa_coefficient(*map(list, zip(*doc_metastate_pairs)))
 
     if return_df:
