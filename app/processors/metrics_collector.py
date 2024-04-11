@@ -155,30 +155,48 @@ def concat_trainer_exports(data_file_paths: List[str],
         return combined
 
 
-def get_stats_from_trainer_export(file_path: str) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]:
+def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
+                                  return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
+    if isinstance(trainer_export, str):
+        with open(trainer_export, "r") as file:
+            data = json.load(file)
+    elif isinstance(trainer_export, Dict):
+        data = trainer_export
+    else:
+        data = json.load(trainer_export)
+
     cui_values: Dict = defaultdict(list)
     cui_ignorance_counts: Dict = defaultdict(int)
     num_of_docs = 0
-    with open(file_path, "r") as f:
-        export_object = json.load(f)
-        for project in export_object["projects"]:
-            for doc in project["documents"]:
-                annotations = []
-                if type(doc["annotations"]) == list:
-                    annotations = doc["annotations"]
-                elif type(doc["annotations"]) == dict:
-                    annotations = list(doc["annotations"].values())
-                for annotation in annotations:
-                    if (not annotation.get("validated", True) or
-                            annotation.get("deleted", False) or
-                            annotation.get("killed", False) or
-                            annotation.get("irrelevant", False)):
-                        cui_ignorance_counts[annotation["cui"]] += 1
-                    cui_values[annotation["cui"]].append(annotation["value"].lower())
-                num_of_docs += 1
+
+    for project in data["projects"]:
+        for doc in project["documents"]:
+            annotations = []
+            if type(doc["annotations"]) == list:
+                annotations = doc["annotations"]
+            elif type(doc["annotations"]) == dict:
+                annotations = list(doc["annotations"].values())
+            for annotation in annotations:
+                if (not annotation.get("validated", True) or
+                        annotation.get("deleted", False) or
+                        annotation.get("killed", False) or
+                        annotation.get("irrelevant", False)):
+                    cui_ignorance_counts[annotation["cui"]] += 1
+                cui_values[annotation["cui"]].append(doc["text"][annotation["start"]:annotation["end"]].lower())
+            num_of_docs += 1
+
     cui_counts = {cui: len(values) for cui, values in cui_values.items()}
     cui_unique_counts = {cui: len(set(values)) for cui, values in cui_values.items()}
-    return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
+
+    if return_df:
+        return pd.DataFrame({
+            "concept": cui_counts.keys(),
+            "anno_count": cui_counts.values(),
+            "anno_unique_counts": cui_unique_counts.values(),
+            "anno_ignorance_counts": [cui_ignorance_counts[c] for c in cui_counts.keys()],
+        })
+    else:
+        return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
 def get_iaa_scores_per_concept(export_file: Union[str, TextIO],

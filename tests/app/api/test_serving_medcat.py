@@ -437,6 +437,18 @@ def test_concat_trainer_exports():
     assert len(response.text) == 36918
 
 
+def test_get_annotation_stats():
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/annotation-stats", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "concept,anno_count,anno_unique_counts,anno_ignorance_counts"
+
+
 def test_extract_entities_from_text_list_file_as_json_file():
     annotations_list = [
         [{

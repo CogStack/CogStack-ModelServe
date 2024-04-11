@@ -232,6 +232,15 @@ def test_get_stats_from_trainer_export():
     assert num_of_docs == 2
 
 
+def test_get_stats_from_trainer_export_as_dataframe():
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
+    result = get_stats_from_trainer_export(path, return_df=True)
+    assert result["concept"].tolist() == ["C0017168", "C0020538", "C0012634", "C0038454", "C0007787", "C0155626", "C0011860", "C0042029", "C0010068", "C0007222", "C0027051", "C0878544", "C0020473", "C0037284", "C0003864", "C0011849", "C0338614"]
+    assert result["anno_count"].tolist() == [1, 4, 1, 1, 1, 2, 3, 4, 1, 1, 1, 1, 3, 2, 2, 1, 1]
+    assert result["anno_unique_counts"].tolist() == [1, 1, 1, 1, 1, 1, 3, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1]
+    assert result["anno_ignorance_counts"].tolist() == [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
+
+
 def test_get_iaa_scores_per_concept():
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
     per_cui_anno_iia_pct, per_cui_anno_cohens_kappa, per_cui_metaanno_iia_pct, per_cui_metaanno_cohens_kappa = get_iaa_scores_per_concept(path, 1, 2)
@@ -242,9 +251,12 @@ def test_get_iaa_scores_per_concept():
 
 
 def test_get_iaa_scores_per_concept_and_return_dataframe():
-    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export_multi_projs.json")
+    path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture",
+                        "trainer_export_multi_projs.json")
     result = get_iaa_scores_per_concept(path, 1, 2, return_df=True)
-    assert set(result["concept"]) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860", "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284", "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
+    assert set(result["concept"]) == {"C0003864", "C0007222", "C0007787", "C0010068", "C0011849", "C0011860",
+                                      "C0012634", "C0017168", "C0020473", "C0020538", "C0027051", "C0037284",
+                                      "C0038454", "C0042029", "C0155626", "C0338614", "C0878544"}
     assert len(result["iaa_percentage"]) == 17
     assert len(result["cohens_kappa"]) == 17
     assert len(result["iaa_percentage_meta"]) == 17
