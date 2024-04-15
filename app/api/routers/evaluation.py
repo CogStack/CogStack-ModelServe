@@ -92,7 +92,7 @@ def get_sanity_check_with_trainer_export(request: Request,
     stream = io.StringIO()
     metrics.to_csv(stream, index=False)
     response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
-    response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
+    response.headers["Content-Disposition"] = f'attachment ; filename="sanity_check_{str(uuid.uuid4())}.csv"'
     return response
 
 
@@ -130,7 +130,7 @@ def get_inter_annotator_agreement_scores(request: Request,
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
-        response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
+        response.headers["Content-Disposition"] = f'attachment ; filename="iaa_{str(uuid.uuid4())}.csv"'
         return response
 
 
@@ -181,5 +181,5 @@ def get_annotation_stats(request: Request,
     stream = io.StringIO()
     stats.to_csv(stream, index=False)
     response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
-    response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
+    response.headers["Content-Disposition"] = f'attachment ; filename="stats_{str(uuid.uuid4())}.csv"'
     return response
