@@ -101,6 +101,8 @@ class MedCATModelDeIdentification(MedCATModel):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+            self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
+            self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
             if self._enable_trainer:
                 self._supervised_trainer = MedcatDeIdentificationSupervisedTrainer(self)
 
