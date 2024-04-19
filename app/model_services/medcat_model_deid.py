@@ -1,5 +1,7 @@
 import logging
+import inspect
 from typing import Dict, List, TextIO, Optional, Any
+from functools import partial
 from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
@@ -103,6 +105,9 @@ class MedCATModelDeIdentification(MedCATModel):
             self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
             self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
             self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+            _save_pretrained = self._model._addl_ner[0].model.save_pretrained
+            if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
+                self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=self._config.TRAINING_SAFE_MODEL_SERIALISATION)
             if self._enable_trainer:
                 self._supervised_trainer = MedcatDeIdentificationSupervisedTrainer(self)
 

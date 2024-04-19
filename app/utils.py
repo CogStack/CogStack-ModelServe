@@ -5,13 +5,14 @@ import struct
 import inspect
 import os
 import copy
+import torch
+import pandas as pd
 from spacy.lang.en import English
 from spacy.util import filter_spans
-import pandas as pd
-
+from safetensors.torch import load_file
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any
+from typing import List, Optional, Dict, Callable, Any, Union
 from domain import Annotation, Entity, CodeType, ModelType
 from config import Settings
 
@@ -245,6 +246,12 @@ def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[
             document["annotations"] = sorted(document["annotations"], key=lambda anno: anno["start"])
 
     return copied
+
+
+def safetensors_to_pytorch(safetensors_file_path: Union[str, os.PathLike],
+                           pytorch_file_path: Union[str, os.PathLike]) -> None:
+    state_dict = load_file(safetensors_file_path)
+    torch.save(state_dict, pytorch_file_path)
 
 
 TYPE_ID_TO_NAME_PATCH = {
