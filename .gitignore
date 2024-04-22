@@ -130,6 +130,6 @@ tests/resources/model
 tests/resources/*.zip
 htmlcov
 
-/Users/rmhixba/Workspace/cog-stack/cogstack-model-serve/tests/resources/model/.gitkeep
+tests/resources/model/.gitkeep
 
 .DS_Store

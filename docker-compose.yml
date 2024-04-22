@@ -254,4 +254,5 @@ volumes:
 
 networks:
   cms:
+    name: cogstack-model-serve_cms
     driver: bridge
