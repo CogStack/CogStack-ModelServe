@@ -2,7 +2,7 @@ version: "3"
 
 services:
   master:
-    image: locustio/locust:2.14.2
+    image: locustio/locust:2.26.0
     container_name: cms_load_master
     networks:
       - cogstack-model-serve_cms
@@ -24,7 +24,7 @@ services:
     entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --master -H http://master:8089"]
 
   worker:
-    image: locustio/locust:2.14.2
+    image: locustio/locust:2.26.0
     container_name: cms_load_worker
     networks:
       - cogstack-model-serve_cms
