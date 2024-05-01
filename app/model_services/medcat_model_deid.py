@@ -1,5 +1,6 @@
 import logging
 import inspect
+import threading
 from typing import Dict, List, TextIO, Optional, Any
 from functools import partial
 from medcat.cat import CAT
@@ -25,6 +26,7 @@ class MedCATModelDeIdentification(MedCATModel):
                  base_model_file: Optional[str] = None) -> None:
         super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
         self.model_name = model_name or "De-Identification MedCAT model"
+        self._lock = threading.Lock()
 
     @property
     def api_version(self) -> str:
@@ -66,7 +68,9 @@ class MedCATModelDeIdentification(MedCATModel):
                             break
                         number_of_seen_words += 1
                 c_text = text[chunk[:last_token_start_idx][0][1][0]:chunk[:last_token_start_idx][-1][1][1]]
-                doc = self.model.get_entities(c_text)
+                with self._lock:
+                    # Temporarily tackle https://github.com/huggingface/tokenizers/issues/537 but it reduces parallelism
+                    doc = self.model.get_entities(c_text)
                 doc["entities"] = {_id: entity for _id, entity in doc["entities"].items() if entity["end"]+processed_char_len < chunk[window_overlap_start_idx][1][0]}
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
