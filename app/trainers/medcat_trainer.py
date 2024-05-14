@@ -18,7 +18,7 @@ from processors.data_batcher import mini_batch
 from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
 from utils import get_func_params_as_dict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class _MedcatTrainerCommon(object):

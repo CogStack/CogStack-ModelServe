@@ -27,7 +27,7 @@ def test_serve_model():
 def test_register_help():
     result = runner.invoke(cmd_app, ["register", "--help"])
     assert result.exit_code == 0
-    assert "This pushes a pretrained NLP model to the Cogstack ModelServe registry" in result.output
+    assert "This pushes a pretrained NLP model to the CogStack ModelServe registry" in result.output
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),

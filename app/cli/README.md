@@ -58,7 +58,7 @@ $ CMS CLI export-openapi-spec [OPTIONS]
 
 ## `CMS CLI register`
 
-This pushes a pretrained NLP model to the Cogstack ModelServe registry
+This pushes a pretrained NLP model to the CogStack ModelServe registry
 
 **Usage**:
 

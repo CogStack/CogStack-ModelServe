@@ -13,7 +13,7 @@ from mlflow.tracking import MlflowClient
 from management.model_manager import ModelManager
 from exception import StartTrainingException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 urllib3_logger = logging.getLogger("urllib3")
 urllib3_logger.setLevel(logging.CRITICAL)
 

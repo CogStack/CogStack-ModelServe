@@ -10,7 +10,7 @@ from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from exception import TrainingFailedException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MetacatTrainer(MedcatSupervisedTrainer):

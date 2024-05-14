@@ -14,7 +14,7 @@ from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
 from domain import TrainingType
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class TrainerCommon(object):

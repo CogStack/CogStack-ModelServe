@@ -11,7 +11,7 @@ from model_services.base import AbstractModelService
 from domain import ModelCard, ModelType
 from config import Settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class TransformersModelDeIdentification(AbstractModelService):

@@ -4,16 +4,18 @@ import os
 import sys
 import uuid
 import inspect
+import warnings
 
 current_frame = inspect.currentframe()
 if current_frame is None:  # noqa
     raise Exception("Cannot detect the parent directory!")  # noqa
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(current_frame))))  # noqa
 sys.path.insert(0, parent_dir)  # noqa
+warnings.filterwarnings("ignore")
+warnings.simplefilter("ignore")
 
 import uvicorn  # noqa
 import shutil  # noqa
-import warnings  # noqa
 import typer  # noqa
 import graypy  # noqa
 import api.globals as cms_globals  # noqa
@@ -31,9 +33,9 @@ from api.dependencies import ModelServiceDep  # noqa
 from config import Settings  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
-warnings.filterwarnings("ignore")
-warnings.simplefilter("ignore")
 cmd_app = typer.Typer(name="CMS CLI", help="CLI for various CogStack ModelServe operations", add_completion=False)
+logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
+logger = logging.getLogger("cms")
 
 
 @cmd_app.command("serve")
@@ -46,26 +48,25 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     """
     This serves various CogStack NLP models
     """
-    logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
-    logger = logging.getLogger(__name__)
+    lrf = logging.getLogRecordFactory()
+
+    def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
+        record = lrf(*args, **kwargs)
+        record.model_type = model_type
+        record.model_name = model_name or "NULL"
+        return record
+    logging.setLogRecordFactory(log_record_factory)
 
     if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:
         try:
             uri = urlparse(os.environ["GELF_INPUT_URI"])
             send_gelf_message(f"Model service {model_type} is starting", uri)
-            logger.addHandler(graypy.GELFTCPHandler(uri.hostname, uri.port))
-
-            lrf = logging.getLogRecordFactory()
-
-            def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
-                record = lrf(*args, **kwargs)
-                record.model_type = model_type
-                record.model_name = model_name or "NULL"
-                return record
-
-            logging.setLogRecordFactory(log_record_factory)
-        except Exception:
-            print(f"ERROR: $GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
+            gelf_tcp_handler = graypy.GELFTCPHandler(uri.hostname, uri.port)
+            logger.addHandler(gelf_tcp_handler)
+            logging.getLogger("uvicorn").addHandler(gelf_tcp_handler)
+        except Exception as e:
+            logger.error(f"$GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
+            logger.exception(e)
 
     config = get_settings()
 
@@ -90,18 +91,15 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service_dep.model_service = model_service
         app = get_model_server()
     else:
-        print("Error: Neither the model path or the mlflow model uri was passed in")
+        logger.error("Neither the model path or the mlflow model uri was passed in")
         sys.exit(1)
 
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["formatters"]["access"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
-    log_config["formatters"]["default"]["fmt"] = "%(asctime)s %(levelname)s   %(message)s"
     logger.info(f'Start serving model "{model_type}" on {host}:{port}')
     # interrupted = False
     # while not interrupted:
-    uvicorn.run(app, host=host, port=int(port), log_config=log_config)
+    uvicorn.run(app, host=host, port=int(port), log_config=None)
     # interrupted = True
-    print("Shutting down due to either keyboard interrupt or system exist")
+    print("Shutting down due to either keyboard interrupt or system exit")
 
 
 @cmd_app.command("register")
@@ -113,7 +111,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
                    model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")) -> None:
     """
-    This pushes a pretrained NLP model to the Cogstack ModelServe registry
+    This pushes a pretrained NLP model to the CogStack ModelServe registry
     """
 
     config = get_settings()
@@ -122,7 +120,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     if model_type in model_service_registry.keys():
         model_service_type = model_service_registry[model_type]
     else:
-        print(f"Unknown model type: {model_type}")
+        logger.error(f"Unknown model type: {model_type}")
         sys.exit(1)
 
     m_config = json.loads(model_config) if model_config is not None else None

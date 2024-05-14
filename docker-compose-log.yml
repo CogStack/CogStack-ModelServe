@@ -70,8 +70,6 @@ services:
       - 9000
       - 12201/tcp
       - 12201/udp
-#    ports:
-#      - 8203:9000
     volumes:
       - "graylog_data:/usr/share/graylog/data/data"
       - "graylog_journal:/usr/share/graylog/data/journal"

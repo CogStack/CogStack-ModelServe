@@ -1,6 +1,5 @@
 import asyncio
 import importlib
-import logging
 import os.path
 import api.globals as cms_globals
 
@@ -24,9 +23,6 @@ from api.utils import add_exception_handlers, add_middlewares
 from domain import Tags
 from management.tracker_client import TrackerClient
 from utils import get_settings
-
-
-logger = logging.getLogger(__name__)
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:

@@ -15,7 +15,7 @@ from model_services.base import AbstractModelService
 from processors.metrics_collector import concat_trainer_exports
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 @router.post("/train_metacat",

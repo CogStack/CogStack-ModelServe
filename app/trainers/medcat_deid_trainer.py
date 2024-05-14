@@ -15,7 +15,7 @@ from management import tracker_client
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MetricsCallback(TrainerCallback):

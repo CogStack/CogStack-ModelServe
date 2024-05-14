@@ -10,7 +10,7 @@ from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
 from domain import ModelCard, ModelType
 from exception import ConfigurationException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MedCATModelDeIdentification(MedCATModel):

@@ -4,7 +4,7 @@ from model_services.medcat_model import MedCATModel
 from config import Settings
 from domain import ModelCard, ModelType
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MedCATModelSnomed(MedCATModel):

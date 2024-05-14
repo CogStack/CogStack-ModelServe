@@ -20,7 +20,7 @@ from fastapi_users.jwt import decode_jwt
 from config import Settings
 from exception import StartTrainingException, AnnotationException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 def add_exception_handlers(app: FastAPI) -> None:

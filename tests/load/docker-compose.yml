@@ -38,8 +38,7 @@ services:
       - no_proxy=master,localhost
     volumes:
       - ./main:/mnt/locust/main
-      - ${SAMPLE_TEXTS_PATH:-./data/sample_texts.json}:/mnt/locust/data/sample_texts.json
-      - ${TRAINER_EXPORT_PATH:-./data/trainer_export.json}:/mnt/locust/data/trainer_export.json
+      - ${SAMPLE_TEXTS_PATH:-./data}:/mnt/locust/data
       - ./requirements.txt:/mnt/locust/requirements.txt
     entrypoint: [ "bash", "-c", " pip install -r /mnt/locust/requirements.txt && locust -f /mnt/locust/main/locustfile.py --worker --master-host master" ]
 

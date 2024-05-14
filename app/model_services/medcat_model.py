@@ -13,7 +13,7 @@ from config import Settings
 from utils import get_settings, TYPE_ID_TO_NAME_PATCH
 from exception import ConfigurationException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MedCATModel(AbstractModelService):

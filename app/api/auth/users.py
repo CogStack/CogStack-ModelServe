@@ -9,7 +9,7 @@ from api.auth.db import User, get_user_db
 from api.auth.backends import get_backends
 from utils import get_settings
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class _UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):

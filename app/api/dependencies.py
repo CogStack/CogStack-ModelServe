@@ -5,7 +5,7 @@ from config import Settings
 from registry import model_service_registry
 from model_services.base import AbstractModelService
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class ModelServiceDep(object):

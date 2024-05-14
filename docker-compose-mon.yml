@@ -21,8 +21,6 @@ services:
       - "--web.enable-lifecycle"
     expose:
       - 9090
-#    ports:
-#      - 8201:9090
     healthcheck:
       test: [ "CMD", "wget", "-O", "/dev/null", "-o", "/dev/null", "http://localhost:9090" ]
       interval: 60s
@@ -66,8 +64,6 @@ services:
       - "--storage.path=/alertmanager"
     expose:
       - 9093
-#    ports:
-#      - 8203:9093
     healthcheck:
       test: [ "CMD", "wget", "-O", "/dev/null", "-o", "/dev/null", "http://localhost:9093/-/ready" ]
       interval: 60s
@@ -85,8 +81,6 @@ services:
       - cogstack-model-serve_cms
     expose:
       - 8080
-#    ports:
-#      - 8204:8080
     volumes:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:rw

@@ -16,7 +16,7 @@ from processors.metrics_collector import concat_trainer_exports
 from utils import filter_by_concept_ids
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 @router.post("/train_supervised",
