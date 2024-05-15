@@ -118,14 +118,25 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                                                                 # trainer_callbacks=[MetricsCallback, LabelCountCallback]
                                                                 )
                     if (training + 1) % log_frequency == 0:
-                        metrics = {
+                        for _, row in eval_results.iterrows():
+                            normalised_name = row["name"].replace(" ", "_").lower()
+                            grouped_metrics = {
+                                f"{normalised_name}/precision": row["p"],
+                                f"{normalised_name}/recall": row["r"],
+                                f"{normalised_name}/f1": row["f1"],
+                                f"{normalised_name}/p_merged": row["p_merged"],
+                                f"{normalised_name}/r_merged": row["r_merged"],
+                            }
+                            trainer._tracker_client.send_model_stats(grouped_metrics, training)
+
+                        mean_metrics = {
                             "precision": eval_results["p"].mean(),
                             "recall": eval_results["r"].mean(),
                             "f1": eval_results["f1"].mean(),
                             "p_merged": eval_results["p_merged"].mean(),
                             "r_merged": eval_results["r_merged"].mean(),
                         }
-                        trainer._tracker_client.send_model_stats(metrics, training)
+                        trainer._tracker_client.send_model_stats(mean_metrics, training)
 
                 cui2names = {}
                 eval_results.sort_values(by=["cui"])
