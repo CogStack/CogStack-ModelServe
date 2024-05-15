@@ -1,11 +1,11 @@
-# `CMS CLI`
+# `python cli.py`
 
 CLI for various CogStack ModelServe operations
 
 **Usage**:
 
 ```console
-$ CMS CLI [OPTIONS] COMMAND [ARGS]...
+$ python cli.py [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options**:
@@ -19,14 +19,14 @@ $ CMS CLI [OPTIONS] COMMAND [ARGS]...
 * `register`: This pushes a pretrained NLP model to the...
 * `serve`: This serves various CogStack NLP models
 
-## `CMS CLI export-model-apis`
+## `python cli.py export-model-apis`
 
 This generates model-specific API docs for enabled endpoints
 
 **Usage**:
 
 ```console
-$ CMS CLI export-model-apis [OPTIONS]
+$ python cli.py export-model-apis [OPTIONS]
 ```
 
 **Options**:
@@ -41,14 +41,14 @@ $ CMS CLI export-model-apis [OPTIONS]
 * `--model-name TEXT`: The string representation of the model name
 * `--help`: Show this message and exit.
 
-## `CMS CLI export-openapi-spec`
+## `python cli.py export-openapi-spec`
 
 This generates a single API doc for all endpoints
 
 **Usage**:
 
 ```console
-$ CMS CLI export-openapi-spec [OPTIONS]
+$ python cli.py export-openapi-spec [OPTIONS]
 ```
 
 **Options**:
@@ -56,14 +56,14 @@ $ CMS CLI export-openapi-spec [OPTIONS]
 * `--api-title TEXT`: The string representation of the API title  [default: CogStack Model Serve APIs]
 * `--help`: Show this message and exit.
 
-## `CMS CLI register`
+## `python cli.py register`
 
 This pushes a pretrained NLP model to the CogStack ModelServe registry
 
 **Usage**:
 
 ```console
-$ CMS CLI register [OPTIONS]
+$ python cli.py register [OPTIONS]
 ```
 
 **Options**:
@@ -77,14 +77,14 @@ $ CMS CLI register [OPTIONS]
 * `--model-tags TEXT`: The string representation of a JSON object
 * `--help`: Show this message and exit.
 
-## `CMS CLI serve`
+## `python cli.py serve`
 
 This serves various CogStack NLP models
 
 **Usage**:
 
 ```console
-$ CMS CLI serve [OPTIONS]
+$ python cli.py serve [OPTIONS]
 ```
 
 **Options**:

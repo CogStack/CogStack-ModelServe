@@ -33,7 +33,7 @@ jobs:
         run: |
           typer app/cli/cli.py utils docs --output cli.md
           if ! cmp -s cli.md app/cli/README.md; then
-            echo "The CMS CLI doc needs updating"
+            echo "The CMS CLI README needs updating"
             exit 1
           fi
       - name: Generate API docs

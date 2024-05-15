@@ -33,7 +33,7 @@ from api.dependencies import ModelServiceDep  # noqa
 from config import Settings  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
-cmd_app = typer.Typer(name="CMS CLI", help="CLI for various CogStack ModelServe operations", add_completion=False)
+cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger("cms")
 
