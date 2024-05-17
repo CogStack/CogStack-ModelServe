@@ -72,19 +72,6 @@ class TrackerClient(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def save_model(filepath: str,
-                   model_name: str,
-                   model_manager: ModelManager) -> None:
-        model_name = model_name.replace(" ", "_")
-
-        mlflow.set_tag("training.output.package", os.path.basename(filepath))
-
-        if not mlflow.get_tracking_uri().startswith("file:/"):
-            model_manager.log_model(model_name, filepath, model_name)
-        else:
-            model_manager.log_model(model_name, filepath)
-
-    @staticmethod
     def save_model_local(local_dir: str,
                          filepath: str,
                          model_manager: ModelManager) -> None:
@@ -228,6 +215,25 @@ class TrackerClient(object):
                     batch.clear()
         if batch:
             self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
+
+    def save_model(self,
+                   filepath: str,
+                   model_name: str,
+                   model_manager: ModelManager,
+                   validation_status: str = "pending") -> None:
+        model_name = model_name.replace(" ", "_")
+
+        mlflow.set_tag("training.output.package", os.path.basename(filepath))
+
+        if not mlflow.get_tracking_uri().startswith("file:/"):
+            model_manager.log_model(model_name, filepath, model_name)
+            versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
+            self.mlflow_client.set_model_version_tag(name=model_name,
+                                                     version=versions[0].version,
+                                                     key="validation_status",
+                                                     value=validation_status)
+        else:
+            model_manager.log_model(model_name, filepath)
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
