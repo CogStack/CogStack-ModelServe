@@ -2353,6 +2353,150 @@
         "type": "prometheus",
         "uid": "P7A53D3B2E146C92D"
       },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "/redact"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 45,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "cms_avg_anno_acc_per_doc{handler=\"/redact\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "instant": false,
+          "legendFormat": "/redact",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "hide": false,
+          "legendFormat": "/process",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_anno_acc_per_doc{handler=\"/process_bulk\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "hide": false,
+          "legendFormat": "/process_bulk",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Average Accuracy of Recognised Entities per Document",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2411,7 +2555,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 55
       },
       "id": 15,
       "links": [],
@@ -2513,7 +2657,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 63
       },
       "id": 16,
       "links": [],
@@ -2615,7 +2759,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 64
+        "y": 71
       },
       "id": 8,
       "links": [],
@@ -2716,7 +2860,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 64
+        "y": 71
       },
       "id": 9,
       "links": [],
@@ -2817,7 +2961,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 64
+        "y": 71
       },
       "id": 27,
       "options": {
