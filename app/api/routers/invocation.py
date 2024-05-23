@@ -1,5 +1,6 @@
 import statistics
 import tempfile
+from collections import defaultdict
 from io import BytesIO
 
 import json
@@ -20,6 +21,7 @@ from api.utils import get_rate_limiter, encrypt
 from management.prometheus_metrics import (
     cms_doc_annotations,
     cms_avg_anno_acc_per_doc,
+    cms_avg_anno_acc_per_concept,
     cms_avg_meta_anno_conf_per_doc,
     cms_bulk_processed_docs,
 )
@@ -61,7 +63,7 @@ def get_entities_from_text(request: Request,
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
     _send_accuracy_metric(annotations, PATH_PROCESS)
-    _send_confidence_metric(annotations, PATH_PROCESS)
+    _send_meta_confidence_metric(annotations, PATH_PROCESS)
 
     return TextWithAnnotations(text=text, annotations=annotations)
 
@@ -83,7 +85,7 @@ def get_entities_from_multiple_texts(request: Request,
         body.append({"text": text, "annotations": annotations})
         annotation_sum += len(annotations)
         _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
-        _send_confidence_metric(annotations, PATH_PROCESS_BULK)
+        _send_meta_confidence_metric(annotations, PATH_PROCESS_BULK)
 
     _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
     _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
@@ -118,7 +120,7 @@ def extract_entities_from_multi_text_file(request: Request,
             body.append({"text": text, "annotations": annotations})
             annotation_sum += len(annotations)
             _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
-            _send_confidence_metric(annotations, PATH_PROCESS_BULK)
+            _send_meta_confidence_metric(annotations, PATH_PROCESS_BULK)
 
         _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
         _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
@@ -143,7 +145,7 @@ def get_redacted_text(request: Request,
     _send_annotation_num_metric(len(annotations), PATH_REDACT)
 
     _send_accuracy_metric(annotations, PATH_REDACT)
-    _send_confidence_metric(annotations, PATH_REDACT)
+    _send_meta_confidence_metric(annotations, PATH_REDACT)
 
     redacted_text = ""
     start_index = 0
@@ -173,7 +175,7 @@ def get_redacted_text_with_encryption(request: Request,
     _send_annotation_num_metric(len(annotations), PATH_REDACT_WITH_ENCRYPTION)
 
     _send_accuracy_metric(annotations, PATH_REDACT_WITH_ENCRYPTION)
-    _send_confidence_metric(annotations, PATH_REDACT_WITH_ENCRYPTION)
+    _send_meta_confidence_metric(annotations, PATH_REDACT_WITH_ENCRYPTION)
 
     redacted_text = ""
     start_index = 0
@@ -195,11 +197,20 @@ def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:
 
 def _send_accuracy_metric(annotations: List[Dict], handler: str) -> None:
     if annotations and annotations[0].get("accuracy", None) is not None:
-        avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
-        cms_avg_anno_acc_per_doc.labels(handler=handler).set(avg_acc)
+        doc_avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
+        cms_avg_anno_acc_per_doc.labels(handler=handler).set(doc_avg_acc)
+
+        accumulated_concept_accuracy: Dict[str, float] = defaultdict(float)
+        concept_count: Dict[str, int] = defaultdict(int)
+        for annotation in annotations:
+            accumulated_concept_accuracy[annotation["label_id"]] += annotation["accuracy"]
+            concept_count[annotation["label_id"]] += 1
+        for concept, accumulated_accuracy in accumulated_concept_accuracy.items():
+            concept_avg_acc = accumulated_accuracy / concept_count[concept]
+            cms_avg_anno_acc_per_concept.labels(handler=handler, concept=concept).set(concept_avg_acc)
 
 
-def _send_confidence_metric(annotations: List[Dict], handler: str) -> None:
+def _send_meta_confidence_metric(annotations: List[Dict], handler: str) -> None:
     if annotations and annotations[0].get("meta_anns", None):
         avg_conf = statistics.mean([meta_value["confidence"] for annotation in annotations for _, meta_value in annotation["meta_anns"].items()])
         cms_avg_meta_anno_conf_per_doc.labels(handler=handler).set(avg_conf)
