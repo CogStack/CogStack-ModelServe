@@ -111,7 +111,7 @@ class MedCATModelDeIdentification(MedCATModel):
             self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
             _save_pretrained = self._model._addl_ner[0].model.save_pretrained
             if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
-                self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=self._config.TRAINING_SAFE_MODEL_SERIALISATION)
+                self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
             if self._enable_trainer:
                 self._supervised_trainer = MedcatDeIdentificationSupervisedTrainer(self)
 

@@ -2424,6 +2424,152 @@
                 "value": {
                   "legend": false,
                   "tooltip": false,
+                  "viz": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "id": 47,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "cms_avg_anno_acc_per_concept{handler=\"/redact\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "format": "time_series",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{concept}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_anno_acc_per_concept{handler=\"/process\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "hide": false,
+          "legendFormat": "{{concept}}",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "cms_avg_anno_acc_per_concept{handler=\"/process_bulk\", job=\"cms_medcat-deid\", instance=\"medcat-deid:8000\"}",
+          "hide": false,
+          "legendFormat": "{{concept}}",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Average Accuracies of Recognised Entities per Concept",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "P7A53D3B2E146C92D"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": [
+          {
+            "__systemRef": "hideSeriesFrom",
+            "matcher": {
+              "id": "byNames",
+              "options": {
+                "mode": "exclude",
+                "names": [
+                  "/redact"
+                ],
+                "prefix": "All except:",
+                "readOnly": true
+              }
+            },
+            "properties": [
+              {
+                "id": "custom.hideFrom",
+                "value": {
+                  "legend": false,
+                  "tooltip": false,
                   "viz": true
                 }
               }
@@ -2432,9 +2578,9 @@
         ]
       },
       "gridPos": {
-        "h": 7,
-        "w": 24,
-        "x": 0,
+        "h": 10,
+        "w": 12,
+        "x": 12,
         "y": 48
       },
       "id": 45,
@@ -2489,7 +2635,7 @@
           "refId": "C"
         }
       ],
-      "title": "Average Accuracy of Recognised Entities per Document",
+      "title": "Average Accuracies of Recognised Entities per Doc",
       "type": "timeseries"
     },
     {
@@ -2555,7 +2701,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 58
       },
       "id": 15,
       "links": [],
@@ -2657,7 +2803,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 66
       },
       "id": 16,
       "links": [],
@@ -2759,7 +2905,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 71
+        "y": 74
       },
       "id": 8,
       "links": [],
@@ -2860,7 +3006,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 71
+        "y": 74
       },
       "id": 9,
       "links": [],
@@ -2961,7 +3107,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 71
+        "y": 74
       },
       "id": 27,
       "options": {

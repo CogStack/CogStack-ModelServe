@@ -4,8 +4,10 @@ import shutil
 import gc
 import mlflow
 import tempfile
+import inspect
 import pandas as pd
 from collections import defaultdict
+from functools import partial
 from typing import Dict, TextIO, Any, Optional, List
 from evaluate.visualization import radar_plot
 from medcat import __version__ as medcat_version
@@ -88,6 +90,9 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 ner = model._addl_ner[0]
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+                _save_pretrained = ner.model.save_pretrained
+                if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
+                    ner.model.save_pretrained = partial(_save_pretrained, safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
                 ner_config = {f"transformers.cat_config.{arg}": str(val) for arg, val in ner.config.general.dict().items()}
                 ner_config.update({f"transformers.training.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()})
                 for key, val in ner_config.items():

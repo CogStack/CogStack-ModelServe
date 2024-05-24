@@ -35,7 +35,8 @@ PATH_REDACT = "/redact"
 PATH_REDACT_WITH_ENCRYPTION = "/redact_with_encryption"
 
 router = APIRouter()
-limiter = get_rate_limiter(get_settings())
+config = get_settings()
+limiter = get_rate_limiter(config)
 
 
 @router.get(PATH_INFO,
@@ -55,7 +56,7 @@ async def get_model_card(request: Request,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract the NER entities from a single piece of plain text")
-@limiter.limit(get_settings().PROCESS_RATE_LIMIT)
+@limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_entities_from_text(request: Request,
                            text: Annotated[str, Body(description="The plain text to be sent to the model for NER", media_type="text/plain")],
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> TextWithAnnotations:
@@ -74,7 +75,7 @@ def get_entities_from_text(request: Request,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract the NER entities from multiple plain texts")
-@limiter.limit(get_settings().PROCESS_BULK_RATE_LIMIT)
+@limiter.limit(config.PROCESS_BULK_RATE_LIMIT)
 def get_entities_from_multiple_texts(request: Request,
                                      texts: Annotated[List[str], Body(description="A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> List[TextWithAnnotations]:
@@ -135,7 +136,7 @@ def extract_entities_from_multi_text_file(request: Request,
              tags=[Tags.Redaction.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract and redact NER entities from a single piece of plain text")
-@limiter.limit(get_settings().PROCESS_RATE_LIMIT)
+@limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_redacted_text(request: Request,
                       text: Annotated[str, Body(description="The plain text to be sent to the model for NER and redaction", media_type="text/plain")],
                       mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
@@ -167,7 +168,7 @@ def get_redacted_text(request: Request,
              tags=[Tags.Redaction.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Redact and encrypt NER entities from a single piece of plain text")
-@limiter.limit(get_settings().PROCESS_RATE_LIMIT)
+@limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_redacted_text_with_encryption(request: Request,
                                       text_with_public_key: Annotated[TextWithPublicKey, Body()],
                                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
@@ -200,14 +201,15 @@ def _send_accuracy_metric(annotations: List[Dict], handler: str) -> None:
         doc_avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
         cms_avg_anno_acc_per_doc.labels(handler=handler).set(doc_avg_acc)
 
-        accumulated_concept_accuracy: Dict[str, float] = defaultdict(float)
-        concept_count: Dict[str, int] = defaultdict(int)
-        for annotation in annotations:
-            accumulated_concept_accuracy[annotation["label_id"]] += annotation["accuracy"]
-            concept_count[annotation["label_id"]] += 1
-        for concept, accumulated_accuracy in accumulated_concept_accuracy.items():
-            concept_avg_acc = accumulated_accuracy / concept_count[concept]
-            cms_avg_anno_acc_per_concept.labels(handler=handler, concept=concept).set(concept_avg_acc)
+        if config.LOG_PER_CONCEPT_ACCURACIES == "true":
+            accumulated_concept_accuracy: Dict[str, float] = defaultdict(float)
+            concept_count: Dict[str, int] = defaultdict(int)
+            for annotation in annotations:
+                accumulated_concept_accuracy[annotation["label_id"]] += annotation["accuracy"]
+                concept_count[annotation["label_id"]] += 1
+            for concept, accumulated_accuracy in accumulated_concept_accuracy.items():
+                concept_avg_acc = accumulated_accuracy / concept_count[concept]
+                cms_avg_anno_acc_per_concept.labels(handler=handler, concept=concept).set(concept_avg_acc)
 
 
 def _send_meta_confidence_metric(annotations: List[Dict], handler: str) -> None:
