@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -eu
+
+if ! command -v typer &> null
+then
+  echo "Cannot find 'typer' on your path. Installing it and dependencies..."
+  python -m venv hook
+  source hook/bin/activate
+  python -m pip install -r app/requirements.txt -r app/requirements-dev.txt
+fi
+
+typer app/cli/cli.py utils docs --output app/cli/README.md
+git add app/cli/README.md

@@ -92,7 +92,7 @@ $ python cli.py serve [OPTIONS]
 * `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|transformers_deid]`: The type of the model to serve  [required]
 * `--model-path TEXT`: The file path to the model package
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to serve
-* `--host TEXT`: The hostname of the server  [default: 0.0.0.0]
+* `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
 * `--port TEXT`: The port of the server  [default: 8000]
 * `--model-name TEXT`: The string representation of the model name
 * `--help`: Show this message and exit.
