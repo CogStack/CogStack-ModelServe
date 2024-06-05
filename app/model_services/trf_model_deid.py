@@ -3,7 +3,7 @@ import shutil
 import logging
 import torch
 import numpy as np
-from typing import Tuple, List, Dict, Iterable, Optional
+from typing import Tuple, List, Dict, Iterable, Optional, final
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
@@ -14,6 +14,7 @@ from config import Settings
 logger = logging.getLogger("cms")
 
 
+@final
 class TransformersModelDeIdentification(AbstractModelService):
 
     def __init__(self,

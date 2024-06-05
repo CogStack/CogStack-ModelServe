@@ -6,7 +6,7 @@ import json
 import logging
 import datasets
 import pandas as pd
-from typing import Dict, Tuple, List, Optional, Union
+from typing import Dict, Tuple, List, Optional, Union, final
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
@@ -18,6 +18,7 @@ urllib3_logger = logging.getLogger("urllib3")
 urllib3_logger.setLevel(logging.CRITICAL)
 
 
+@final
 class TrackerClient(object):
 
     def __init__(self, mlflow_tracking_uri: str) -> None:

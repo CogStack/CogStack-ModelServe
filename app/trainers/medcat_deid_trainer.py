@@ -8,7 +8,7 @@ import inspect
 import pandas as pd
 from collections import defaultdict
 from functools import partial
-from typing import Dict, TextIO, Any, Optional, List
+from typing import Dict, TextIO, Any, Optional, List, final
 from evaluate.visualization import radar_plot
 from medcat import __version__ as medcat_version
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
@@ -66,10 +66,11 @@ class LabelCountCallback(TrainerCallback):
             mlflow.log_metrics(self._label_counts, step=step)
 
 
+@final
 class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
 
     @staticmethod
-    def run(trainer: MedcatSupervisedTrainer,
+    def run(trainer: "MedcatDeIdentificationSupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

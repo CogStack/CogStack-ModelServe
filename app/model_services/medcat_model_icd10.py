@@ -1,6 +1,6 @@
 import logging
 import pandas as pd
-from typing import Dict, Optional
+from typing import Dict, Optional, final
 from model_services.medcat_model import MedCATModel
 from config import Settings
 from domain import ModelCard, ModelType
@@ -8,6 +8,7 @@ from domain import ModelCard, ModelType
 logger = logging.getLogger("cms")
 
 
+@final
 class MedCATModelIcd10(MedCATModel):
 
     ICD10_KEY = "icd10"

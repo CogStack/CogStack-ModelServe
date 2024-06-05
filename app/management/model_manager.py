@@ -3,7 +3,7 @@ import os
 import shutil
 import tempfile
 import mlflow
-from typing import Type, Optional, Dict, Any, List
+from typing import Type, Optional, Dict, Any, List, final
 
 import pandas as pd
 from pandas import DataFrame
@@ -15,6 +15,7 @@ from config import Settings
 from exception import ManagedModelException
 
 
+@final
 class ModelManager(PythonModel):
 
     input_schema = Schema([

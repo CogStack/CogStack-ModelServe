@@ -8,7 +8,7 @@ import datasets
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional, Any, List
+from typing import TextIO, Callable, Dict, Optional, Any, List, final
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
@@ -35,6 +35,7 @@ class TrainerCommon(object):
     def model_name(self, model_name: str) -> None:
         self._model_name = model_name
 
+    @final
     def start_training(self,
                        run: Callable,
                        training_type: str,

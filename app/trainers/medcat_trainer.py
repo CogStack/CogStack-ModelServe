@@ -5,7 +5,7 @@ import re
 import shutil
 import ijson
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List
+from typing import TextIO, Dict, Optional, Set, List, final
 
 import pandas as pd
 from medcat import __version__ as medcat_version
@@ -282,6 +282,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 self._tracker_client.save_dataframe_as_csv(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
 
 
+@final
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
 
     def __init__(self, model_service: AbstractModelService) -> None:

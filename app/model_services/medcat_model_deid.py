@@ -1,7 +1,7 @@
 import logging
 import inspect
 import threading
-from typing import Dict, List, TextIO, Optional, Any
+from typing import Dict, List, TextIO, Optional, Any, final
 from functools import partial
 from medcat.cat import CAT
 from config import Settings
@@ -13,6 +13,7 @@ from exception import ConfigurationException
 logger = logging.getLogger("cms")
 
 
+@final
 class MedCATModelDeIdentification(MedCATModel):
 
     CHUNK_SIZE = 500

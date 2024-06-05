@@ -30,7 +30,6 @@ from api.api import get_model_server  # noqa
 from utils import get_settings, send_gelf_message  # noqa
 from management.model_manager import ModelManager  # noqa
 from api.dependencies import ModelServiceDep  # noqa
-from config import Settings  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
 cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
@@ -42,7 +41,7 @@ logger = logging.getLogger("cms")
 def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                 model_path: str = typer.Option("", help="The file path to the model package"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
-                host: str = typer.Option("0.0.0.0", help="The hostname of the server"),
+                host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),) -> None:
     """
