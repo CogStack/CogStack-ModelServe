@@ -90,7 +90,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: SupervisedTrainer,
+    def run(trainer: "MedcatSupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -296,7 +296,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: UnsupervisedTrainer,
+    def run(trainer: "MedcatUnsupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

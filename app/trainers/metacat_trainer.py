@@ -31,7 +31,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         return params
 
     @staticmethod
-    def run(trainer: MedcatSupervisedTrainer,
+    def run(trainer: "MetacatTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

@@ -18,6 +18,7 @@ $ python cli.py [OPTIONS] COMMAND [ARGS]...
 * `export-openapi-spec`: This generates a single API doc for all...
 * `register`: This pushes a pretrained NLP model to the...
 * `serve`: This serves various CogStack NLP models
+* `train`: This pretrains or fine-tunes various...
 
 ## `python cli.py export-model-apis`
 
@@ -90,9 +91,33 @@ $ python cli.py serve [OPTIONS]
 **Options**:
 
 * `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|transformers_deid]`: The type of the model to serve  [required]
-* `--model-path TEXT`: The file path to the model package
+* `--model-path TEXT`: The file path to the model package  [required]
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to serve
 * `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
 * `--port TEXT`: The port of the server  [default: 8000]
+* `--model-name TEXT`: The string representation of the model name
+* `--help`: Show this message and exit.
+
+## `python cli.py train`
+
+This pretrains or fine-tunes various CogStack NLP models
+
+**Usage**:
+
+```console
+$ python cli.py train [OPTIONS]
+```
+
+**Options**:
+
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|transformers_deid]`: The type of the model to serve  [required]
+* `--base-model-path TEXT`: The file path to the base model package to be trained on
+* `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to train
+* `--training-type [supervised|unsupervised|meta_supervised]`: The type of training  [required]
+* `--data-file-path TEXT`: The path to the training asset file  [required]
+* `--epochs INTEGER`: The number of training epochs  [default: 1]
+* `--log-frequency INTEGER`: The number of processed documents after which training metrics will be logged  [default: 1]
+* `--hyperparameters TEXT`: The overriding hyperparameters serialised as JSON string  [default: {}]
+* `--description TEXT`: The description of the training or change logs
 * `--model-name TEXT`: The string representation of the model name
 * `--help`: Show this message and exit.

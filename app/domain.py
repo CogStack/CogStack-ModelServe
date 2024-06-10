@@ -95,3 +95,4 @@ class Scope(str, Enum):
 class TrainingType(str, Enum):
     SUPERVISED = "supervised"
     UNSUPERVISED = "unsupervised"
+    META_SUPERVISED = "meta_supervised"

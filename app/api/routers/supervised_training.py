@@ -57,6 +57,7 @@ async def train_supervised(request: Request,
                                                            ",".join(file_names),
                                                            raw_data_files=files,
                                                            description=description,
+                                                           synchronised=False,
                                                            lr_override=lr_override)
     finally:
         for file in files:

@@ -10,10 +10,12 @@ from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
 from model_services.base import AbstractModelService
 from domain import ModelCard, ModelType
 from config import Settings
+from utils import cls_deprecated
 
 logger = logging.getLogger("cms")
 
 
+@cls_deprecated("TransformersModelDeIdentification has been deprecated. Use MedCATModelDeIdentification instead.")
 @final
 class TransformersModelDeIdentification(AbstractModelService):
 
