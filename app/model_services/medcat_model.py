@@ -1,5 +1,6 @@
 import os
 import logging
+import torch
 import pandas as pd
 
 from multiprocessing import cpu_count
@@ -28,7 +29,6 @@ class MedCATModel(AbstractModelService):
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
-        self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None
         self._unsupervised_trainer = None
@@ -80,7 +80,13 @@ class MedCATModel(AbstractModelService):
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+            if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+               (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+               (get_settings().DEVICE.startswith("cpu")):
+                self._model = self.load_model(self._model_pack_path, meta_cat_config_dict={"general": {"device": get_settings().DEVICE}})
+                self._model.config.general["device"] = get_settings().DEVICE
+            else:
+                self._model = self.load_model(self._model_pack_path)
             self._set_tuis_filtering()
             if self._enable_trainer:
                 self._supervised_trainer = MedcatSupervisedTrainer(self)

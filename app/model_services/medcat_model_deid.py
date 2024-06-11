@@ -1,8 +1,10 @@
 import logging
 import inspect
 import threading
+import torch
 from typing import Dict, List, TextIO, Optional, Any, final
 from functools import partial
+from transformers import pipeline
 from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
@@ -107,9 +109,29 @@ class MedCATModelDeIdentification(MedCATModel):
         if hasattr(self, "_model") and isinstance(self._model, CAT):    # type: ignore
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+            self._model = self.load_model(self._model_pack_path)
             self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
             self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+            if (self._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+               (self._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+               (self._config.DEVICE.startswith("cpu")):
+                self._model.config.general["device"] = self._config.DEVICE
+                self._model._addl_ner[0].model.to(torch.device(self._config.DEVICE))
+                if self._config.DEVICE.startswith("cuda"):
+                    device = 0 if len(self._config.DEVICE.split(":")) == 1 else self._config.DEVICE.split(":")[1]
+                elif self._config.DEVICE.startswith("mps"):
+                    device = "mps"
+                else:
+                    device = -1
+                self._model._addl_ner[0].ner_pipe = pipeline(model=self._model._addl_ner[0].model,
+                                                             framework="pt",
+                                                             task="ner",
+                                                             tokenizer=self._model._addl_ner[0].tokenizer.hf_tokenizer,
+                                                             device=device)
+            else:
+                if self._config.DEVICE != "default":
+                    logger.warning(
+                        f"DEVICE is set to '{self._config.DEVICE}' but it is not available. Using 'default' instead.")
             _save_pretrained = self._model._addl_ner[0].model.save_pretrained
             if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
                 self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))

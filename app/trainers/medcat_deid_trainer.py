@@ -5,12 +5,16 @@ import gc
 import mlflow
 import tempfile
 import inspect
+import torch
 import pandas as pd
+import numpy as np
 from collections import defaultdict
 from functools import partial
 from typing import Dict, TextIO, Any, Optional, List, final
 from evaluate.visualization import radar_plot
+from transformers import pipeline
 from medcat import __version__ as medcat_version
+from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
 from utils import get_settings
 from management import tracker_client
@@ -87,7 +91,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
+                model = trainer._model_service.load_model(copied_model_pack_path)
                 ner = model._addl_ner[0]
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
@@ -114,10 +118,13 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 model.config.version.description = description or model.config.version.description
                 ner.config.general.description = description or ner.config.general.description
                 dataset = None
+
                 for training in range(training_params["nepochs"]):
                     if dataset is not None:
                         dataset["train"] = dataset["train"].shuffle()
                         dataset["test"] = dataset["test"].shuffle()
+
+                    ner = MedcatDeIdentificationSupervisedTrainer._customise_training_device(ner, trainer._config.DEVICE)
                     eval_results, examples, dataset = ner.train(data_file.name,
                                                                 ignore_extra_labels=True,
                                                                 dataset=dataset,
@@ -127,11 +134,11 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         for _, row in eval_results.iterrows():
                             normalised_name = row["name"].replace(" ", "_").lower()
                             grouped_metrics = {
-                                f"{normalised_name}/precision": row["p"],
-                                f"{normalised_name}/recall": row["r"],
-                                f"{normalised_name}/f1": row["f1"],
-                                f"{normalised_name}/p_merged": row["p_merged"],
-                                f"{normalised_name}/r_merged": row["r_merged"],
+                                f"{normalised_name}/precision": row["p"] if row["p"] is not None else np.nan,
+                                f"{normalised_name}/recall": row["r"] if row["r"] is not None else np.nan,
+                                f"{normalised_name}/f1": row["f1"] if row["f1"] is not None else np.nan,
+                                f"{normalised_name}/p_merged": row["p_merged"] if row["p_merged"] is not None else np.nan,
+                                f"{normalised_name}/r_merged": row["r_merged"] if row["r_merged"] is not None else np.nan,
                             }
                             trainer._tracker_client.send_model_stats(grouped_metrics, training)
 
@@ -262,3 +269,25 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         except Exception as e:
             logger.error("Error occurred while plotting the metrics")
             logger.exception(e)
+
+    @staticmethod
+    def _customise_training_device(ner: TransformersNER, device_name: str) -> TransformersNER:
+        if (device_name.startswith("cuda") and torch.cuda.is_available()) or \
+           (device_name.startswith("mps") and torch.backends.mps.is_available()) or \
+           (device_name.startswith("cpu")):
+            ner.model.to(torch.device(device_name))
+            if device_name.startswith("cuda"):
+                device = 0 if len(device_name.split(":")) == 1 else device_name.split(":")[1]
+            elif device_name.startswith("mps"):
+                device = "mps"
+            else:
+                device = -1
+            ner.ner_pipe = pipeline(model=ner.model,
+                                    framework="pt",
+                                    task="ner",
+                                    tokenizer=ner.tokenizer.hf_tokenizer,
+                                    device=device)
+        else:
+            if device_name != "default":
+                logger.warning(f"DEVICE is set to '{device_name}' but it is not available. Using 'default' instead.")
+        return ner

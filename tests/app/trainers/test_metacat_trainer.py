@@ -11,8 +11,7 @@ model_service = create_autospec(MedCATModel,
                                 _config=Settings(),
                                 _model_parent_dir=model_parent_dir,
                                 _enable_trainer=True,
-                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
-                                _meta_cat_config_dict={"general": {"device": "cpu"}})
+                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"))
 metacat_trainer = MetacatTrainer(model_service)
 metacat_trainer.model_name = "metacat_trainer"
 

@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 import gc
+import torch
 from typing import Dict, TextIO, Optional, List
 
 import pandas as pd
@@ -48,8 +49,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
-
+                if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+                        (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+                        (trainer._config.DEVICE.startswith("cpu")):
+                    model = trainer._model_service.load_model(copied_model_pack_path,
+                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
+                    model.config.general["device"] = trainer._config.DEVICE
+                else:
+                    model = trainer._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
                 exceptions = []
                 model.config.version.description = description or model.config.version.description

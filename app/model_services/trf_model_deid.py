@@ -29,11 +29,10 @@ class TransformersModelDeIdentification(AbstractModelService):
         model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_file_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
-        if config.DEVICE.startswith("cuda") and not torch.cuda.is_available():
-            logger.warning("Service is configured to using GPUs but no GPUs were found.")
-            self._device = "cpu"
-        else:
-            self._device = config.DEVICE
+        if (config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+           (config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+           (config.DEVICE.startswith("cpu")):
+            self._device = torch.device(config.DEVICE)
         self.model_name = model_name or "De-identification model"
         self._model: PreTrainedModel
         self._tokenizer: TransformersTokenizerNER

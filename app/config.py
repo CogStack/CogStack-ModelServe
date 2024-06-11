@@ -6,7 +6,7 @@ from pydantic import BaseSettings
 class Settings(BaseSettings):
     BASE_MODEL_FILE: str = "model.zip"                # the base name of the model file
     BASE_MODEL_FULL_PATH: str = ""                    # the full path to the model file
-    DEVICE: str = "cpu"                               # the device literal, either "cpu" or "cuda"
+    DEVICE: str = "default"                           # the device literal, either "default", "cpu[:X]", "cuda[:X]" or "mps[:X]"
     INCLUDE_SPAN_TEXT: str = "false"                  # if "true", include the text of the entity in the NER output
     CONCAT_SIMILAR_ENTITIES: str = "true"             # if "true", merge adjacent entities of the same type into one span
     ENABLE_TRAINING_APIS: str = "false"               # if "true", enable the APIs for model training
