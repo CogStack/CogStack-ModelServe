@@ -97,7 +97,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    logger.info(f"Retrained model saved: {artifacts_info}")
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")

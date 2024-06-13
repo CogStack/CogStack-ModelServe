@@ -10,6 +10,7 @@ from pandas import DataFrame
 from mlflow.pyfunc import PythonModel, PythonModelContext
 from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
+from mlflow.models.model import ModelInfo
 from model_services.base import AbstractModelService
 from config import Settings
 from exception import ManagedModelException
@@ -87,8 +88,8 @@ class ModelManager(PythonModel):
     def log_model(self,
                   model_name: str,
                   model_path: str,
-                  registered_model_name: Optional[str] = None) -> None:
-        mlflow.pyfunc.log_model(
+                  registered_model_name: Optional[str] = None) -> ModelInfo:
+        return mlflow.pyfunc.log_model(
             artifact_path=model_name,
             python_model=self,
             artifacts={"model_path": model_path},
@@ -129,6 +130,7 @@ class ModelManager(PythonModel):
 
     def _get_code_path_list(self) -> List[str]:
         return [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model_services")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "processors")),

@@ -3,7 +3,6 @@ import pytest
 import mlflow
 import datasets
 import pandas as pd
-
 from management.tracker_client import TrackerClient
 from data import doc_dataset
 from tests.app.helper import StringContains
@@ -146,7 +145,7 @@ def test_save_table_dict(mlflow_fixture):
 def test_save_train_dataset(mlflow_fixture):
     tracker_client = TrackerClient("")
     sample_texts = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
-    dataset = datasets.load_dataset(doc_dataset.__file__, data_files={"documents": sample_texts}, split="train", cache_dir="/tmp")
+    dataset = datasets.load_dataset(doc_dataset.__file__, data_files={"documents": sample_texts}, split="train", cache_dir="/tmp", trust_remote_code=True)
 
     tracker_client.save_train_dataset(dataset)
 
@@ -158,14 +157,18 @@ def test_save_train_dataset(mlflow_fixture):
 def test_save_model(mlflow_fixture):
     tracker_client = TrackerClient("")
     model_manager = Mock()
+    model_info = Mock()
+    model_info.flavors = {"python_function": {"artifacts": {"key": "value"}}}
+    model_manager.log_model.return_value = model_info
     mlflow_client = Mock()
     version = Mock()
     version.version = "1"
     mlflow_client.search_model_versions.return_value = [version]
     tracker_client.mlflow_client = mlflow_client
 
-    tracker_client.save_model("path/to/file.zip", "model_name", model_manager, "validation_status")
+    artifacts_info = tracker_client.save_model("path/to/file.zip", "model_name", model_manager, "validation_status")
 
+    assert artifacts_info == {"key": "value"}
     model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
     mlflow_client.set_model_version_tag.assert_called_once_with(name="model_name", version="1", key="validation_status", value="validation_status")
     mlflow.set_tag.assert_called_once_with("training.output.package", "file.zip")

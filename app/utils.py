@@ -22,6 +22,7 @@ from config import Settings
 @lru_cache()
 def get_settings() -> Settings:
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
+    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
     return Settings()
 
 

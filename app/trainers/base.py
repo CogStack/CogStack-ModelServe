@@ -89,10 +89,11 @@ class TrainerCommon(object):
                 self._training_in_progress = True
                 training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
                                                                            partial(run, self, training_params, data_file, log_frequency, run_id, description)))
-                if synchronised:
-                    loop.run_until_complete(training_task)
 
-                return True
+        if synchronised:
+            loop.run_until_complete(training_task)
+
+        return True
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:

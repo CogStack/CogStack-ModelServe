@@ -47,7 +47,8 @@ def test_download_model_package(mlflow_fixture):
 
 def test_log_model_with_registration(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
-    model_manager.log_model("model_name", "filepath", "model_name")
+    model_info = model_manager.log_model("model_name", "filepath", "model_name")
+    assert model_info is not None
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=model_manager,
                                                     signature=model_manager.model_signature,
@@ -59,7 +60,8 @@ def test_log_model_with_registration(mlflow_fixture):
 
 def test_log_model_without_registration(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
-    model_manager.log_model("model_name", "filepath")
+    model_info = model_manager.log_model("model_name", "filepath")
+    assert model_info is not None
     mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
                                                     python_model=model_manager,
                                                     signature=model_manager.model_signature,
