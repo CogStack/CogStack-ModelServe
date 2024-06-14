@@ -139,6 +139,7 @@ def extract_entities_from_multi_text_file(request: Request,
 @limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_redacted_text(request: Request,
                       text: Annotated[str, Body(description="The plain text to be sent to the model for NER and redaction", media_type="text/plain")],
+                      warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
                       mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
                       hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> PlainTextResponse:
@@ -150,18 +151,20 @@ def get_redacted_text(request: Request,
 
     redacted_text = ""
     start_index = 0
-    for annotation in annotations:
-        if hash:
-            label = hashlib.sha256(text[annotation["start"]:annotation["end"]].encode()).hexdigest()
-        elif mask is None or len(mask) == 0:
-            label = f"[{annotation['label_name']}]"
-        else:
-            label = mask
-        redacted_text += text[start_index:annotation["start"]] + label
-        start_index = annotation["end"]
-    redacted_text += text[start_index:]
-
-    return PlainTextResponse(content=redacted_text, status_code=200)
+    if not annotations and warn_on_no_redaction:
+        return PlainTextResponse(content="WARNING: No entities were detected for redaction.", status_code=200)
+    else:
+        for annotation in annotations:
+            if hash:
+                label = hashlib.sha256(text[annotation["start"]:annotation["end"]].encode()).hexdigest()
+            elif mask is None or len(mask) == 0:
+                label = f"[{annotation['label_name']}]"
+            else:
+                label = mask
+            redacted_text += text[start_index:annotation["start"]] + label
+            start_index = annotation["end"]
+        redacted_text += text[start_index:]
+        return PlainTextResponse(content=redacted_text, status_code=200)
 
 
 @router.post(PATH_REDACT_WITH_ENCRYPTION,
@@ -171,6 +174,7 @@ def get_redacted_text(request: Request,
 @limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_redacted_text_with_encryption(request: Request,
                                       text_with_public_key: Annotated[TextWithPublicKey, Body()],
+                                      warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
                                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     annotations = model_service.annotate(text_with_public_key.text)
     _send_annotation_num_metric(len(annotations), PATH_REDACT_WITH_ENCRYPTION)
@@ -181,15 +185,18 @@ def get_redacted_text_with_encryption(request: Request,
     redacted_text = ""
     start_index = 0
     encryptions = []
-    for idx, annotation in enumerate(annotations):
-        label = f"[REDACTED_{idx}]"
-        encrypted = encrypt(text_with_public_key.text[annotation["start"]:annotation["end"]], text_with_public_key.public_key_pem)
-        redacted_text += text_with_public_key.text[start_index:annotation["start"]] + label
-        encryptions.append({"label": label, "encryption": encrypted})
-        start_index = annotation["end"]
-    redacted_text += text_with_public_key.text[start_index:]
+    if not annotations and warn_on_no_redaction:
+        return JSONResponse(content={"message": "WARNING: No entities were detected for redaction."})
+    else:
+        for idx, annotation in enumerate(annotations):
+            label = f"[REDACTED_{idx}]"
+            encrypted = encrypt(text_with_public_key.text[annotation["start"]:annotation["end"]], text_with_public_key.public_key_pem)
+            redacted_text += text_with_public_key.text[start_index:annotation["start"]] + label
+            encryptions.append({"label": label, "encryption": encrypted})
+            start_index = annotation["end"]
+        redacted_text += text_with_public_key.text[start_index:]
 
-    return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
+        return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:

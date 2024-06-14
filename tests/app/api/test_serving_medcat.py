@@ -174,6 +174,15 @@ def test_redact():
     assert response.text == "[Spinal stenosis]"
 
 
+def test_warning_on_no_redaction():
+    annotations = []
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact?warn_on_no_redaction=true",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.text == "WARNING: No entities were detected for redaction."
+
+
 def test_redact_with_mask():
     annotations = [{
         "label_name": "Spinal stenosis",
@@ -246,6 +255,19 @@ def test_redact_with_encryption():
     assert response.json()["encryptions"][0]["label"] == "[REDACTED_0]"
     assert isinstance(response.json()["encryptions"][0]["encryption"], str)
     assert len(response.json()["encryptions"][0]["encryption"]) > 0
+
+
+def test_warning_on_no_encrypted_redaction():
+    annotations = []
+    body = {
+      "text": "Spinal stenosis",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
+    }
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact_with_encryption?warn_on_no_redaction=true",
+                           json=body,
+                           headers={"Content-Type": "application/json"})
+    assert response.json()["message"] == "WARNING: No entities were detected for redaction."
 
 
 def test_preview():
