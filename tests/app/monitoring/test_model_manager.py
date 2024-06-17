@@ -2,6 +2,7 @@ import pytest
 import mlflow
 import tempfile
 import pandas as pd
+from typing import Generator
 from unittest.mock import Mock, call
 from mlflow.pyfunc import PythonModelContext
 from model_services.base import AbstractModelService
@@ -134,6 +135,32 @@ def test_predict(mlflow_fixture):
         "start": {0: 0, 1: 0}, "end": {0: 15, 1: 15},
         "accuracy": {0: 1.0, 1: 1.0},
         "meta_anns": {0: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}, 1: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}}}
+
+
+def test_predict_stream(mlflow_fixture):
+    model_manager = ModelManager(_MockedModelService, Settings())
+    model_manager._model_service = Mock()
+    model_manager._model_service.annotate = Mock()
+    model_manager._model_service.annotate.return_value = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    output = model_manager.predict_stream(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
+    assert isinstance(output, Generator)
+    assert list(output) == [
+        {"doc_name": "doc_1", "label_name": "Spinal stenosis", "label_id": "76107001", "start": 0, "end": 15, "accuracy": 1.0, "meta_anns": {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}},
+        {"doc_name": "doc_2", "label_name": "Spinal stenosis", "label_id": "76107001", "start": 0, "end": 15, "accuracy": 1.0, "meta_anns": {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}},
+    ]
 
 
 class _MockedModelService(AbstractModelService):

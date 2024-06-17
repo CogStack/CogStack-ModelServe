@@ -3,11 +3,14 @@ import tempfile
 from collections import defaultdict
 from io import BytesIO
 
+import itertools
 import json
 import ijson
 import uuid
 import hashlib
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Iterator, Any
+
+import pandas as pd
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query
@@ -29,6 +32,7 @@ from processors.data_batcher import mini_batch
 
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
+PATH_PROCESS_STREAM = "/process_stream"
 PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
@@ -67,6 +71,46 @@ def get_entities_from_text(request: Request,
     _send_meta_confidence_metric(annotations, PATH_PROCESS)
 
     return TextWithAnnotations(text=text, annotations=annotations)
+
+
+@router.post(PATH_PROCESS_STREAM,
+             response_class=StreamingResponse,
+             tags=[Tags.Annotations.name],
+             dependencies=[Depends(cms_globals.props.current_active_user)],
+             description="Extract the NER entities from a stream of plain texts")
+@limiter.limit(config.PROCESS_RATE_LIMIT)
+def get_entities_from_text_stream(request: Request,
+                                  json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")],
+                                  model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+    model_manager = cms_globals.model_manager_dep()
+    chunk = []
+
+    def chunk_request_body(json_lines: str) -> Iterator[pd.DataFrame]:
+        for line in json_lines.splitlines():
+            json_line_obj = json.loads(line)
+            chunk.append(json_line_obj)
+
+            if len(chunk) == 5:    # chunk size
+                df = pd.DataFrame(chunk)
+                yield df
+                chunk.clear()
+        if chunk:
+            df = pd.DataFrame(chunk)
+            yield df
+            chunk.clear()
+
+    def to_json_dict(predicted_strem: Iterator[Dict[str, Any]]) -> Iterator[str]:
+        for item in predicted_strem:
+            yield json.dumps(item)
+
+    stream: Iterator[pd.DataFrame] = itertools.chain()
+    for chunked_input in chunk_request_body(json_lines):
+        predicted_stream = model_manager.predict_stream(context=None, model_input=chunked_input)
+        stream = itertools.chain(stream, to_json_dict(predicted_stream))
+
+    # TODO: collect metrics on accuracies, confidences and the number of annotations
+
+    return StreamingResponse(stream, media_type="application/x-ndjson; charset=utf-8")
 
 
 @router.post(PATH_PROCESS_BULK,

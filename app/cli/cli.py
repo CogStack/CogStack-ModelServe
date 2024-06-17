@@ -29,7 +29,7 @@ from registry import model_service_registry  # noqa
 from api.api import get_model_server  # noqa
 from utils import get_settings, send_gelf_message  # noqa
 from management.model_manager import ModelManager  # noqa
-from api.dependencies import ModelServiceDep  # noqa
+from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
 cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
@@ -69,7 +69,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
     config = get_settings()
 
-    model_service_dep = ModelServiceDep(model_type, config)
+    model_service_dep = ModelServiceDep(model_type, config, model_name)
     cms_globals.model_service_dep = model_service_dep
     app = get_model_server()
 
@@ -84,10 +84,12 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service = model_service_dep()
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service.init_model()
+        cms_globals.model_manager_dep = ModelManagerDep(model_service)
     elif mlflow_model_uri:
         model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
+        cms_globals.model_manager_dep = ModelManagerDep(model_service)
         app = get_model_server()
     else:
         logger.error("Neither the model path or the mlflow model uri was passed in")
