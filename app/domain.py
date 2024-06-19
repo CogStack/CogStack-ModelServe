@@ -71,6 +71,14 @@ class TextWithPublicKey(BaseModel):
     public_key_pem: str = Field(description="the public PEM key used for encrypting detected spans")
 
 
+class TextStreamItem(BaseModel):
+    text: str = Field(description="The text from which the annotations are extracted")
+    name: Optional[str] = Field(description="The name of the document containing the text")
+
+    class Config:
+        extra = "forbid"
+
+
 class ModelCard(BaseModel):
     api_version: str = Field(description="The version of the model serve APIs")
     model_type: ModelType = Field(description="The type of the served model")

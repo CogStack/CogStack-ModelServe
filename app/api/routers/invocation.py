@@ -1,23 +1,22 @@
 import statistics
 import tempfile
-from collections import defaultdict
-from io import BytesIO
-
 import itertools
 import json
 import ijson
 import uuid
 import hashlib
-from typing import Dict, List, Union, Iterator, Any
-
 import pandas as pd
-from typing_extensions import Annotated
-
-from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query
-from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
-
 import api.globals as cms_globals
-from domain import TextWithAnnotations, TextWithPublicKey, ModelCard, Tags
+
+from typing import Dict, List, Union, Iterator, Any
+from collections import defaultdict
+from io import BytesIO
+from starlette.status import HTTP_400_BAD_REQUEST
+from typing_extensions import Annotated
+from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query, Response
+from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
+from pydantic import ValidationError
+from domain import TextWithAnnotations, TextWithPublicKey, TextStreamItem, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings
 from api.utils import get_rate_limiter, encrypt
@@ -77,40 +76,23 @@ def get_entities_from_text(request: Request,
              response_class=StreamingResponse,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from a stream of plain texts")
+             description="Extract the NER entities from a stream of texts in jsonlines")
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_entities_from_text_stream(request: Request,
-                                  json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")],
-                                  model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+def get_entities_from_jsonlines_text_stream(request: Request,
+                                            json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
     model_manager = cms_globals.model_manager_dep()
-    chunk = []
+    stream: Iterator[Dict[str, Any]] = itertools.chain()
 
-    def chunk_request_body(json_lines: str) -> Iterator[pd.DataFrame]:
-        for line in json_lines.splitlines():
-            json_line_obj = json.loads(line)
-            chunk.append(json_line_obj)
+    try:
+        for chunked_input in _chunk_request_body(json_lines):
+            predicted_stream = model_manager.predict_stream(context=None, model_input=chunked_input)
+            stream = itertools.chain(stream, predicted_stream)
 
-            if len(chunk) == 5:    # chunk size
-                df = pd.DataFrame(chunk)
-                yield df
-                chunk.clear()
-        if chunk:
-            df = pd.DataFrame(chunk)
-            yield df
-            chunk.clear()
-
-    def to_json_dict(predicted_strem: Iterator[Dict[str, Any]]) -> Iterator[str]:
-        for item in predicted_strem:
-            yield json.dumps(item)
-
-    stream: Iterator[pd.DataFrame] = itertools.chain()
-    for chunked_input in chunk_request_body(json_lines):
-        predicted_stream = model_manager.predict_stream(context=None, model_input=chunked_input)
-        stream = itertools.chain(stream, to_json_dict(predicted_stream))
-
-    # TODO: collect metrics on accuracies, confidences and the number of annotations
-
-    return StreamingResponse(stream, media_type="application/x-ndjson; charset=utf-8")
+        return StreamingResponse(_get_jsonlines_stream(stream), media_type="application/x-ndjson; charset=utf-8")
+    except json.JSONDecodeError:
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": "Invalid JSON Lines."})
+    except ValidationError:
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json(indent=4)}"})
 
 
 @router.post(PATH_PROCESS_BULK,
@@ -124,10 +106,10 @@ def get_entities_from_multiple_texts(request: Request,
                                      texts: Annotated[List[str], Body(description="A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> List[TextWithAnnotations]:
     annotations_list = model_service.batch_annotate(texts)
-    body = []
+    body: List[TextWithAnnotations] = []
     annotation_sum = 0
     for text, annotations in zip(texts, annotations_list):
-        body.append({"text": text, "annotations": annotations})
+        body.append(TextWithAnnotations(text=text, annotations=annotations))
         annotation_sum += len(annotations)
         _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
         _send_meta_confidence_metric(annotations, PATH_PROCESS_BULK)
@@ -271,3 +253,31 @@ def _send_meta_confidence_metric(annotations: List[Dict], handler: str) -> None:
 
 def _send_bulk_processed_docs_metric(processed_docs: List[Dict], handler: str) -> None:
     cms_bulk_processed_docs.labels(handler=handler).observe(len(processed_docs))
+
+
+def _chunk_request_body(json_lines: str, chunk_size: int = 5) -> Iterator[pd.DataFrame]:
+    chunk = []
+    for line in json_lines.splitlines():
+        json_line_obj = json.loads(line)
+        TextStreamItem(**json_line_obj)
+        chunk.append(json_line_obj)
+
+        if len(chunk) == chunk_size:
+            df = pd.DataFrame(chunk)
+            yield df
+            chunk.clear()
+    if chunk:
+        df = pd.DataFrame(chunk)
+        yield df
+        chunk.clear()
+
+
+def _get_jsonlines_stream(output_stream: Iterator[Dict[str, Any]]) -> Iterator[str]:
+    current_doc_name = ""
+    annotation_num = 0
+    for item in output_stream:
+        if current_doc_name != "" and current_doc_name != item["doc_name"]:
+            cms_doc_annotations.labels(handler=PATH_PROCESS_STREAM).observe(annotation_num)
+        current_doc_name = item["doc_name"]
+        annotation_num += 1
+        yield json.dumps(item) + "\n"

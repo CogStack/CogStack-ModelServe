@@ -10,6 +10,7 @@ from api.api import get_model_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from domain import ModelCard, ModelType
+from management.model_manager import ModelManager
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
@@ -79,6 +80,68 @@ def test_process():
         "text": "Spinal stenosis",
         "annotations": annotations
     }
+
+
+def test_process_stream():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+    response = client.post("/process_stream",
+                           data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}',
+                           headers={"Content-Type": "application/x-ndjson"})
+
+    jsonlines = response.text[:-1].split("\n")
+    assert len(jsonlines) == 2
+    assert json.loads(jsonlines[0]) == {"doc_name": "doc1", **annotations[0]}
+    assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **annotations[0]}
+
+
+def test_process_invalid_stream():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    response = client.post("/process_stream",
+                           data='invalid stream',
+                           headers={"Content-Type": "application/x-ndjson"})
+    assert response.status_code == 400
+    assert response.json() == {"message": "Invalid JSON Lines."}
+
+    response = client.post("/process_stream",
+                           data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+                           headers={"Content-Type": "application/x-ndjson"})
+    assert response.status_code == 400
+    assert "Invalid JSON properties found." in response.json()["message"]
 
 
 def test_process_bulk():
