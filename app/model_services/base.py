@@ -1,3 +1,4 @@
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, List, Iterable, Tuple, Dict, final
 from config import Settings
@@ -42,6 +43,10 @@ class AbstractModelService(ABC):
     @abstractmethod
     def annotate(self, text: str) -> List[Dict[str, Any]]:
         raise NotImplementedError
+
+    async def async_annotate(self, text: str) -> Dict:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.annotate, text)  # type: ignore
 
     @abstractmethod
     def batch_annotate(self, texts: List[str]) -> List[List[Dict[str, Any]]]:

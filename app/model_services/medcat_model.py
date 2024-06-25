@@ -164,7 +164,10 @@ class MedCATModel(AbstractModelService):
             for _, row in df.iterrows():
                 if "athena_ids" in row and row["athena_ids"]:
                     row["athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
-            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+            if self._config.INCLUDE_SPAN_TEXT == "true":
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "source_value": "text", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+            else:
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

@@ -44,6 +44,7 @@ class TrainingType(str, Enum):
 
 
 class Annotation(BaseModel):
+    doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
     end: int = Field(description="The first index after the annotation span")
     label_name: str = Field(description="The pretty name of the annotation concept")

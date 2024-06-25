@@ -144,6 +144,39 @@ def test_process_invalid_stream():
     assert "Invalid JSON properties found." in response.json()["message"]
 
 
+@pytest.mark.asyncio
+async def test_process_stream_v2():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
+        response = await ac.post("/process_stream_v2",
+                                 data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}'.encode("utf-8"),
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **annotations[0]}
+
+
 def test_process_bulk():
     annotations_list = [
         [{
