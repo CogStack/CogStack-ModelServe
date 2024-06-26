@@ -14,6 +14,7 @@ from collections import defaultdict
 from io import BytesIO
 from starlette.status import HTTP_400_BAD_REQUEST
 from starlette.types import Receive, Scope, Send
+from starlette.background import BackgroundTask
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query, Response
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
@@ -99,7 +100,6 @@ def get_entities_from_jsonlines_text_stream(request: Request,
 
 
 @router.post(PATH_PROCESS_STREAM_V2,
-             response_class=StreamingResponse,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract the NER entities from a stream of texts in jsonlines")
@@ -242,23 +242,34 @@ def get_redacted_text_with_encryption(request: Request,
 
 class _LocalStreamingResponse(Response):
 
-    def __init__(self, content: Any, status_code: int = 200, headers: Optional[Mapping[str, str]] = None, media_type: Optional[str] = None) -> None:
+    def __init__(self,
+                 content: Any,
+                 status_code: int = 200,
+                 headers: Optional[Mapping[str, str]] = None,
+                 media_type: Optional[str] = None,
+                 background: Optional[BackgroundTask] = None) -> None:
         self.content = content
         self.status_code = status_code
         self.media_type = self.media_type if media_type is None else media_type
-        self.background = None
+        self.background = background
         self.init_headers(headers)
+
+    async def listen_for_disconnect(self, receive: Receive) -> None:
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                break
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         response_started = False
-        max_buffer_size = 1024
+        max_chunk_size = 1024
         async for line in self.content:
             if not response_started:
                 await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
                 response_started = True
             line_bytes = line.encode("utf-8")
-            for i in range(0, len(line_bytes), max_buffer_size):
-                chunk = line_bytes[i:i + max_buffer_size]
+            for i in range(0, len(line_bytes), max_chunk_size):
+                chunk = line_bytes[i:i + max_chunk_size]
                 await send({"type": "http.response.body", "body": chunk, "more_body": True})
         await send({"type": "http.response.body", "body": b"", "more_body": False})
 

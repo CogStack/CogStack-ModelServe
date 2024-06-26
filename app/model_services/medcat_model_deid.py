@@ -2,7 +2,7 @@ import logging
 import inspect
 import threading
 import torch
-from typing import Dict, List, TextIO, Optional, Any, final
+from typing import Dict, List, TextIO, Optional, Any, final, Callable
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
@@ -29,7 +29,7 @@ class MedCATModelDeIdentification(MedCATModel):
                  base_model_file: Optional[str] = None) -> None:
         super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
         self.model_name = model_name or "De-Identification MedCAT model"
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     @property
     def api_version(self) -> str:
@@ -47,7 +47,7 @@ class MedCATModelDeIdentification(MedCATModel):
         tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
         leading_ws_len = len(text) - len(text.lstrip())
         text = text.lstrip()
-        tokenized = tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+        tokenized = self._with_lock(tokenizer, text, return_offsets_mapping=True, add_special_tokens=False)
         input_ids = tokenized["input_ids"]
         offset_mapping = tokenized["offset_mapping"]
         chunk = []
@@ -71,9 +71,7 @@ class MedCATModelDeIdentification(MedCATModel):
                             break
                         number_of_seen_words += 1
                 c_text = text[chunk[:last_token_start_idx][0][1][0]:chunk[:last_token_start_idx][-1][1][1]]
-                with self._lock:
-                    # Temporarily tackle https://github.com/huggingface/tokenizers/issues/537 but it reduces parallelism
-                    doc = self.model.get_entities(c_text)
+                doc = self._with_lock(self.model.get_entities, c_text)
                 doc["entities"] = {_id: entity for _id, entity in doc["entities"].items() if entity["end"]+processed_char_len < chunk[window_overlap_start_idx][1][0]}
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
@@ -151,3 +149,8 @@ class MedCATModelDeIdentification(MedCATModel):
         if self._supervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+
+    def _with_lock(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+        # Temporarily tackle https://github.com/huggingface/tokenizers/issues/537 but it reduces parallelism
+        with self._lock:
+            return func(*args, **kwargs)

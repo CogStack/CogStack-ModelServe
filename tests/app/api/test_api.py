@@ -29,6 +29,8 @@ def test_get_model_server():
     assert {"name": "Authentication", "description": "Authenticate registered users"} in tags
     assert "/info" in paths
     assert "/process" in paths
+    assert "/process_stream" in paths
+    assert "/process_stream_v2" in paths
     assert "/process_bulk" in paths
     assert "/process_bulk_file" in paths
     assert "/redact" in paths
