@@ -45,7 +45,7 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
 def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
     id_ = 1
     for filepath in filepaths:
-        with (open(str(filepath), "r") as f):
+        with open(str(filepath), "r") as f:
             annotations = json.load(f)
             filtered = filter_by_concept_ids(annotations)
             for project in filtered["projects"]:
