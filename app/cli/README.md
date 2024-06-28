@@ -96,6 +96,7 @@ $ python cli.py serve [OPTIONS]
 * `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
 * `--port TEXT`: The port of the server  [default: 8000]
 * `--model-name TEXT`: The string representation of the model name
+* `--streamable / --no-streamable`: Serve the bidirectional streamable endpoint only  [default: no-streamable]
 * `--help`: Show this message and exit.
 
 ## `python cli.py train`

@@ -25,6 +25,11 @@ def test_add_middlewares():
     middlewares = [str(middleware) for middleware in app.user_middleware]
     assert "Middleware(SlowAPIMiddleware)" in middlewares
 
+    streamable_app = FastAPI()
+    add_middlewares(streamable_app, get_settings(), True)
+    middlewares = [str(middleware) for middleware in streamable_app.user_middleware]
+    assert "Middleware(SlowAPIASGIMiddleware)" in middlewares
+
 
 def test_get_per_address_rate_limiter():
     limiter = get_rate_limiter(get_settings(), auth_user_enabled=False)

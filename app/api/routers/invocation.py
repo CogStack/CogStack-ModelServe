@@ -5,21 +5,18 @@ import json
 import ijson
 import uuid
 import hashlib
-import asyncio
 import pandas as pd
 import api.globals as cms_globals
 
-from typing import Dict, List, Union, Iterator, Any, Mapping, Optional, AsyncGenerator
+from typing import Dict, List, Union, Iterator, Any
 from collections import defaultdict
 from io import BytesIO
 from starlette.status import HTTP_400_BAD_REQUEST
-from starlette.types import Receive, Scope, Send
-from starlette.background import BackgroundTask
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query, Response
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 from pydantic import ValidationError
-from domain import Annotation, TextWithAnnotations, TextWithPublicKey, TextStreamItem, ModelCard, Tags
+from domain import TextWithAnnotations, TextWithPublicKey, TextStreamItem, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings
 from api.utils import get_rate_limiter, encrypt
@@ -35,7 +32,6 @@ from processors.data_batcher import mini_batch
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
 PATH_PROCESS_STREAM = "/process_stream"
-PATH_PROCESS_STREAM_V2 = "/process_stream_v2"
 PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
@@ -80,10 +76,10 @@ def get_entities_from_text(request: Request,
              response_class=StreamingResponse,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from a stream of texts in jsonlines")
+             description="Extract the NER entities from texts in the JSON Lines format")
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_entities_from_jsonlines_text_stream(request: Request,
-                                            json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
+def get_entities_from_jsonlines_text(request: Request,
+                                     json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
     model_manager = cms_globals.model_manager_dep()
     stream: Iterator[Dict[str, Any]] = itertools.chain()
 
@@ -96,18 +92,7 @@ def get_entities_from_jsonlines_text_stream(request: Request,
     except json.JSONDecodeError:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": "Invalid JSON Lines."})
     except ValidationError:
-        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json(indent=4)}"})
-
-
-@router.post(PATH_PROCESS_STREAM_V2,
-             tags=[Tags.Annotations.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from a stream of texts in jsonlines")
-@limiter.limit(config.PROCESS_RATE_LIMIT)
-async def get_entities_from_jsonlines_text_stream_v2(request: Request,
-                                                     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> Response:
-    annotation_stream = _annotation_async_gen(request, model_service)
-    return _LocalStreamingResponse(annotation_stream, media_type="application/x-ndjson; charset=utf-8")
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}"})
 
 
 @router.post(PATH_PROCESS_BULK,
@@ -238,80 +223,6 @@ def get_redacted_text_with_encryption(request: Request,
         redacted_text += text_with_public_key.text[start_index:]
 
         return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
-
-
-class _LocalStreamingResponse(Response):
-
-    def __init__(self,
-                 content: Any,
-                 status_code: int = 200,
-                 headers: Optional[Mapping[str, str]] = None,
-                 media_type: Optional[str] = None,
-                 background: Optional[BackgroundTask] = None) -> None:
-        self.content = content
-        self.status_code = status_code
-        self.media_type = self.media_type if media_type is None else media_type
-        self.background = background
-        self.init_headers(headers)
-
-    async def listen_for_disconnect(self, receive: Receive) -> None:
-        while True:
-            message = await receive()
-            if message["type"] == "http.disconnect":
-                break
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        response_started = False
-        max_chunk_size = 1024
-        async for line in self.content:
-            if not response_started:
-                await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
-                response_started = True
-            line_bytes = line.encode("utf-8")
-            for i in range(0, len(line_bytes), max_chunk_size):
-                chunk = line_bytes[i:i + max_chunk_size]
-                await send({"type": "http.response.body", "body": chunk, "more_body": True})
-        await send({"type": "http.response.body", "body": b"", "more_body": False})
-
-
-async def _annotation_async_gen(request: Request, model_service: AbstractModelService) -> AsyncGenerator:
-    buffer = ""
-    doc_idx = 0
-    async for chunk in request.stream():
-        decoded = chunk.decode("utf-8")
-        if not decoded:
-            break
-        buffer += decoded
-        while "\n" in buffer:
-            lines = buffer.split("\n")
-            line = lines[0]
-            buffer = "\n".join(lines[1:]) if len(lines) > 1 else ""
-            if line.strip():
-                try:
-                    data = json.loads(line)
-                    annotations = await model_service.async_annotate(data["text"])
-                    for annotation in annotations:
-                        annotation["doc_name"] = data.get("name", str(doc_idx))
-                        yield Annotation(**annotation).json(exclude_none=True) + "\n"
-                        await asyncio.sleep(0)
-                except json.JSONDecodeError:
-                    yield json.dumps({"error": "Invalid JSON Line", "content": line}) + "\n"
-                    await asyncio.sleep(0)
-                finally:
-                    doc_idx += 1
-    if buffer.strip():
-        try:
-            data = json.loads(buffer)
-            annotations = model_service.annotate(data["text"])
-            for annotation in annotations:
-                annotation["doc_name"] = data.get("name", str(doc_idx))
-                yield Annotation(**annotation).json(exclude_none=True) + "\n"
-                await asyncio.sleep(0)
-        except json.JSONDecodeError:
-            yield json.dumps({"error": "Invalid JSON Line", "content": buffer}) + "\n"
-            await asyncio.sleep(0)
-        finally:
-            doc_idx += 1
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:

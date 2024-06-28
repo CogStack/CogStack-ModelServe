@@ -26,7 +26,7 @@ from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
 from domain import ModelType, TrainingType  # noqa
 from registry import model_service_registry  # noqa
-from api.api import get_model_server  # noqa
+from api.api import get_model_server, get_stream_server # noqa
 from utils import get_settings, send_gelf_message  # noqa
 from management.model_manager import ModelManager  # noqa
 from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
@@ -43,7 +43,8 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
                 host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),) -> None:
+                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+                streamable: bool = typer.Option(False, help="Serve the bidirectional streamable endpoint only")) -> None:
     """
     This serves various CogStack NLP models
     """
@@ -71,7 +72,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
     model_service_dep = ModelServiceDep(model_type, config, model_name)
     cms_globals.model_service_dep = model_service_dep
-    app = get_model_server()
+    model_server_app = get_model_server()
 
     dst_model_path = os.path.join(parent_dir, "model", "model.zip")
     if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
@@ -90,7 +91,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         cms_globals.model_manager_dep = ModelManagerDep(model_service)
-        app = get_model_server()
+        model_server_app = get_model_server()
     else:
         logger.error("Neither the model path or the mlflow model uri was passed in")
         sys.exit(1)
@@ -98,7 +99,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     logger.info(f'Start serving model "{model_type}" on {host}:{port}')
     # interrupted = False
     # while not interrupted:
-    uvicorn.run(app, host=host, port=int(port), log_config=None)
+    uvicorn.run(model_server_app if not streamable else get_stream_server(), host=host, port=int(port), log_config=None)
     # interrupted = True
     print("Shutting down due to either keyboard interrupt or system exit")
 

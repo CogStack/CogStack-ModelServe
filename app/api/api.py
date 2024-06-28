@@ -3,30 +3,70 @@ import importlib
 import os.path
 import api.globals as cms_globals
 
-from typing import Dict, Callable, Any, Optional
-from urllib.parse import urlencode
+from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
-from starlette.datastructures import QueryParams
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api.auth.db import make_sure_db_and_tables
 from api.auth.users import Props
 from api.dependencies import ModelServiceDep
 from api.utils import add_exception_handlers, add_middlewares
-from domain import Tags
+from domain import Tags, TagsStreamable
 from management.tracker_client import TrackerClient
 from utils import get_settings
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
-    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in Tags]
+    app = _get_app(msd_overwritten)
+    config = get_settings()
+    add_middlewares(app, config)
+
+    app = _load_health_check_router(app)
+
+    if config.AUTH_USER_ENABLED == "true":
+        app = _load_auth_router(app)
+
+    app = _load_invocation_router(app)
+
+    if config.ENABLE_TRAINING_APIS == "true":
+        app = _load_supervised_training_router(app)
+        if config.DISABLE_UNSUPERVISED_TRAINING != "true":
+            app = _load_unsupervised_training_router(app)
+        if config.DISABLE_METACAT_TRAINING != "true":
+            app = _load_metacat_training_router(app)
+
+    if config.ENABLE_EVALUATION_APIS == "true":
+        app = _load_evaluation_router(app)
+    if config.ENABLE_PREVIEWS_APIS == "true":
+        app = _load_preview_router(app)
+
+    return app
+
+
+def get_stream_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    app = _get_app(msd_overwritten, streamable=True)
+    config = get_settings()
+    add_middlewares(app, config, streamable=True)
+
+    app = _load_health_check_router(app)
+
+    if config.AUTH_USER_ENABLED == "true":
+        app = _load_auth_router(app)
+
+    app = _load_stream_router(app)
+
+    return app
+
+
+def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool = False) -> FastAPI:
+    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in (Tags if not streamable else TagsStreamable)]
     config = get_settings()
     app = FastAPI(title="CogStack ModelServe",
                   summary="A model serving and governance system for CogStack NLP solutions",
@@ -35,9 +75,9 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
                   debug=(config.DEBUG == "true"),
                   openapi_tags=tags_metadata)
     add_exception_handlers(app)
-    add_middlewares(app, config)
 
-    instrumentator = Instrumentator(excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
+    instrumentator = Instrumentator(
+        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
 
     if msd_overwritten is not None:
         cms_globals.model_service_dep = msd_overwritten
@@ -54,19 +94,6 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         instrumentator.expose(app, include_in_schema=False, should_gzip=False)
         if config.AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
-
-    @app.middleware("http")
-    async def verify_blank_query_params(request: Request, call_next: Callable) -> Response:
-        scope = request.scope
-        if request.method != "POST":
-            return await call_next(request)
-        if not scope or not scope.get("query_string"):
-            return await call_next(request)
-
-        query_params = QueryParams(scope["query_string"])
-
-        scope["query_string"] = urlencode([(k, v) for k, v in query_params._list if v and v.strip()]).encode("latin-1")
-        return await call_next(Request(scope, request.receive, request._send))
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_doc(req: Request) -> HTMLResponse:
@@ -131,27 +158,6 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         app.openapi_schema = openapi_schema
         return app.openapi_schema
 
-    app = _load_health_check_router(app)
-
-    if config.AUTH_USER_ENABLED == "true":
-        app = _load_auth_router(app)
-
-    app = _load_invocation_router(app)
-
-    if config.ENABLE_TRAINING_APIS == "true":
-        app = _load_supervised_training_router(app)
-        if config.DISABLE_UNSUPERVISED_TRAINING != "true":
-            app = _load_unsupervised_training_router(app)
-        if config.DISABLE_METACAT_TRAINING != "true":
-            app = _load_metacat_training_router(app)
-
-    if config.ENABLE_EVALUATION_APIS == "true":
-        app = _load_evaluation_router(app)
-    if config.ENABLE_PREVIEWS_APIS == "true":
-        app = _load_preview_router(app)
-
-    app.openapi = custom_openapi  # type: ignore
-
     return app
 
 
@@ -208,4 +214,11 @@ def _load_health_check_router(app: FastAPI) -> FastAPI:
     from api.routers import health_check
     importlib.reload(health_check)
     app.include_router(health_check.router)
+    return app
+
+
+def _load_stream_router(app: FastAPI) -> FastAPI:
+    from api.routers import stream
+    importlib.reload(stream)
+    app.include_router(stream.router)
     return app

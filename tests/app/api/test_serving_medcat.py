@@ -6,7 +6,7 @@ import json
 import pytest
 import api.globals as cms_globals
 from fastapi.testclient import TestClient
-from api.api import get_model_server
+from api.api import get_model_server, get_stream_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from domain import ModelCard, ModelType
@@ -23,6 +23,9 @@ config.AUTH_USER_ENABLED = "true"
 app = get_model_server(msd_overwritten=lambda: model_service)
 app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
 client = TestClient(app)
+app2 = get_stream_server(msd_overwritten=lambda: model_service)
+app2.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
+client2 = TestClient(app2)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
@@ -145,7 +148,7 @@ def test_process_invalid_stream():
 
 
 @pytest.mark.asyncio
-async def test_process_stream_v2():
+async def test_stream_process():
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
@@ -165,8 +168,8 @@ async def test_process_stream_v2():
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/process_stream_v2",
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
                                  data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}'.encode("utf-8"),
                                  headers={"Content-Type": "application/x-ndjson"})
 
@@ -175,6 +178,46 @@ async def test_process_stream_v2():
     async for chunk in response.aiter_bytes():
         jsonlines += chunk
     assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **annotations[0]}
+
+
+@pytest.mark.asyncio
+async def test_stream_process_empty_stream():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process", data="", headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"] == "Empty stream"
+
+
+@pytest.mark.asyncio
+async def test_stream_process_invalidate_json():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
+                                 data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"] == "Invalid JSON Line"
+
+
+@pytest.mark.asyncio
+async def test_stream_process_invalidate_json_property():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
+                                 data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert "Invalid JSON properties found" in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
 
 
 def test_process_bulk():

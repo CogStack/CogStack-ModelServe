@@ -8,6 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from starlette.responses import JSONResponse
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
+from slowapi.middleware import SlowAPIMiddleware, SlowAPIASGIMiddleware
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
@@ -15,7 +16,6 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 from fastapi_users.jwt import decode_jwt
 from config import Settings
 from exception import StartTrainingException, AnnotationException
@@ -46,9 +46,9 @@ def add_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
 
 
-def add_middlewares(app: FastAPI, config: Settings) -> None:
+def add_middlewares(app: FastAPI, config: Settings, streamable: bool = False) -> None:
     app.state.limiter = get_rate_limiter(config)
-    app.add_middleware(SlowAPIMiddleware)
+    app.add_middleware(SlowAPIMiddleware if not streamable else SlowAPIASGIMiddleware)
 
 
 @lru_cache()

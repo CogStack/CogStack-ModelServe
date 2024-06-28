@@ -24,6 +24,10 @@ class Tags(str, Enum):
     Authentication = "Authenticate registered users"
 
 
+class TagsStreamable(str, Enum):
+    Streaming = "Retrieve NER entities as a stream by running the model"
+
+
 class CodeType(str, Enum):
     SNOMED = "SNOMED"
     UMLS = "UMLS"
