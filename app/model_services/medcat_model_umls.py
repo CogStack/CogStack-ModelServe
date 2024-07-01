@@ -1,9 +1,10 @@
-from typing import Optional
+from typing import Optional, final
 from config import Settings
 from model_services.medcat_model import MedCATModel
 from domain import ModelCard, ModelType
 
 
+@final
 class MedCATModelUmls(MedCATModel):
 
     def __init__(self,

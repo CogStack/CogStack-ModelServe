@@ -52,6 +52,7 @@ async def train_unsupervised(request: Request,
                                                              training_id,
                                                              ",".join(file_names),
                                                              raw_data_files=files,
+                                                             synchronised=False,
                                                              description=description)
     finally:
         for file in files:

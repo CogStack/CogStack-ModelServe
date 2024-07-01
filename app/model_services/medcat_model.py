@@ -1,5 +1,6 @@
 import os
 import logging
+import torch
 import pandas as pd
 
 from multiprocessing import cpu_count
@@ -13,7 +14,7 @@ from config import Settings
 from utils import get_settings, TYPE_ID_TO_NAME_PATCH
 from exception import ConfigurationException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MedCATModel(AbstractModelService):
@@ -28,7 +29,6 @@ class MedCATModel(AbstractModelService):
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
-        self._meta_cat_config_dict = {"general": {"device": config.DEVICE}}
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._supervised_trainer = None
         self._unsupervised_trainer = None
@@ -80,7 +80,13 @@ class MedCATModel(AbstractModelService):
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model = self.load_model(self._model_pack_path, meta_cat_config_dict=self._meta_cat_config_dict)
+            if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+               (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+               (get_settings().DEVICE.startswith("cpu")):
+                self._model = self.load_model(self._model_pack_path, meta_cat_config_dict={"general": {"device": get_settings().DEVICE}})
+                self._model.config.general["device"] = get_settings().DEVICE
+            else:
+                self._model = self.load_model(self._model_pack_path)
             self._set_tuis_filtering()
             if self._enable_trainer:
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
@@ -115,10 +121,11 @@ class MedCATModel(AbstractModelService):
                          input_file_name: str,
                          raw_data_files: Optional[List[TextIO]] = None,
                          description: Optional[str] = None,
+                         synchronised: bool = False,
                          **hyperparams: Dict[str, Any]) -> bool:
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, **hyperparams)
+        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
 
     def train_unsupervised(self,
                            data_file: TextIO,
@@ -128,10 +135,11 @@ class MedCATModel(AbstractModelService):
                            input_file_name: str,
                            raw_data_files: Optional[List[TextIO]] = None,
                            description: Optional[str] = None,
+                           synchronised: bool = False,
                            **hyperparams: Dict[str, Any]) -> bool:
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
-        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, **hyperparams)
+        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
 
     def train_metacat(self,
                       data_file: TextIO,
@@ -141,10 +149,11 @@ class MedCATModel(AbstractModelService):
                       input_file_name: str,
                       raw_data_files: Optional[List[TextIO]] = None,
                       description: Optional[str] = None,
+                      synchronised: bool = False,
                       **hyperparams: Dict[str, Any]) -> bool:
         if self._metacat_trainer is None:
             raise ConfigurationException("The metacat trainer is not enabled")
-        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, **hyperparams)
+        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
 
     def get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
@@ -155,7 +164,10 @@ class MedCATModel(AbstractModelService):
             for _, row in df.iterrows():
                 if "athena_ids" in row and row["athena_ids"]:
                     row["athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
-            df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+            if self._config.INCLUDE_SPAN_TEXT == "true":
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "source_value": "text", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+            else:
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records

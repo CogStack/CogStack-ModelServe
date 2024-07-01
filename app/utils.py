@@ -5,13 +5,16 @@ import struct
 import inspect
 import os
 import copy
+import functools
+import warnings
+import torch
+import pandas as pd
 from spacy.lang.en import English
 from spacy.util import filter_spans
-import pandas as pd
-
+from safetensors.torch import load_file
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any
+from typing import List, Optional, Dict, Callable, Any, Union, Tuple, Type
 from domain import Annotation, Entity, CodeType, ModelType
 from config import Settings
 
@@ -19,6 +22,7 @@ from config import Settings
 @lru_cache()
 def get_settings() -> Settings:
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
+    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
     return Settings()
 
 
@@ -247,6 +251,12 @@ def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[
     return copied
 
 
+def safetensors_to_pytorch(safetensors_file_path: Union[str, os.PathLike],
+                           pytorch_file_path: Union[str, os.PathLike]) -> None:
+    state_dict = load_file(safetensors_file_path)
+    torch.save(state_dict, pytorch_file_path)
+
+
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
     "2680757": "observable entity",
@@ -308,3 +318,31 @@ TYPE_ID_TO_NAME_PATCH = {
     "25624495": '© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.',
     "55540447": "linkage concept"
 }
+
+
+def func_deprecated(message: Optional[str] = None) -> Callable:
+    def decorator(func: Callable) -> Callable:
+
+        @functools.wraps(func)
+        def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
+            warnings.simplefilter("always", DeprecationWarning)
+            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""))
+            warnings.simplefilter("default", DeprecationWarning)
+            return func(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def cls_deprecated(message: Optional[str] = None) -> Callable:
+    def decorator(cls: Type) -> Callable:
+        decorated_init = cls.__init__
+
+        @functools.wraps(decorated_init)
+        def wrapped(self: "Type", *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
+            warnings.simplefilter("always", DeprecationWarning)
+            warnings.warn("Class {} has been deprecated.{}".format(cls.__name__, " " + message if message else ""))
+            warnings.simplefilter("default", DeprecationWarning)
+            decorated_init(self, *args, **kwargs)
+        cls.__init__ = wrapped
+        return cls
+    return decorator

@@ -4,8 +4,9 @@ import os
 import re
 import shutil
 import ijson
+import torch
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List
+from typing import TextIO, Dict, Optional, Set, List, final
 
 import pandas as pd
 from medcat import __version__ as medcat_version
@@ -18,7 +19,7 @@ from processors.data_batcher import mini_batch
 from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
 from utils import get_func_params_as_dict
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class _MedcatTrainerCommon(object):
@@ -85,12 +86,11 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
         self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
-        self._meta_cat_config_dict = model_service._meta_cat_config_dict
         self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: SupervisedTrainer,
+    def run(trainer: "MedcatSupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -108,7 +108,15 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             try:
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
+
+                if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+                   (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+                   (trainer._config.DEVICE.startswith("cpu")):
+                    model = trainer._model_service.load_model(copied_model_pack_path,
+                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
+                    model.config.general["device"] = trainer._config.DEVICE
+                else:
+                    model = trainer._model_service.load_model(copied_model_pack_path)
                 trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
                 trainer._tracker_client.log_trainer_version(medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
@@ -158,7 +166,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    logger.info(f"Retrained model saved: {artifacts_info}")
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
@@ -282,6 +291,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 self._tracker_client.save_dataframe_as_csv(f"{e_key}_examples.csv", pd.DataFrame(rows, columns=columns), self._model_name)
 
 
+@final
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
 
     def __init__(self, model_service: AbstractModelService) -> None:
@@ -290,12 +300,11 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
         self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained", self._model_name.replace(" ", "_"))
-        self._meta_cat_config_dict = model_service._meta_cat_config_dict
         self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: UnsupervisedTrainer,
+    def run(trainer: "MedcatUnsupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -310,7 +319,14 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-            model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
+            if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+                    (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+                    (trainer._config.DEVICE.startswith("cpu")):
+                model = trainer._model_service.load_model(copied_model_pack_path,
+                                                          meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
+                model.config.general["device"] = trainer._config.DEVICE
+            else:
+                model = trainer._model_service.load_model(copied_model_pack_path)
             trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
             trainer._tracker_client.log_trainer_version(medcat_version)
             logger.info("Performing unsupervised training...")
@@ -344,7 +360,8 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                 model.cdb.config.save(cdb_config_path)
-                trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                logger.info(f"Retrained model saved: {artifacts_info}")
                 trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
             else:
                 logger.info("Skipped saving on the retrained model")

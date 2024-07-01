@@ -3,18 +3,19 @@ import os
 import shutil
 import tempfile
 import mlflow
-from typing import Type, Optional, Dict, Any, List
-
 import pandas as pd
+from typing import Type, Optional, Dict, Any, List, Iterator, final
 from pandas import DataFrame
 from mlflow.pyfunc import PythonModel, PythonModelContext
 from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
+from mlflow.models.model import ModelInfo
 from model_services.base import AbstractModelService
 from config import Settings
 from exception import ManagedModelException
 
 
+@final
 class ModelManager(PythonModel):
 
     input_schema = Schema([
@@ -43,6 +44,10 @@ class ModelManager(PythonModel):
     @property
     def model_service(self) -> AbstractModelService:
         return self._model_service
+
+    @model_service.setter
+    def model_service(self, model_service: AbstractModelService) -> None:
+        self._model_service = model_service
 
     @property
     def model_signature(self) -> ModelSignature:
@@ -86,14 +91,14 @@ class ModelManager(PythonModel):
     def log_model(self,
                   model_name: str,
                   model_path: str,
-                  registered_model_name: Optional[str] = None) -> None:
-        mlflow.pyfunc.log_model(
+                  registered_model_name: Optional[str] = None) -> ModelInfo:
+        return mlflow.pyfunc.log_model(
             artifact_path=model_name,
             python_model=self,
             artifacts={"model_path": model_path},
             signature=self.model_signature,
-            code_path=self._get_code_path_list(),
-            pip_requirements=self._get_pip_requirements(),
+            code_path=ModelManager._get_code_path_list(),
+            pip_requirements=ModelManager._get_pip_requirements(),
             registered_model_name=registered_model_name,
         )
 
@@ -103,8 +108,8 @@ class ModelManager(PythonModel):
             python_model=self,
             artifacts={"model_path": model_path},
             signature=self.model_signature,
-            code_path=self._get_code_path_list(),
-            pip_requirements=self._get_pip_requirements(),
+            code_path=ModelManager._get_code_path_list(),
+            pip_requirements=ModelManager._get_pip_requirements(),
         )
 
     def load_context(self, context: PythonModelContext) -> None:
@@ -126,8 +131,22 @@ class ModelManager(PythonModel):
         df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
         return df
 
-    def _get_code_path_list(self) -> List[str]:
+    def predict_stream(self, context: PythonModelContext, model_input: DataFrame, params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
+        for idx, row in model_input.iterrows():
+            annotations = self._model_service.annotate(row["text"])  # type: ignore
+            output = []
+            for annotation in annotations:
+                annotation = {"doc_name": row["name"] if "name" in row else str(idx), **annotation}
+                output.append(annotation)
+            df = pd.DataFrame(output)
+            df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
+            for _, item in df.iterrows():
+                yield item.to_dict()
+
+    @staticmethod
+    def _get_code_path_list() -> List[str]:
         return [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model_services")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "processors")),
@@ -141,5 +160,6 @@ class ModelManager(PythonModel):
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logging.ini")),
         ]
 
-    def _get_pip_requirements(self) -> str:
+    @staticmethod
+    def _get_pip_requirements() -> str:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))

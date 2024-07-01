@@ -1,6 +1,7 @@
-from typing import Callable
+from typing import Callable, final
 
 
+@final
 class LogCaptor(object):
 
     def __init__(self, processor: Callable[[str], None]):

@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 import gc
+import torch
 from typing import Dict, TextIO, Optional, List
 
 import pandas as pd
@@ -10,7 +11,7 @@ from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from exception import TrainingFailedException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class MetacatTrainer(MedcatSupervisedTrainer):
@@ -31,7 +32,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         return params
 
     @staticmethod
-    def run(trainer: MedcatSupervisedTrainer,
+    def run(trainer: "MetacatTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -48,8 +49,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                model = trainer._model_service.load_model(copied_model_pack_path, meta_cat_config_dict=trainer._meta_cat_config_dict)
-
+                if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
+                        (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+                        (trainer._config.DEVICE.startswith("cpu")):
+                    model = trainer._model_service.load_model(copied_model_pack_path,
+                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
+                    model.config.general["device"] = trainer._config.DEVICE
+                else:
+                    model = trainer._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
                 exceptions = []
                 model.config.version.description = description or model.config.version.description
@@ -90,7 +97,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    logger.info(f"Retrained model saved: {artifacts_info}")
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")

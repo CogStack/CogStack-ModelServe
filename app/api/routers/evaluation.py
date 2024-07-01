@@ -21,12 +21,13 @@ from processors.metrics_collector import (
     get_iaa_scores_per_doc,
     get_iaa_scores_per_span,
     concat_trainer_exports,
+    get_stats_from_trainer_export,
 )
 from exception import AnnotationException
 from utils import filter_by_concept_ids
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 @router.post("/evaluate",
@@ -91,7 +92,7 @@ def get_sanity_check_with_trainer_export(request: Request,
     stream = io.StringIO()
     metrics.to_csv(stream, index=False)
     response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
-    response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
+    response.headers["Content-Disposition"] = f'attachment ; filename="sanity_check_{str(uuid.uuid4())}.csv"'
     return response
 
 
@@ -129,7 +130,7 @@ def get_inter_annotator_agreement_scores(request: Request,
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
-        response.headers["Content-Disposition"] = f'attachment ; filename="evaluation_{str(uuid.uuid4())}.csv"'
+        response.headers["Content-Disposition"] = f'attachment ; filename="iaa_{str(uuid.uuid4())}.csv"'
         return response
 
 
@@ -152,4 +153,33 @@ def get_concatenated_trainer_exports(request: Request,
         file.close()
     response = JSONResponse(concatenated, media_type="application/json; charset=utf-8")
     response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{str(uuid.uuid4())}.json"'
+    return response
+
+
+@router.post("/annotation-stats",
+             tags=[Tags.Evaluating.name],
+             response_class=StreamingResponse,
+             dependencies=[Depends(cms_globals.props.current_active_user)],
+             description="Get annotation stats of trainer export files")
+def get_annotation_stats(request: Request,
+                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")]) -> StreamingResponse:
+    files = []
+    file_names = []
+    for te in trainer_export:
+        temp_te = tempfile.NamedTemporaryFile()
+        for line in te.file:
+            temp_te.write(line)
+        temp_te.flush()
+        files.append(temp_te)
+        file_names.append("" if te.filename is None else te.filename)
+    try:
+        concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
+    finally:
+        for file in files:
+            file.close()
+    stats = get_stats_from_trainer_export(concatenated, return_df=True)
+    stream = io.StringIO()
+    stats.to_csv(stream, index=False)
+    response = StreamingResponse(iter([stream.getvalue()]), media_type="text/csv")
+    response.headers["Content-Disposition"] = f'attachment ; filename="stats_{str(uuid.uuid4())}.csv"'
     return response

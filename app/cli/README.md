@@ -1,11 +1,11 @@
-# `CMS CLI`
+# `python cli.py`
 
 CLI for various CogStack ModelServe operations
 
 **Usage**:
 
 ```console
-$ CMS CLI [OPTIONS] COMMAND [ARGS]...
+$ python cli.py [OPTIONS] COMMAND [ARGS]...
 ```
 
 **Options**:
@@ -18,15 +18,16 @@ $ CMS CLI [OPTIONS] COMMAND [ARGS]...
 * `export-openapi-spec`: This generates a single API doc for all...
 * `register`: This pushes a pretrained NLP model to the...
 * `serve`: This serves various CogStack NLP models
+* `train`: This pretrains or fine-tunes various...
 
-## `CMS CLI export-model-apis`
+## `python cli.py export-model-apis`
 
 This generates model-specific API docs for enabled endpoints
 
 **Usage**:
 
 ```console
-$ CMS CLI export-model-apis [OPTIONS]
+$ python cli.py export-model-apis [OPTIONS]
 ```
 
 **Options**:
@@ -41,14 +42,14 @@ $ CMS CLI export-model-apis [OPTIONS]
 * `--model-name TEXT`: The string representation of the model name
 * `--help`: Show this message and exit.
 
-## `CMS CLI export-openapi-spec`
+## `python cli.py export-openapi-spec`
 
 This generates a single API doc for all endpoints
 
 **Usage**:
 
 ```console
-$ CMS CLI export-openapi-spec [OPTIONS]
+$ python cli.py export-openapi-spec [OPTIONS]
 ```
 
 **Options**:
@@ -56,14 +57,14 @@ $ CMS CLI export-openapi-spec [OPTIONS]
 * `--api-title TEXT`: The string representation of the API title  [default: CogStack Model Serve APIs]
 * `--help`: Show this message and exit.
 
-## `CMS CLI register`
+## `python cli.py register`
 
-This pushes a pretrained NLP model to the Cogstack ModelServe registry
+This pushes a pretrained NLP model to the CogStack ModelServe registry
 
 **Usage**:
 
 ```console
-$ CMS CLI register [OPTIONS]
+$ python cli.py register [OPTIONS]
 ```
 
 **Options**:
@@ -77,22 +78,47 @@ $ CMS CLI register [OPTIONS]
 * `--model-tags TEXT`: The string representation of a JSON object
 * `--help`: Show this message and exit.
 
-## `CMS CLI serve`
+## `python cli.py serve`
 
 This serves various CogStack NLP models
 
 **Usage**:
 
 ```console
-$ CMS CLI serve [OPTIONS]
+$ python cli.py serve [OPTIONS]
 ```
 
 **Options**:
 
 * `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|transformers_deid]`: The type of the model to serve  [required]
-* `--model-path TEXT`: The file path to the model package
+* `--model-path TEXT`: The file path to the model package  [required]
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to serve
-* `--host TEXT`: The hostname of the server  [default: 0.0.0.0]
+* `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
 * `--port TEXT`: The port of the server  [default: 8000]
+* `--model-name TEXT`: The string representation of the model name
+* `--streamable / --no-streamable`: Serve the bidirectional streamable endpoint only  [default: no-streamable]
+* `--help`: Show this message and exit.
+
+## `python cli.py train`
+
+This pretrains or fine-tunes various CogStack NLP models
+
+**Usage**:
+
+```console
+$ python cli.py train [OPTIONS]
+```
+
+**Options**:
+
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|transformers_deid]`: The type of the model to serve  [required]
+* `--base-model-path TEXT`: The file path to the base model package to be trained on
+* `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to train
+* `--training-type [supervised|unsupervised|meta_supervised]`: The type of training  [required]
+* `--data-file-path TEXT`: The path to the training asset file  [required]
+* `--epochs INTEGER`: The number of training epochs  [default: 1]
+* `--log-frequency INTEGER`: The number of processed documents after which training metrics will be logged  [default: 1]
+* `--hyperparameters TEXT`: The overriding hyperparameters serialised as JSON string  [default: {}]
+* `--description TEXT`: The description of the training or change logs
 * `--model-name TEXT`: The string representation of the model name
 * `--help`: Show this message and exit.

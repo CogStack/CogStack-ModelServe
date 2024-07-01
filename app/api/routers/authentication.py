@@ -3,7 +3,7 @@ import api.globals as cms_globals
 from fastapi import APIRouter
 from domain import Tags
 router = APIRouter()
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 for auth_backend in cms_globals.props.auth_backends:
     router.include_router(

@@ -1,5 +1,8 @@
 import os
 import json
+import tempfile
+import torch
+from safetensors.torch import save_file
 
 from urllib.parse import urlparse
 from utils import (
@@ -15,6 +18,7 @@ from utils import (
     replace_spans_of_concept,
     breakdown_annotations,
     augment_annotations,
+    safetensors_to_pytorch,
 )
 
 
@@ -168,17 +172,17 @@ def test_augment_annotations_case_insensitive():
             [r"^\d{1,2}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{2,4}$"],
             [r"^\d{2,4}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{1,2}$"],
             [r"^\d{2,4}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{1,2}$"],
-            [r"^\d{1,2}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
-            [r"^\d{2,4}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{1,2}$"],
+            [r"^\d{1,2}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
+            [r"^\d{2,4}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{1,2}$"],
             [r"^\d{1,2}\s*$", r"-", r"^\s*\d{4}$"],
             [r"^\d{1,2}\s*[\/]\s*\d{4}$"],
             [r"^\d{4}\s*$", r"-", r"^\s*\d{1,2}$"],
             [r"^\d{4}\s*[\/]\s*\d{1,2}$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{4}$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)(\s+\d{1,2})*$", r",", r"^\d{4}$"],
-            [r"^\d{4}\s*[-.\/]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)$"],
-            [r"^\d{4}$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)$", r"^\d{4}$"],
+            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{4}$"],
+            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)(\s+\d{1,2})*$", r",", r"^\d{4}$"],
+            [r"^\d{4}\s*[-.\/]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$"],
+            [r"^\d{4}$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$"],
+            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$", r"^\d{4}$"],
             [r"^(?:19\d\d|20\d\d)$"],
         ]
     }, False)
@@ -194,3 +198,25 @@ def test_augment_annotations_case_insensitive():
                     match_count_00002 += 1
     assert match_count_00001 == 10
     assert match_count_00002 == 4
+
+
+def test_safetensors_to_pytorch():
+    with tempfile.NamedTemporaryFile() as input:
+        model = _DummyModel()
+        model(torch.randn(1, 10))
+        save_file(model.state_dict(), input.name)
+        input.flush()
+
+        with tempfile.NamedTemporaryFile() as output:
+            assert not bool(output.readline())
+            safetensors_to_pytorch(input.name, output.name)
+            assert bool(output.readline())
+
+
+class _DummyModel(torch.nn.Module):
+    def __init__(self):
+        super(_DummyModel, self).__init__()
+        self.linear = torch.nn.Linear(10, 5)
+
+    def forward(self, x):
+        return self.linear(x)

@@ -5,7 +5,7 @@ from app.data import anno_dataset
 
 def test_load_dataset():
     trainer_export = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export_multi_projs.json")
-    dataset = datasets.load_dataset(anno_dataset.__file__, data_files={"annotations": trainer_export}, split="train", cache_dir="/tmp")
+    dataset = datasets.load_dataset(anno_dataset.__file__, data_files={"annotations": trainer_export}, split="train", cache_dir="/tmp", trust_remote_code=True)
     assert dataset.features.to_dict() == {
         "project": {"dtype": "string", "_type": "Value"},
         "name": {"dtype": "string", "_type": "Value"},

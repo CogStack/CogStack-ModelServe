@@ -6,18 +6,19 @@ import json
 import logging
 import datasets
 import pandas as pd
-from typing import Dict, Tuple, List, Optional, Union
+from typing import Dict, Tuple, List, Optional, Union, final
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
 from management.model_manager import ModelManager
 from exception import StartTrainingException
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 urllib3_logger = logging.getLogger("urllib3")
 urllib3_logger.setLevel(logging.CRITICAL)
 
 
+@final
 class TrackerClient(object):
 
     def __init__(self, mlflow_tracking_uri: str) -> None:
@@ -70,19 +71,6 @@ class TrackerClient(object):
     def send_model_stats(stats: Dict, step: int) -> None:
         metrics = {key.replace(" ", "_").lower(): val for key, val in stats.items()}
         mlflow.log_metrics(metrics, step)
-
-    @staticmethod
-    def save_model(filepath: str,
-                   model_name: str,
-                   model_manager: ModelManager) -> None:
-        model_name = model_name.replace(" ", "_")
-
-        mlflow.set_tag("training.output.package", os.path.basename(filepath))
-
-        if not mlflow.get_tracking_uri().startswith("file:/"):
-            model_manager.log_model(model_name, filepath, model_name)
-        else:
-            model_manager.log_model(model_name, filepath)
 
     @staticmethod
     def save_model_local(local_dir: str,
@@ -228,6 +216,28 @@ class TrackerClient(object):
                     batch.clear()
         if batch:
             self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
+
+    def save_model(self,
+                   filepath: str,
+                   model_name: str,
+                   model_manager: ModelManager,
+                   validation_status: str = "pending") -> Dict:
+        model_name = model_name.replace(" ", "_")
+
+        mlflow.set_tag("training.output.package", os.path.basename(filepath))
+
+        if not mlflow.get_tracking_uri().startswith("file:/"):
+            model_info = model_manager.log_model(model_name, filepath, model_name)
+            versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
+            self.mlflow_client.set_model_version_tag(name=model_name,
+                                                     version=versions[0].version,
+                                                     key="validation_status",
+                                                     value=validation_status)
+        else:
+            model_info = model_manager.log_model(model_name, filepath)
+
+        artifacts_info = model_info.flavors["python_function"]["artifacts"]
+        return artifacts_info
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

@@ -4,8 +4,9 @@ from typing import Optional
 from config import Settings
 from registry import model_service_registry
 from model_services.base import AbstractModelService
+from management.model_manager import ModelManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
 
 
 class ModelServiceDep(object):
@@ -34,3 +35,13 @@ class ModelServiceDep(object):
                 logger.error(f"Unknown model type: {self._model_type}")
                 exit(1)     # throw an exception?
             return self._model_sevice
+
+
+class ModelManagerDep(object):
+
+    def __init__(self, model_service: AbstractModelService) -> None:
+        self._model_manager = ModelManager(model_service.__class__, model_service.service_config)
+        self._model_manager.model_service = model_service
+
+    def __call__(self) -> ModelManager:
+        return self._model_manager

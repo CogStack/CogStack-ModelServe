@@ -1,5 +1,6 @@
+import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict
+from typing import Any, List, Iterable, Tuple, Dict, final
 from config import Settings
 from domain import ModelCard
 
@@ -11,6 +12,7 @@ class AbstractModelService(ABC):
         self._config = config
         self._model_name = "CMS model"
 
+    @final
     @property
     def service_config(self) -> Settings:
         return self._config
@@ -29,6 +31,7 @@ class AbstractModelService(ABC):
         raise NotImplementedError
 
     @staticmethod
+    @final
     def _data_iterator(texts: List[str]) -> Iterable[Tuple[int, str]]:
         for idx, text in enumerate(texts):
             yield idx, text
@@ -40,6 +43,10 @@ class AbstractModelService(ABC):
     @abstractmethod
     def annotate(self, text: str) -> List[Dict[str, Any]]:
         raise NotImplementedError
+
+    async def async_annotate(self, text: str) -> Dict:
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self.annotate, text)  # type: ignore
 
     @abstractmethod
     def batch_annotate(self, texts: List[str]) -> List[List[Dict[str, Any]]]:

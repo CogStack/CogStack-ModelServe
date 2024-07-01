@@ -8,13 +8,14 @@ import datasets
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional, Any, List
+from typing import TextIO, Callable, Dict, Optional, Any, List, final
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
 from domain import TrainingType
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cms")
+logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 class TrainerCommon(object):
@@ -35,6 +36,7 @@ class TrainerCommon(object):
     def model_name(self, model_name: str) -> None:
         self._model_name = model_name
 
+    @final
     def start_training(self,
                        run: Callable,
                        training_type: str,
@@ -44,7 +46,8 @@ class TrainerCommon(object):
                        training_id: str,
                        input_file_name: str,
                        raw_data_files: Optional[List[TextIO]] = None,
-                       description: Optional[str] = None) -> bool:
+                       description: Optional[str] = None,
+                       synchronised: bool = False) -> bool:
         with self._training_lock:
             if self._training_in_progress:
                 return False
@@ -85,9 +88,13 @@ class TrainerCommon(object):
 
                 logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
                 self._training_in_progress = True
-                asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                           partial(run, self, training_params, data_file, log_frequency, run_id, description)))
-                return True
+                training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
+                                                                           partial(run, self, training_params, data_file, log_frequency, run_id, description)))
+
+        if synchronised:
+            loop.run_until_complete(training_task)
+
+        return True
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
@@ -111,6 +118,7 @@ class SupervisedTrainer(ABC, TrainerCommon):
               input_file_name: str,
               raw_data_files: Optional[List[TextIO]] = None,
               description: Optional[str] = None,
+              synchronised: bool = False,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.SUPERVISED.value
         training_params = {
@@ -126,7 +134,8 @@ class SupervisedTrainer(ABC, TrainerCommon):
                                    training_id=training_id,
                                    input_file_name=input_file_name,
                                    raw_data_files=raw_data_files,
-                                   description=description)
+                                   description=description,
+                                   synchronised=synchronised)
 
     @staticmethod
     @abstractmethod
@@ -152,6 +161,7 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               input_file_name: str,
               raw_data_files: Optional[List[TextIO]] = None,
               description: Optional[str] = None,
+              synchronised: bool = False,
               **hyperparams: Dict[str, Any]) -> bool:
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
@@ -166,7 +176,8 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
                                    training_id=training_id,
                                    input_file_name=input_file_name,
                                    raw_data_files=raw_data_files,
-                                   description=description)
+                                   description=description,
+                                   synchronised=synchronised)
 
     @staticmethod
     @abstractmethod

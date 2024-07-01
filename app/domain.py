@@ -6,7 +6,49 @@ from starlette.status import HTTP_400_BAD_REQUEST
 from pydantic import BaseModel, Field, root_validator
 
 
+class ModelType(str, Enum):
+    MEDCAT_SNOMED = "medcat_snomed"
+    MEDCAT_UMLS = "medcat_umls"
+    MEDCAT_ICD10 = "medcat_icd10"
+    MEDCAT_DEID = "medcat_deid"
+    TRANSFORMERS_DEID = "transformers_deid"
+
+
+class Tags(str, Enum):
+    Metadata = "Get the model card"
+    Annotations = "Retrieve NER entities by running the model"
+    Redaction = "Redact the extracted NER entities"
+    Rendering = "Preview embeddable annotation snippet in HTML"
+    Training = "Trigger model training on input annotations"
+    Evaluating = "Evaluate the deployed model with trainer export"
+    Authentication = "Authenticate registered users"
+
+
+class TagsStreamable(str, Enum):
+    Streaming = "Retrieve NER entities as a stream by running the model"
+
+
+class CodeType(str, Enum):
+    SNOMED = "SNOMED"
+    UMLS = "UMLS"
+    ICD10 = "ICD-10"
+    OPCS4 = "OPCS-4"
+
+
+class Scope(str, Enum):
+    PER_CONCEPT = "per_concept"
+    PER_DOCUMENT = "per_document"
+    PER_SPAN = "per_span"
+
+
+class TrainingType(str, Enum):
+    SUPERVISED = "supervised"
+    UNSUPERVISED = "unsupervised"
+    META_SUPERVISED = "meta_supervised"
+
+
 class Annotation(BaseModel):
+    doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
     end: int = Field(description="The first index after the annotation span")
     label_name: str = Field(description="The pretty name of the annotation concept")
@@ -34,12 +76,12 @@ class TextWithPublicKey(BaseModel):
     public_key_pem: str = Field(description="the public PEM key used for encrypting detected spans")
 
 
-class ModelType(str, Enum):
-    MEDCAT_SNOMED = "medcat_snomed"
-    MEDCAT_UMLS = "medcat_umls"
-    MEDCAT_ICD10 = "medcat_icd10"
-    MEDCAT_DEID = "medcat_deid"
-    TRANSFORMERS_DEID = "transformers_deid"
+class TextStreamItem(BaseModel):
+    text: str = Field(description="The text from which the annotations are extracted")
+    name: Optional[str] = Field(description="The name of the document containing the text")
+
+    class Config:
+        extra = "forbid"
 
 
 class ModelCard(BaseModel):
@@ -67,31 +109,3 @@ class Doc(BaseModel):
     text: str = Field(description="The text from which the entities are extracted")
     ents: List[Entity] = Field(description="The list of extracted entities")
     title: Optional[str] = Field(description="The headline of the text")
-
-
-class Tags(str, Enum):
-    Metadata = "Get the model card"
-    Annotations = "Retrieve NER entities by running the model"
-    Redaction = "Redact the extracted NER entities"
-    Rendering = "Preview embeddable annotation snippet in HTML"
-    Training = "Trigger model training on input annotations"
-    Evaluating = "Evaluate the deployed model with trainer export"
-    Authentication = "Authenticate registered users"
-
-
-class CodeType(str, Enum):
-    SNOMED = "SNOMED"
-    UMLS = "UMLS"
-    ICD10 = "ICD-10"
-    OPCS4 = "OPCS-4"
-
-
-class Scope(str, Enum):
-    PER_CONCEPT = "per_concept"
-    PER_DOCUMENT = "per_document"
-    PER_SPAN = "per_span"
-
-
-class TrainingType(str, Enum):
-    SUPERVISED = "supervised"
-    UNSUPERVISED = "unsupervised"

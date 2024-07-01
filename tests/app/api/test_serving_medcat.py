@@ -6,10 +6,11 @@ import json
 import pytest
 import api.globals as cms_globals
 from fastapi.testclient import TestClient
-from api.api import get_model_server
+from api.api import get_model_server, get_stream_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from domain import ModelCard, ModelType
+from management.model_manager import ModelManager
 from unittest.mock import create_autospec
 
 model_service = create_autospec(MedCATModel)
@@ -22,6 +23,9 @@ config.AUTH_USER_ENABLED = "true"
 app = get_model_server(msd_overwritten=lambda: model_service)
 app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
 client = TestClient(app)
+app2 = get_stream_server(msd_overwritten=lambda: model_service)
+app2.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
+client2 = TestClient(app2)
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
@@ -79,6 +83,162 @@ def test_process():
         "text": "Spinal stenosis",
         "annotations": annotations
     }
+
+
+def test_process_jsonl():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+    response = client.post("/process_jsonl",
+                           data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}',
+                           headers={"Content-Type": "application/x-ndjson"})
+
+    jsonlines = response.text[:-1].split("\n")
+    assert len(jsonlines) == 2
+    assert json.loads(jsonlines[0]) == {"doc_name": "doc1", **annotations[0]}
+    assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **annotations[0]}
+
+
+def test_process_invalid_jsonl():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    response = client.post("/process_jsonl",
+                           data="invalid json lines",
+                           headers={"Content-Type": "application/x-ndjson"})
+    assert response.status_code == 400
+    assert response.json() == {"message": "Invalid JSON Lines."}
+
+
+def test_process_unknown_jsonl_properties():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    response = client.post("/process_jsonl",
+                           data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+                           headers={"Content-Type": "application/x-ndjson"})
+    assert response.status_code == 400
+    assert "Invalid JSON properties found." in response.json()["message"]
+
+
+@pytest.mark.asyncio
+async def test_stream_process():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
+                                 data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}'.encode("utf-8"),
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **annotations[0]}
+
+
+@pytest.mark.asyncio
+async def test_stream_process_empty_stream():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process", data="", headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"] == "Empty stream"
+
+
+@pytest.mark.asyncio
+async def test_stream_process_invalidate_jsonl():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
+                                 data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"] == "Invalid JSON Line"
+
+
+@pytest.mark.asyncio
+async def test_stream_process_unknown_jsonl_property():
+    async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
+        response = await ac.post("/stream/process",
+                                 data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+                                 headers={"Content-Type": "application/x-ndjson"})
+
+    assert response.status_code == 200
+    jsonlines = b""
+    async for chunk in response.aiter_bytes():
+        jsonlines += chunk
+    assert "Invalid JSON properties found" in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
 
 
 def test_process_bulk():
@@ -174,6 +334,15 @@ def test_redact():
     assert response.text == "[Spinal stenosis]"
 
 
+def test_warning_on_no_redaction():
+    annotations = []
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact?warn_on_no_redaction=true",
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    assert response.text == "WARNING: No entities were detected for redaction."
+
+
 def test_redact_with_mask():
     annotations = [{
         "label_name": "Spinal stenosis",
@@ -246,6 +415,19 @@ def test_redact_with_encryption():
     assert response.json()["encryptions"][0]["label"] == "[REDACTED_0]"
     assert isinstance(response.json()["encryptions"][0]["encryption"], str)
     assert len(response.json()["encryptions"][0]["encryption"]) > 0
+
+
+def test_warning_on_no_encrypted_redaction():
+    annotations = []
+    body = {
+      "text": "Spinal stenosis",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
+    }
+    model_service.annotate.return_value = annotations
+    response = client.post("/redact_with_encryption?warn_on_no_redaction=true",
+                           json=body,
+                           headers={"Content-Type": "application/json"})
+    assert response.json()["message"] == "WARNING: No entities were detected for redaction."
 
 
 def test_preview():
@@ -435,6 +617,18 @@ def test_concat_trainer_exports():
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
     assert len(response.text) == 36918
+
+
+def test_get_annotation_stats():
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post("/annotation-stats", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "concept,anno_count,anno_unique_counts,anno_ignorance_counts"
 
 
 def test_extract_entities_from_text_list_file_as_json_file():
