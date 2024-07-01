@@ -1,3 +1,4 @@
+import logging
 import asyncio
 import importlib
 import os.path
@@ -21,6 +22,9 @@ from api.utils import add_exception_handlers, add_middlewares
 from domain import Tags, TagsStreamable
 from management.tracker_client import TrackerClient
 from utils import get_settings
+
+
+logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:

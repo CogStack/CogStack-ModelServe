@@ -15,6 +15,7 @@ from data import doc_dataset, anno_dataset
 from domain import TrainingType
 
 logger = logging.getLogger("cms")
+logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 class TrainerCommon(object):

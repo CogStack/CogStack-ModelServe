@@ -31,7 +31,7 @@ from processors.data_batcher import mini_batch
 
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
-PATH_PROCESS_STREAM = "/process_stream"
+PATH_PROCESS_JSON_LINES = "/process_jsonl"
 PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
@@ -72,7 +72,7 @@ def get_entities_from_text(request: Request,
     return TextWithAnnotations(text=text, annotations=annotations)
 
 
-@router.post(PATH_PROCESS_STREAM,
+@router.post(PATH_PROCESS_JSON_LINES,
              response_class=StreamingResponse,
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
@@ -257,9 +257,13 @@ def _send_bulk_processed_docs_metric(processed_docs: List[Dict], handler: str) -
 
 def _chunk_request_body(json_lines: str, chunk_size: int = 5) -> Iterator[pd.DataFrame]:
     chunk = []
+    doc_idx = 0
     for line in json_lines.splitlines():
         json_line_obj = json.loads(line)
         TextStreamItem(**json_line_obj)
+        if "name" not in json_line_obj:
+            json_line_obj["name"] = str(doc_idx)
+        doc_idx += 1
         chunk.append(json_line_obj)
 
         if len(chunk) == chunk_size:
@@ -277,7 +281,7 @@ def _get_jsonlines_stream(output_stream: Iterator[Dict[str, Any]]) -> Iterator[s
     annotation_num = 0
     for item in output_stream:
         if current_doc_name != "" and current_doc_name != item["doc_name"]:
-            cms_doc_annotations.labels(handler=PATH_PROCESS_STREAM).observe(annotation_num)
+            cms_doc_annotations.labels(handler=PATH_PROCESS_JSON_LINES).observe(annotation_num)
         current_doc_name = item["doc_name"]
         annotation_num += 1
         yield json.dumps(item) + "\n"

@@ -85,7 +85,7 @@ def test_process():
     }
 
 
-def test_process_stream():
+def test_process_jsonl():
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
@@ -104,7 +104,7 @@ def test_process_stream():
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
-    response = client.post("/process_stream",
+    response = client.post("/process_jsonl",
                            data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}',
                            headers={"Content-Type": "application/x-ndjson"})
 
@@ -114,7 +114,7 @@ def test_process_stream():
     assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **annotations[0]}
 
 
-def test_process_invalid_stream():
+def test_process_invalid_jsonl():
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
@@ -134,13 +134,34 @@ def test_process_invalid_stream():
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
-    response = client.post("/process_stream",
-                           data='invalid stream',
+    response = client.post("/process_jsonl",
+                           data="invalid json lines",
                            headers={"Content-Type": "application/x-ndjson"})
     assert response.status_code == 400
     assert response.json() == {"message": "Invalid JSON Lines."}
 
-    response = client.post("/process_stream",
+
+def test_process_unknown_jsonl_properties():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+    model_service.annotate.return_value = annotations
+    model_manager = ModelManager(None, None)
+    model_manager.model_service = model_service
+    cms_globals.model_manager_dep = lambda: model_manager
+
+    response = client.post("/process_jsonl",
                            data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
                            headers={"Content-Type": "application/x-ndjson"})
     assert response.status_code == 400
@@ -193,7 +214,7 @@ async def test_stream_process_empty_stream():
 
 
 @pytest.mark.asyncio
-async def test_stream_process_invalidate_json():
+async def test_stream_process_invalidate_jsonl():
     async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
         response = await ac.post("/stream/process",
                                  data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
@@ -207,7 +228,7 @@ async def test_stream_process_invalidate_json():
 
 
 @pytest.mark.asyncio
-async def test_stream_process_invalidate_json_property():
+async def test_stream_process_unknown_jsonl_property():
     async with httpx.AsyncClient(app=app2, base_url="http://test") as ac:
         response = await ac.post("/stream/process",
                                  data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
