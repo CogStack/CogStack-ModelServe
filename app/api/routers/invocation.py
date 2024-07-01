@@ -172,7 +172,7 @@ def extract_entities_from_multi_text_file(request: Request,
 @limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_redacted_text(request: Request,
                       text: Annotated[str, Body(description="The plain text to be sent to the model for NER and redaction", media_type="text/plain")],
-                      concepts_to_keep: Annotated[List[str], Query(description="List of concepts (Label IDs) that should not be removedd during the sredaction process. List should be in the format ['label1','label2'...]")],
+                      concepts_to_keep: Annotated[List[str], Query(description="List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]")] = [],
                       warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
                       mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
                       hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
