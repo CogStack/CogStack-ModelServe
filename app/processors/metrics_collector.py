@@ -425,7 +425,7 @@ def _filter_docspan_by_value(docspan2value: Dict, value: str) -> Dict:
 
 
 def _get_hashed_annotation_state(annotation: Dict, state_keys: Set[str]) -> str:
-    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8"), =False).hexdigest()
+    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8")).hexdigest()
 
 
 def _get_hashed_meta_annotation_state(meta_anno: Dict) -> str:
