@@ -11,8 +11,8 @@ from exception import AnnotationException
 
 ANCHOR_DELIMITER = ";"
 DOC_SPAN_DELIMITER = "_"
-STATE_MISSING = hashlib.sha1("MISSING".encode("utf-8"), usedforsecurity=False).hexdigest()
-META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8"), usedforsecurity=False).hexdigest()
+STATE_MISSING = hashlib.sha1("MISSING".encode("utf-8")).hexdigest()
+META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8")).hexdigest()
 
 
 def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Dict],
@@ -425,12 +425,12 @@ def _filter_docspan_by_value(docspan2value: Dict, value: str) -> Dict:
 
 
 def _get_hashed_annotation_state(annotation: Dict, state_keys: Set[str]) -> str:
-    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8"), usedforsecurity=False).hexdigest()
+    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8")).hexdigest()
 
 
 def _get_hashed_meta_annotation_state(meta_anno: Dict) -> str:
     meta_anno = {key: val for key, val in sorted(meta_anno.items(), key=lambda item: item[0])}  # may not be necessary
-    return hashlib.sha1(str(meta_anno).encode("utf=8"), usedforsecurity=False).hexdigest()
+    return hashlib.sha1(str(meta_anno).encode("utf=8")).hexdigest()
 
 
 def _get_cohens_kappa_coefficient(y1_labels: List, y2_labels: List) -> float:
