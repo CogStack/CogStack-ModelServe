@@ -58,7 +58,7 @@ The following table summarises the servable model types with their respective ou
 Default configuration properties can be found and customised in `./docker/<MODEL-TYPE>/.envs`
 
 ### Serve models via HTTP APIs
-To serve NLP models through a container, run the following command:
+To serve NLP models through a container, run the following commands:
 ```commandline
 export MODEL_PACKAGE_FULL_PATH=<PATH/TO/MODEL_PACKAGE.zip>
 export CMS_UID=$(id -u $USER)
@@ -68,6 +68,20 @@ docker compose -f docker-compose.yml up -d <model-service>
 Then the API docs will be accessible at localhost on the mapped port specified in `docker-compose.yml`. The container runs
 as a `cms` non-root user configured during the image build. Ensure the model package file is owned by the currently
 logged-in user to avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
+
+### Serve models via streaming HTTP APIs
+You can send your texts as a stream to the CMS stream endpoint and receive NLP results also as a stream. To that end,
+start CMS as a streamable service by running:
+```commandline
+python app/cli/cli.py serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+```
+Currently, [JSON Lines](https://jsonlines.org/) is supported for formatting request and response bodies. For example, the following request:
+```commandline
+curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
+    -H 'Content-Type: application/x-ndjson' \
+    --data-binary $'{"name": "DOC", "text": "TEXT"}\n{"name": "ANOTHER_DOC", "text": "ANOTHER_TEXT"}'
+```
+will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
 
 ### Auxiliary services
 In addition to the core services such as serving, training and evaluation, CMS provides several ready-to-use components
@@ -114,12 +128,9 @@ mlflow models serve -m s3://cms-model-bucket/EXPERIMENT_ID/RUN_ID/artifacts/REGI
 ```
 Then the `/invocations` endpoint will be up and running for model scoring. For example:
 ```commandline
-curl http://127.0.0.1:8001/invocations -H 'Content-Type: application/json' -d '{
-  "dataframe_split": {
-      "columns": ["name", "text"],
-      "data": [["DOC", "TEXT"], ["ANOTHER_DOC", "ANOTHER_TEXT"]]
-  }
-}'
+curl http://127.0.0.1:8001/invocations \
+    -H 'Content-Type: application/json' \
+    -d '{"dataframe_split": { "columns": ["name", "text"], "data": [["DOC", "TEXT"], ["ANOTHER_DOC", "ANOTHER_TEXT"]]}}'
 ```
 
 #### Monitoring and observability
