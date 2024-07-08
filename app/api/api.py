@@ -37,6 +37,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
 
+    app = _load_model_card(app)
     app = _load_invocation_router(app)
 
     if config.ENABLE_TRAINING_APIS == "true":
@@ -64,6 +65,7 @@ def get_stream_server(msd_overwritten: Optional[ModelServiceDep] = None) -> Fast
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
 
+    app = _load_model_card(app)
     app = _load_stream_router(app)
 
     return app
@@ -172,6 +174,13 @@ def _load_auth_router(app: FastAPI) -> FastAPI:
     return app
 
 
+def _load_model_card(app: FastAPI) -> FastAPI:
+    from api.routers import model_card
+    importlib.reload(model_card)
+    app.include_router(model_card.router)
+    return app
+
+
 def _load_invocation_router(app: FastAPI) -> FastAPI:
     from api.routers import invocation
     importlib.reload(invocation)
@@ -224,5 +233,5 @@ def _load_health_check_router(app: FastAPI) -> FastAPI:
 def _load_stream_router(app: FastAPI) -> FastAPI:
     from api.routers import stream
     importlib.reload(stream)
-    app.include_router(stream.router)
+    app.include_router(stream.router, prefix="/stream")
     return app

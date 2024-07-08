@@ -1,17 +1,22 @@
 import json
+
+from starlette.status import WS_1008_POLICY_VIOLATION
+from starlette.websockets import WebSocketDisconnect
+
 import api.globals as cms_globals
 
 from typing import Any, Mapping, Optional, AsyncGenerator
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
 from pydantic import ValidationError
 from domain import Annotation, Tags, TextStreamItem
 from model_services.base import AbstractModelService
 from utils import get_settings
 from api.utils import get_rate_limiter
 
-PATH_STREAM_PROCESS = "/stream/process"
+PATH_STREAM_PROCESS = "/process"
+PATH_WS_PROCESS = "/ws"
 
 router = APIRouter()
 config = get_settings()
@@ -22,11 +27,39 @@ limiter = get_rate_limiter(config)
              tags=[Tags.Annotations.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Extract the NER entities from a stream of texts in the JSON Lines format")
-@limiter.limit(config.PROCESS_RATE_LIMIT)
+@limiter.limit(config.PROCESS_BULK_RATE_LIMIT)
 async def get_entities_stream_from_jsonlines_stream(request: Request,
                                                     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> Response:
     annotation_stream = _annotation_async_gen(request, model_service)
     return _LocalStreamingResponse(annotation_stream, media_type="application/x-ndjson; charset=utf-8")
+
+
+@router.websocket(PATH_WS_PROCESS)
+# @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
+async def get_entities_from_websocket(websocket: WebSocket,
+                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
+    try:
+        if get_settings().AUTH_USER_ENABLED == "true":
+            cookie = websocket.cookies.get("fastapiusersauth")
+            if cookie is None:
+                raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="Authentication cookie not found")
+            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, cms_globals.props._get_user_manager())
+            if not user or not user.is_active:
+                raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
+
+        await websocket.accept()
+        while True:
+            text = await websocket.receive_text()
+            try:
+                annotations = await model_service.async_annotate(text)
+            except Exception as e:
+                await websocket.send_json({"error": str(e)})
+            else:
+                await websocket.send_json(annotations)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await websocket.close()
 
 
 class _LocalStreamingResponse(Response):

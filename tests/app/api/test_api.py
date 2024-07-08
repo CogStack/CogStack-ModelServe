@@ -15,7 +15,7 @@ def test_get_model_server():
     app = get_model_server(model_service_dep)
     info = app.openapi()["info"]
     tags = app.openapi_tags
-    paths = [path for path in app.openapi()["paths"].keys()]
+    paths = [route.path for route in app.routes]
 
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
@@ -45,9 +45,9 @@ def test_get_model_server():
     assert "/concat_trainer_exports" in paths
     assert "/auth/jwt/login" in paths
     assert "/auth/jwt/logout" in paths
+    assert "/healthz" in paths
+    assert "/readyz" in paths
     assert "/metrics" not in paths
-    assert "/healthz" not in paths
-    assert "/readyz" not in paths
 
 
 def test_get_stream_server():
@@ -58,15 +58,16 @@ def test_get_stream_server():
     app = get_stream_server(model_service_dep)
     info = app.openapi()["info"]
     tags = app.openapi_tags
-    paths = [path for path in app.openapi()["paths"].keys()]
+    paths = [route.path for route in app.routes]
 
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
     assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
     assert "/stream/process" in paths
+    assert "/stream/ws" in paths
     assert "/auth/jwt/login" in paths
     assert "/auth/jwt/logout" in paths
+    assert "/healthz" in paths
+    assert "/readyz" in paths
     assert "/metrics" not in paths
-    assert "/healthz" not in paths
-    assert "/readyz" not in paths
