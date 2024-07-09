@@ -1,7 +1,6 @@
 import tempfile
 import uuid
 import json
-import logging
 from typing import List, Union
 from typing_extensions import Annotated
 
@@ -16,7 +15,6 @@ from processors.metrics_collector import concat_trainer_exports
 from utils import filter_by_concept_ids
 
 router = APIRouter()
-logger = logging.getLogger("cms")
 
 
 @router.post("/train_supervised",

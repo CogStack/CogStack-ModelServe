@@ -1,5 +1,5 @@
 import json
-
+import logging
 from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
 
@@ -14,6 +14,7 @@ from domain import Annotation, Tags, TextStreamItem
 from model_services.base import AbstractModelService
 from utils import get_settings
 from api.utils import get_rate_limiter
+from api.auth.users import get_user_manager, CmsUserManager
 
 PATH_STREAM_PROCESS = "/process"
 PATH_WS_PROCESS = "/ws"
@@ -21,6 +22,7 @@ PATH_WS_PROCESS = "/ws"
 router = APIRouter()
 config = get_settings()
 limiter = get_rate_limiter(config)
+logger = logging.getLogger("cms")
 
 
 @router.post(PATH_STREAM_PROCESS,
@@ -36,14 +38,15 @@ async def get_entities_stream_from_jsonlines_stream(request: Request,
 
 @router.websocket(PATH_WS_PROCESS)
 # @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
-async def get_entities_from_websocket(websocket: WebSocket,
-                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
+async def get_inline_annotations_from_websocket(websocket: WebSocket,
+                                                user_manager: CmsUserManager = Depends(get_user_manager),
+                                                model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
     try:
         if get_settings().AUTH_USER_ENABLED == "true":
             cookie = websocket.cookies.get("fastapiusersauth")
             if cookie is None:
                 raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="Authentication cookie not found")
-            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, cms_globals.props._get_user_manager())
+            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, user_manager)
             if not user or not user.is_active:
                 raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
 
@@ -52,14 +55,23 @@ async def get_entities_from_websocket(websocket: WebSocket,
             text = await websocket.receive_text()
             try:
                 annotations = await model_service.async_annotate(text)
+                annotated_text = ""
+                start_index = 0
+                for annotation in annotations:
+                    annotated_text += f'{text[start_index:annotation["start"]]}[{annotation["label_name"]}: {text[annotation["start"]:annotation["end"]]}]'
+                    start_index = annotation["end"]
+                annotated_text += text[start_index:]
             except Exception as e:
-                await websocket.send_json({"error": str(e)})
+                await websocket.send_text(f"ERROR: {str(e)}")
             else:
-                await websocket.send_json(annotations)
-    except WebSocketDisconnect:
-        pass
+                await websocket.send_text(annotated_text)
+    except WebSocketDisconnect as e:
+        logging.warning(str(e))
     finally:
-        await websocket.close()
+        try:
+            await websocket.close()
+        except RuntimeError as e:
+            logging.warning(str(e))
 
 
 class _LocalStreamingResponse(Response):

@@ -3,10 +3,8 @@ import json
 import sys
 import uuid
 import tempfile
-import logging
 
 from typing import List
-
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 from typing_extensions import Annotated
 from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
@@ -27,7 +25,6 @@ from exception import AnnotationException
 from utils import filter_by_concept_ids
 
 router = APIRouter()
-logger = logging.getLogger("cms")
 
 
 @router.post("/evaluate",

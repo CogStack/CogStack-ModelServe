@@ -12,7 +12,7 @@ from utils import get_settings
 logger = logging.getLogger("cms")
 
 
-class _UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
+class CmsUserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = get_settings().AUTH_JWT_SECRET
     verification_token_secret = get_settings().AUTH_JWT_SECRET
 
@@ -26,6 +26,10 @@ class _UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         logger.info(f"Verification requested for user {user.id}. Verification token: {token}")
 
 
+async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)) -> AsyncGenerator:
+    yield CmsUserManager(user_db)
+
+
 class Props(object):
 
     def __init__(self, auth_user_enabled: bool) -> None:
@@ -34,7 +38,7 @@ class Props(object):
         self._current_active_user = lambda: None
         if auth_user_enabled:
             self._auth_backends = get_backends()
-            self._fastapi_users = FastAPIUsers[User, uuid.UUID](self._get_user_manager, self.auth_backends)
+            self._fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, self.auth_backends)
             self._current_active_user = self._fastapi_users.current_user(active=True)
 
     @property
@@ -48,7 +52,3 @@ class Props(object):
     @property
     def current_active_user(self) -> Callable:
         return self._current_active_user
-
-    @staticmethod
-    async def _get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)) -> AsyncGenerator:
-        yield _UserManager(user_db)

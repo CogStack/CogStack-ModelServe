@@ -1,3 +1,4 @@
+import pytest
 import api.globals as cms_globals
 from fastapi.testclient import TestClient
 from api.api import get_model_server
@@ -6,19 +7,28 @@ from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
 from domain import ModelCard, ModelType
 
-model_service = create_autospec(TransformersModelDeIdentification)
+
 config = get_settings()
 config.AUTH_USER_ENABLED = "true"
-app = get_model_server(msd_overwritten=lambda: model_service)
-client = TestClient(app)
-app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
 
 
-def test_healthz():
+@pytest.fixture(scope="function")
+def model_service():
+    return create_autospec(TransformersModelDeIdentification)
+
+
+@pytest.fixture(scope="function")
+def client(model_service):
+    app = get_model_server(msd_overwritten=lambda: model_service)
+    app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
+    return TestClient(app)
+
+
+def test_healthz(client):
     assert client.get("/healthz").content.decode("utf-8") == "OK"
 
 
-def test_readyz():
+def test_readyz(model_service, client):
     model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "deid_model_description",
@@ -29,7 +39,7 @@ def test_readyz():
     assert client.get("/readyz").content.decode("utf-8") == ModelType.TRANSFORMERS_DEID
 
 
-def test_info():
+def test_info(model_service, client):
     model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "deid_model_description",
@@ -41,7 +51,7 @@ def test_info():
     assert response.json() == model_card
 
 
-def test_process():
+def test_process(model_service, client):
     annotations = [{
         "label_name": "NW1 2BU",
         "label_id": "C2120",
@@ -58,7 +68,7 @@ def test_process():
     }
 
 
-def test_process_bulk():
+def test_process_bulk(model_service, client):
     annotations_list = [
         [{
             "label_name": "NW1 2BU",
@@ -97,7 +107,7 @@ def test_process_bulk():
     ]
 
 
-def test_preview():
+def test_preview(model_service, client):
     annotations = [{
         "label_name": "NW1 2BU",
         "label_id": "C2120",

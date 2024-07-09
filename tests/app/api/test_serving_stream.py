@@ -1,9 +1,11 @@
 import httpx
 import json
 import pytest
+
 import api.globals as cms_globals
 
 from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 from api.api import get_stream_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
@@ -123,12 +125,13 @@ def test_websocket_process(model_service, app):
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
-    client = TestClient(app)
 
-    with client.websocket_connect("/stream/ws") as websocket:
-        websocket.send_text("Spinal stenosis")
-        response = websocket.receive_json()
-        assert response == annotations
+    with pytest.raises(WebSocketDisconnect):
+        with TestClient(app) as client:
+            with client.websocket_connect("/stream/ws") as websocket:
+                websocket.send_text("Spinal stenosis")
+                response = websocket.receive_text()
+                assert response == "[Spinal stenosis: Spinal stenosis]"
 
 
 def test_websocket_process_on_annotation_error(model_service, app):
@@ -136,9 +139,10 @@ def test_websocket_process_on_annotation_error(model_service, app):
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
-    client = TestClient(app)
 
-    with client.websocket_connect("/stream/ws") as websocket:
-        websocket.send_text("Spinal stenosis")
-        response = websocket.receive_json()
-        assert response == {"error": "something went wrong"}
+    with pytest.raises(WebSocketDisconnect):
+        with TestClient(app) as client:
+            with client.websocket_connect("/stream/ws") as websocket:
+                websocket.send_text("Spinal stenosis")
+                response = websocket.receive_text()
+                assert response == "ERROR: something went wrong"
