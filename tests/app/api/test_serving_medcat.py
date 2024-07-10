@@ -36,7 +36,9 @@ def model_service():
 def client(model_service):
     app = get_model_server(msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
-    return TestClient(app)
+    client = TestClient(app)
+    yield client
+    client.app.dependency_overrides.clear()
 
 
 def test_healthz(client):
@@ -51,6 +53,7 @@ def test_readyz(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+
     assert client.get("/readyz").content.decode("utf-8") == ModelType.MEDCAT_SNOMED
 
 
@@ -62,7 +65,9 @@ def test_info(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+
     response = client.get("/info")
+
     assert response.json() == model_card
 
 
@@ -82,9 +87,11 @@ def test_process(model_service, client):
         },
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/process",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.json() == {
         "text": "Spinal stenosis",
         "annotations": annotations
@@ -110,6 +117,7 @@ def test_process_jsonl(model_service, client):
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
+
     response = client.post("/process_jsonl",
                            data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}',
                            headers={"Content-Type": "application/x-ndjson"})
@@ -143,6 +151,7 @@ def test_process_invalid_jsonl(model_service, client):
     response = client.post("/process_jsonl",
                            data="invalid json lines",
                            headers={"Content-Type": "application/x-ndjson"})
+
     assert response.status_code == 400
     assert response.json() == {"message": "Invalid JSON Lines."}
 
@@ -170,6 +179,7 @@ def test_process_unknown_jsonl_properties(model_service, client):
     response = client.post("/process_jsonl",
                            data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
                            headers={"Content-Type": "application/x-ndjson"})
+
     assert response.status_code == 400
     assert "Invalid JSON properties found." in response.json()["message"]
 
@@ -206,7 +216,9 @@ def test_process_bulk(model_service, client):
         }]
     ]
     model_service.batch_annotate.return_value = annotations_list
+
     response = client.post("/process_bulk", json=["Spinal stenosis", "Spinal stenosis"])
+
     assert response.json() == [
         {
             "text": "Spinal stenosis",
@@ -261,18 +273,22 @@ def test_redact(model_service, client):
         },
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.text == "[Spinal stenosis]"
 
 
 def test_warning_on_no_redaction(model_service, client):
     annotations = []
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact?warn_on_no_redaction=true",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.text == "WARNING: No entities were detected for redaction."
 
 
@@ -292,9 +308,11 @@ def test_redact_with_mask(model_service, client):
         },
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact?mask=***",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.text == "***"
 
 
@@ -314,9 +332,11 @@ def test_redact_with_hash(model_service, client):
         },
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact?mask=any&hash=true",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.text == "4c86af83314100034ad83fae3227e595fc54cb864c69ea912cd5290b8d0f41a4"
 
 
@@ -340,9 +360,11 @@ def test_redact_with_encryption(model_service, client):
       "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
     }
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact_with_encryption",
                            json=body,
                            headers={"Content-Type": "application/json"})
+
     assert response.json()["redacted_text"] == "[REDACTED_0]"
     assert len(response.json()["encryptions"]) == 1
     assert response.json()["encryptions"][0]["label"] == "[REDACTED_0]"
@@ -357,9 +379,11 @@ def test_warning_on_no_encrypted_redaction(model_service, client):
       "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
     }
     model_service.annotate.return_value = annotations
+
     response = client.post("/redact_with_encryption?warn_on_no_redaction=true",
                            json=body,
                            headers={"Content-Type": "application/json"})
+
     assert response.json()["message"] == "WARNING: No entities were detected for redaction."
 
 
@@ -379,9 +403,11 @@ def test_preview(model_service, client):
         },
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/preview",
                            data="Spinal stenosis",
                            headers={"Content-Type": "text/plain"})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
 
@@ -393,6 +419,7 @@ def test_preview_trainer_export(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 4
@@ -402,6 +429,7 @@ def test_preview_trainer_export_str(client):
     with open(TRAINER_EXPORT_PATH, "r") as f:
         trainer_export_str = f.read()
         response = client.post("/preview_trainer_export", data={"trainer_export_str": trainer_export_str}, headers={"Content-Type": "application/x-www-form-urlencoded"})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 2
@@ -410,6 +438,7 @@ def test_preview_trainer_export_str(client):
 def test_preview_trainer_export_with_project_id(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 2
@@ -418,6 +447,7 @@ def test_preview_trainer_export_with_project_id(client):
 def test_preview_trainer_export_with_document_id(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 1
@@ -426,6 +456,7 @@ def test_preview_trainer_export_with_document_id(client):
 def test_preview_trainer_export_with_project_and_document_ids(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 1
@@ -435,6 +466,7 @@ def test_preview_trainer_export_with_project_and_document_ids(client):
 def test_preview_trainer_export_on_missing_project_or_document(pid, did, client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post(f"/preview_trainer_export?project_id={pid}&document_id={did}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+
     assert response.status_code == 404
     assert response.json() == {"message": "Cannot find any matching documents to preview"}
 
@@ -442,6 +474,7 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did, client)
 def test_train_supervised(model_service, client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/train_supervised", files=[("trainer_export", f)])
+
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -452,6 +485,7 @@ def test_train_unsupervised(model_service, client):
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("[\"Spinal stenosis\"]"))
         response = client.post("/train_unsupervised", files=[("training_data", f)])
+
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
@@ -460,6 +494,7 @@ def test_train_unsupervised(model_service, client):
 def test_train_metacat(model_service, client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/train_metacat", files=[("trainer_export", f)])
+
     model_service.train_metacat.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
@@ -469,6 +504,7 @@ def test_train_metacat(model_service, client):
 def test_evaluate_with_trainer_export(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/evaluate", files=[("trainer_export", f)])
+
     assert response.status_code == 202
     assert response.json()["message"] == "Your evaluation started successfully."
     assert "evaluation_id" in response.json()
@@ -477,6 +513,7 @@ def test_evaluate_with_trainer_export(client):
 def test_sanity_check_with_trainer_export(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/sanity-check", files=[("trainer_export", f)])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
@@ -489,6 +526,7 @@ def test_inter_annotator_agreement_scores_per_concept(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
@@ -498,6 +536,7 @@ def test_inter_annotator_agreement_scores_per_concept(client):
 def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message, client):
     with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
         response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"message": error_message}
@@ -510,6 +549,7 @@ def test_unknown_scope_on_getting_iaa_scores(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
     assert response.json() == {"message": "Unknown scope: \"unknown\""}
@@ -522,6 +562,7 @@ def test_inter_annotator_agreement_scores_per_doc(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "doc_id,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
@@ -547,6 +588,7 @@ def test_concat_trainer_exports(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
     assert len(response.text) == 36918
@@ -559,6 +601,7 @@ def test_get_annotation_stats(client):
                 ("trainer_export", f1),
                 ("trainer_export", f2),
             ])
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,anno_count,anno_unique_counts,anno_ignorance_counts"

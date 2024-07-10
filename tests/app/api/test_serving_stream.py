@@ -23,14 +23,15 @@ config.AUTH_USER_ENABLED = "false"
 
 @pytest.fixture(scope="function")
 def model_service():
-    return create_autospec(MedCATModel)
+    yield create_autospec(MedCATModel)
 
 
 @pytest.fixture(scope="function")
 def app(model_service):
     app = get_stream_server(msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
-    return app
+    yield app
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

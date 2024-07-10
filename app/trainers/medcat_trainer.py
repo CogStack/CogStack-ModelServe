@@ -124,10 +124,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
                 logger.info("Performing supervised training...")
                 train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
-                train_supervised_params.update(training_params)
+                train_supervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_supervised_params.items()}
                 model.config.version.description = description or model.config.version.description
                 with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
-                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(**train_supervised_params)
+                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(data_file.name, **train_supervised_params)
                 trainer._save_examples(examples, ["tp", "tn"])
                 del examples
                 gc.collect()
@@ -335,7 +335,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             before_cui2count_train = dict(model.cdb.cui2count_train)
             num_of_docs = 0
             train_unsupervised_params = get_func_params_as_dict(model.train)
-            train_unsupervised_params.update(training_params)
+            train_unsupervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_unsupervised_params.items()}
             for batch in mini_batch(texts, batch_size=log_frequency):
                 step += 1
                 model.train(batch, **train_unsupervised_params)

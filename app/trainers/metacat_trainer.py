@@ -50,44 +50,44 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
                 if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                        (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                        (trainer._config.DEVICE.startswith("cpu")):
+                   (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
+                   (trainer._config.DEVICE.startswith("cpu")):
                     model = trainer._model_service.load_model(copied_model_pack_path,
                                                               meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
                     model.config.general["device"] = trainer._config.DEVICE
                 else:
                     model = trainer._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
-                exceptions = []
                 model.config.version.description = description or model.config.version.description
                 for meta_cat in model._meta_cats:
                     category_name = meta_cat.config.general["category_name"]
+                    if training_params.get("lr_override") is not None:
+                        meta_cat.config.train.lr = training_params["lr_override"]
+                    if training_params.get("test_size") is not None:
+                        meta_cat.config.train.test_size = training_params["test_size"]
+                    meta_cat.config.train.nepochs = training_params["nepochs"]
                     trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
                     trainer._tracker_client.log_trainer_version(medcat_version)
                     logger.info(f'Performing supervised training on category "{category_name}"...')
 
-                    for epoch in range(training_params["nepochs"]):
-                        try:
-                            winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
-                            is_retrained = True
-                        except Exception as e:
-                            logger.error(f"Failed on training meta model: {category_name}. This could be benign if training data has no annotations belonging to this category.")
-                            logger.exception(e)
-                            exceptions.append(e)
-                            break
-                        if (epoch + 1) % log_frequency == 0:
-                            report_stats = {
-                                f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
-                                f"{category_name}_macro_avg_recall": winner_report["report"]["macro avg"]["recall"],
-                                f"{category_name}_macro_avg_f1": winner_report["report"]["macro avg"]["f1-score"],
-                                f"{category_name}_macro_avg_support": winner_report["report"]["macro avg"]["support"],
-                                f"{category_name}_weighted_avg_precision": winner_report["report"]["weighted avg"]["precision"],
-                                f"{category_name}_weighted_avg_recall": winner_report["report"]["weighted avg"]["recall"],
-                                f"{category_name}_weighted_avg_f1": winner_report["report"]["weighted avg"]["f1-score"],
-                                f"{category_name}_weighted_avg_support": winner_report["report"]["weighted avg"]["support"],
-                            }
-                            trainer._tracker_client.send_model_stats(report_stats, epoch)
-                trainer._tracker_client.log_exceptions(exceptions)
+                    try:
+                        winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                        is_retrained = True
+                        report_stats = {
+                            f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
+                            f"{category_name}_macro_avg_recall": winner_report["report"]["macro avg"]["recall"],
+                            f"{category_name}_macro_avg_f1": winner_report["report"]["macro avg"]["f1-score"],
+                            f"{category_name}_macro_avg_support": winner_report["report"]["macro avg"]["support"],
+                            f"{category_name}_weighted_avg_precision": winner_report["report"]["weighted avg"]["precision"],
+                            f"{category_name}_weighted_avg_recall": winner_report["report"]["weighted avg"]["recall"],
+                            f"{category_name}_weighted_avg_f1": winner_report["report"]["weighted avg"]["f1-score"],
+                            f"{category_name}_weighted_avg_support": winner_report["report"]["weighted avg"]["support"],
+                        }
+                        trainer._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
+                    except Exception as e:
+                        logger.error(f"Failed on training meta model: {category_name}. This could be benign if training data has no annotations belonging to this category.")
+                        logger.exception(e)
+                        trainer._tracker_client.log_exceptions(e)
 
                 if not is_retrained:
                     raise TrainingFailedException(

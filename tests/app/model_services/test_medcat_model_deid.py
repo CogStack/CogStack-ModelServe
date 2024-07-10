@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock
 from medcat.cat import CAT
 from config import Settings
+from domain import ModelType
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 
 
@@ -52,7 +53,7 @@ def test_info(medcat_model):
     model_card = medcat_model.info()
     assert type(model_card.api_version) is str
     assert type(model_card.model_description) is str
-    assert model_card.model_type == "MedCAT"
+    assert model_card.model_type == ModelType.MEDCAT_DEID
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),

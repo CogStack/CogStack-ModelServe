@@ -111,6 +111,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 ner.training_arguments.logging_steps = 1
                 if training_params.get("lr_override") is not None:
                     ner.training_arguments.learning_rate = training_params["lr_override"]
+                if training_params.get("test_size") is not None:
+                    ner.config.general.test_size = training_params["test_size"]
                 # This default evaluation strategy is "epoch"
                 # ner.training_arguments.evaluation_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1

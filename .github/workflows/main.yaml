@@ -33,4 +33,4 @@ jobs:
           flake8 app/model_services/*.py app/management/*.py app/processors/*.py app/api/*.py app/api/routers/*.py app/api/auth/*.py app/cli/*.py app/trainers/*.py app/*.py tests/
       - name: Test
         run: |
-          pytest --random-order --cov --cov-report=html:coverage_reports
+          pytest --cov --cov-report=html:coverage_reports #--random-order 

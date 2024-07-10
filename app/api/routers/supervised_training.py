@@ -27,6 +27,7 @@ async def train_supervised(request: Request,
                            trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                            epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                            lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
+                           test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
@@ -56,7 +57,8 @@ async def train_supervised(request: Request,
                                                            raw_data_files=files,
                                                            description=description,
                                                            synchronised=False,
-                                                           lr_override=lr_override)
+                                                           lr_override=lr_override,
+                                                           test_size=test_size)
     finally:
         for file in files:
             file.close()

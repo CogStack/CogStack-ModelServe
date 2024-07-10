@@ -14,14 +14,16 @@ config.AUTH_USER_ENABLED = "true"
 
 @pytest.fixture(scope="function")
 def model_service():
-    return create_autospec(TransformersModelDeIdentification)
+    yield create_autospec(TransformersModelDeIdentification)
 
 
 @pytest.fixture(scope="function")
 def client(model_service):
     app = get_model_server(msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
-    return TestClient(app)
+    client = TestClient(app)
+    yield client
+    client.app.dependency_overrides.clear()
 
 
 def test_healthz(client):
@@ -36,6 +38,7 @@ def test_readyz(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+
     assert client.get("/readyz").content.decode("utf-8") == ModelType.TRANSFORMERS_DEID
 
 
@@ -47,7 +50,9 @@ def test_info(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+
     response = client.get("/info")
+
     assert response.json() == model_card
 
 
@@ -59,9 +64,11 @@ def test_process(model_service, client):
         "end": 6,
     }]
     model_service.annotate.return_value = annotations
+
     response = client.post("/process",
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})
+
     assert response.json() == {
         "text": "NW1 2BU",
         "annotations": annotations
@@ -84,7 +91,9 @@ def test_process_bulk(model_service, client):
         }]
     ]
     model_service.batch_annotate.return_value = annotations_list
+
     response = client.post("/process_bulk", json=["NW1 2BU", "NW1 2DA"])
+
     assert response.json() == [
         {
             "text": "NW1 2BU",
@@ -115,9 +124,11 @@ def test_preview(model_service, client):
         "end": 6,
     }]
     model_service.annotate.return_value = annotations
-    model_service.model_name = "SNOMED Model"
+    model_service.model_name = "De-Identification Model"
+
     response = client.post("/preview",
                            data="NW1 2BU",
                            headers={"Content-Type": "text/plain"})
+
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"

@@ -3,6 +3,7 @@ import pytest
 from transformers.models.bert.modeling_bert import BertForTokenClassification
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
 from config import Settings
+from domain import ModelType
 from model_services.trf_model_deid import TransformersModelDeIdentification
 
 
@@ -46,7 +47,7 @@ def test_info(trf_model):
     model_card = trf_model.info()
     assert type(model_card.api_version) is str
     assert type(model_card.model_description) is str
-    assert model_card.model_type == "Transformers"
+    assert model_card.model_type == ModelType.TRANSFORMERS_DEID
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),

@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import Mock
 from medcat.cat import CAT
 from config import Settings
+from domain import ModelType
 from model_services.medcat_model_snomed import MedCATModelSnomed
 
 
@@ -75,7 +76,7 @@ def test_init_model_with_no_tui_filter(medcat_model):
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
                     reason="requires the model file to be present in the resources folder")
 def test_load_model(medcat_model):
-    cat = MedCATModelSnomed.load_model(os.path.join(os.path.dirname(__file__), "..", "..", "resources", "snomed_model.zip"))
+    cat = MedCATModelSnomed.load_model(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip"))
     assert type(cat) is CAT
 
 
@@ -86,7 +87,7 @@ def test_info(medcat_model):
     model_card = medcat_model.info()
     assert type(model_card.api_version) is str
     assert type(model_card.model_description) is str
-    assert model_card.model_type == "MedCAT"
+    assert model_card.model_type == ModelType.MEDCAT_SNOMED
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
