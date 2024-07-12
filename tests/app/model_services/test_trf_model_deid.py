@@ -1,20 +1,10 @@
 import os
 import pytest
+from tests.app.conftest import MODEL_PARENT_DIR
 from transformers.models.bert.modeling_bert import BertForTokenClassification
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
-from config import Settings
 from domain import ModelType
 from model_services.trf_model_deid import TransformersModelDeIdentification
-
-
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
-
-
-@pytest.fixture(scope="function")
-def trf_model():
-    config = Settings()
-    config.BASE_MODEL_FILE = "trf_deid_model.zip"
-    return TransformersModelDeIdentification(config, MODEL_PARENT_DIR)
 
 
 def test_model_name(trf_model):

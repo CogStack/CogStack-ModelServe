@@ -1,5 +1,4 @@
 import os
-import pytest
 import mlflow
 import datasets
 import pandas as pd
@@ -7,31 +6,6 @@ from management.tracker_client import TrackerClient
 from data import doc_dataset
 from tests.app.helper import StringContains
 from unittest.mock import Mock, call
-
-
-@pytest.fixture
-def mlflow_fixture(mocker):
-    active_run = Mock()
-    active_run.info.run_id = "run_id"
-    mocker.patch("mlflow.set_tracking_uri")
-    mocker.patch("mlflow.get_experiment_by_name", return_value=None)
-    mocker.patch("mlflow.create_experiment", return_value="experiment_id")
-    mocker.patch("mlflow.start_run", return_value=active_run)
-    mocker.patch("mlflow.set_tags")
-    mocker.patch("mlflow.set_tag")
-    mocker.patch("mlflow.log_param")
-    mocker.patch("mlflow.log_params")
-    mocker.patch("mlflow.log_metrics")
-    mocker.patch("mlflow.log_artifact")
-    mocker.patch("mlflow.log_table")
-    mocker.patch("mlflow.log_input")
-    mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
-    mocker.patch("mlflow.end_run")
-
-
-@pytest.fixture
-def mlflow_fixture_file_uri(mlflow_fixture, mocker):
-    mocker.patch("mlflow.get_tracking_uri", return_value="file:/tmp/mlruns")
 
 
 def test_start_new(mlflow_fixture):

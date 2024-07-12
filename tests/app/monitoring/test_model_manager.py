@@ -1,4 +1,3 @@
-import pytest
 import mlflow
 import tempfile
 import pandas as pd
@@ -9,18 +8,6 @@ from model_services.base import AbstractModelService
 from management.model_manager import ModelManager
 from config import Settings
 from exception import ManagedModelException
-
-pyfunc_model = Mock()
-
-
-@pytest.fixture
-def mlflow_fixture(mocker):
-    mocker.patch("mlflow.set_tracking_uri")
-    mocker.patch("mlflow.pyfunc.load_model", return_value=pyfunc_model)
-    mocker.patch("mlflow.pyfunc.log_model")
-    mocker.patch("mlflow.artifacts.download_artifacts")
-    mocker.patch("mlflow.register_model")
-    mocker.patch("mlflow.pyfunc.save_model")
 
 
 def test_retrieve_python_model_from_uri(mlflow_fixture):
