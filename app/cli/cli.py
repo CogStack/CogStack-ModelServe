@@ -18,6 +18,9 @@ import uvicorn  # noqa
 import shutil  # noqa
 import typer  # noqa
 import graypy  # noqa
+import aiohttp  # noqa
+import asyncio  # noqa
+import websockets  # noqa
 import api.globals as cms_globals  # noqa
 
 from logging import LogRecord  # noqa
@@ -33,6 +36,8 @@ from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
 cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
+stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
+cmd_app.add_typer(stream_app, name="stream")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 logger = logging.getLogger("cms")
 
@@ -201,6 +206,60 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                                          model_metrics=m_metrics,
                                          model_tags=m_tags)
     print(f"Pushed {model_path} as a new model version ({run_name})")
+
+
+@stream_app.command("json_lines", help="This gets NER entities as a JSON Lines stream")
+def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
+                             base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
+                             timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection")) -> None:
+    async def get_jsonl_stream(base_url: str, jsonl_file_path: str) -> None:
+        with open(jsonl_file_path) as file:
+            headers = {"Content-Type": "application/x-ndjson"}
+            try:
+                async with aiohttp.ClientSession() as session:
+                    timeout = aiohttp.ClientTimeout(total=timeout_in_secs)
+                    async with session.post(f"{base_url}/stream/process",
+                                            data=file.read().encode("utf-8"),
+                                            headers=headers,
+                                            timeout=timeout) as response:
+                        response.raise_for_status()
+                        async for line in response.content:
+                            print(line.decode("utf-8"), end="")
+            finally:
+                logger.debug("Closing the session...")
+                await session.close()
+                logger.debug("Session closed")
+
+    asyncio.run(get_jsonl_stream(base_url, jsonl_file_path))
+
+
+@stream_app.command("chat", help="This gets NER entities by chatting with the model")
+def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url")) -> None:
+    async def chat_with_model(base_url: str) -> None:
+        try:
+            chat_endpoint = f"{base_url}/stream/ws"
+            async with websockets.connect(chat_endpoint, ping_interval=10, ping_timeout=10) as websocket:
+                logging.info("Connected to CMS. Please finish your typing with <ENTER>:")
+                while True:
+                    text = sys.stdin.readline()
+                    if text.strip() == "":
+                        continue
+                    try:
+                        await websocket.send(text)
+                        response = await websocket.recv()
+                        print("CMS =>")
+                        print(response)
+                    except websockets.ConnectionClosed as e:
+                        logger.error(f"Connection closed: {e}")
+                        break
+                    except Exception as e:
+                        logger.error(f"Error while sending message: {e}")
+        except websockets.InvalidURI:
+            logger.error(f"Invalid URI: {chat_endpoint}")
+        except Exception as e:
+            logger.error(f"Error: {e}")
+
+    asyncio.run(chat_with_model(base_url))
 
 
 @cmd_app.command("export-model-apis")

@@ -121,14 +121,14 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any], model_type: Optional[M
             else:
                 document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") in concept_ids and anno.get("correct", True) and not anno.get("deleted", False) and not anno.get("killed", False)]
 
-    if model_type == ModelType.TRANSFORMERS_DEID or model_type == ModelType.MEDCAT_DEID:
+    if model_type == ModelType.TRANSFORMERS_DEID or model_type == ModelType.MEDCAT_DEID or model_type == ModelType.ANONCAT:
         # special preprocessing for the DeID annotations and consider removing this.
         for project in filtered["projects"]:
             for document in project["documents"]:
                 for annotation in document["annotations"]:
                     if annotation["cui"] == "N1100" or annotation["cui"] == "N1200":    # for metric calculation
                         annotation["cui"] = "N1000"
-                    if annotation["cui"] == "W5000" and model_type == ModelType.MEDCAT_DEID:    # for compatibility
+                    if annotation["cui"] == "W5000" and (model_type == ModelType.MEDCAT_DEID or model_type == ModelType.ANONCAT):    # for compatibility
                         annotation["cui"] = "C2500"
 
     return filtered

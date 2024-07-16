@@ -10,5 +10,6 @@ model_service_registry = {
     ModelType.MEDCAT_UMLS.value: MedCATModelUmls,
     ModelType.MEDCAT_ICD10.value: MedCATModelIcd10,
     ModelType.MEDCAT_DEID.value: MedCATModelDeIdentification,
+    ModelType.ANONCAT.value: MedCATModelDeIdentification,
     ModelType.TRANSFORMERS_DEID.value: TransformersModelDeIdentification
 }

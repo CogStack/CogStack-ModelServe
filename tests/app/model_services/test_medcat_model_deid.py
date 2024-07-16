@@ -43,7 +43,7 @@ def test_info(medcat_deid_model):
     model_card = medcat_deid_model.info()
     assert type(model_card.api_version) is str
     assert type(model_card.model_description) is str
-    assert model_card.model_type == ModelType.MEDCAT_DEID
+    assert model_card.model_type == ModelType.ANONCAT
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),

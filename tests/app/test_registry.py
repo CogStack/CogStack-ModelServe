@@ -12,4 +12,5 @@ def test_model_registry():
     assert model_service_registry[ModelType.MEDCAT_UMLS.value] == MedCATModelUmls
     assert model_service_registry[ModelType.MEDCAT_ICD10.value] == MedCATModelIcd10
     assert model_service_registry[ModelType.MEDCAT_DEID.value] == MedCATModelDeIdentification
+    assert model_service_registry[ModelType.ANONCAT.value] == MedCATModelDeIdentification
     assert model_service_registry[ModelType.TRANSFORMERS_DEID.value] == TransformersModelDeIdentification

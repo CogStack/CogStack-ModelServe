@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     SKIP_SAVE_TRAINING_DATASET: str = "true"          # if "true", the dataset used for training won't be saved
     PROCESS_RATE_LIMIT: str = "180/minute"            # the rate limit on the /process route
     PROCESS_BULK_RATE_LIMIT: str = "90/minute"        # the rate limit on the /process_bulk route
+    WS_IDLE_TIMEOUT_SECONDS: int = 50                 # the timeout in seconds on the WebSocket connection being idle
     TYPE_UNIQUE_ID_WHITELIST: str = ""                # the comma-separated TUIs used for filtering and if set to "", all TUIs are whitelisted
     AUTH_USER_ENABLED: str = "false"                  # if "true", enable user authentication on API access
     AUTH_JWT_SECRET: str = ""                         # the JWT secret and will be ignored if AUTH_USER_ENABLED is not "true"

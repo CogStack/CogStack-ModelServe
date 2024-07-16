@@ -83,6 +83,28 @@ curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
 ```
 will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
 
+#### Chat with served models
+You can also "chat" with the running model using the `/stream/ws` endpoint:
+```html
+<form action="" onsubmit="send_doc(event)">
+    <input type="text" id="cms-input" autocomplete="off"/>
+    <button>Send</button>
+</form>
+<ul id="cms-output"></ul>
+<script>
+    var ws = new WebSocket("ws://localhost:8000/stream/ws");
+    ws.onmessage = function(event) {
+        document.getElementById("cms-output").appendChild(
+            Object.assign(document.createElement('li'), { textContent: event.data })
+        );
+    };
+    function send_doc(event) {
+        ws.send(document.getElementById("cms-input").value);
+        event.preventDefault();
+    };
+</script>
+```
+
 ### Auxiliary services
 In addition to the core services such as serving, training and evaluation, CMS provides several ready-to-use components
 to help users run CMS in a production environment. The default configuration can be customised to what suits your own needs.

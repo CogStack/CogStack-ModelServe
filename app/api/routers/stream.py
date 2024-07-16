@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
 
@@ -41,6 +42,7 @@ async def get_entities_stream_from_jsonlines_stream(request: Request,
 async def get_inline_annotations_from_websocket(websocket: WebSocket,
                                                 user_manager: CmsUserManager = Depends(get_user_manager),
                                                 model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
+    monitor_idle_task = None
     try:
         if get_settings().AUTH_USER_ENABLED == "true":
             cookie = websocket.cookies.get("fastapiusersauth")
@@ -51,8 +53,22 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
                 raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
 
         await websocket.accept()
+
+        time_of_last_seen_msg = asyncio.get_event_loop().time()
+
+        async def _monitor_idle() -> None:
+            while True:
+                await asyncio.sleep(get_settings().WS_IDLE_TIMEOUT_SECONDS)
+                if (asyncio.get_event_loop().time() - time_of_last_seen_msg) >= get_settings().WS_IDLE_TIMEOUT_SECONDS:
+                    await websocket.close()
+                    logger.debug("Connection closed due to inactivity")
+                    break
+
+        monitor_idle_task = asyncio.create_task(_monitor_idle())
+
         while True:
             text = await websocket.receive_text()
+            time_of_last_seen_msg = asyncio.get_event_loop().time()
             try:
                 annotations = await model_service.async_annotate(text)
                 annotated_text = ""
@@ -66,12 +82,14 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
             else:
                 await websocket.send_text(annotated_text)
     except WebSocketDisconnect as e:
-        logging.warning(str(e))
+        logger.warning(str(e))
     finally:
         try:
+            if monitor_idle_task is not None:
+                monitor_idle_task.cancel()
             await websocket.close()
         except RuntimeError as e:
-            logging.warning(str(e))
+            logger.warning(str(e))
 
 
 class _LocalStreamingResponse(Response):

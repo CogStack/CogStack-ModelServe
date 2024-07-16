@@ -39,7 +39,7 @@ class MedCATModelDeIdentification(MedCATModel):
         model_card = self.model.get_model_card(as_dict=True)
         model_card["Basic CDB Stats"]["Average training examples per concept"] = 0
         return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.MEDCAT_DEID,
+                         model_type=ModelType.ANONCAT,
                          api_version=self.api_version,
                          model_card=model_card)
 

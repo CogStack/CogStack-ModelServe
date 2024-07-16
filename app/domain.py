@@ -11,6 +11,7 @@ class ModelType(str, Enum):
     MEDCAT_UMLS = "medcat_umls"
     MEDCAT_ICD10 = "medcat_icd10"
     MEDCAT_DEID = "medcat_deid"
+    ANONCAT = "anoncat"
     TRANSFORMERS_DEID = "transformers_deid"
 
 
