@@ -49,7 +49,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                streamable: bool = typer.Option(False, help="Serve the bidirectional streamable endpoint only")) -> None:
+                streamable: bool = typer.Option(False, help="Serve the streamable endpoints only")) -> None:
     """
     This serves various CogStack NLP models
     """
@@ -238,22 +238,35 @@ def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8
     async def chat_with_model(base_url: str) -> None:
         try:
             chat_endpoint = f"{base_url}/stream/ws"
-            async with websockets.connect(chat_endpoint, ping_interval=10, ping_timeout=10) as websocket:
-                logging.info("Connected to CMS. Please finish your typing with <ENTER>:")
-                while True:
-                    text = sys.stdin.readline()
-                    if text.strip() == "":
-                        continue
-                    try:
-                        await websocket.send(text)
-                        response = await websocket.recv()
-                        print("CMS =>")
-                        print(response)
-                    except websockets.ConnectionClosed as e:
-                        logger.error(f"Connection closed: {e}")
-                        break
-                    except Exception as e:
-                        logger.error(f"Error while sending message: {e}")
+            async with websockets.connect(chat_endpoint, ping_interval=None) as websocket:
+                async def keep_alive() -> None:
+                    while True:
+                        try:
+                            await websocket.ping()
+                            await asyncio.sleep(10)
+                        except asyncio.CancelledError:
+                            break
+
+                keep_alive_task = asyncio.create_task(keep_alive())
+                logging.info("Connected to CMS. Start typing you input and press <ENTER> to submit:")
+                try:
+                    while True:
+                        text = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+                        if text.strip() == "":
+                            continue
+                        try:
+                            await websocket.send(text)
+                            response = await websocket.recv()
+                            print("CMS =>")
+                            print(response)
+                        except websockets.ConnectionClosed as e:
+                            logger.error(f"Connection closed: {e}")
+                            break
+                        except Exception as e:
+                            logger.error(f"Error while sending message: {e}")
+                finally:
+                    keep_alive_task.cancel()
+                    await keep_alive_task
         except websockets.InvalidURI:
             logger.error(f"Invalid URI: {chat_endpoint}")
         except Exception as e:

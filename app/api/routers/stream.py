@@ -3,6 +3,7 @@ import logging
 import asyncio
 from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
+from starlette.requests import ClientDisconnect
 
 import api.globals as cms_globals
 
@@ -127,42 +128,45 @@ class _LocalStreamingResponse(Response):
 
 
 async def _annotation_async_gen(request: Request, model_service: AbstractModelService) -> AsyncGenerator:
-    buffer = ""
-    doc_idx = 0
-    async for chunk in request.stream():
-        decoded = chunk.decode("utf-8")
-        if not decoded:
-            break
-        buffer += decoded
-        while "\n" in buffer:
-            lines = buffer.split("\n")
-            line = lines[0]
-            buffer = "\n".join(lines[1:]) if len(lines) > 1 else ""
-            if line.strip():
-                try:
-                    json_line_obj = json.loads(line)
-                    TextStreamItem(**json_line_obj)
-                    annotations = await model_service.async_annotate(json_line_obj["text"])
-                    for annotation in annotations:
-                        annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
-                        yield Annotation(**annotation).json(exclude_none=True) + "\n"
-                except json.JSONDecodeError:
-                    yield json.dumps({"error": "Invalid JSON Line", "content": line}) + "\n"
-                except ValidationError:
-                    yield json.dumps({"error": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}", "content": line}) + "\n"
-                finally:
-                    doc_idx += 1
-    if buffer.strip():
-        try:
-            json_line_obj = json.loads(buffer)
-            TextStreamItem(**json_line_obj)
-            annotations = model_service.annotate(json_line_obj["text"])
-            for annotation in annotations:
-                annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
-                yield Annotation(**annotation).json(exclude_none=True) + "\n"
-        except json.JSONDecodeError:
-            yield json.dumps({"error": "Invalid JSON Line", "content": buffer}) + "\n"
-        except ValidationError:
-            yield json.dumps({"error": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}", "content": buffer}) + "\n"
-        finally:
-            doc_idx += 1
+    try:
+        buffer = ""
+        doc_idx = 0
+        async for chunk in request.stream():
+            decoded = chunk.decode("utf-8")
+            if not decoded:
+                break
+            buffer += decoded
+            while "\n" in buffer:
+                lines = buffer.split("\n")
+                line = lines[0]
+                buffer = "\n".join(lines[1:]) if len(lines) > 1 else ""
+                if line.strip():
+                    try:
+                        json_line_obj = json.loads(line)
+                        TextStreamItem(**json_line_obj)
+                        annotations = await model_service.async_annotate(json_line_obj["text"])
+                        for annotation in annotations:
+                            annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
+                            yield Annotation(**annotation).json(exclude_none=True) + "\n"
+                    except json.JSONDecodeError:
+                        yield json.dumps({"error": "Invalid JSON Line", "content": line}) + "\n"
+                    except ValidationError:
+                        yield json.dumps({"error": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}", "content": line}) + "\n"
+                    finally:
+                        doc_idx += 1
+        if buffer.strip():
+            try:
+                json_line_obj = json.loads(buffer)
+                TextStreamItem(**json_line_obj)
+                annotations = model_service.annotate(json_line_obj["text"])
+                for annotation in annotations:
+                    annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
+                    yield Annotation(**annotation).json(exclude_none=True) + "\n"
+            except json.JSONDecodeError:
+                yield json.dumps({"error": "Invalid JSON Line", "content": buffer}) + "\n"
+            except ValidationError:
+                yield json.dumps({"error": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}", "content": buffer}) + "\n"
+            finally:
+                doc_idx += 1
+    except ClientDisconnect:
+        logger.warning("Client disconnected while annotations were being streamed")

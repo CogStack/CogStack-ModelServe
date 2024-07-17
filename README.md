@@ -19,7 +19,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
-You can use the following commands to explore available CLI options:
+You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
 ```commandline
 python app/cli/cli.py --help
 python app/cli/cli.py serve --help
@@ -32,19 +32,19 @@ CMS runs the NLP model packaged in a single ZIP file. To download the GA models,
 ## Run ModelServe in the system environment:
 
 ### Configuration:
-Default configuration properties can be found and tweaked in `./app/envs/.envs`.
+Default configuration properties can be found in `./app/envs/.envs` and further tweaked if needed.
 
 ### Serve models via HTTP APIs
 To serve NLP models from your system environment, run the following command:
 ```commandline
 python app/cli/cli.py serve --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
 ```
-Then the API docs will be accessible at http://127.0.0.1:8000/docs
+Then the API docs similar to the ones shown above will be accessible at http://127.0.0.1:8000/docs.
 
 ### Servable Model Types:
 The following table summarises the servable model types with their respective output concepts:
 
-|    model-type     |   model-service   |         output-spans          |
+|    model-type     |  docker-service   |         output-spans          |
 |:-----------------:|:-----------------:|:-----------------------------:|
 |   medcat_snomed   |   medcat-snomed   | labelled with SNOMED concepts |
 |   medcat_icd10    |   medcat-icd10    | labelled with ICD-10 concepts |
@@ -70,7 +70,7 @@ as a `cms` non-root user configured during the image build. Ensure the model pac
 logged-in user to avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
 
 ### Serve models via streaming HTTP APIs
-You can send your texts as a stream to the CMS stream endpoint and receive NLP results also as a stream. To that end,
+You can send your texts to the CMS stream endpoint and receive NLP results as a stream. To that end,
 start CMS as a streamable service by running:
 ```commandline
 python app/cli/cli.py serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
@@ -84,7 +84,7 @@ curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
 will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
 
 #### Chat with served models
-You can also "chat" with the running model using the `/stream/ws` endpoint:
+You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
 ```html
 <form action="" onsubmit="send_doc(event)">
     <input type="text" id="cms-input" autocomplete="off"/>
