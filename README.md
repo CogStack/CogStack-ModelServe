@@ -11,13 +11,13 @@ pip install -r app/requirements.txt
 ## APIs
 Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a command-line interface for administering model management tasks. Multi-language [SDKs](https://github.com/CogStack-ModelServe/cms-clients) are under development for providing increased accessibility.
 
-[OpenAPI Docs](https://CogStack-ModelServe.github.io/cogstack-model-serve/):
-- [SNOMED MedCAT Model](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/medcat_snomed_model_apis.html)
-- [ICD-10 MedCAT Model](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/medcat_icd10_model_apis.html)
-- [UMLS MedCAT Model](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/medcat_umls_model_apis.html)
-- [De-ID MedCAT Model](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/medcat_deid_model_apis.html)
-- [De-ID Transformers Model](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/transformers_deid_model_apis.html)
-- [All-in-One Doc](https://CogStack-ModelServe.github.io/cogstack-model-serve/docs/cogstack_model_serve_apis.html)
+[OpenAPI Docs](https://cogstack.github.io/CogStack-ModelServe/):
+- [SNOMED MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_snomed_model_apis.html)
+- [ICD-10 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_icd10_model_apis.html)
+- [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
+- [AnonCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
+- [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
+- [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
 You can use the following commands to explore available CLI options:
 ```commandline
@@ -156,4 +156,6 @@ token-based authentication and hook it up with the database by following this [I
 
 The diagram illustrating the interactions between core and auxiliary services is presented below:
 
-[TBA]
+<p align="center">
+  <img src="app/api/static/images/cms.png" alt="components" width="auto">
+</p>
