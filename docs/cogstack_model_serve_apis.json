@@ -1,0 +1,1776 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "CogStack Model Serve APIs",
+        "summary": "A model serving and governance system for CogStack NLP solutions",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/auth/jwt/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Auth:Jwt.Login",
+                "operationId": "auth:jwt.login",
+                "requestBody": {
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_auth_jwt_login_auth_jwt_login_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BearerResponse"
+                                },
+                                "example": {
+                                    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiOTIyMWZmYzktNjQwZi00MzcyLTg2ZDMtY2U2NDJjYmE1NjAzIiwiYXVkIjoiZmFzdGFwaS11c2VyczphdXRoIiwiZXhwIjoxNTcxNTA0MTkzfQ.M10bjOe45I5Ncu_uXvOmVV8QxnL-nZfcH96U90JaocI",
+                                    "token_type": "bearer"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorModel"
+                                },
+                                "examples": {
+                                    "LOGIN_BAD_CREDENTIALS": {
+                                        "summary": "Bad credentials or the user is inactive.",
+                                        "value": {
+                                            "detail": "LOGIN_BAD_CREDENTIALS"
+                                        }
+                                    },
+                                    "LOGIN_USER_NOT_VERIFIED": {
+                                        "summary": "The user is not verified.",
+                                        "value": {
+                                            "detail": "LOGIN_USER_NOT_VERIFIED"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/jwt/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Auth:Jwt.Logout",
+                "operationId": "auth:jwt.logout",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing token or inactive user."
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/auth/cookie/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Auth:Cookie.Login",
+                "operationId": "auth:cookie.login",
+                "requestBody": {
+                    "content": {
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_auth_cookie_login_auth_cookie_login_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorModel"
+                                },
+                                "examples": {
+                                    "LOGIN_BAD_CREDENTIALS": {
+                                        "summary": "Bad credentials or the user is inactive.",
+                                        "value": {
+                                            "detail": "LOGIN_BAD_CREDENTIALS"
+                                        }
+                                    },
+                                    "LOGIN_USER_NOT_VERIFIED": {
+                                        "summary": "The user is not verified.",
+                                        "value": {
+                                            "detail": "LOGIN_USER_NOT_VERIFIED"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/cookie/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Auth:Cookie.Logout",
+                "operationId": "auth:cookie.logout",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing token or inactive user."
+                    },
+                    "204": {
+                        "description": "No Content"
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/info": {
+            "get": {
+                "tags": [
+                    "Metadata"
+                ],
+                "summary": "Get Model Card",
+                "description": "Get information about the model being served",
+                "operationId": "get_model_card",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ModelCard"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/process": {
+            "post": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Get Entities From Text",
+                "description": "Extract the NER entities from a single piece of plain text",
+                "operationId": "get_entities_from_text",
+                "requestBody": {
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "type": "string",
+                                "title": "Text",
+                                "description": "The plain text to be sent to the model for NER"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TextWithAnnotations"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/process_jsonl": {
+            "post": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Get Entities From Jsonlines Text",
+                "description": "Extract the NER entities from texts in the JSON Lines format",
+                "operationId": "get_entities_from_jsonlines_text",
+                "requestBody": {
+                    "content": {
+                        "application/x-ndjson": {
+                            "schema": {
+                                "type": "string",
+                                "title": "Json Lines",
+                                "description": "The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/process_bulk": {
+            "post": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Get Entities From Multiple Texts",
+                "description": "Extract the NER entities from multiple plain texts",
+                "operationId": "get_entities_from_multiple_texts",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "title": "Texts",
+                                "description": "A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/TextWithAnnotations"
+                                    },
+                                    "type": "array",
+                                    "title": "Response Get Entities From Multiple Texts Process Bulk Post"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/process_bulk_file": {
+            "post": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Extract Entities From Multi Text File",
+                "description": "Upload a file containing a list of plain text and extract the NER entities in JSON",
+                "operationId": "extract_entities_from_multi_text_file",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_extract_entities_from_multi_text_file_process_bulk_file_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/redact": {
+            "post": {
+                "tags": [
+                    "Redaction"
+                ],
+                "summary": "Get Redacted Text",
+                "description": "Extract and redact NER entities from a single piece of plain text",
+                "operationId": "get_redacted_text",
+                "parameters": [
+                    {
+                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "title": "Warn On No Redaction",
+                            "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                            "default": false
+                        },
+                        "name": "warn_on_no_redaction",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The custom symbols used for masking detected spans",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Mask",
+                            "description": "The custom symbols used for masking detected spans"
+                        },
+                        "name": "mask",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Whether or not to hash detected spans",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "title": "Hash",
+                            "description": "Whether or not to hash detected spans",
+                            "default": false
+                        },
+                        "name": "hash",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "type": "string",
+                                "title": "Text",
+                                "description": "The plain text to be sent to the model for NER and redaction"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/redact_with_encryption": {
+            "post": {
+                "tags": [
+                    "Redaction"
+                ],
+                "summary": "Get Redacted Text With Encryption",
+                "description": "Redact and encrypt NER entities from a single piece of plain text",
+                "operationId": "get_redacted_text_with_encryption",
+                "parameters": [
+                    {
+                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "title": "Warn On No Redaction",
+                            "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                            "default": false
+                        },
+                        "name": "warn_on_no_redaction",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TextWithPublicKey"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/train_supervised": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Supervised",
+                "description": "Upload one or more trainer export files and trigger the supervised training",
+                "operationId": "train_supervised",
+                "parameters": [
+                    {
+                        "description": "The number of training epochs",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0.0,
+                            "title": "Epochs",
+                            "description": "The number of training epochs",
+                            "default": 1
+                        },
+                        "name": "epochs",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The override of the initial learning rate",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "exclusiveMinimum": 0.0,
+                            "title": "Lr Override",
+                            "description": "The override of the initial learning rate"
+                        },
+                        "name": "lr_override",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The override of the test size in percentage",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "minimum": 0.0,
+                            "title": "Test Size",
+                            "description": "The override of the test size in percentage",
+                            "default": 0.2
+                        },
+                        "name": "test_size",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The number of processed documents after which training metrics will be logged",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1.0,
+                            "title": "Log Frequency",
+                            "description": "The number of processed documents after which training metrics will be logged",
+                            "default": 1
+                        },
+                        "name": "log_frequency",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_train_supervised_train_supervised_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/train_unsupervised": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Unsupervised",
+                "description": "Upload one or more plain text files and trigger the unsupervised training",
+                "operationId": "train_unsupervised",
+                "parameters": [
+                    {
+                        "description": "The number of processed documents after which training metrics will be logged",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1.0,
+                            "title": "Log Frequency",
+                            "description": "The number of processed documents after which training metrics will be logged",
+                            "default": 1000
+                        },
+                        "name": "log_frequency",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The description of the training or change logs",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Description",
+                            "description": "The description of the training or change logs"
+                        },
+                        "name": "description",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_train_unsupervised_train_unsupervised_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/train_metacat": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Metacat",
+                "description": "Upload one or more trainer export files and trigger the metacat training",
+                "operationId": "train_metacat",
+                "parameters": [
+                    {
+                        "description": "The number of training epochs",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0.0,
+                            "title": "Epochs",
+                            "description": "The number of training epochs",
+                            "default": 1
+                        },
+                        "name": "epochs",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The number of processed documents after which training metrics will be logged",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1.0,
+                            "title": "Log Frequency",
+                            "description": "The number of processed documents after which training metrics will be logged",
+                            "default": 1
+                        },
+                        "name": "log_frequency",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The description on the training or change logs",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Description",
+                            "description": "The description on the training or change logs"
+                        },
+                        "name": "description",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_train_metacat_train_metacat_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/evaluate": {
+            "post": {
+                "tags": [
+                    "Evaluating"
+                ],
+                "summary": "Get Evaluation With Trainer Export",
+                "description": "Evaluate the model being served with a trainer export",
+                "operationId": "get_evaluation_with_trainer_export",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_evaluation_with_trainer_export_evaluate_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/sanity-check": {
+            "post": {
+                "tags": [
+                    "Evaluating"
+                ],
+                "summary": "Get Sanity Check With Trainer Export",
+                "description": "Sanity check the model being served with a trainer export",
+                "operationId": "get_sanity_check_with_trainer_export",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_sanity_check_with_trainer_export_sanity_check_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/iaa-scores": {
+            "post": {
+                "tags": [
+                    "Evaluating"
+                ],
+                "summary": "Get Inter Annotator Agreement Scores",
+                "description": "Calculate inter annotator agreement scores between two projects",
+                "operationId": "get_inter_annotator_agreement_scores",
+                "parameters": [
+                    {
+                        "description": "The project ID from one annotator",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Annotator A Project Id",
+                            "description": "The project ID from one annotator"
+                        },
+                        "name": "annotator_a_project_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The project ID from another annotator",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Annotator B Project Id",
+                            "description": "The project ID from another annotator"
+                        },
+                        "name": "annotator_b_project_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "per_concept",
+                                "per_document",
+                                "per_span"
+                            ],
+                            "title": "Scope",
+                            "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span"
+                        },
+                        "name": "scope",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_inter_annotator_agreement_scores_iaa_scores_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/concat_trainer_exports": {
+            "post": {
+                "tags": [
+                    "Evaluating"
+                ],
+                "summary": "Get Concatenated Trainer Exports",
+                "description": "Concatenate multiple trainer export files into a single file for download",
+                "operationId": "get_concatenated_trainer_exports",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_concatenated_trainer_exports_concat_trainer_exports_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/annotation-stats": {
+            "post": {
+                "tags": [
+                    "Evaluating"
+                ],
+                "summary": "Get Annotation Stats",
+                "description": "Get annotation stats of trainer export files",
+                "operationId": "get_annotation_stats",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_annotation_stats_annotation_stats_post"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/preview": {
+            "post": {
+                "tags": [
+                    "Rendering"
+                ],
+                "summary": "Get Rendered Entities From Text",
+                "description": "Extract the NER entities in HTML for preview",
+                "operationId": "get_rendered_entities_from_text",
+                "requestBody": {
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "type": "string",
+                                "title": "Text",
+                                "description": "The text to be sent to the model for NER"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/preview_trainer_export": {
+            "post": {
+                "tags": [
+                    "Rendering"
+                ],
+                "summary": "Get Rendered Entities From Trainer Export",
+                "description": "Get existing entities in HTML from a trainer export for preview",
+                "operationId": "get_rendered_entities_from_trainer_export",
+                "parameters": [
+                    {
+                        "description": "The target project ID, and if not provided, all projects will be included",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Project Id",
+                            "description": "The target project ID, and if not provided, all projects will be included"
+                        },
+                        "name": "project_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The target document ID, and if not provided, all documents of the target project(s) will be included",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Document Id",
+                            "description": "The target document ID, and if not provided, all documents of the target project(s) will be included"
+                        },
+                        "name": "document_id",
+                        "in": "query"
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_rendered_entities_from_trainer_export_preview_trainer_export_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Annotation": {
+                "properties": {
+                    "doc_name": {
+                        "type": "string",
+                        "title": "Doc Name",
+                        "description": "The name of the document to which the annotation belongs"
+                    },
+                    "start": {
+                        "type": "integer",
+                        "title": "Start",
+                        "description": "The start index of the annotation span"
+                    },
+                    "end": {
+                        "type": "integer",
+                        "title": "End",
+                        "description": "The first index after the annotation span"
+                    },
+                    "label_name": {
+                        "type": "string",
+                        "title": "Label Name",
+                        "description": "The pretty name of the annotation concept"
+                    },
+                    "label_id": {
+                        "type": "string",
+                        "title": "Label Id",
+                        "description": "The code of the annotation concept"
+                    },
+                    "categories": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Categories",
+                        "description": "The categories to which the annotation concept belongs"
+                    },
+                    "accuracy": {
+                        "type": "number",
+                        "title": "Accuracy",
+                        "description": "The confidence score of the annotation"
+                    },
+                    "text": {
+                        "type": "string",
+                        "title": "Text",
+                        "description": "The string literal of the annotation span"
+                    },
+                    "meta_anns": {
+                        "type": "object",
+                        "title": "Meta Anns",
+                        "description": "The meta annotations"
+                    },
+                    "athena_ids": {
+                        "items": {
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "title": "Athena Ids",
+                        "description": "The OHDSI Athena concept IDs"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "start",
+                    "end",
+                    "label_name",
+                    "label_id"
+                ],
+                "title": "Annotation"
+            },
+            "BearerResponse": {
+                "properties": {
+                    "access_token": {
+                        "type": "string",
+                        "title": "Access Token"
+                    },
+                    "token_type": {
+                        "type": "string",
+                        "title": "Token Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "access_token",
+                    "token_type"
+                ],
+                "title": "BearerResponse"
+            },
+            "Body_auth_cookie_login_auth_cookie_login_post": {
+                "properties": {
+                    "grant_type": {
+                        "type": "string",
+                        "pattern": "password",
+                        "title": "Grant Type"
+                    },
+                    "username": {
+                        "type": "string",
+                        "title": "Username"
+                    },
+                    "password": {
+                        "type": "string",
+                        "title": "Password"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "title": "Scope",
+                        "default": ""
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "title": "Client Id"
+                    },
+                    "client_secret": {
+                        "type": "string",
+                        "title": "Client Secret"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "username",
+                    "password"
+                ],
+                "title": "Body_auth_cookie_login_auth_cookie_login_post"
+            },
+            "Body_auth_jwt_login_auth_jwt_login_post": {
+                "properties": {
+                    "grant_type": {
+                        "type": "string",
+                        "pattern": "password",
+                        "title": "Grant Type"
+                    },
+                    "username": {
+                        "type": "string",
+                        "title": "Username"
+                    },
+                    "password": {
+                        "type": "string",
+                        "title": "Password"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "title": "Scope",
+                        "default": ""
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "title": "Client Id"
+                    },
+                    "client_secret": {
+                        "type": "string",
+                        "title": "Client Secret"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "username",
+                    "password"
+                ],
+                "title": "Body_auth_jwt_login_auth_jwt_login_post"
+            },
+            "Body_extract_entities_from_multi_text_file_process_bulk_file_post": {
+                "properties": {
+                    "multi_text_file": {
+                        "type": "string",
+                        "format": "binary",
+                        "title": "Multi Text File",
+                        "description": "A file containing a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "multi_text_file"
+                ],
+                "title": "Body_extract_entities_from_multi_text_file_process_bulk_file_post"
+            },
+            "Body_get_annotation_stats_annotation_stats_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_annotation_stats_annotation_stats_post"
+            },
+            "Body_get_concatenated_trainer_exports_concat_trainer_exports_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "A list of trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_concatenated_trainer_exports_concat_trainer_exports_post"
+            },
+            "Body_get_evaluation_with_trainer_export_evaluate_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_evaluation_with_trainer_export_evaluate_post"
+            },
+            "Body_get_inter_annotator_agreement_scores_iaa_scores_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "A list of trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_inter_annotator_agreement_scores_iaa_scores_post"
+            },
+            "Body_get_rendered_entities_from_trainer_export_preview_trainer_export_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded",
+                        "default": []
+                    },
+                    "trainer_export_str": {
+                        "type": "string",
+                        "title": "Trainer Export Str",
+                        "description": "The trainer export raw JSON string",
+                        "default": "{\"projects\": []}"
+                    }
+                },
+                "type": "object",
+                "title": "Body_get_rendered_entities_from_trainer_export_preview_trainer_export_post"
+            },
+            "Body_get_sanity_check_with_trainer_export_sanity_check_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_sanity_check_with_trainer_export_sanity_check_post"
+            },
+            "Body_train_metacat_train_metacat_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_train_metacat_train_metacat_post"
+            },
+            "Body_train_supervised_train_supervised_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    },
+                    "description": {
+                        "type": "string",
+                        "title": "Description",
+                        "description": "The description of the training or change logs"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_train_supervised_train_supervised_post"
+            },
+            "Body_train_unsupervised_train_unsupervised_post": {
+                "properties": {
+                    "training_data": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Training Data",
+                        "description": "One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "training_data"
+                ],
+                "title": "Body_train_unsupervised_train_unsupervised_post"
+            },
+            "ErrorModel": {
+                "properties": {
+                    "detail": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "detail"
+                ],
+                "title": "ErrorModel"
+            },
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ModelCard": {
+                "properties": {
+                    "api_version": {
+                        "type": "string",
+                        "title": "Api Version",
+                        "description": "The version of the model serve APIs"
+                    },
+                    "model_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ModelType"
+                            }
+                        ],
+                        "description": "The type of the served model"
+                    },
+                    "model_description": {
+                        "type": "string",
+                        "title": "Model Description",
+                        "description": "The description about the served model"
+                    },
+                    "model_card": {
+                        "type": "object",
+                        "title": "Model Card",
+                        "description": "The metadata of the served model"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "api_version",
+                    "model_type"
+                ],
+                "title": "ModelCard"
+            },
+            "ModelType": {
+                "type": "string",
+                "enum": [
+                    "medcat_snomed",
+                    "medcat_umls",
+                    "medcat_icd10",
+                    "medcat_deid",
+                    "anoncat",
+                    "transformers_deid"
+                ],
+                "title": "ModelType",
+                "description": "An enumeration."
+            },
+            "TextWithAnnotations": {
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "title": "Text",
+                        "description": "The text from which the annotations are extracted"
+                    },
+                    "annotations": {
+                        "items": {
+                            "$ref": "#/components/schemas/Annotation"
+                        },
+                        "type": "array",
+                        "title": "Annotations",
+                        "description": "The list of extracted annotations"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "text",
+                    "annotations"
+                ],
+                "title": "TextWithAnnotations"
+            },
+            "TextWithPublicKey": {
+                "properties": {
+                    "text": {
+                        "type": "string",
+                        "title": "Text",
+                        "description": "The plain text to be sent to the model for NER and redaction"
+                    },
+                    "public_key_pem": {
+                        "type": "string",
+                        "title": "Public Key Pem",
+                        "description": "the public PEM key used for encrypting detected spans"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "text",
+                    "public_key_pem"
+                ],
+                "title": "TextWithPublicKey"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        },
+        "securitySchemes": {
+            "OAuth2PasswordBearer": {
+                "type": "oauth2",
+                "flows": {
+                    "password": {
+                        "scopes": {},
+                        "tokenUrl": "auth/jwt/login"
+                    }
+                }
+            },
+            "APIKeyCookie": {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "fastapiusersauth"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Metadata",
+            "description": "Get the model card"
+        },
+        {
+            "name": "Annotations",
+            "description": "Retrieve NER entities by running the model"
+        },
+        {
+            "name": "Redaction",
+            "description": "Redact the extracted NER entities"
+        },
+        {
+            "name": "Rendering",
+            "description": "Preview embeddable annotation snippet in HTML"
+        },
+        {
+            "name": "Training",
+            "description": "Trigger model training on input annotations"
+        },
+        {
+            "name": "Evaluating",
+            "description": "Evaluate the deployed model with trainer export"
+        },
+        {
+            "name": "Authentication",
+            "description": "Authenticate registered users"
+        }
+    ]
+}
