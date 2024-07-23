@@ -34,13 +34,20 @@ async def train_unsupervised(request: Request,
     file_names = []
     data_file.write("[")
     for td_idx, td in enumerate(training_data):
+        temp_td = tempfile.NamedTemporaryFile(mode="w")
         items = ijson.items(td.file, "item")
+        temp_td.write("[")
         for text_idx, text in enumerate(items):
             if text_idx > 0 or td_idx > 0:
                 data_file.write(",")
             json.dump(text, data_file)
+            if text_idx > 0:
+                temp_td.write(",")
+            json.dump(text, temp_td)
+        temp_td.write("]")
+        temp_td.flush()
         file_names.append("" if td.filename is None else td.filename)
-        files.append(td.file)
+        files.append(temp_td)
     data_file.write("]")
     data_file.flush()
     data_file.seek(0)

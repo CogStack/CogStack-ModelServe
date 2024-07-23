@@ -15,7 +15,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [SNOMED MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_snomed_model_apis.html)
 - [ICD-10 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_icd10_model_apis.html)
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
-- [AnonCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
+- [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
 - [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
@@ -49,7 +49,7 @@ The following table summarises the servable model types with their respective ou
 |   medcat_snomed   |   medcat-snomed   | labelled with SNOMED concepts |
 |   medcat_icd10    |   medcat-icd10    | labelled with ICD-10 concepts |
 |    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
-|    medcat_deid    |    medcat-deid    |  labelled with PII concepts   |
+|    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
 | transformers_deid | de-identification |  labelled with PII concepts   |
 
 ## Run ModelServe in the container environment:
@@ -69,47 +69,11 @@ Then the API docs will be accessible at localhost on the mapped port specified i
 as a `cms` non-root user configured during the image build. Ensure the model package file is owned by the currently
 logged-in user to avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
 
-### Serve models via streaming HTTP APIs
-You can send your texts to the CMS stream endpoint and receive NLP results as a stream. To that end,
-start CMS as a streamable service by running:
-```commandline
-python app/cli/cli.py serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
-```
-Currently, [JSON Lines](https://jsonlines.org/) is supported for formatting request and response bodies. For example, the following request:
-```commandline
-curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
-    -H 'Content-Type: application/x-ndjson' \
-    --data-binary $'{"name": "DOC", "text": "TEXT"}\n{"name": "ANOTHER_DOC", "text": "ANOTHER_TEXT"}'
-```
-will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
-
-#### Chat with served models
-You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
-```html
-<form action="" onsubmit="send_doc(event)">
-    <input type="text" id="cms-input" autocomplete="off"/>
-    <button>Send</button>
-</form>
-<ul id="cms-output"></ul>
-<script>
-    var ws = new WebSocket("ws://localhost:8000/stream/ws");
-    ws.onmessage = function(event) {
-        document.getElementById("cms-output").appendChild(
-            Object.assign(document.createElement('li'), { textContent: event.data })
-        );
-    };
-    function send_doc(event) {
-        ws.send(document.getElementById("cms-input").value);
-        event.preventDefault();
-    };
-</script>
-```
-
 ### Auxiliary services
-In addition to the core services such as serving, training and evaluation, CMS provides several ready-to-use components
-to help users run CMS in a production environment. The default configuration can be customised to what suits your own needs.
-
-
+In addition to the core services such as serving, training and evaluation, CMS provides several ready-to-use components to help users make these production-ready. Their presence and default configuration can be customised to what suits your own needs. The diagram below illustrates the interactions between core and auxiliary services:
+<p align="center">
+  <img src="app/api/static/images/cms.png" alt="components" width="auto">
+</p>
 :information_source: <small style="line-height: 1.2;">Some environment variables with opinionated naming conventions do not necessarily imply that the stacks are bound to a specific
 cloud provider or even using a cloud service at all. For example, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are used
 to set credentials for `minio`, the default storage service, rather than for Amazon Web Services.</small>
@@ -187,8 +151,38 @@ docker compose -f docker-compose-auth.yml up -d
 Before running ModelServe, define extra environment variables to enable the built-in
 token-based authentication and hook it up with the database by following this [Instruction](./app/api/auth/README.md).
 
-The diagram illustrating the interactions between core and auxiliary services is presented below:
+### Serve models via streaming HTTP APIs
+You can send your texts to the CMS stream endpoint and receive NLP results as a stream. To that end,
+start CMS as a streamable service by running:
+```commandline
+python app/cli/cli.py serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+```
+Currently, [JSON Lines](https://jsonlines.org/) is supported for formatting request and response bodies. For example, the following request:
+```commandline
+curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
+    -H 'Content-Type: application/x-ndjson' \
+    --data-binary $'{"name": "DOC", "text": "TEXT"}\n{"name": "ANOTHER_DOC", "text": "ANOTHER_TEXT"}'
+```
+will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
 
-<p align="center">
-  <img src="app/api/static/images/cms.png" alt="components" width="auto">
-</p>
+#### Chat with served models
+You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
+```html
+<form action="" onsubmit="send_doc(event)">
+    <input type="text" id="cms-input" autocomplete="off"/>
+    <button>Send</button>
+</form>
+<ul id="cms-output"></ul>
+<script>
+    var ws = new WebSocket("ws://localhost:8000/stream/ws");
+    ws.onmessage = function(event) {
+        document.getElementById("cms-output").appendChild(
+            Object.assign(document.createElement('li'), { textContent: event.data })
+        );
+    };
+    function send_doc(event) {
+        ws.send(document.getElementById("cms-input").value);
+        event.preventDefault();
+    };
+</script>
+```

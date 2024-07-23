@@ -75,13 +75,15 @@ class TrainerCommon(object):
                         dataset = datasets.load_dataset(doc_dataset.__file__,
                                                         data_files={"documents": data_file.name},
                                                         split="train",
-                                                        cache_dir=None)
+                                                        cache_dir=None,
+                                                        trust_remote_code=True)
                         self._tracker_client.save_train_dataset(dataset)
                     elif training_type == TrainingType.SUPERVISED.value:
                         dataset = datasets.load_dataset(anno_dataset.__file__,
                                                         data_files={"annotations": data_file.name},
                                                         split="train",
-                                                        cache_dir=None)
+                                                        cache_dir=None,
+                                                        trust_remote_code=True)
                         self._tracker_client.save_train_dataset(dataset)
                     else:
                         raise ValueError(f"Unknown training type: {training_type}")
