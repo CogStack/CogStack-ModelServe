@@ -110,6 +110,7 @@ class MedCATModelDeIdentification(MedCATModel):
             self._model = self.load_model(self._model_pack_path)
             self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
             self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+            self._model._addl_ner[0].tokenizer.hf_tokenizer.split_special_tokens = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "split_special_tokens", False)
             if (self._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
                (self._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
                (self._config.DEVICE.startswith("cpu")):

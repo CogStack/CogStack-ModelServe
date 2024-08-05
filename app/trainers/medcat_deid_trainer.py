@@ -95,6 +95,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 ner = model._addl_ner[0]
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+                ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(ner.tokenizer.hf_tokenizer, "split_special_tokens", False)
                 _save_pretrained = ner.model.save_pretrained
                 if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
                     ner.model.save_pretrained = partial(_save_pretrained, safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
@@ -223,6 +224,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 ner = trainer._model_service._model._addl_ner[0]
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+                ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(ner.tokenizer.hf_tokenizer, "split_special_tokens", False)
                 eval_results, examples = ner.eval(data_file.name)
                 cui2names = {}
                 eval_results.sort_values(by=["cui"])
