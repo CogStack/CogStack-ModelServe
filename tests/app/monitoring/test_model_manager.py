@@ -74,7 +74,7 @@ def test_save_model(mlflow_fixture):
 def test_load_context(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager.load_context(PythonModelContext({"model_path": "artifacts/model.zip"}, None))
-    assert type(model_manager._model_service) == _MockedModelService
+    assert isinstance(model_manager._model_service, _MockedModelService)
 
 
 def test_get_model_signature():

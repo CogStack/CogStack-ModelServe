@@ -11,9 +11,11 @@ class ProcessBulk(HttpUser):
     num_of_doc_per_call = 10
     wait_time = constant_throughput(num_of_doc_per_call*1.5)
 
-    def on_start(self): ...
+    def on_start(self):
+        ...
 
-    def on_stop(self): ...
+    def on_stop(self):
+        ...
 
     @task
     def process_bulk(self):

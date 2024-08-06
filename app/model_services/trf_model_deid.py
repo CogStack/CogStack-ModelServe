@@ -121,8 +121,8 @@ class TransformersModelDeIdentification(AbstractModelService):
                         annotation["text"] = t_text
                     if annotations:
                         token_type = self._tokenizer.id2type.get(input_ids[t_idx])
-                        if (self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations) or
-                                self._should_expand_with_whole(cas, annotation, annotations)):
+                        if any([self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),
+                               self._should_expand_with_whole(cas, annotation, annotations)]):
                             annotations[-1]["end"] = annotation["end"]
                             if ist:
                                 annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
@@ -155,8 +155,7 @@ class TransformersModelDeIdentification(AbstractModelService):
                 "input_ids": tokens["input_ids"][-partial:] + [pad_token_id]*(model_max_length-partial),
                 "attention_mask": tokens["attention_mask"][-partial:] + [0]*(model_max_length-partial),
             }
-            offset_mappings = (tokens["offset_mapping"][-partial:] +
-                               [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-partial)])
+            offset_mappings = (tokens["offset_mapping"][-partial:] + [(tokens["offset_mapping"][-1][1]+i, tokens["offset_mapping"][-1][1]+i+1) for i in range(model_max_length-partial)])
             yield dataset, offset_mappings
 
     @staticmethod

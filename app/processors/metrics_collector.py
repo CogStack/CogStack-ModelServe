@@ -172,15 +172,15 @@ def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
     for project in data["projects"]:
         for doc in project["documents"]:
             annotations = []
-            if type(doc["annotations"]) == list:
+            if isinstance(doc["annotations"], list):
                 annotations = doc["annotations"]
-            elif type(doc["annotations"]) == dict:
+            elif isinstance(doc["annotations"], dict):
                 annotations = list(doc["annotations"].values())
             for annotation in annotations:
-                if (not annotation.get("validated", True) or
-                        annotation.get("deleted", False) or
-                        annotation.get("killed", False) or
-                        annotation.get("irrelevant", False)):
+                if any([not annotation.get("validated", True),
+                       annotation.get("deleted", False),
+                       annotation.get("killed", False),
+                       annotation.get("irrelevant", False)]):
                     cui_ignorance_counts[annotation["cui"]] += 1
                 cui_values[annotation["cui"]].append(doc["text"][annotation["start"]:annotation["end"]].lower())
             num_of_docs += 1

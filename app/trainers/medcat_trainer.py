@@ -258,12 +258,12 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 annotation_ignorance_count.append(training_ignorance_counts[c])
             self._tracker_client.save_dataframe_as_csv("trained_concepts.csv",
                                                        pd.DataFrame({
-                                                            "concept": concepts,
-                                                            "name": concept_names,
-                                                            "train_count": train_count,
-                                                            "anno_count": annotation_count,
-                                                            "anno_unique_count": annotation_unique_count,
-                                                            "anno_ignorance_count": annotation_ignorance_count,
+                                                           "concept": concepts,
+                                                           "name": concept_names,
+                                                           "train_count": train_count,
+                                                           "anno_count": annotation_count,
+                                                           "anno_unique_count": annotation_unique_count,
+                                                           "anno_ignorance_count": annotation_ignorance_count,
                                                        }),
                                                        self._model_name)
 

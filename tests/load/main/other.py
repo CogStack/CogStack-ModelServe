@@ -8,7 +8,8 @@ class Other(HttpUser):
 
     wait_time = constant_throughput(1)
 
-    def on_start(self): ...
+    def on_start(self):
+        ...
 
     @task
     def info(self):

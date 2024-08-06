@@ -9,9 +9,11 @@ class Process(HttpUser):
 
     wait_time = constant_throughput(1)
 
-    def on_start(self): ...
+    def on_start(self):
+        ...
 
-    def on_stop(self): ...
+    def on_stop(self):
+        ...
 
     @task
     def process(self):

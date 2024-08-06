@@ -78,9 +78,9 @@ def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
     return pd.json_normalize(trainer_export,
                              record_path=["projects", "documents", "annotations"],
                              meta=[
-                                    ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
-                                    ["projects", "documents", "id"], ["projects", "documents", "name"],
-                                    ["projects", "documents", "text"], ["projects", "documents", "last_modified"]
+                                 ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
+                                 ["projects", "documents", "id"], ["projects", "documents", "name"],
+                                 ["projects", "documents", "text"], ["projects", "documents", "last_modified"]
                              ],
                              sep=".")
 

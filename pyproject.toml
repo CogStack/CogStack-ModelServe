@@ -1,6 +1,110 @@
 [build-system]
-requires = [
-    "setuptools",
-    "wheel",
-]
+requires = ["setuptools", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "cogstack-model-serve"
+authors = [{name = "Xi Bai", email = "baixiac@gmail.com"}]
+description = "A model serving systecm for CogStack NLP solutions"
+requires-python = ">=3.8"
+dynamic = ["version"]
+dependencies = [
+    "medcat~=1.9.0",
+    "blis<1.0.0",
+    "fastapi~=0.110.3",
+    "uvicorn~=0.29.0",
+    "python-multipart~=0.0.5",
+    "ijson~=3.1.4",
+    "python-dotenv~=0.20.0",
+    "mlflow~=2.12.0",
+    "psycopg2-binary~=2.9.4",
+    "boto3~=1.28.84",
+    "typer~=0.12.3",
+    "prometheus-fastapi-instrumentator~=5.11.2",
+    "slowapi~=0.1.7",
+    "graypy~=2.1.0",
+    "fastapi-users~=11.0.0",
+    "fastapi-users-db-sqlalchemy~=5.0.0",
+    "asyncpg~=0.27.0",
+    "aiosqlite~=0.19.0",
+    "evaluate~=0.4.1",
+    "websockets~=12.0",
+    "pynvml~=11.5.3",
+]
+readme = "README.md"
+keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
+license = {text = "Elastic License 2.0"}
+classifiers=[
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Framework :: FastAPI",
+]
+
+[project.urls]
+Homepage = "https://github.com/CogStack/CogStack-ModelServe"
+Documentation = "https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html"
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=7.1.2",
+    "pytest-mock~=3.7.0",
+    "pytest-timeout~=2.1.0",
+    "pytest-random-order~=1.1.0",
+    "pytest-asyncio~=0.23.7",
+    "pytest-cov~=4.1.0",
+    "httpx~=0.24.1",
+    "mypy==1.8.0",
+    "flake8==4.0.1",
+    "locust~=2.11.0",
+    "typer-cli~=0.12.3",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.setuptools.dynamic]
+version = {attr = "app.__version__"}
+
+[project.scripts]
+cms = "app.cli.cli:cmd_app"
+
+[tool.flake8]
+ignore = ["E501", "E226"]
+include = [
+    "app/model_services/*.py",
+    "app/management/*.py",
+    "app/processors/*.py",
+    "app/api/*.py",
+    "app/api/routers/*.py",
+    "app/api/auth/*.py",
+    "app/cli/*.py",
+    "app/trainers/*.py",
+    "app/*.py",
+    "tests/"]
+select = ["E", "F", "W", "C90"]
+
+
+[tool.mypy]
+ignore_missing_imports = true
+no_implicit_optional = true
+allow_redefinition = true
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
+disable_error_code = "method-assign"
+plugins = [
+  "pydantic.mypy"
+]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+pythonpath = "./app"
