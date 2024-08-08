@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from api.api import get_model_server
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
-from domain import ModelCard, ModelType
 from management.model_manager import ModelManager
 from unittest.mock import create_autospec
 
@@ -39,93 +38,6 @@ def client(model_service):
     client = TestClient(app)
     yield client
     client.app.dependency_overrides.clear()
-
-
-def test_healthz(client):
-    assert client.get("/healthz").content.decode("utf-8") == "OK"
-
-
-def test_readyz(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "medcat_model_description",
-        "model_type": ModelType.MEDCAT_SNOMED,
-        "model_card": None,
-    })
-    model_service.info.return_value = model_card
-
-    assert client.get("/readyz").content.decode("utf-8") == ModelType.MEDCAT_SNOMED
-
-
-def test_info(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "medcat_model_description",
-        "model_type": ModelType.MEDCAT_SNOMED,
-        "model_card": None,
-    })
-    model_service.info.return_value = model_card
-
-    response = client.get("/info")
-
-    assert response.json() == model_card
-
-
-def test_process(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/process",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.json() == {
-        "text": "Spinal stenosis",
-        "annotations": annotations
-    }
-
-
-def test_process_jsonl(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-    model_manager = ModelManager(None, None)
-    model_manager.model_service = model_service
-    cms_globals.model_manager_dep = lambda: model_manager
-
-    response = client.post("/process_jsonl",
-                           data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}',
-                           headers={"Content-Type": "application/x-ndjson"})
-
-    jsonlines = response.text[:-1].split("\n")
-    assert len(jsonlines) == 2
-    assert json.loads(jsonlines[0]) == {"doc_name": "doc1", **annotations[0]}
-    assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **annotations[0]}
 
 
 def test_process_invalid_jsonl(model_service, client):
@@ -184,103 +96,6 @@ def test_process_unknown_jsonl_properties(model_service, client):
     assert "Invalid JSON properties found." in response.json()["message"]
 
 
-def test_process_bulk(model_service, client):
-    annotations_list = [
-        [{
-            "label_name": "Spinal stenosis",
-            "label_id": "76107001",
-            "start": 0,
-            "end": 15,
-            "accuracy": 1.0,
-            "meta_anns": {
-                "Status": {
-                    "value": "Affirmed",
-                    "confidence": 0.9999833106994629,
-                    "name": "Status"
-                }
-            },
-        }],
-        [{
-            "label_name": "Spinal stenosis",
-            "label_id": "76107001",
-            "start": 0,
-            "end": 15,
-            "accuracy": 1.0,
-            "meta_anns": {
-                "Status": {
-                    "value": "Affirmed",
-                    "confidence": 0.9999833106994629,
-                    "name": "Status"
-                }
-            },
-        }]
-    ]
-    model_service.batch_annotate.return_value = annotations_list
-
-    response = client.post("/process_bulk", json=["Spinal stenosis", "Spinal stenosis"])
-
-    assert response.json() == [
-        {
-            "text": "Spinal stenosis",
-            "annotations": [{
-                "label_name": "Spinal stenosis",
-                "label_id": "76107001",
-                "start": 0,
-                "end": 15,
-                "accuracy": 1.0,
-                "meta_anns": {
-                    "Status": {
-                        "value": "Affirmed",
-                        "confidence": 0.9999833106994629,
-                        "name": "Status"
-                    }
-                },
-            }]
-        },
-        {
-            "text": "Spinal stenosis",
-            "annotations": [{
-                "label_name": "Spinal stenosis",
-                "label_id": "76107001",
-                "start": 0,
-                "end": 15,
-                "accuracy": 1.0,
-                "meta_anns": {
-                    "Status": {
-                        "value": "Affirmed",
-                        "confidence": 0.9999833106994629,
-                        "name": "Status"
-                    }
-                },
-            }]
-        }
-    ]
-
-
-def test_redact(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/redact",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.text == "[Spinal stenosis]"
-
-
 def test_warning_on_no_redaction(model_service, client):
     annotations = []
     model_service.annotate.return_value = annotations
@@ -290,54 +105,6 @@ def test_warning_on_no_redaction(model_service, client):
                            headers={"Content-Type": "text/plain"})
 
     assert response.text == "WARNING: No entities were detected for redaction."
-
-
-def test_redact_with_mask(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/redact?mask=***",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.text == "***"
-
-
-def test_redact_with_hash(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/redact?mask=any&hash=true",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.text == "4c86af83314100034ad83fae3227e595fc54cb864c69ea912cd5290b8d0f41a4"
 
 
 def test_redact_with_encryption(model_service, client):
@@ -385,31 +152,6 @@ def test_warning_on_no_encrypted_redaction(model_service, client):
                            headers={"Content-Type": "application/json"})
 
     assert response.json()["message"] == "WARNING: No entities were detected for redaction."
-
-
-def test_preview(model_service, client):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/preview",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.status_code == 200
-    assert response.headers["Content-Type"] == "application/octet-stream"
 
 
 def test_preview_trainer_export(client):

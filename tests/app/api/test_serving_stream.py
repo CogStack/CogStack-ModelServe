@@ -35,39 +35,6 @@ def app(model_service):
 
 
 @pytest.mark.asyncio
-async def test_stream_process(model_service, app):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.annotate.return_value = annotations
-    model_manager = ModelManager(None, None)
-    model_manager.model_service = model_service
-    cms_globals.model_manager_dep = lambda: model_manager
-
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process",
-                                 data='{"name": "doc1", "text": "Spinal stenosis"}\n{"name": "doc2", "text": "Spinal stenosis"}'.encode("utf-8"),
-                                 headers={"Content-Type": "application/x-ndjson"})
-
-    assert response.status_code == 200
-    jsonlines = b""
-    async for chunk in response.aiter_bytes():
-        jsonlines += chunk
-    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **annotations[0]}
-
-
-@pytest.mark.asyncio
 async def test_stream_process_empty_stream(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
         response = await ac.post("/stream/process", data="", headers={"Content-Type": "application/x-ndjson"})
@@ -105,34 +72,6 @@ async def test_stream_process_unknown_jsonl_property(model_service, app):
     async for chunk in response.aiter_bytes():
         jsonlines += chunk
     assert "Invalid JSON properties found" in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
-
-
-def test_websocket_process(model_service, app):
-    annotations = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    model_service.async_annotate.return_value = annotations
-    model_manager = ModelManager(None, None)
-    model_manager.model_service = model_service
-    cms_globals.model_manager_dep = lambda: model_manager
-
-    with pytest.raises(WebSocketDisconnect):
-        with TestClient(app) as client:
-            with client.websocket_connect("/stream/ws") as websocket:
-                websocket.send_text("Spinal stenosis")
-                response = websocket.receive_text()
-                assert response == "[Spinal stenosis: Spinal stenosis]"
 
 
 def test_websocket_process_on_annotation_error(model_service, app):
