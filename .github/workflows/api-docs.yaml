@@ -29,13 +29,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r app/requirements.txt -r app/requirements-dev.txt
-#      - name: Check the CLI doc
-#        run: |
-#          typer app/cli/cli.py utils docs --output cli.md
-#          if ! cmp -s cli.md app/cli/README.md; then
-#            echo "The CMS CLI README needs updating"
-#            exit 1
-#          fi
       - name: Generate API docs
         run: |
           python app/cli/cli.py export-model-apis --model-type medcat_snomed --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
