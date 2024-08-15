@@ -16,7 +16,7 @@ dependencies = [
     "python-multipart~=0.0.5",
     "ijson~=3.1.4",
     "python-dotenv~=0.20.0",
-    "mlflow~=2.12.0",
+    "mlflow~=2.14.3",
     "psycopg2-binary~=2.9.4",
     "boto3~=1.28.84",
     "typer~=0.12.3",
@@ -30,6 +30,7 @@ dependencies = [
     "evaluate~=0.4.1",
     "websockets~=12.0",
     "pynvml~=11.5.3",
+    "toml~=0.10.2",
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
@@ -57,9 +58,10 @@ dev = [
     "pytest-bdd~=7.2.0",
     "httpx~=0.24.1",
     "mypy==1.8.0",
-    "flake8==4.0.1",
+    "Flake8-pyproject==1.2.3",
     "locust~=2.11.0",
     "typer-cli~=0.12.3",
+    "types-toml==0.10.8.20240310",
 ]
 
 [tool.setuptools]

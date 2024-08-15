@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import mlflow
+import toml
 import pandas as pd
 from typing import Type, Optional, Dict, Any, List, Iterator, final
 from pandas import DataFrame
@@ -13,6 +14,7 @@ from mlflow.models.model import ModelInfo
 from model_services.base import AbstractModelService
 from config import Settings
 from exception import ManagedModelException
+from utils import func_deprecated
 
 
 @final
@@ -98,7 +100,7 @@ class ModelManager(PythonModel):
             artifacts={"model_path": model_path},
             signature=self.model_signature,
             code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements(),
+            pip_requirements=ModelManager._get_pip_requirements_from_pyproject(),
             registered_model_name=registered_model_name,
         )
 
@@ -109,7 +111,7 @@ class ModelManager(PythonModel):
             artifacts={"model_path": model_path},
             signature=self.model_signature,
             code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements(),
+            pip_requirements=ModelManager._get_pip_requirements_from_pyproject(),
         )
 
     def load_context(self, context: PythonModelContext) -> None:
@@ -161,5 +163,12 @@ class ModelManager(PythonModel):
         ]
 
     @staticmethod
+    @func_deprecated
     def _get_pip_requirements() -> str:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
+
+    @staticmethod
+    def _get_pip_requirements_from_pyproject() -> list[str]:
+        with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
+            pyproject = toml.load(file)
+            return pyproject.get("project", {}).get("dependencies", [])

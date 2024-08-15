@@ -5,7 +5,7 @@ Cogstack ModelServe (CMS) is a model-serving and model-governance system created
 ## Install Dependencies
 A virtual environment is highly recommended prior to installation. To install the dependencies, run the following command:
 ```commandline
-pip install -r app/requirements.txt
+pip install -e .
 ```
 
 ## APIs

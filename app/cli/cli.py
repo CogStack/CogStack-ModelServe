@@ -44,7 +44,7 @@ logger = logging.getLogger("cms")
 
 @cmd_app.command("serve")
 def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                model_path: str = typer.Option(..., help="The file path to the model package"),
+                model_path: str = typer.Option("", help="The file path to the model package"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
                 host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),

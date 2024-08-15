@@ -7,7 +7,7 @@ then
   echo "Cannot find 'typer' on your path. Installing it and dependencies..."
   python -m venv hook
   source hook/bin/activate
-  python -m pip install -r app/requirements.txt -r app/requirements-dev.txt
+  python -m pip install -e ".[dev]"
 fi
 
 typer app/cli/cli.py utils docs --output app/cli/README.md

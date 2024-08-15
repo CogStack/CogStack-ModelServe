@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r app/requirements.txt -r app/requirements-dev.txt
+          pip install -e ".[dev]"
       - name: Generate API docs
         run: |
           python app/cli/cli.py export-model-apis --model-type medcat_snomed --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis

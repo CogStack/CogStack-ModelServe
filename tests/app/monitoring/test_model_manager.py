@@ -41,7 +41,7 @@ def test_log_model_with_registration(mlflow_fixture):
                                                     python_model=model_manager,
                                                     signature=model_manager.model_signature,
                                                     code_path=model_manager._get_code_path_list(),
-                                                    pip_requirements=model_manager._get_pip_requirements(),
+                                                    pip_requirements=model_manager._get_pip_requirements_from_pyproject(),
                                                     artifacts={"model_path": "filepath"},
                                                     registered_model_name="model_name")
 
@@ -54,7 +54,7 @@ def test_log_model_without_registration(mlflow_fixture):
                                                     python_model=model_manager,
                                                     signature=model_manager.model_signature,
                                                     code_path=model_manager._get_code_path_list(),
-                                                    pip_requirements=model_manager._get_pip_requirements(),
+                                                    pip_requirements=model_manager._get_pip_requirements_from_pyproject(),
                                                     artifacts={"model_path": "filepath"},
                                                     registered_model_name=None)
 
@@ -67,7 +67,7 @@ def test_save_model(mlflow_fixture):
                                                          python_model=model_manager,
                                                          signature=model_manager.model_signature,
                                                          code_path=model_manager._get_code_path_list(),
-                                                         pip_requirements=model_manager._get_pip_requirements(),
+                                                         pip_requirements=model_manager._get_pip_requirements_from_pyproject(),
                                                          artifacts={"model_path": "."})
 
 
