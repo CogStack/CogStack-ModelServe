@@ -5,6 +5,7 @@ import sys
 import uuid
 import inspect
 import warnings
+import subprocess
 
 current_frame = inspect.currentframe()
 if current_frame is None:  # noqa
@@ -27,7 +28,7 @@ from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
 from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
-from domain import ModelType, TrainingType  # noqa
+from domain import ModelType, TrainingType, BuildBackend  # noqa
 from registry import model_service_registry  # noqa
 from api.api import get_model_server, get_stream_server # noqa
 from utils import get_settings, send_gelf_message  # noqa
@@ -42,7 +43,7 @@ logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_exist
 logger = logging.getLogger("cms")
 
 
-@cmd_app.command("serve")
+@cmd_app.command("serve", help="This serves various CogStack NLP models")
 def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                 model_path: str = typer.Option("", help="The file path to the model package"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
@@ -50,9 +51,6 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
                 streamable: bool = typer.Option(False, help="Serve the streamable endpoints only")) -> None:
-    """
-    This serves various CogStack NLP models
-    """
     lrf = logging.getLogRecordFactory()
 
     def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
@@ -109,7 +107,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     print("Shutting down due to either keyboard interrupt or system exit")
 
 
-@cmd_app.command("train")
+@cmd_app.command("train", help="This pretrains or fine-tunes various CogStack NLP models")
 def train_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                 base_model_path: str = typer.Option("", help="The file path to the base model package to be trained on"),
                 mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to train", metavar="models:/MODEL_NAME/ENV"),
@@ -120,9 +118,6 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
                 description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
-    """
-    This pretrains or fine-tunes various CogStack NLP models
-    """
     lrf = logging.getLogRecordFactory()
 
     def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
@@ -170,7 +165,7 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
             sys.exit(1)
 
 
-@cmd_app.command("register")
+@cmd_app.command("register", help="This pushes a pretrained NLP model to the CogStack ModelServe registry")
 def register_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                    model_path: str = typer.Option(..., help="The file path to the model package"),
                    model_name: str = typer.Option(..., help="The string representation of the registered model"),
@@ -178,10 +173,6 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                    model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
                    model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")) -> None:
-    """
-    This pushes a pretrained NLP model to the CogStack ModelServe registry
-    """
-
     config = get_settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
 
@@ -307,6 +298,63 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
     with open(doc_name, "w") as api_doc:
         json.dump(app.openapi(), api_doc, indent=4)
     print(f"OpenAPI doc exported to {doc_name}")
+
+
+@cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
+def build_image(dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
+                context_dir: str = typer.Option(..., help="The directory containing the set of files accessible to the build"),
+                model_name: Optional[str] = typer.Option("cms_model", help="The string representation of the model name"),
+                user_id: Optional[int] = typer.Option(1000, help="The ID for the non-root user"),
+                group_id: Optional[int] = typer.Option(1000, help="The group ID for the non-root user"),
+                http_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTP proxy"),
+                https_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTPS proxy"),
+                no_proxy: Optional[str] = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
+                tag: str = typer.Option(None, help="The tag of the built image"),
+                backend: Optional[BuildBackend] = typer.Option(BuildBackend.DOCKER, help="The backend used for building the image")) -> None:
+    assert backend is not None
+    cmd = [
+        *backend.value.split(),
+        '-f', dockerfile_path,
+        '-t', f'{model_name}:{tag}',
+        '--build-arg', f'CMS_MODEL_NAME={model_name}',
+        '--build-arg', f'CMS_UID={str(user_id)}',
+        '--build-arg', f'CMS_GID={str(group_id)}',
+        '--build-arg', f'HTTP_PROXY={http_proxy}',
+        '--build-arg', f'HTTPS_PROXY={https_proxy}',
+        '--build-arg', f'NO_PROXY={no_proxy}',
+        context_dir,
+    ]
+    with subprocess.Popen(cmd,
+                          shell=False,
+                          stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE,
+                          close_fds=True,
+                          universal_newlines=True,
+                          bufsize=1) as process:
+        assert process is not None
+        try:
+            while True:
+                assert process.stdout is not None
+                output = process.stdout.readline()
+                if output == "" and process.poll() is not None:
+                    break
+                if output:
+                    print(output.strip())
+            process.wait()
+
+            if process.returncode == 0:
+                print(f"The '{backend.value}' command ran successfully.")
+            else:
+                assert process.stderr is not None
+                print(f"The '{backend.value}' command failed: \n{process.stderr.read()}")
+        except FileNotFoundError:
+            print(f"The '{backend.value}' command not found.")
+        except KeyboardInterrupt:
+            print("The build was terminated by the user.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        finally:
+            process.kill()
 
 
 @cmd_app.command("export-openapi-spec")

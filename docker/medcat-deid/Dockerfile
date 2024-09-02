@@ -19,9 +19,10 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends nano telnet && \
     rm -rf /var/lib/apt/lists/*
-RUN addgroup --gid $CMS_GID cms || true && \
-    adduser --uid $CMS_UID --gid $CMS_GID --disabled-password --gecos "" cms || true && \
+RUN addgroup --gid ${CMS_GID} cms || true && \
+    adduser --uid ${CMS_UID} --gid ${CMS_GID} --disabled-password --gecos "" cms || true && \
     echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN echo "CMS_UID=${CMS_UID}, CMS_GID=${CMS_GID}"
 
 USER cms
 WORKDIR /app

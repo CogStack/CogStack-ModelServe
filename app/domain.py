@@ -48,6 +48,11 @@ class TrainingType(str, Enum):
     META_SUPERVISED = "meta_supervised"
 
 
+class BuildBackend(Enum):
+    DOCKER = "docker build"
+    DOCKER_BUILDX = "docker buildx build"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
