@@ -315,6 +315,7 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
     cmd = [
         *backend.value.split(),
         '-f', dockerfile_path,
+        '--progress=plain',
         '-t', f'{model_name}:{tag}',
         '--build-arg', f'CMS_MODEL_NAME={model_name}',
         '--build-arg', f'CMS_UID={str(user_id)}',
@@ -327,7 +328,7 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
     with subprocess.Popen(cmd,
                           shell=False,
                           stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE,
+                          stderr=subprocess.STDOUT,
                           close_fds=True,
                           universal_newlines=True,
                           bufsize=1) as process:
@@ -345,8 +346,7 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
             if process.returncode == 0:
                 print(f"The '{backend.value}' command ran successfully.")
             else:
-                assert process.stderr is not None
-                print(f"The '{backend.value}' command failed: \n{process.stderr.read()}")
+                print(f"The '{backend.value}' command failed.")
         except FileNotFoundError:
             print(f"The '{backend.value}' command not found.")
         except KeyboardInterrupt:
