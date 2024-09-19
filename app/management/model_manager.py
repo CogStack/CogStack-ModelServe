@@ -5,7 +5,7 @@ import tempfile
 import mlflow
 import toml
 import pandas as pd
-from typing import Type, Optional, Dict, Any, List, Iterator, final
+from typing import Type, Optional, Dict, Any, List, Iterator, final, Union
 from pandas import DataFrame
 from mlflow.pyfunc import PythonModel, PythonModelContext
 from mlflow.models.signature import ModelSignature
@@ -100,7 +100,7 @@ class ModelManager(PythonModel):
             artifacts={"model_path": model_path},
             signature=self.model_signature,
             code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements_from_pyproject(),
+            pip_requirements=ModelManager._get_pip_requirements_from_file(),
             registered_model_name=registered_model_name,
         )
 
@@ -111,7 +111,7 @@ class ModelManager(PythonModel):
             artifacts={"model_path": model_path},
             signature=self.model_signature,
             code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements_from_pyproject(),
+            pip_requirements=ModelManager._get_pip_requirements_from_file(),
         )
 
     def load_context(self, context: PythonModelContext) -> None:
@@ -168,7 +168,12 @@ class ModelManager(PythonModel):
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
 
     @staticmethod
-    def _get_pip_requirements_from_pyproject() -> list[str]:
-        with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
-            pyproject = toml.load(file)
-            return pyproject.get("project", {}).get("dependencies", [])
+    def _get_pip_requirements_from_file() -> Union[list[str], str]:
+        if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))):
+            with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
+                pyproject = toml.load(file)
+                return pyproject.get("project", {}).get("dependencies", [])
+        elif os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))):
+            return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
+        else:
+            raise ManagedModelException("Cannot find pip requirements.")

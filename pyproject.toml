@@ -9,7 +9,7 @@ description = "A model serving systecm for CogStack NLP solutions"
 requires-python = ">=3.8"
 dynamic = ["version"]
 dependencies = [
-    "medcat~=1.9.0",
+    "medcat~=1.12.1",
     "blis<1.0.0",
     "fastapi~=0.110.3",
     "uvicorn~=0.29.0",

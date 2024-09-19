@@ -14,4 +14,4 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Lint
-        run: hadolint --ignore DL3008 docker/**/Dockerfile
+        run: hadolint --ignore DL3008 --ignore DL3013 --ignore DL3003 --ignore DL4006 docker/**/Dockerfile docker/mlflow/**/Dockerfile

@@ -17,12 +17,13 @@ ENV http_proxy=$HTTP_PROXY
 ENV https_proxy=$HTTPS_PROXY
 ENV no_proxy=$NO_PROXY
 ENV PYTHONUNBUFFERED=1
+ENV PATH="/home/cms/.local/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends nano telnet && \
     rm -rf /var/lib/apt/lists/*
 RUN addgroup --gid $CMS_GID cms || true && \
     adduser --uid $CMS_UID --gid $CMS_GID --disabled-password --gecos "" cms || true && \
-    echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers \
+    echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 USER cms
 WORKDIR /app
@@ -33,7 +34,7 @@ RUN mkdir -p /app/model/model && \
     chown $CMS_UID:$CMS_GID /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown $CMS_UID:$CMS_GID /app/model/retrained
-RUN pip install --no-cache-dir pip~=22.2.1 &&\
+RUN pip install --no-cache-dir -U pip &&\
     pip install --no-cache-dir -r requirements.txt && \
     python -m spacy download en_core_web_md
 
