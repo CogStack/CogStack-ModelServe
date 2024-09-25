@@ -88,7 +88,7 @@ class TrainerCommon(object):
                     else:
                         raise ValueError(f"Unknown training type: {training_type}")
 
-                logger.info(f"Starting training job: {training_id} with experiment ID: {experiment_id}")
+                logger.info("Starting training job: %s with experiment ID: %s", training_id, experiment_id)
                 self._training_in_progress = True
                 training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
                                                                            partial(run, self, training_params, data_file, log_frequency, run_id, description)))

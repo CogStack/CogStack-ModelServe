@@ -68,7 +68,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     meta_cat.config.train.nepochs = training_params["nepochs"]
                     trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
                     trainer._tracker_client.log_trainer_version(medcat_version)
-                    logger.info(f'Performing supervised training on category "{category_name}"...')
+                    logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
                         winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
@@ -85,7 +85,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         }
                         trainer._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
                     except Exception as e:
-                        logger.error(f"Failed on training meta model: {category_name}. This could be benign if training data has no annotations belonging to this category.")
+                        logger.error("Failed on training meta model: %s. This could be benign if training data has no annotations belonging to this category.", category_name)
                         logger.exception(e)
                         trainer._tracker_client.log_exceptions(e)
 
@@ -98,7 +98,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
-                    logger.info(f"Retrained model saved: {artifacts_info}")
+                    logger.info("Retrained model saved: %s", artifacts_info)
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")

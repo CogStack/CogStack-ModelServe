@@ -61,7 +61,7 @@ class MedCATModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
-        logger.info(f"Model pack loaded from {os.path.normpath(model_file_path)}")
+        logger.info("Model pack loaded from %s", os.path.normpath(model_file_path))
         return cat
 
     @staticmethod

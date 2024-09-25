@@ -17,13 +17,13 @@ class CmsUserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     verification_token_secret = get_settings().AUTH_JWT_SECRET
 
     async def on_after_register(self, user: User, request: Optional[Request] = None) -> None:
-        logger.info(f"User {user.id} has registered.")
+        logger.info("User %s has registered.", user.id)
 
     async def on_after_forgot_password(self, user: User, token: str, request: Optional[Request] = None) -> None:
-        logger.info(f"User {user.id} has forgot their password. Reset token: {token}")
+        logger.info("User %s has forgot their password. Reset token: %s", user.id, token)
 
     async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None) -> None:
-        logger.info(f"Verification requested for user {user.id}. Verification token: {token}")
+        logger.info("Verification requested for user %s. Verification token: %s", user.id, token)
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)) -> AsyncGenerator:

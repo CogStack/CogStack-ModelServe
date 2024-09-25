@@ -43,8 +43,6 @@ services:
       - grafana-data:/var/lib/grafana
     expose:
       - 3000
-#    ports:
-#      - 8202:3000
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3000/healthz" ]
       interval: 60s

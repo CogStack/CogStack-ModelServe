@@ -68,7 +68,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
             logger.addHandler(gelf_tcp_handler)
             logging.getLogger("uvicorn").addHandler(gelf_tcp_handler)
         except Exception as e:
-            logger.error(f"$GELF_INPUT_URI is set to \"{os.environ['GELF_INPUT_URI']}\" but it's not ready to receive logs")
+            logger.error("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
             logger.exception(e)
 
     config = get_settings()
@@ -99,7 +99,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         logger.error("Neither the model path or the mlflow model uri was passed in")
         sys.exit(1)
 
-    logger.info(f'Start serving model "{model_type}" on {host}:{port}')
+    logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:
     uvicorn.run(model_server_app if not streamable else get_stream_server(), host=host, port=int(port), log_config=None)
@@ -161,7 +161,7 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
         elif training_type == TrainingType.META_SUPERVISED and model_service._metacat_trainer is not None:
             model_service.train_metacat(*training_args, **json.loads(hyperparameters))
         else:
-            logger.error(f"Training type {training_type} is not supported or the corresponding trainer has not been enabled in the .env file.")
+            logger.error("Training type %s is not supported or the corresponding trainer has not been enabled in the .env file.", training_type)
             sys.exit(1)
 
 
@@ -179,7 +179,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     if model_type in model_service_registry.keys():
         model_service_type = model_service_registry[model_type]
     else:
-        logger.error(f"Unknown model type: {model_type}")
+        logger.error("Unknown model type: %s", model_type)
         sys.exit(1)
 
     m_config = json.loads(model_config) if model_config is not None else None

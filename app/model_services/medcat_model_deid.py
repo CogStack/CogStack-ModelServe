@@ -129,8 +129,7 @@ class MedCATModelDeIdentification(MedCATModel):
                                                              device=device)
             else:
                 if self._config.DEVICE != "default":
-                    logger.warning(
-                        f"DEVICE is set to '{self._config.DEVICE}' but it is not available. Using 'default' instead.")
+                    logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", self._config.DEVICE)
             _save_pretrained = self._model._addl_ner[0].model.save_pretrained
             if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
                 self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))

@@ -41,7 +41,7 @@ class MedCATModelIcd10(MedCATModel):
             new_rows = []
             for _, row in df.iterrows():
                 if self.ICD10_KEY not in row or not row[self.ICD10_KEY]:
-                    logger.debug(f"No mapped ICD-10 code associated with the entity: {row}")
+                    logger.debug("No mapped ICD-10 code associated with the entity: %s", row)
                 else:
                     for icd10 in row[self.ICD10_KEY]:
                         output_row = row.copy()
@@ -53,7 +53,7 @@ class MedCATModelIcd10(MedCATModel):
                         elif isinstance(icd10, list) and icd10:
                             output_row[self.ICD10_KEY] = icd10[-1]
                         else:
-                            logger.error(f"Unknown format for the ICD-10 code(s): {icd10}")
+                            logger.error("Unknown format for the ICD-10 code(s): %s", icd10)
                         if "athena_ids" in output_row and output_row["athena_ids"]:
                             output_row["athena_ids"] = [athena_id["code"] for athena_id in output_row["athena_ids"]]
                     new_rows.append(output_row)

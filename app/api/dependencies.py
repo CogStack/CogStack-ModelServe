@@ -32,7 +32,7 @@ class ModelServiceDep(object):
             if self._model_type in model_service_registry.keys():
                 self._model_sevice = model_service_registry[self._model_type](self._config)
             else:
-                logger.error(f"Unknown model type: {self._model_type}")
+                logger.error("Unknown model type: %s", self._model_type)
                 exit(1)     # throw an exception?
             return self._model_sevice
 

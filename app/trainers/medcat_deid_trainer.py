@@ -186,7 +186,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
-                    logger.info(f"Retrained model saved: {artifacts_info}")
+                    logger.info("Retrained model saved: %s", artifacts_info)
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
@@ -294,5 +294,5 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                                     device=device)
         else:
             if device_name != "default":
-                logger.warning(f"DEVICE is set to '{device_name}' but it is not available. Using 'default' instead.")
+                logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", device_name)
         return ner

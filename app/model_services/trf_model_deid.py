@@ -68,9 +68,9 @@ class TransformersModelDeIdentification(AbstractModelService):
             shutil.unpack_archive(model_file_path, extract_dir=unpacked_model_dir)
         tokenizer_path = os.path.join(unpacked_model_dir, "tokenizer.dat")
         tokenizer = TransformersTokenizerNER.load(tokenizer_path)
-        logger.info(f"Tokenizer loaded from {tokenizer_path}")
+        logger.info("Tokenizer loaded from %s", tokenizer_path)
         model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
-        logger.info(f"Model loaded from {unpacked_model_dir}")
+        logger.info("Model loaded from %s", unpacked_model_dir)
         return tokenizer, model
 
     def init_model(self) -> None:

@@ -61,11 +61,11 @@ class _MedcatTrainerCommon(object):
 
     @staticmethod
     def save_model_pack(model: CAT, model_dir: str, description: Optional[str] = None) -> str:
-        logger.info(f"Saving retrained model to {model_dir}...")
+        logger.info("Saving retrained model to %s...", model_dir)
         model.config.version.description = description or model.config.version.description
         model_pack_name = model.create_model_pack(model_dir, "model")
         model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
-        logger.debug(f"Retrained model saved to {model_pack_path}")
+        logger.debug("Retrained model saved to %s", model_pack_path)
         return model_pack_path
 
     @staticmethod
@@ -167,7 +167,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     artifacts_info = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
-                    logger.info(f"Retrained model saved: {artifacts_info}")
+                    logger.info("Retrained model saved: %s", artifacts_info)
                     trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
