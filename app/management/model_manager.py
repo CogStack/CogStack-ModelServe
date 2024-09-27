@@ -168,7 +168,7 @@ class ModelManager(PythonModel):
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
 
     @staticmethod
-    def _get_pip_requirements_from_file() -> Union[list[str], str]:
+    def _get_pip_requirements_from_file() -> Union[List[str], str]:
         if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))):
             with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
                 pyproject = toml.load(file)
