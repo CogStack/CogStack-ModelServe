@@ -1,0 +1,57 @@
+version: "3.6"
+
+services:
+  worker:
+    build:
+      context: ./
+      dockerfile: ./docker/celery/Dockerfile-Worker
+      args:
+        - CMS_MODEL_NAME=$CMS_MODEL_NAME
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    container_name: cms_worker
+    networks:
+      - cms
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+#      - retrained-models:/app/model/retrained
+      - ./docker/celery/.env:/app/envs/.env:ro
+    environment:
+      - CMS_MODEL_TYPE=$CMS_MODEL_TYPE
+      - CMS_MODEL_NAME=$CMS_MODEL_NAME
+      - CMS_BASE_MODEL_PATH=${CMS_BASE_MODEL_PATH:-/app/model/model.zip}
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  dashboard:
+    build:
+      context: ./
+      dockerfile: ./docker/celery/Dockerfile-Dashboard
+    container_name: cms_worker_dashboard
+    networks:
+      - cms
+    ports:
+      - 5555:5555
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - worker
+
+  redis:
+    image: redis:7
+    container_name: cms_redis
+    networks:
+      - cms
+    ports:
+      - 6379:6379
+
+networks:
+  cms:
+    name: cogstack-model-serve_cms
+    driver: bridge

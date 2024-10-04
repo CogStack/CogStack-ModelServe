@@ -1,0 +1,22 @@
+FROM python:3.10
+
+ENV PYTHONUNBUFFERED=1
+ARG CMS_UID=1000
+ARG CMS_GID=1000
+
+RUN apt-get update && apt-get install -y --no-install-recommends nano telnet && \
+    rm -rf /var/lib/apt/lists/*
+RUN addgroup --gid ${CMS_GID} cms || true && \
+    adduser --uid ${CMS_UID} --gid ${CMS_GID} --disabled-password --gecos "" cms || true && \
+    echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+RUN echo "CMS_UID=${CMS_UID}, CMS_GID=${CMS_GID}"
+
+USER cms
+WORKDIR /app
+
+COPY --chown=$CMS_UID:$CMS_GID app /app
+COPY --chown=$CMS_UID:$CMS_GID docker/celery/requirements_dashboard.txt .
+RUN pip install --no-cache-dir -U pip &&\
+    pip install --no-cache-dir -r requirements_dashboard.txt
+
+CMD ["sh", "-c", "/home/cms/.local/bin/celery --broker=redis://redis:6379/0 flower --port=5555"]
