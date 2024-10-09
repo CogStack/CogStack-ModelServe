@@ -1,6 +1,7 @@
 import tempfile
 import uuid
 import json
+import logging
 from typing import List, Union
 from typing_extensions import Annotated
 
@@ -15,6 +16,7 @@ from processors.metrics_collector import concat_trainer_exports
 from utils import filter_by_concept_ids
 
 router = APIRouter()
+logger = logging.getLogger("cms")
 
 
 @router.post("/train_supervised",
@@ -42,8 +44,10 @@ async def train_supervised(request: Request,
         file_names.append("" if te.filename is None else te.filename)
 
     concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
+    logger.debug("Training exports concatenated")
     data_file = tempfile.NamedTemporaryFile(mode="w")
     concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
+    logger.debug("Training exports filtered by concept IDs")
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
@@ -68,6 +72,8 @@ async def train_supervised(request: Request,
 
 def _get_training_response(training_accepted: bool, training_id: str) -> JSONResponse:
     if training_accepted:
+        logger.debug("Training accepted with ID: %s", training_id)
         return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
     else:
+        logger.debug("Training refused due to another active training or evaluation on this model")
         return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)

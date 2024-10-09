@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from utils import get_settings
 from api.utils import (
     add_exception_handlers,
-    add_middlewares,
+    add_rate_limiter,
     get_rate_limiter,
     encrypt,
     decrypt,
@@ -21,12 +21,12 @@ def test_add_exception_handlers():
 
 def test_add_middlewares():
     app = FastAPI()
-    add_middlewares(app, get_settings())
+    add_rate_limiter(app, get_settings())
     middlewares = [str(middleware) for middleware in app.user_middleware]
     assert "Middleware(SlowAPIMiddleware)" in middlewares
 
     streamable_app = FastAPI()
-    add_middlewares(streamable_app, get_settings(), True)
+    add_rate_limiter(streamable_app, get_settings(), True)
     middlewares = [str(middleware) for middleware in streamable_app.user_middleware]
     assert "Middleware(SlowAPIASGIMiddleware)" in middlewares
 

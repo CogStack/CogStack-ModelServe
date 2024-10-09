@@ -46,7 +46,7 @@ def add_exception_handlers(app: FastAPI) -> None:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
 
 
-def add_middlewares(app: FastAPI, config: Settings, streamable: bool = False) -> None:
+def add_rate_limiter(app: FastAPI, config: Settings, streamable: bool = False) -> None:
     app.state.limiter = get_rate_limiter(config)
     app.add_middleware(SlowAPIMiddleware if not streamable else SlowAPIASGIMiddleware)
 

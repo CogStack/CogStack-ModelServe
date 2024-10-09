@@ -83,14 +83,14 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
             else:
                 await websocket.send_text(annotated_text)
     except WebSocketDisconnect as e:
-        logger.warning(str(e))
+        logger.debug(str(e))
     finally:
         try:
             if monitor_idle_task is not None:
                 monitor_idle_task.cancel()
             await websocket.close()
         except RuntimeError as e:
-            logger.warning(str(e))
+            logger.debug(str(e))
 
 
 class _LocalStreamingResponse(Response):
@@ -169,4 +169,4 @@ async def _annotation_async_gen(request: Request, model_service: AbstractModelSe
             finally:
                 doc_idx += 1
     except ClientDisconnect:
-        logger.warning("Client disconnected while annotations were being streamed")
+        logger.debug("Client disconnected while annotations were being streamed")

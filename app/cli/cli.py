@@ -40,6 +40,8 @@ cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack Model
 stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
 cmd_app.add_typer(stream_app, name="stream")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
+if get_settings().DEBUG != "true":
+    logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger("cms")
 
 

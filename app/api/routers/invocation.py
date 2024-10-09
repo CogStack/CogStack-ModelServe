@@ -5,6 +5,7 @@ import json
 import ijson
 import uuid
 import hashlib
+import logging
 import pandas as pd
 import api.globals as cms_globals
 
@@ -41,6 +42,8 @@ router = APIRouter()
 config = get_settings()
 limiter = get_rate_limiter(config)
 
+logger = logging.getLogger("cms")
+
 
 @router.get(PATH_INFO,
             response_model=ModelCard,
@@ -69,6 +72,7 @@ def get_entities_from_text(request: Request,
     _send_accuracy_metric(annotations, PATH_PROCESS)
     _send_meta_confidence_metric(annotations, PATH_PROCESS)
 
+    logger.debug(annotations)
     return TextWithAnnotations(text=text, annotations=annotations)
 
 
@@ -117,6 +121,7 @@ def get_entities_from_multiple_texts(request: Request,
     _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
     _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
 
+    logger.debug(body)
     return body
 
 
@@ -152,7 +157,9 @@ def extract_entities_from_multi_text_file(request: Request,
         _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
         _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
 
-        json_file = BytesIO(json.dumps(body).encode())
+        output = json.dumps(body)
+        logger.debug(output)
+        json_file = BytesIO(output.encode())
         response = StreamingResponse(json_file, media_type="application/json")
         response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{str(uuid.uuid4())}.json"'
         return response
@@ -190,6 +197,7 @@ def get_redacted_text(request: Request,
             redacted_text += text[start_index:annotation["start"]] + label
             start_index = annotation["end"]
         redacted_text += text[start_index:]
+        logger.debug(redacted_text)
         return PlainTextResponse(content=redacted_text, status_code=200)
 
 
@@ -222,7 +230,9 @@ def get_redacted_text_with_encryption(request: Request,
             start_index = annotation["end"]
         redacted_text += text_with_public_key.text[start_index:]
 
-        return JSONResponse(content={"redacted_text": redacted_text, "encryptions": encryptions})
+        content = {"redacted_text": redacted_text, "encryptions": encryptions}
+        logger.debug(content)
+        return JSONResponse(content=content)
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:
@@ -284,4 +294,6 @@ def _get_jsonlines_stream(output_stream: Iterator[Dict[str, Any]]) -> Iterator[s
             cms_doc_annotations.labels(handler=PATH_PROCESS_JSON_LINES).observe(annotation_num)
         current_doc_name = item["doc_name"]
         annotation_num += 1
+        line = json.dumps(item) + "\n"
+        logger.debug(line)
         yield json.dumps(item) + "\n"

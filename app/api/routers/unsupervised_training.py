@@ -2,6 +2,7 @@ import json
 import tempfile
 import uuid
 import ijson
+import logging
 from typing import List, Union
 from typing_extensions import Annotated
 
@@ -14,6 +15,7 @@ from domain import Tags
 from model_services.base import AbstractModelService
 
 router = APIRouter()
+logger = logging.getLogger("cms")
 
 
 @router.post("/train_unsupervised",
@@ -49,6 +51,7 @@ async def train_unsupervised(request: Request,
         file_names.append("" if td.filename is None else td.filename)
         files.append(temp_td)
     data_file.write("]")
+    logger.debug("Training data concatenated")
     data_file.flush()
     data_file.seek(0)
     training_id = str(uuid.uuid4())
@@ -70,6 +73,8 @@ async def train_unsupervised(request: Request,
 
 def _get_training_response(training_accepted: bool, training_id: str) -> JSONResponse:
     if training_accepted:
+        logger.debug("Training accepted with ID: %s", training_id)
         return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
     else:
+        logger.debug("Training refused due to another active training or evaluation on this model")
         return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)

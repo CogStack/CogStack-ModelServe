@@ -41,6 +41,7 @@ async def train_metacat(request: Request,
         file_names.append("" if te.filename is None else te.filename)
     try:
         concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
+        logger.debug("Training exports concatenated")
     finally:
         for file in files:
             file.close()
@@ -67,6 +68,8 @@ async def train_metacat(request: Request,
 
 def _get_training_response(training_accepted: bool, training_id: str) -> JSONResponse:
     if training_accepted:
+        logger.debug("Training accepted with ID: %s", training_id)
         return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
     else:
+        logger.debug("Training refused due to another active training or evaluation on this model")
         return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)

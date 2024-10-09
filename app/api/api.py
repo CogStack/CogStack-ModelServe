@@ -18,39 +18,51 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from api.auth.db import make_sure_db_and_tables
 from api.auth.users import Props
 from api.dependencies import ModelServiceDep
-from api.utils import add_exception_handlers, add_middlewares
+from api.utils import add_exception_handlers, add_rate_limiter
 from domain import Tags, TagsStreamable
 from management.tracker_client import TrackerClient
 from utils import get_settings
 
 
 logging.getLogger("asyncio").setLevel(logging.ERROR)
+logger = logging.getLogger("cms")
 
 
 def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     app = _get_app(msd_overwritten)
     config = get_settings()
-    add_middlewares(app, config)
+    logger.debug("Configuration loaded: %s", config)
+    add_rate_limiter(app, config)
+    logger.debug("Rate limiter added")
 
     app = _load_health_check_router(app)
+    logger.debug("Health check router loaded")
 
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
+        logger.debug("Auth router loaded")
 
     app = _load_model_card(app)
+    logger.debug("Model card router loaded")
     app = _load_invocation_router(app)
+    logger.debug("Invocation router loaded")
 
     if config.ENABLE_TRAINING_APIS == "true":
         app = _load_supervised_training_router(app)
+        logger.debug("Supervised training router loaded")
         if config.DISABLE_UNSUPERVISED_TRAINING != "true":
             app = _load_unsupervised_training_router(app)
+            logger.debug("Unsupervised training router loaded")
         if config.DISABLE_METACAT_TRAINING != "true":
             app = _load_metacat_training_router(app)
+            logger.debug("Metacat training router loaded")
 
     if config.ENABLE_EVALUATION_APIS == "true":
         app = _load_evaluation_router(app)
+        logger.debug("Evaluation router loaded")
     if config.ENABLE_PREVIEWS_APIS == "true":
         app = _load_preview_router(app)
+        logger.debug("Preview router loaded")
 
     return app
 
@@ -58,15 +70,19 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
 def get_stream_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
     app = _get_app(msd_overwritten, streamable=True)
     config = get_settings()
-    add_middlewares(app, config, streamable=True)
+    add_rate_limiter(app, config, streamable=True)
 
     app = _load_health_check_router(app)
+    logger.debug("Health check router loaded")
 
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
+        logger.debug("Auth router loaded")
 
     app = _load_model_card(app)
+    logger.debug("Model card router loaded")
     app = _load_stream_router(app)
+    logger.debug("Stream router loaded")
 
     return app
 
@@ -97,9 +113,12 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
         loop = asyncio.get_running_loop()
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))  # type: ignore
+        logger.debug("Default thread pool executor set to 50")
         instrumentator.expose(app, include_in_schema=False, should_gzip=False)
+        logger.debug("Prometheus instrumentator metrics exposed")
         if config.AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
+            logger.debug("Auth database and tables are ready")
 
     @app.get("/docs", include_in_schema=False)
     async def swagger_doc(req: Request) -> HTMLResponse:
@@ -134,6 +153,7 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
     @app.on_event("shutdown")
     async def on_shutdown() -> None:
         TrackerClient.end_with_interruption()
+        logger.debug("Tracker client terminated")
 
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:
@@ -162,6 +182,7 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
                             schema_data["title"] = "FormData"
                             content["schema"] = schema_data
         app.openapi_schema = openapi_schema
+        logger.debug("Custom OpenAPI schema generated")
         return app.openapi_schema
 
     return app
