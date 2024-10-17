@@ -59,7 +59,7 @@ dev = [
     "pytest-bdd~=7.2.0",
     "httpx~=0.24.1",
     "mypy==1.8.0",
-    "Flake8-pyproject==1.2.3",
+    "ruff==0.6.9",
     "locust~=2.11.0",
     "typer-cli~=0.12.3",
     "types-toml==0.10.8.20240310",
@@ -74,8 +74,7 @@ version = {attr = "app.__version__"}
 [project.scripts]
 cms = "app.cli.cli:cmd_app"
 
-[tool.flake8]
-ignore = ["E501", "E226"]
+[tool.ruff]
 include = [
     "app/model_services/*.py",
     "app/management/*.py",
@@ -86,9 +85,27 @@ include = [
     "app/cli/*.py",
     "app/trainers/*.py",
     "app/*.py",
-    "tests/"]
-select = ["E", "F", "W", "C90"]
+    "tests/",
+]
 
+line-length = 120
+indent-width = 4
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "C90"]
+ignore = ["E501", "E226", "C901"]
+fixable = ["ALL"]
+unfixable = []
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
 
 [tool.mypy]
 ignore_missing_imports = true

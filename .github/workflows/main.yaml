@@ -29,8 +29,7 @@ jobs:
         run: |
           python -m mypy --follow-imports=normal app/model_services/*.py app/management/*.py app/processors/*.py app/api/*.py app/api/routers/*.py app/api/auth/*.py app/cli/*.py app/trainers/*.py app/*.py
       - name: Lint
-        run: |
-          flake8 app/model_services/*.py app/management/*.py app/processors/*.py app/api/*.py app/api/routers/*.py app/api/auth/*.py app/cli/*.py app/trainers/*.py app/*.py tests/
+        uses: astral-sh/ruff-action@v1
       - name: Test
         run: |
           pytest --cov --cov-report=html:coverage_reports #--random-order 
