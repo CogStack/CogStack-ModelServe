@@ -44,6 +44,14 @@ class MedCATModelDeIdentification(MedCATModel):
                          model_card=model_card)
 
     def annotate(self, text: str) -> Dict:
+        doc = self.model.get_entities(text)
+        if doc["entities"]:
+            for _, entity in doc["entities"].items():
+                entity["types"] = ["PII"]
+
+        return self.get_records_from_doc({"entities": doc["entities"]})
+
+    def annotate_with_local_chunking(self, text: str) -> Dict:
         tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
         leading_ws_len = len(text) - len(text.lstrip())
         text = text.lstrip()
@@ -72,7 +80,7 @@ class MedCATModelDeIdentification(MedCATModel):
                         number_of_seen_words += 1
                 c_text = text[chunk[:last_token_start_idx][0][1][0]:chunk[:last_token_start_idx][-1][1][1]]
                 doc = self._with_lock(self.model.get_entities, c_text)
-                doc["entities"] = {_id: entity for _id, entity in doc["entities"].items() if entity["end"]+processed_char_len < chunk[window_overlap_start_idx][1][0]}
+                doc["entities"] = {_id: entity for _id, entity in doc["entities"].items() if (entity["end"] + processed_char_len) < chunk[window_overlap_start_idx][1][0]}
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
@@ -93,7 +101,7 @@ class MedCATModelDeIdentification(MedCATModel):
                     ent_key += 1
             processed_char_len += len(c_text)
 
-        assert processed_char_len == (len(text)+leading_ws_len), f"{len(text)+leading_ws_len-processed_char_len} characters were not processed:\n{text}"
+        assert processed_char_len == (len(text) + leading_ws_len), f"{len(text) + leading_ws_len - processed_char_len} characters were not processed:\n{text}"
 
         return self.get_records_from_doc({"entities": aggregated_entities})
 

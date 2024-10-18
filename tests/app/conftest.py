@@ -8,7 +8,7 @@ from model_services.medcat_model_umls import MedCATModelUmls
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 from model_services.trf_model_deid import TransformersModelDeIdentification
 
-MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
+MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "model")
 
 
 @pytest.fixture
