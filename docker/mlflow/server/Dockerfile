@@ -13,9 +13,17 @@ ENV no_proxy=$NO_PROXY
 ENV MLFLOW_HOME=/opt/mlflow
 ENV PYTHONUNBUFFERED=1
 
-COPY docker/mlflow/server/requirements.txt /requirements.txt
+RUN apt-get -y update && apt-get install -y --no-install-recommends cron && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -U pip &&\
+COPY docker/mlflow/server/crontab.txt /etc/cron.d/mlflow_gc
+RUN chmod 0644 /etc/cron.d/mlflow_gc && \
+    crontab /etc/cron.d/mlflow_gc && \
+    touch /var/log/cron.log && \
+    cron
+
+COPY docker/mlflow/server/requirements.txt /requirements.txt
+RUN pip install --no-cache-dir -U pip && \
     pip install --no-cache-dir -r /requirements.txt
 
 RUN mkdir -p ${MLFLOW_HOME}/../auth
