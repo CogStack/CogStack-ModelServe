@@ -19,7 +19,7 @@ services:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
+      - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
@@ -69,7 +69,7 @@ services:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
+      - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-icd10/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
@@ -168,7 +168,7 @@ services:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
+      - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-deid/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
@@ -218,7 +218,7 @@ services:
       - cms
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
-      - retrained-models:/app/model/retrained
+      - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-umls/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
