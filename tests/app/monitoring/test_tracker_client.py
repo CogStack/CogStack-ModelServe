@@ -133,6 +133,7 @@ def test_save_model(mlflow_fixture):
     model_manager = Mock()
     model_info = Mock()
     model_info.flavors = {"python_function": {"artifacts": {"key": "value"}}}
+    model_info.model_uri = "run://1234567890/model"
     model_manager.log_model.return_value = model_info
     mlflow_client = Mock()
     version = Mock()
@@ -140,9 +141,9 @@ def test_save_model(mlflow_fixture):
     mlflow_client.search_model_versions.return_value = [version]
     tracker_client.mlflow_client = mlflow_client
 
-    artifacts_info = tracker_client.save_model("path/to/file.zip", "model_name", model_manager, "validation_status")
+    artifact_uri = tracker_client.save_model("path/to/file.zip", "model_name", model_manager, "validation_status")
 
-    assert artifacts_info == {"key": "value"}
+    assert "artifacts/model_name" in artifact_uri
     model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
     mlflow_client.set_model_version_tag.assert_called_once_with(name="model_name", version="1", key="validation_status", value="validation_status")
     mlflow.set_tag.assert_called_once_with("training.output.package", "file.zip")

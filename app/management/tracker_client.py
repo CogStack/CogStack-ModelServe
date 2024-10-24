@@ -221,23 +221,22 @@ class TrackerClient(object):
                    filepath: str,
                    model_name: str,
                    model_manager: ModelManager,
-                   validation_status: str = "pending") -> Dict:
+                   validation_status: str = "pending") -> str:
         model_name = model_name.replace(" ", "_")
 
         mlflow.set_tag("training.output.package", os.path.basename(filepath))
 
         if not mlflow.get_tracking_uri().startswith("file:/"):
-            model_info = model_manager.log_model(model_name, filepath, model_name)
+            model_manager.log_model(model_name, filepath, model_name)
             versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
             self.mlflow_client.set_model_version_tag(name=model_name,
                                                      version=versions[0].version,
                                                      key="validation_status",
                                                      value=validation_status)
         else:
-            model_info = model_manager.log_model(model_name, filepath)
+            model_manager.log_model(model_name, filepath)
 
-        artifacts_info = model_info.flavors["python_function"]["artifacts"]
-        return artifacts_info
+        return mlflow.get_artifact_uri(model_name)
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

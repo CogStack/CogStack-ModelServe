@@ -21,7 +21,7 @@ def test_serve_model():
     with patch("uvicorn.run", side_effect=KeyboardInterrupt):
         result = runner.invoke(cmd_app, ["serve", "--model-type", "medcat_deid", "--model-name", "deid model", "--model-path", os.path.join(MODEL_PARENT_DIR, "deid_model.zip")])
     assert result.exit_code == 1
-    assert "Start serving model" in result.output
+    assert "\nAborted.\n" in result.output
 
 
 def test_register_help():
