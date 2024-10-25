@@ -110,6 +110,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 examples = None
                 ner.training_arguments.num_train_epochs = 1
                 ner.training_arguments.logging_steps = 1
+                ner.training_arguments.overwrite_output_dir = False
+                ner.training_arguments.save_strategy = "no"
                 if training_params.get("lr_override") is not None:
                     ner.training_arguments.learning_rate = training_params["lr_override"]
                 if training_params.get("test_size") is not None:

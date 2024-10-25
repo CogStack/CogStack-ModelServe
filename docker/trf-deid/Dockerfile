@@ -24,17 +24,16 @@ RUN addgroup --gid $CMS_GID cms || true && \
     adduser --uid $CMS_UID --gid $CMS_GID --disabled-password --gecos "" cms || true && \
     echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-WORKDIR /app
-
-COPY --chown=$CMS_UID:$CMS_GID app /app
-COPY --chown=$CMS_UID:$CMS_GID docker/trf-deid/requirements.txt .
+COPY app /app
+COPY docker/trf-deid/requirements.txt /app/requirements.txt
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
-    chown -R $CMS_UID:$CMS_GID /app/model
+    chown -R $CMS_UID:$CMS_GID /app
 RUN pip install --no-cache-dir -U pip &&\
     pip install --no-cache-dir -r requirements.txt && \
     python -m spacy download en_core_web_md
 
+WORKDIR /app
 EXPOSE 8000
 USER cms:cms
 CMD ["sh", "-c", "python cli/cli.py serve --model-type transformers_deid --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
