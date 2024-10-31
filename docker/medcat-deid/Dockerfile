@@ -30,7 +30,7 @@ RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
 RUN pip install --no-cache-dir -U pip &&\
-    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir -r /app/requirements.txt && \
     python -m spacy download en_core_web_md
 
 WORKDIR /app

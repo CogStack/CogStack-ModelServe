@@ -1,1 +1,1 @@
-* * * * * /usr/local/bin/mlflow gc --backend-store-uri ${MLFLOW_BACKEND_STORE_URI}
+0-30 0 * * * /usr/local/bin/mlflow gc --backend-store-uri ${MLFLOW_BACKEND_STORE_URI}
