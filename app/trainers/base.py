@@ -106,6 +106,15 @@ class TrainerCommon(object):
             shutil.rmtree(copied_model_pack_path.replace(".zip", ""))
         return copied_model_pack_path
 
+    @staticmethod
+    def _housekeep_file(file_path: Optional[str]) -> None:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.debug("model pack housekept")
+        if file_path and os.path.exists(file_path.replace(".zip", "")):
+            shutil.rmtree(file_path.replace(".zip", ""))
+            logger.debug("Unpacked model directory housekept")
+
 
 class SupervisedTrainer(ABC, TrainerCommon):
 

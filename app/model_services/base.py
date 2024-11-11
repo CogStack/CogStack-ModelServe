@@ -57,10 +57,10 @@ class AbstractModelService(ABC):
         raise NotImplementedError
 
     def train_supervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
-        return False
+        raise NotImplementedError
 
     def train_unsupervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
-        return False
+        raise NotImplementedError
 
     def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
-        return False
+        raise NotImplementedError

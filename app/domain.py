@@ -13,6 +13,7 @@ class ModelType(str, Enum):
     MEDCAT_DEID = "medcat_deid"
     ANONCAT = "anoncat"
     TRANSFORMERS_DEID = "transformers_deid"
+    HF_TRANSFORMER = "hf_transformer"
 
 
 class Tags(str, Enum):

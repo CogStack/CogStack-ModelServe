@@ -25,6 +25,9 @@ logger = logging.getLogger("cms")
              dependencies=[Depends(cms_globals.props.current_active_user)])
 async def train_unsupervised(request: Request,
                              training_data: Annotated[List[UploadFile], File(description="One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+                             epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+                             lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
+                             test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
@@ -36,7 +39,7 @@ async def train_unsupervised(request: Request,
     file_names = []
     data_file.write("[")
     for td_idx, td in enumerate(training_data):
-        temp_td = tempfile.NamedTemporaryFile(mode="w")
+        temp_td = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8")
         items = ijson.items(td.file, "item")
         temp_td.write("[")
         for text_idx, text in enumerate(items):
@@ -48,6 +51,7 @@ async def train_unsupervised(request: Request,
             json.dump(text, temp_td)
         temp_td.write("]")
         temp_td.flush()
+        temp_td.seek(0)
         file_names.append("" if td.filename is None else td.filename)
         files.append(temp_td)
     data_file.write("]")
@@ -57,12 +61,14 @@ async def train_unsupervised(request: Request,
     training_id = str(uuid.uuid4())
     try:
         training_accepted = model_service.train_unsupervised(data_file,
-                                                             1,
+                                                             epochs,
                                                              log_frequency,
                                                              training_id,
                                                              ",".join(file_names),
                                                              raw_data_files=files,
                                                              synchronised=False,
+                                                             lr_override=lr_override,
+                                                             test_size=test_size,
                                                              description=description)
     finally:
         for file in files:

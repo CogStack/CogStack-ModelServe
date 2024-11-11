@@ -2,7 +2,6 @@ import gc
 import logging
 import os
 import re
-import shutil
 import ijson
 import torch
 from contextlib import redirect_stdout
@@ -67,15 +66,6 @@ class _MedcatTrainerCommon(object):
         model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
         logger.debug("Model pack saved to %s", model_pack_path)
         return model_pack_path
-
-    @staticmethod
-    def _housekeep_file(file_path: Optional[str]) -> None:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            logger.debug("model pack housekept")
-        if file_path and os.path.exists(file_path.replace(".zip", "")):
-            shutil.rmtree(file_path.replace(".zip", ""))
-            logger.debug("Unpacked model directory housekept")
 
 
 class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
