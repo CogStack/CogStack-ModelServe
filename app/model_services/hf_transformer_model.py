@@ -17,6 +17,7 @@ from transformers.pipelines import Pipeline
 
 from exception import ConfigurationException
 from model_services.base import AbstractModelService
+from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
 from utils import get_settings
@@ -103,7 +104,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
                                 model=self._model,
                                 tokenizer=self._tokenizer,
                                 stride=10,
-                                aggregation_strategy="simple")
+                                aggregation_strategy="average")
             if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
                (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
                (get_settings().DEVICE.startswith("cpu")):
@@ -112,7 +113,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
                 self._ner_pipeline = _pipeline()
             if self._enable_trainer:
                 self._supervised_trainer = None
-                self._unsupervised_trainer = None
+                self._unsupervised_trainer = HFTransformerUnsupervisedTrainer(self)
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,

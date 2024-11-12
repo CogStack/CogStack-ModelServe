@@ -82,3 +82,15 @@ def test_annotate(hf_transformer_model):
     assert len(annotations) == 2
     assert type(annotations[0]["label_name"]) is str
     assert type(annotations[1]["label_name"]) is str
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_train_unsupervised(hf_transformer_model):
+    hf_transformer_model.init_model()
+    hf_transformer_model._config.REDEPLOY_TRAINED_MODEL = "false"
+    hf_transformer_model._config.SKIP_SAVE_MODEL = "true"
+    hf_transformer_model._unsupervised_trainer = Mock()
+    with tempfile.TemporaryFile("r+") as f:
+        hf_transformer_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
+    hf_transformer_model._unsupervised_trainer.train.assert_called()
