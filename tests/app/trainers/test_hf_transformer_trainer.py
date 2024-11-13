@@ -2,7 +2,7 @@ import os
 from unittest.mock import create_autospec, patch, Mock
 from config import Settings
 from model_services.hf_transformer_model import HuggingfaceTransformerModel
-from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer
+from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer, HFTransformerSupervisedTrainer
 
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
@@ -13,6 +13,8 @@ model_service = create_autospec(HuggingfaceTransformerModel,
                                 _model_pack_path=os.path.join(model_parent_dir, "model.zip"))
 unsupervised_trainer = HFTransformerUnsupervisedTrainer(model_service)
 unsupervised_trainer.model_name = "unsupervised_trainer"
+supervised_trainer = HFTransformerSupervisedTrainer(model_service)
+supervised_trainer.model_name = "supervised_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
@@ -35,6 +37,22 @@ def test_hf_transformer_unsupervised_trainer(mlflow_fixture):
     run.assert_called_once()
 
 
-def test_medcat_unsupervised_run(mlflow_fixture):
+def test_hf_transformer_supervised_trainer(mlflow_fixture):
+    with patch.object(supervised_trainer, "run", wraps=supervised_trainer.run) as run:
+        supervised_trainer._tracker_client = Mock()
+        supervised_trainer._tracker_client.start_tracking = Mock(return_value=("experiment_id", "run_id"))
+        with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
+            supervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
+            supervised_trainer._tracker_client.end_with_success()
+    supervised_trainer._tracker_client.start_tracking.assert_called_once()
+    run.assert_called_once()
+
+
+def test_hf_transformer_unsupervised_run(mlflow_fixture):
     with open(os.path.join(data_dir, "sample_texts.json"), "r") as data_file:
         HFTransformerUnsupervisedTrainer.run(unsupervised_trainer, {"nepochs": 1}, data_file, 1, "run_id")
+
+
+def test_hf_transformer_supervised_run(mlflow_fixture):
+    with open(os.path.join(data_dir, "trainer_export.json"), "r") as data_file:
+        HFTransformerSupervisedTrainer.run(supervised_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")

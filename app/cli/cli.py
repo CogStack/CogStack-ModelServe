@@ -40,9 +40,6 @@ cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack Model
 stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
 cmd_app.add_typer(stream_app, name="stream")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
-if get_settings().DEBUG != "true":
-    logging.getLogger().setLevel(logging.INFO)
-logger = logging.getLogger("cms")
 
 
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
@@ -52,15 +49,9 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                streamable: bool = typer.Option(False, help="Serve the streamable endpoints only")) -> None:
-    lrf = logging.getLogRecordFactory()
-
-    def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
-        record = lrf(*args, **kwargs)
-        record.model_type = model_type
-        record.model_name = model_name or "NULL"
-        return record
-    logging.setLogRecordFactory(log_record_factory)
+                streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
+                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+    logger = _get_logger(debug, model_type, model_name)
 
     if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:
         try:
@@ -119,16 +110,9 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 log_frequency: int = typer.Option(1, help="The number of processed documents after which training metrics will be logged"),
                 hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
                 description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
-    lrf = logging.getLogRecordFactory()
-
-    def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
-        record = lrf(*args, **kwargs)
-        record.model_type = model_type
-        record.model_name = model_name or "NULL"
-        return record
-    logging.setLogRecordFactory(log_record_factory)
-
+                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+    logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
 
     model_service_dep = ModelServiceDep(model_type, config)
@@ -174,7 +158,9 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                    training_type: Optional[str] = typer.Option(None, help="The type of training the model went through"),
                    model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
                    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
-                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object")) -> None:
+                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
+                   debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+    logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
 
@@ -204,7 +190,10 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
 @stream_app.command("json_lines", help="This gets NER entities as a JSON Lines stream")
 def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
                              base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
-                             timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection")) -> None:
+                             timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
+                             debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+    logger = _get_logger(debug)
+
     async def get_jsonl_stream(base_url: str, jsonl_file_path: str) -> None:
         with open(jsonl_file_path) as file:
             headers = {"Content-Type": "application/x-ndjson"}
@@ -227,7 +216,9 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
 
 
 @stream_app.command("chat", help="This gets NER entities by chatting with the model")
-def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url")) -> None:
+def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url"),
+                                  debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+    logger = _get_logger(debug)
     async def chat_with_model(base_url: str) -> None:
         try:
             chat_endpoint = f"{base_url}/stream/ws"
@@ -386,6 +377,27 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
         openapi["info"]["title"] = api_title
         json.dump(app.openapi(), api_doc, indent=4)
     print(f"OpenAPI doc exported to {doc_name}")
+
+
+def _get_logger(debug: Optional[bool] = None,
+                model_type: Optional[ModelType] = None,
+                model_name: Optional[str] = None) -> logging.Logger:
+    if debug is not None:
+        get_settings().DEBUG = "true" if debug else "false"
+    if get_settings().DEBUG != "true":
+        logging.getLogger().setLevel(logging.INFO)
+    logger = logging.getLogger("cms")
+
+    lrf = logging.getLogRecordFactory()
+
+    def log_record_factory(*args: Tuple, **kwargs: Dict[str, Any]) -> LogRecord:
+        record = lrf(*args, **kwargs)
+        record.model_type = model_type
+        record.model_name = model_name if model_name is not None else "NULL"
+        return record
+    logging.setLogRecordFactory(log_record_factory)
+
+    return logger
 
 
 if __name__ == "__main__":

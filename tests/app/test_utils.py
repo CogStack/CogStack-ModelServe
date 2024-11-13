@@ -94,11 +94,11 @@ def test_json_denormalize():
 def test_filter_by_concept_ids():
     config = get_settings()
     backup = config.TRAINING_CONCEPT_ID_WHITELIST
-    config.TRAINING_CONCEPT_ID_WHITELIST = "C0017168"
+    config.TRAINING_CONCEPT_ID_WHITELIST = "C0017168, C0020538"
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
-    filtered = filter_by_concept_ids(trainer_export)
+    filtered = filter_by_concept_ids(trainer_export, extra_excluded=["C0020538"])
     for project in filtered["projects"]:
         for document in project["documents"]:
             for annotation in document["annotations"]:

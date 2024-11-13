@@ -10,14 +10,15 @@ from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
     PreTrainedModel,
-    PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
+    BertForTokenClassification,
     pipeline,
 )
 from transformers.pipelines import Pipeline
 
 from exception import ConfigurationException
 from model_services.base import AbstractModelService
-from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer
+from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer, HFTransformerSupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
 from utils import get_settings
@@ -41,7 +42,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
         self._supervised_trainer = None
         self._unsupervised_trainer = None
         self._model: PreTrainedModel = None
-        self._tokenizer: PreTrainedTokenizer = None
+        self._tokenizer: PreTrainedTokenizerBase = None
         self._ner_pipeline: Pipeline = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
         self.model_name = model_name or "Huggingface Transformer model"
@@ -59,11 +60,11 @@ class HuggingfaceTransformerModel(AbstractModelService):
         del self._model
 
     @property
-    def tokenizer(self) -> PreTrainedTokenizer:
+    def tokenizer(self) -> PreTrainedTokenizerBase:
         return self._tokenizer
 
     @tokenizer.setter
-    def tokenizer(self, tokenizer: PreTrainedTokenizer) -> None:
+    def tokenizer(self, tokenizer: PreTrainedTokenizerBase) -> None:
         self._tokenizer = tokenizer
 
     @tokenizer.deleter
@@ -75,19 +76,19 @@ class HuggingfaceTransformerModel(AbstractModelService):
         return "0.0.1"
 
     @classmethod
-    def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizer) -> "HuggingfaceTransformerModel":
+    def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingfaceTransformerModel":
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
         return model_service
 
     @staticmethod
-    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
+    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
         with zipfile.ZipFile(model_file_path, "r") as f:
             f.extractall(model_path)
         model = AutoModelForTokenClassification.from_pretrained(model_path)
-        tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=512, add_special_tokens=False)
+        tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=512, add_special_tokens=False, do_lower_case=False)
         logger.info("Model pack loaded from %s", os.path.normpath(model_file_path))
         return model, tokenizer
 
@@ -95,16 +96,17 @@ class HuggingfaceTransformerModel(AbstractModelService):
         if all([hasattr(self, "_model"),
                 hasattr(self, "_tokenizer"),
                 isinstance(self._model, PreTrainedModel),
-                isinstance(self._tokenizer, PreTrainedTokenizer)]):
+                isinstance(self._tokenizer, PreTrainedTokenizerBase)]):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model, self._tokenizer = self.load_model(self._model_pack_path)
+            _aggregation_strategy = "average" if isinstance(self._model, BertForTokenClassification) else "simple"
             _pipeline = partial(pipeline,
                                 task="ner",
                                 model=self._model,
                                 tokenizer=self._tokenizer,
                                 stride=10,
-                                aggregation_strategy="average")
+                                aggregation_strategy=_aggregation_strategy)
             if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
                (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
                (get_settings().DEVICE.startswith("cpu")):
@@ -112,7 +114,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
             else:
                 self._ner_pipeline = _pipeline()
             if self._enable_trainer:
-                self._supervised_trainer = None
+                self._supervised_trainer = HFTransformerSupervisedTrainer(self)
                 self._unsupervised_trainer = HFTransformerUnsupervisedTrainer(self)
 
     def info(self) -> ModelCard:

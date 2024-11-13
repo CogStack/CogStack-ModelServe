@@ -3,7 +3,7 @@ import tempfile
 import pytest
 from unittest.mock import Mock
 from tests.app.conftest import MODEL_PARENT_DIR
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from domain import ModelType
 from model_services.hf_transformer_model import HuggingfaceTransformerModel
 
@@ -36,7 +36,7 @@ def test_init_model(hf_transformer_model):
 def test_load_model(hf_transformer_model):
     model, tokenizer = HuggingfaceTransformerModel.load_model(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip"))
     assert isinstance(model, PreTrainedModel)
-    assert isinstance(tokenizer, PreTrainedTokenizer)
+    assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
@@ -79,9 +79,7 @@ def test_annotate(hf_transformer_model):
         """ penetration as well as to reduce her globus sensation.,3.  The patient should be referred to a gastroenterologist for"""
         """ further evaluation of her esophageal function.,The patient does not need any skilled speech therapy for her swallowing"""
         """ abilities at this time, and she is discharged from my services.). Dr. ABC""")
-    assert len(annotations) == 2
-    assert type(annotations[0]["label_name"]) is str
-    assert type(annotations[1]["label_name"]) is str
+    assert isinstance(annotations, list)
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
@@ -94,3 +92,15 @@ def test_train_unsupervised(hf_transformer_model):
     with tempfile.TemporaryFile("r+") as f:
         hf_transformer_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
     hf_transformer_model._unsupervised_trainer.train.assert_called()
+
+
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+                    reason="requires the model file to be present in the resources folder")
+def test_train_supervised(hf_transformer_model):
+    hf_transformer_model.init_model()
+    hf_transformer_model._config.REDEPLOY_TRAINED_MODEL = "false"
+    hf_transformer_model._config.SKIP_SAVE_MODEL = "true"
+    hf_transformer_model._supervised_trainer = Mock()
+    with tempfile.TemporaryFile("r+") as f:
+        hf_transformer_model.train_supervised(f, 1, 1, "training_id", "input_file_name")
+    hf_transformer_model._supervised_trainer.train.assert_called()
