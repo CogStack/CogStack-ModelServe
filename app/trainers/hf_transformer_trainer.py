@@ -5,6 +5,7 @@ import gc
 import json
 import shutil
 import datasets
+import random
 import numpy as np
 from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple
 from torch import nn
@@ -31,7 +32,7 @@ from management.model_manager import ModelManager
 from management.tracker_client import TrackerClient
 from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export
-from utils import filter_by_concept_ids
+from utils import filter_by_concept_ids, reset_random_seed
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType
 
@@ -53,6 +54,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
         self._max_length = model_service.model.config.max_position_embeddings
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
+
     @staticmethod
     def run(trainer: "HFTransformerUnsupervisedTrainer",
             training_params: Dict,
@@ -65,6 +67,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
         results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
         logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+        reset_random_seed()
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
@@ -76,10 +79,10 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
                     (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
                     (trainer._config.DEVICE.startswith("cpu")):
                 mlm_model.to(trainer._config.DEVICE)
-
             test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
             with open(data_file.name, "r") as f:
                 lines = json.load(f)
+                random.shuffle(lines)
                 train_texts = [line.strip() for line in lines[:int(len(lines) * (1-test_size))]]
                 eval_texts = [line.strip() for line in lines[int(len(lines) * (1-test_size)):]]
 
@@ -279,6 +282,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
         results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
         logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+        reset_random_seed()
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
@@ -295,6 +299,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             model = trainer._update_model_with_concepts(model, filtered_concepts)
 
             documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
+            random.shuffle(documents)
             test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
             train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
             eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
@@ -332,7 +337,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
                 per_device_eval_batch_size=1,
                 eval_accumulation_steps=1,
                 gradient_accumulation_steps=4,
-                weight_decay=0.05,
+                weight_decay=0.01,
                 warmup_ratio=0.08,
                 logging_steps=log_frequency,
                 save_steps=1000,
