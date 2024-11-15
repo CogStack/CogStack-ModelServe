@@ -17,6 +17,8 @@ def test_add_exception_handlers():
     assert "rate_limit_exceeded_handler" in handlers
     assert "start_training_exception_handler" in handlers
     assert "annotation_exception_handler" in handlers
+    assert "configuration_exception_handler" in handlers
+    assert "unhandled_exception_handler" in handlers
 
 
 def test_add_middlewares():

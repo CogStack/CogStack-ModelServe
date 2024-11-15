@@ -3,12 +3,13 @@ import threading
 import shutil
 import os
 import logging
+import tempfile
 import datasets
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional, Any, List, final
+from typing import TextIO, Callable, Dict, Optional, Any, List, Union, final
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
@@ -41,7 +42,7 @@ class TrainerCommon(object):
                        run: Callable,
                        training_type: str,
                        training_params: Dict,
-                       data_file: TextIO,
+                       data_file: Union[TextIO, tempfile.TemporaryDirectory],
                        log_frequency: int,
                        training_id: str,
                        input_file_name: str,
@@ -71,19 +72,31 @@ class TrainerCommon(object):
                     # This may not be needed once Dataset can be stored as an artifact
                     self._tracker_client.save_processed_artifact(data_file.name, self._model_name)
 
-                    if training_type == TrainingType.UNSUPERVISED.value:
-                        dataset = datasets.load_dataset(doc_dataset.__file__,
-                                                        data_files={"documents": data_file.name},
-                                                        split="train",
-                                                        cache_dir=None,
-                                                        trust_remote_code=True)
-                        self._tracker_client.save_train_dataset(dataset)
-                    elif training_type == TrainingType.SUPERVISED.value:
-                        dataset = datasets.load_dataset(anno_dataset.__file__,
-                                                        data_files={"annotations": data_file.name},
-                                                        split="train",
-                                                        cache_dir=None,
-                                                        trust_remote_code=True)
+                    dataset = None
+                    if training_type == TrainingType.UNSUPERVISED.value and isinstance(data_file, TextIO):
+                        try:
+                            dataset = datasets.load_dataset(doc_dataset.__file__,
+                                                            data_files={"documents": data_file.name},
+                                                            split="train",
+                                                            cache_dir=self._config.TRAINING_CACHE_DIR,
+                                                            trust_remote_code=True)
+                            self._tracker_client.save_train_dataset(dataset)
+                        finally:
+                            if dataset is not None:
+                                dataset.cleanup_cache_files()
+                    elif training_type == TrainingType.SUPERVISED.value and isinstance(data_file, TextIO):
+                        try:
+                            dataset = datasets.load_dataset(anno_dataset.__file__,
+                                                            data_files={"annotations": data_file.name},
+                                                            split="train",
+                                                            cache_dir=self._config.TRAINING_CACHE_DIR,
+                                                            trust_remote_code=True)
+                            self._tracker_client.save_train_dataset(dataset)
+                        finally:
+                            if dataset is not None:
+                                dataset.cleanup_cache_files()
+                    elif training_type == TrainingType.UNSUPERVISED.value and isinstance(data_file, tempfile.TemporaryDirectory):
+                        dataset = datasets.load_from_disk(data_file.name)
                         self._tracker_client.save_train_dataset(dataset)
                     else:
                         raise ValueError(f"Unknown training type: {training_type}")

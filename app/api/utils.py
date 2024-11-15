@@ -18,7 +18,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from config import Settings
-from exception import StartTrainingException, AnnotationException
+from exception import StartTrainingException, AnnotationException, ConfigurationException
 
 logger = logging.getLogger("cms")
 
@@ -33,7 +33,7 @@ def add_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RateLimitExceeded)
     async def rate_limit_exceeded_handler(_: Request, exception: RateLimitExceeded) -> JSONResponse:
         logger.exception(exception)
-        return JSONResponse(status_code=HTTP_429_TOO_MANY_REQUESTS, content={"error": "Too many requests. Please wait and try your request again."})
+        return JSONResponse(status_code=HTTP_429_TOO_MANY_REQUESTS, content={"message": "Too many requests. Please wait and try your request again."})
 
     @app.exception_handler(StartTrainingException)
     async def start_training_exception_handler(_: Request, exception: StartTrainingException) -> JSONResponse:
@@ -44,6 +44,16 @@ def add_exception_handlers(app: FastAPI) -> None:
     async def annotation_exception_handler(_: Request, exception: AnnotationException) -> JSONResponse:
         logger.exception(exception)
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
+
+    @app.exception_handler(ConfigurationException)
+    async def configuration_exception_handler(_: Request, exception: ConfigurationException) -> JSONResponse:
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(_: Request, exception: Exception) -> JSONResponse:
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
 
 
 def add_rate_limiter(app: FastAPI, config: Settings, streamable: bool = False) -> None:

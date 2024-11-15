@@ -54,6 +54,12 @@ class BuildBackend(Enum):
     DOCKER_BUILDX = "docker buildx build"
 
 
+class DatasetSplit(str, Enum):
+    TRAIN = "train"
+    VALIDATION = "validation"
+    TEST = "test"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")

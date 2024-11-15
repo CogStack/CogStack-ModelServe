@@ -38,6 +38,7 @@ def test_get_model_server():
     assert "/preview_trainer_export" in paths
     assert "/train_supervised" in paths
     assert "/train_unsupervised" in paths
+    assert "/train_unsupervised_with_hf_hub_dataset" in paths
     assert "/train_metacat" in paths
     assert "/evaluate" in paths
     assert "/sanity-check" in paths

@@ -5,6 +5,7 @@ from model_services.medcat_model_icd10 import MedCATModelIcd10
 from model_services.medcat_model_umls import MedCATModelUmls
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 from model_services.trf_model_deid import TransformersModelDeIdentification
+from model_services.hf_transformer_model import HuggingfaceTransformerModel
 
 
 def test_medcat_snomed_dep():
@@ -30,3 +31,8 @@ def test_medcat_deid_dep():
 def test_transformer_deid_dep():
     model_service_dep = ModelServiceDep("transformers_deid", Settings())
     assert isinstance(model_service_dep(), TransformersModelDeIdentification)
+
+
+def test_hf_transformer_dep():
+    model_service_dep = ModelServiceDep("hf_transformer", Settings())
+    assert isinstance(model_service_dep(), HuggingfaceTransformerModel)

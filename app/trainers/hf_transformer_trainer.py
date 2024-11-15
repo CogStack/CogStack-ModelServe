@@ -6,8 +6,9 @@ import json
 import shutil
 import datasets
 import random
+import tempfile
 import numpy as np
-from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple
+from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union
 from torch import nn
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from scipy.special import softmax
@@ -34,7 +35,7 @@ from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export
 from utils import filter_by_concept_ids, reset_random_seed
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from domain import ModelType
+from domain import ModelType, DatasetSplit
 
 
 logger = logging.getLogger("cms")
@@ -58,15 +59,17 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
     @staticmethod
     def run(trainer: "HFTransformerUnsupervisedTrainer",
             training_params: Dict,
-            data_file: TextIO,
+            data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
         copied_model_pack_path = None
+        train_dataset = None
+        eval_dataset = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
-        logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+        results_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "results"))
+        logs_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
         try:
             logger.info("Loading a new model copy for training...")
@@ -80,11 +83,25 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
                     (trainer._config.DEVICE.startswith("cpu")):
                 mlm_model.to(trainer._config.DEVICE)
             test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
-            with open(data_file.name, "r") as f:
-                lines = json.load(f)
-                random.shuffle(lines)
-                train_texts = [line.strip() for line in lines[:int(len(lines) * (1-test_size))]]
-                eval_texts = [line.strip() for line in lines[int(len(lines) * (1-test_size)):]]
+            if isinstance(data_file, tempfile.TemporaryDirectory):
+                raw_dataset = datasets.load_from_disk(data_file.name)
+                if DatasetSplit.VALIDATION.value in raw_dataset.keys():
+                    train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                    eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
+                elif DatasetSplit.TEST.value in raw_dataset.keys():
+                    train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                    eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+                else:
+                    lines = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                    random.shuffle(lines)
+                    train_texts = [line.strip() for line in lines[:int(len(lines) * (1 - test_size))]]
+                    eval_texts = [line.strip() for line in lines[int(len(lines) * (1 - test_size)):]]
+            else:
+                with open(data_file.name, "r") as f:
+                    lines = json.load(f)
+                    random.shuffle(lines)
+                    train_texts = [line.strip() for line in lines[:int(len(lines) * (1-test_size))]]
+                    eval_texts = [line.strip() for line in lines[int(len(lines) * (1-test_size)):]]
 
             dataset_features = datasets.Features({
                 "input_ids": datasets.Sequence(datasets.Value("int32")),
@@ -95,12 +112,14 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
             train_dataset = datasets.Dataset.from_generator(
                 trainer._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": trainer._max_length}
+                gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": trainer._max_length},
+                cache_dir=trainer._model_service._config.TRAINING_CACHE_DIR
             )
             eval_dataset = datasets.Dataset.from_generator(
                 trainer._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": trainer._max_length}
+                gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": trainer._max_length},
+                cache_dir = trainer._model_service._config.TRAINING_CACHE_DIR
             )
             train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
             eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
@@ -164,13 +183,17 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
-            data_file.close()
+            if isinstance(data_file, TextIO):
+                data_file.close()
+            elif isinstance(data_file, tempfile.TemporaryDirectory):
+                data_file.cleanup()
+            if train_dataset is not None:
+                train_dataset.cleanup_cache_files()
+            if eval_dataset is not None:
+                eval_dataset.cleanup_cache_files()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            if results_path and os.path.isdir(results_path):
-                shutil.rmtree(results_path)
-            if logs_path and os.path.isdir(logs_path):
-                shutil.rmtree(logs_path)
+            _clean_up_training_cache(trainer._config.TRAINING_CACHE_DIR)
             trainer._housekeep_file(copied_model_pack_path)
 
     @staticmethod
@@ -209,7 +232,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
         return model
 
     @staticmethod
-    def _tokenize_and_chunk(texts: List[str], tokenizer: PreTrainedTokenizerBase, max_length: int) -> Iterable[Dict[str, Any]]:
+    def _tokenize_and_chunk(texts: Iterable[str], tokenizer: PreTrainedTokenizerBase, max_length: int) -> Iterable[Dict[str, Any]]:
         for text in texts:
             encoded = tokenizer(text, truncation=False, return_special_tokens_mask=True)
 
@@ -280,8 +303,8 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
         copied_model_pack_path = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
-        logs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logs"))
+        results_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "results"))
+        logs_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
         try:
             logger.info("Loading a new model copy for training...")
@@ -391,10 +414,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            if results_path and os.path.isdir(results_path):
-                shutil.rmtree(results_path)
-            if logs_path and os.path.isdir(logs_path):
-                shutil.rmtree(logs_path)
+            _clean_up_training_cache(trainer._config.TRAINING_CACHE_DIR)
             trainer._housekeep_file(copied_model_pack_path)
 
     @staticmethod
@@ -484,3 +504,22 @@ class MLflowLoggingCallback(TrainerCallback):
                **kwargs: Dict[str, Any]) -> None:
         if logs is not None:
             self.tracker_client.send_hf_training_logs(logs)
+
+
+def _clean_up_training_cache(directory: str) -> None:
+    for root, dirs, files in os.walk(directory, topdown=False):
+        for file in files:
+            file_path = os.path.join(root, file)
+            try:
+                os.remove(file_path)
+                logger.debug("Housekept file: %s", file_path)
+            except Exception as e:
+                logger.error("Error deleting file: %s : %s",file_path, e)
+
+        for dir in dirs:
+            dir_path = os.path.join(root, dir)
+            try:
+                shutil.rmtree(dir_path)
+                logger.debug("Housekept directory: %s", dir_path)
+            except Exception as e:
+                logger.error("Error deleting directory: %s : %s",dir_path, e)
