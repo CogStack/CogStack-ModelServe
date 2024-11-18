@@ -16,11 +16,11 @@ from safetensors.torch import load_file
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Any, Union, Tuple, Type
-from domain import Annotation, Entity, CodeType, ModelType
+from domain import Annotation, Entity, CodeType, ModelType, Device
 from config import Settings
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -65,7 +65,7 @@ def send_gelf_message(message: str, gelf_input_uri: ParseResult) -> None:
     sock.connect((gelf_input_uri.hostname, gelf_input_uri.port))
 
     message_id = struct.pack("<Q", random.getrandbits(64))
-    sock.sendall(b'\x1e\x0f' + message_id + b'\x00\x00' + bytes(json.dumps(message), "utf-8"))
+    sock.sendall(b"\x1e\x0f" + message_id + b"\x00\x00" + bytes(json.dumps(message), "utf-8"))
     sock.close()
 
 
@@ -88,7 +88,7 @@ def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
 
 def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
     result = pd.DataFrame()
-    for _, ent in medcat_entities.get("entities", {}).items():
+    for ent in medcat_entities.get("entities", {}).values():
         ent_df = pd.json_normalize(ent)
         result = pd.concat([result, ent_df], ignore_index=True)
     return result
@@ -96,7 +96,7 @@ def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
 
 def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
     result: List[Dict] = []
-    for idx, row in df.iterrows():
+    for _, row in df.iterrows():
         result_row: Dict = {}
         for col, cell in row.items():
             keys = col.split(sep)
@@ -105,7 +105,7 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
                 if i == len(keys)-1:
                     current[k] = cell
                 else:
-                    if k not in current.keys():
+                    if k not in current:
                         current[k] = {}
                     current = current[k]
         result.append(result_row)
@@ -127,14 +127,14 @@ def filter_by_concept_ids(trainer_export: Dict[str, Any],
             if extra_excluded is not None and len(extra_excluded) > 0:
                 document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") not in extra_excluded]
 
-    if model_type == ModelType.TRANSFORMERS_DEID or model_type == ModelType.MEDCAT_DEID or model_type == ModelType.ANONCAT:
+    if model_type in [ModelType.TRANSFORMERS_DEID, ModelType.MEDCAT_DEID, ModelType.ANONCAT]:
         # special preprocessing for the DeID annotations and consider removing this.
         for project in filtered["projects"]:
             for document in project["documents"]:
                 for annotation in document["annotations"]:
                     if annotation["cui"] == "N1100" or annotation["cui"] == "N1200":    # for metric calculation
                         annotation["cui"] = "N1000"
-                    if annotation["cui"] == "W5000" and (model_type == ModelType.MEDCAT_DEID or model_type == ModelType.ANONCAT):    # for compatibility
+                    if annotation["cui"] == "W5000" and (model_type in [ModelType.MEDCAT_DEID, ModelType.ANONCAT]):    # for compatibility
                         annotation["cui"] = "C2500"
 
     return filtered
@@ -168,6 +168,7 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
                           target_concept_ids: List[str],
                           primary_delimiter: str,
                           secondary_delimiter: Optional[str] = None,
+                          *,
                           include_delimiter: bool = True) -> Dict[str, Any]:
     assert isinstance(target_concept_ids, list), "The target_concept_ids is not a list"
     copied = copy.deepcopy(trainer_export)
@@ -210,7 +211,7 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
     return copied
 
 
-def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], case_sensitive: bool = True) -> Dict:
+def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], *, case_sensitive: bool = True) -> Dict:
     nlp = English()
     patterns = []
     for cui, regexes in cui_regexes_lists.items():
@@ -332,7 +333,7 @@ def func_deprecated(message: Optional[str] = None) -> Callable:
         @functools.wraps(func)
         def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
             warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""))
+            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""), stacklevel=2)
             warnings.simplefilter("default", DeprecationWarning)
             return func(*args, **kwargs)
         return wrapped
@@ -360,3 +361,11 @@ def reset_random_seed() -> None:
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+
+
+def non_default_device_is_available(device: str) -> bool:
+    return any([
+        device.startswith(Device.GPU.value) and torch.cuda.is_available(),
+        device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
+        device.startswith(Device.CPU.value)
+    ])

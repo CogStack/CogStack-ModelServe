@@ -46,16 +46,17 @@ if __name__ == "__main__":
 
     model_package_archive = os.path.abspath(os.path.expanduser(FLAGS.output_model_package))
     if FLAGS.hf_repo_id != "":
-        if not FLAGS.hf_repo_revision:
-            download_path = snapshot_download(repo_id=FLAGS.hf_repo_id)
-        else:
-            download_path = snapshot_download(repo_id=FLAGS.hf_repo_id, revision=FLAGS.hf_repo_revision)
+        try:
+            if not FLAGS.hf_repo_revision:
+                download_path = snapshot_download(repo_id=FLAGS.hf_repo_id)
+            else:
+                download_path = snapshot_download(repo_id=FLAGS.hf_repo_id, revision=FLAGS.hf_repo_revision)
 
-        cached_model_path = os.path.abspath(os.path.expanduser(os.path.join(download_path, "..", "..")))
-        shutil.make_archive(model_package_archive, "zip", download_path)
-
-        if FLAGS.remove_cached:
-            shutil.rmtree(cached_model_path)
+            cached_model_path = os.path.abspath(os.path.expanduser(os.path.join(download_path, "..", "..")))
+            shutil.make_archive(model_package_archive, "zip", download_path)
+        finally:
+            if FLAGS.remove_cached:
+                shutil.rmtree(cached_model_path)
     elif FLAGS.cached_model_dir != "":
         cached_model_path = os.path.abspath(os.path.expanduser(FLAGS.cached_model_dir))
         shutil.make_archive(model_package_archive, "zip", cached_model_path)

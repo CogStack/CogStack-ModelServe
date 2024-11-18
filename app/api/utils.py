@@ -18,7 +18,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from config import Settings
-from exception import StartTrainingException, AnnotationException, ConfigurationException
+from exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
 
 logger = logging.getLogger("cms")
 
@@ -50,6 +50,11 @@ def add_exception_handlers(app: FastAPI) -> None:
         logger.exception(exception)
         return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
 
+    @app.exception_handler(ClientException)
+    async def client_exception_handler(_: Request, exception: ClientException) -> JSONResponse:
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
+
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_: Request, exception: Exception) -> JSONResponse:
         logger.exception(exception)
@@ -61,7 +66,7 @@ def add_rate_limiter(app: FastAPI, config: Settings, streamable: bool = False) -
     app.add_middleware(SlowAPIMiddleware if not streamable else SlowAPIASGIMiddleware)
 
 
-@lru_cache()
+@lru_cache
 def get_rate_limiter(config: Settings, auth_user_enabled: Optional[bool] = None) -> Limiter:
     def get_user_auth(request: Request) -> str:
         request_headers = request.scope.get("headers", [])

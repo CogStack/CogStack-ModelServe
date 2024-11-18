@@ -33,7 +33,7 @@ from management.model_manager import ModelManager
 from management.tracker_client import TrackerClient
 from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export
-from utils import filter_by_concept_ids, reset_random_seed
+from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit
 
@@ -78,9 +78,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
             copied_model_directory = copied_model_pack_path.replace(".zip", "")
             mlm_model = trainer._get_mlm_model(model, copied_model_directory)
 
-            if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                    (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                    (trainer._config.DEVICE.startswith("cpu")):
+            if non_default_device_is_available(trainer._config.DEVICE):
                 mlm_model.to(trainer._config.DEVICE)
             test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
             if isinstance(data_file, tempfile.TemporaryDirectory):
@@ -178,8 +176,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
             logger.info("Unsupervised training finished")
             trainer._tracker_client.end_with_success()
         except Exception as e:
-            logger.error("Unsupervised training failed")
-            logger.exception(e)
+            logger.exception("Unsupervised training failed")
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
@@ -193,7 +190,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
                 eval_dataset.cleanup_cache_files()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            _clean_up_training_cache(trainer._config.TRAINING_CACHE_DIR)
+            trainer._clean_up_training_cache()
             trainer._housekeep_file(copied_model_pack_path)
 
     @staticmethod
@@ -312,9 +309,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
             copied_model_directory = copied_model_pack_path.replace(".zip", "")
 
-            if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                    (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                    (trainer._config.DEVICE.startswith("cpu")):
+            if non_default_device_is_available(trainer._config.DEVICE):
                 model.to(trainer._config.DEVICE)
 
             filtered_training_data, filtered_concepts = trainer._filter_training_data_and_concepts(data_file)
@@ -335,12 +330,14 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             train_dataset = datasets.Dataset.from_generator(
                 trainer._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model}
+                gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
+                cache_dir=trainer._config.TRAINING_CACHE_DIR
             )
             eval_dataset = datasets.Dataset.from_generator(
                 trainer._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model}
+                gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
+                cache_dir = trainer._config.TRAINING_CACHE_DIR
             )
             train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
             eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
@@ -406,15 +403,14 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             logger.info("Unsupervised training finished")
             trainer._tracker_client.end_with_success()
         except Exception as e:
-            logger.error("Unsupervised training failed")
-            logger.exception(e)
+            logger.exception("Unsupervised training failed")
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
             data_file.close()
             with trainer._training_lock:
                 trainer._training_in_progress = False
-            _clean_up_training_cache(trainer._config.TRAINING_CACHE_DIR)
+            trainer._clean_up_training_cache()
             trainer._housekeep_file(copied_model_pack_path)
 
     @staticmethod
@@ -504,22 +500,3 @@ class MLflowLoggingCallback(TrainerCallback):
                **kwargs: Dict[str, Any]) -> None:
         if logs is not None:
             self.tracker_client.send_hf_training_logs(logs)
-
-
-def _clean_up_training_cache(directory: str) -> None:
-    for root, dirs, files in os.walk(directory, topdown=False):
-        for file in files:
-            file_path = os.path.join(root, file)
-            try:
-                os.remove(file_path)
-                logger.debug("Housekept file: %s", file_path)
-            except Exception as e:
-                logger.error("Error deleting file: %s : %s",file_path, e)
-
-        for dir in dirs:
-            dir_path = os.path.join(root, dir)
-            try:
-                shutil.rmtree(dir_path)
-                logger.debug("Housekept directory: %s", dir_path)
-            except Exception as e:
-                logger.error("Error deleting directory: %s : %s",dir_path, e)

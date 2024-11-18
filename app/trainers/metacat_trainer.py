@@ -2,7 +2,6 @@ import os
 import logging
 import shutil
 import gc
-import torch
 from typing import Dict, TextIO, Optional, List
 
 import pandas as pd
@@ -10,6 +9,7 @@ from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from exception import TrainingFailedException
+from utils import non_default_device_is_available
 
 logger = logging.getLogger("cms")
 
@@ -49,9 +49,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                   (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                   (trainer._config.DEVICE.startswith("cpu")):
+                if non_default_device_is_available(trainer._config.DEVICE):
                     model = trainer._model_service.load_model(copied_model_pack_path,
                                                               meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
                     model.config.general["device"] = trainer._config.DEVICE
@@ -85,13 +83,15 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         }
                         trainer._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
                     except Exception as e:
-                        logger.error("Failed on training meta model: %s. This could be benign if training data has no annotations belonging to this category.", category_name)
-                        logger.exception(e)
+                        logger.exception("Failed on training meta model: %s. This could be benign if training data has no annotations belonging to this category.", category_name)
                         trainer._tracker_client.log_exceptions(e)
 
                 if not is_retrained:
-                    raise TrainingFailedException(
-                        "No metacat model has been retrained. Double-check the presence of metacat models and your annotations.")
+                    exception = TrainingFailedException("No metacat model has been retrained. Double-check the presence of metacat models and your annotations.")
+                    logger.error("Error occurred while retraining the model: %s", exception, exc_info=True)
+                    trainer._tracker_client.log_exceptions(exception)
+                    trainer._tracker_client.end_with_failure()
+                    return
 
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
@@ -110,14 +110,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
-
-                # Remove intermediate results folder on successful training
-                results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
-                if results_path and os.path.isdir(results_path):
-                    shutil.rmtree(results_path)
             except Exception as e:
-                logger.error("Supervised training failed")
-                logger.exception(e)
+                logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -128,6 +122,11 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 trainer._housekeep_file(copied_model_pack_path)
                 if cdb_config_path and os.path.exists(cdb_config_path):
                     os.remove(cdb_config_path)
+
+                # Remove intermediate results folder on successful training
+                results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
+                if results_path and os.path.isdir(results_path):
+                    shutil.rmtree(results_path)
         else:
             try:
                 logger.info("Evaluating the running model...")
@@ -143,14 +142,16 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     trainer._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
                                                                   pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
                                                                   trainer._model_service._model_name)
+                    trainer._tracker_client.end_with_success()
+                    logger.info("Model evaluation finished")
                 else:
-                    raise TrainingFailedException(
-                        "No metacat model has been evaluated. Double-check the presence of metacat models and your annotations.")
-                trainer._tracker_client.end_with_success()
-                logger.info("Model evaluation finished")
+                    exception = TrainingFailedException("No metacat model has been evaluated. Double-check the presence of metacat models and your annotations.")
+                    logger.error("Error occurred while evaluating the model: %s", exception, exc_info=True)
+                    trainer._tracker_client.log_exceptions(exception)
+                    trainer._tracker_client.end_with_failure()
+                    return
             except Exception as e:
-                logger.error("Model evaluation failed")
-                logger.exception(e)
+                logger.exception("Model evaluation failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:

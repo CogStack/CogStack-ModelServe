@@ -7,6 +7,7 @@ import pytest
 import api.globals as cms_globals
 from fastapi.testclient import TestClient
 from api.api import get_model_server
+from domain import ModelCard, ModelType
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from management.model_manager import ModelManager
@@ -227,6 +228,22 @@ def test_train_unsupervised(model_service, client):
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("[\"Spinal stenosis\"]"))
         response = client.post("/train_unsupervised", files=[("training_data", f)])
+
+    model_service.train_unsupervised.assert_called()
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+
+
+def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
+    model_card = ModelCard.parse_obj({
+        "api_version": "0.0.1",
+        "model_description": "hf_transformer_model_description",
+        "model_type": ModelType.MEDCAT_SNOMED,
+        "model_card": None,
+    })
+    model_service.info.return_value = model_card
+
+    response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb")
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."

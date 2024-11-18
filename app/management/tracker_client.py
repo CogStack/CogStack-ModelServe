@@ -38,9 +38,8 @@ class TrackerClient(object):
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         try:
             active_run = mlflow.start_run(experiment_id=experiment_id)
-        except Exception as e:
-            logger.error("Cannot start a new training")
-            logger.exception(e)
+        except Exception:
+            logger.exception("Cannot start a new training")
             raise StartTrainingException("Cannot start a new training")
         mlflow.set_tags({
             MLFLOW_SOURCE_NAME: socket.gethostname(),
@@ -200,7 +199,7 @@ class TrackerClient(object):
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
         except Exception as e:
-            logger.exception(e)
+            logger.exception("Failed to save the pretrained model")
             TrackerClient.log_exceptions(e)
             TrackerClient.end_with_failure()
 

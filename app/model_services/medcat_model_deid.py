@@ -9,7 +9,8 @@ from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
 from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
-from domain import ModelCard, ModelType
+from domain import ModelCard, ModelType, Device
+from utils import non_default_device_is_available
 from exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -119,15 +120,13 @@ class MedCATModelDeIdentification(MedCATModel):
             self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
             self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
             self._model._addl_ner[0].tokenizer.hf_tokenizer.split_special_tokens = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "split_special_tokens", False)
-            if (self._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-               (self._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-               (self._config.DEVICE.startswith("cpu")):
+            if non_default_device_is_available(self._config.DEVICE):
                 self._model.config.general["device"] = self._config.DEVICE
                 self._model._addl_ner[0].model.to(torch.device(self._config.DEVICE))
-                if self._config.DEVICE.startswith("cuda"):
+                if self._config.DEVICE.startswith(Device.GPU.value):
                     device = 0 if len(self._config.DEVICE.split(":")) == 1 else self._config.DEVICE.split(":")[1]
-                elif self._config.DEVICE.startswith("mps"):
-                    device = "mps"
+                elif self._config.DEVICE.startswith(Device.MPS.value):
+                    device = Device.MPS.value
                 else:
                     device = -1
                 self._model._addl_ner[0].ner_pipe = pipeline(model=self._model._addl_ner[0].model,

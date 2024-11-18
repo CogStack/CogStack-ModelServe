@@ -2,10 +2,11 @@ import gc
 import logging
 import os
 import re
+import tempfile
 import ijson
-import torch
+import datasets
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List, final
+from typing import TextIO, Dict, Optional, Set, List, Union, final
 
 import pandas as pd
 from medcat import __version__ as medcat_version
@@ -16,7 +17,8 @@ from model_services.base import AbstractModelService
 from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
 from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
-from utils import get_func_params_as_dict
+from utils import get_func_params_as_dict, non_default_device_is_available
+from domain import DatasetSplit
 
 logger = logging.getLogger("cms")
 
@@ -99,9 +101,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
 
-                if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                   (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                   (trainer._config.DEVICE.startswith("cpu")):
+                if non_default_device_is_available(trainer._config.DEVICE):
                     model = trainer._model_service.load_model(copied_model_pack_path,
                                                               meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
                     model.config.general["device"] = trainer._config.DEVICE
@@ -170,8 +170,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
             except Exception as e:
-                logger.error("Supervised training failed")
-                logger.exception(e)
+                logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -194,8 +193,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
             except Exception as e:
-                logger.error("Model evaluation failed")
-                logger.exception(e)
+                logger.exception("Model evaluation failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -296,7 +294,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
     @staticmethod
     def run(trainer: "MedcatUnsupervisedTrainer",
             training_params: Dict,
-            data_file: TextIO,
+            data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
@@ -305,13 +303,17 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         copied_model_pack_path = None
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        texts = ijson.items(data_file, "item")
+
+        if isinstance(data_file, tempfile.TemporaryDirectory):
+            raw_dataset = datasets.load_from_disk(data_file.name)
+            texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+        else:
+            texts = ijson.items(data_file, "item")
+
         try:
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-            if (trainer._config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-                    (trainer._config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-                    (trainer._config.DEVICE.startswith("cpu")):
+            if non_default_device_is_available(trainer._config.DEVICE):
                 model = trainer._model_service.load_model(copied_model_pack_path,
                                                           meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
                 model.config.general["device"] = trainer._config.DEVICE
@@ -364,14 +366,17 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             logger.info("Unsupervised training finished")
             trainer._tracker_client.end_with_success()
         except Exception as e:
-            logger.error("Unsupervised training failed")
-            logger.exception(e)
+            logger.exception("Unsupervised training failed")
             trainer._tracker_client.log_exceptions(e)
             trainer._tracker_client.end_with_failure()
         finally:
-            data_file.close()
+            if isinstance(data_file, TextIO):
+                data_file.close()
+            elif isinstance(data_file, tempfile.TemporaryDirectory):
+                data_file.cleanup()
             with trainer._training_lock:
                 trainer._training_in_progress = False
+            trainer._clean_up_training_cache()
             trainer._housekeep_file(model_pack_path)
             trainer._housekeep_file(copied_model_pack_path)
             if cdb_config_path and os.path.exists(cdb_config_path):

@@ -128,6 +128,24 @@ class TrainerCommon(object):
             shutil.rmtree(file_path.replace(".zip", ""))
             logger.debug("Unpacked model directory housekept")
 
+    def _clean_up_training_cache(self) -> None:
+        for root, dirs, files in os.walk(self._config.TRAINING_CACHE_DIR, topdown=False):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    os.remove(file_path)
+                    logger.debug("Housekept file: %s", file_path)
+                except Exception as e:
+                    logger.error("Error occurred on deleting file: %s : %s", file_path, e)
+
+            for dir in dirs:
+                dir_path = os.path.join(root, dir)
+                try:
+                    shutil.rmtree(dir_path)
+                    logger.debug("Housekept directory: %s", dir_path)
+                except Exception as e:
+                    logger.error("Error occurred on deleting directory: %s : %s", dir_path, e)
+
 
 class SupervisedTrainer(ABC, TrainerCommon):
 

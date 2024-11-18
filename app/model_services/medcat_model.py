@@ -1,6 +1,5 @@
 import os
 import logging
-import torch
 import pandas as pd
 
 from multiprocessing import cpu_count
@@ -11,7 +10,7 @@ from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedT
 from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
-from utils import get_settings, TYPE_ID_TO_NAME_PATCH
+from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available
 from exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -80,9 +79,7 @@ class MedCATModel(AbstractModelService):
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-               (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-               (get_settings().DEVICE.startswith("cpu")):
+            if non_default_device_is_available(get_settings().DEVICE):
                 self._model = self.load_model(self._model_pack_path, meta_cat_config_dict={"general": {"device": get_settings().DEVICE}})
                 self._model.config.general["device"] = get_settings().DEVICE
             else:

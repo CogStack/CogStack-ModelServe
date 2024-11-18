@@ -36,7 +36,7 @@ def client(model_service):
     client.app.dependency_overrides.clear()
 
 
-def test_train_unsupervised_with_hf_hub_dataset_post(model_service, client):
+def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
     model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
         "model_description": "hf_transformer_model_description",

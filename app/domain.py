@@ -60,6 +60,13 @@ class DatasetSplit(str, Enum):
     TEST = "test"
 
 
+class Device(str, Enum):
+    DEFAULT = "default"
+    CPU = "cpu"
+    GPU = "cuda"
+    MPS = "mps"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")

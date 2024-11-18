@@ -16,3 +16,7 @@ class AnnotationException(Exception):
 
 class ManagedModelException(Exception):
     """ An exception raised due to erroneous models"""
+
+
+class ClientException(Exception):
+    """ An exception raised due to generic client errors"""

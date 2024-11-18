@@ -28,7 +28,7 @@ from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
 from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
-from domain import ModelType, TrainingType, BuildBackend  # noqa
+from domain import ModelType, TrainingType, BuildBackend, Device  # noqa
 from registry import model_service_registry  # noqa
 from api.api import get_model_server, get_stream_server # noqa
 from utils import get_settings, send_gelf_message  # noqa
@@ -50,8 +50,12 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 port: str = typer.Option("8000", help="The port of the server"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
                 streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
+                device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
                 debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
     logger = _get_logger(debug, model_type, model_name)
+    get_settings().DEVICE = device.value
+    if model_type in [ModelType.HF_TRANSFORMER, ModelType.MEDCAT_DEID, ModelType.TRANSFORMERS_DEID]:
+        get_settings().DISABLE_METACAT_TRAINING = "true"
 
     if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:
         try:
@@ -60,9 +64,8 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
             gelf_tcp_handler = graypy.GELFTCPHandler(uri.hostname, uri.port)
             logger.addHandler(gelf_tcp_handler)
             logging.getLogger("uvicorn").addHandler(gelf_tcp_handler)
-        except Exception as e:
-            logger.error("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
-            logger.exception(e)
+        except Exception:
+            logger.exception("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
 
     config = get_settings()
 
@@ -111,9 +114,12 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
                 description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
                 model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+                device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
                 debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
     logger = _get_logger(debug, model_type, model_name)
+
     config = get_settings()
+    config.DEVICE = device.value
 
     model_service_dep = ModelServiceDep(model_type, config)
     cms_globals.model_service_dep = model_service_dep

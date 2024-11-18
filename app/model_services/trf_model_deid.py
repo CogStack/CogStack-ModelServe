@@ -10,7 +10,7 @@ from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
 from model_services.base import AbstractModelService
 from domain import ModelCard, ModelType
 from config import Settings
-from utils import cls_deprecated
+from utils import cls_deprecated, non_default_device_is_available
 
 logger = logging.getLogger("cms")
 
@@ -29,9 +29,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_file_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
-        if (config.DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-           (config.DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-           (config.DEVICE.startswith("cpu")):
+        if non_default_device_is_available(config.DEVICE):
             self._device = torch.device(config.DEVICE)
         self.model_name = model_name or "De-identification model"
         self._model: PreTrainedModel

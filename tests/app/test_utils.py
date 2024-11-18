@@ -135,7 +135,7 @@ def test_breakdown_annotations_without_including_delimiter():
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
-    result = breakdown_annotations(trainer_export, ["C0017168"], " ", "e", False)
+    result = breakdown_annotations(trainer_export, ["C0017168"], " ", "e", include_delimiter=False)
     for project in result["projects"]:
         for document in project["documents"]:
             for annotation in document["annotations"]:
@@ -185,7 +185,7 @@ def test_augment_annotations_case_insensitive():
             [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$", r"^\d{4}$"],
             [r"^(?:19\d\d|20\d\d)$"],
         ]
-    }, False)
+    }, case_sensitive=False)
 
     match_count_00001 = 0
     match_count_00002 = 0

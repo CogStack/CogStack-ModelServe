@@ -1,7 +1,6 @@
 import os
 import logging
 import zipfile
-import torch
 import pandas as pd
 
 from functools import partial
@@ -21,7 +20,7 @@ from model_services.base import AbstractModelService
 from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer, HFTransformerSupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
-from utils import get_settings
+from utils import get_settings, non_default_device_is_available
 
 
 logger = logging.getLogger("cms")
@@ -107,9 +106,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
                                 tokenizer=self._tokenizer,
                                 stride=10,
                                 aggregation_strategy=_aggregation_strategy)
-            if (get_settings().DEVICE.startswith("cuda") and torch.cuda.is_available()) or \
-               (get_settings().DEVICE.startswith("mps") and torch.backends.mps.is_available()) or \
-               (get_settings().DEVICE.startswith("cpu")):
+            if non_default_device_is_available(get_settings().DEVICE):
                 self._ner_pipeline = _pipeline(device=get_settings().DEVICE)
             else:
                 self._ner_pipeline = _pipeline()

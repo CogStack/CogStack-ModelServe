@@ -16,8 +16,9 @@ from transformers import pipeline
 from medcat import __version__ as medcat_version
 from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
-from utils import get_settings
+from utils import get_settings, non_default_device_is_available
 from management import tracker_client
+from domain import Device
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
@@ -206,8 +207,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 if results_path and os.path.isdir(results_path):
                     shutil.rmtree(results_path)
             except Exception as e:
-                logger.error("Supervised training failed")
-                logger.exception(e)
+                logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -252,8 +252,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 logger.info("Model evaluation finished")
                 trainer._tracker_client.end_with_success()
             except Exception as e:
-                logger.error("Model evaluation failed")
-                logger.exception(e)
+                logger.exception("Model evaluation failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -279,14 +278,12 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
 
     @staticmethod
     def _customise_training_device(ner: TransformersNER, device_name: str) -> TransformersNER:
-        if (device_name.startswith("cuda") and torch.cuda.is_available()) or \
-           (device_name.startswith("mps") and torch.backends.mps.is_available()) or \
-           (device_name.startswith("cpu")):
+        if non_default_device_is_available(device_name):
             ner.model.to(torch.device(device_name))
-            if device_name.startswith("cuda"):
+            if device_name.startswith(Device.GPU.value):
                 device = 0 if len(device_name.split(":")) == 1 else device_name.split(":")[1]
-            elif device_name.startswith("mps"):
-                device = "mps"
+            elif device_name.startswith(Device.MPS.value):
+                device = Device.MPS.value
             else:
                 device = -1
             ner.ner_pipe = pipeline(model=ner.model,
