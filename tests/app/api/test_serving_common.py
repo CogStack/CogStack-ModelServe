@@ -97,6 +97,35 @@ def test_process_unknown_jsonl_properties(model_service, client):
     assert "Invalid JSON properties found." in response.json()["message"]
 
 
+def test_redact_with_white_list():
+    annotations = [{
+        "label_name": "Spinal stenosis",
+        "label_id": "76107001",
+        "start": 0,
+        "end": 15,
+        "accuracy": 1.0,
+        "meta_anns": {
+            "Status": {
+                "value": "Affirmed",
+                "confidence": 0.9999833106994629,
+                "name": "Status"
+            }
+        },
+    }]
+
+    concepts_to_keep = ["76107001"]
+    url = f"/redact?concepts_to_keep={','.join(concepts_to_keep)}"
+    
+    model_service.annotate.return_value = annotations
+
+
+    response = client.post(url,
+                           data="Spinal stenosis",
+                           headers={"Content-Type": "text/plain"})
+    
+    assert response.text == "Spinal stenosis"
+
+
 def test_warning_on_no_redaction(model_service, client):
     annotations = []
     model_service.annotate.return_value = annotations
