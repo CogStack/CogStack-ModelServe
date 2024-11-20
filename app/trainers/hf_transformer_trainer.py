@@ -7,6 +7,7 @@ import shutil
 import datasets
 import random
 import tempfile
+from functools import partial
 import numpy as np
 from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union
 from torch import nn
@@ -375,7 +376,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
                 data_collator=data_collator,
                 train_dataset=train_dataset,
                 eval_dataset=eval_dataset,
-                compute_metrics=trainer._compute_token_level_metrics,
+                compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label),
                 callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
             )
 
@@ -468,13 +469,18 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
                 }
 
     @staticmethod
-    def _compute_token_level_metrics(eval_pred: EvalPrediction) -> Dict[str, Any]:
+    def _compute_token_level_metrics(eval_pred: EvalPrediction, id2label: Dict[int, str]) -> Dict[str, Any]:
         predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
         label_ids = eval_pred.label_ids
-        non_default_or_padding_indices = np.where((label_ids != HFTransformerSupervisedTrainer.DEFAULT_LABEL_ID) & (label_ids != HFTransformerSupervisedTrainer.PAD_LABEL_ID))
-        filtered_predictions = predictions[non_default_or_padding_indices]
-        filtered_label_ids = label_ids[non_default_or_padding_indices]
-        precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids, filtered_predictions)
+        non_padding_indices = np.where(label_ids != HFTransformerSupervisedTrainer.PAD_LABEL_ID)
+        non_padding_predictions = predictions[non_padding_indices].flatten()
+        non_padding_label_ids = label_ids[non_padding_indices].flatten()
+        filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HFTransformerSupervisedTrainer.DEFAULT_LABEL_ID)])
+        _labels = list(id2label.keys())
+        precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids,
+                                                                         filtered_predictions,
+                                                                         labels=_labels,
+                                                                         average=None)
         accuracy = accuracy_score(filtered_label_ids, filtered_predictions)
         metrics = {
             "accuracy": accuracy,
@@ -483,7 +489,16 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             "recall_avg": np.average(recall),
             "support_avg": np.average(support),
         }
-        logger.info("Evaluation metrics: %s", metrics)
+
+        for idx, p in enumerate(precision[:10]):    # limit by the number of labels to avoid excessive metrics logging
+            if support[idx] == 0:  # the concept has no true labels
+                continue
+            metrics[f"{id2label.get(idx)}/precision"] = p if p is not None else 0.0
+            metrics[f"{id2label.get(idx)}/recall"] = recall[idx] if recall[idx] is not None else 0.0
+            metrics[f"{id2label.get(idx)}/f1"] = f1[idx] if f1[idx] is not None else 0.0
+            metrics[f"{id2label.get(idx)}/support"] = support[idx] if support[idx] is not None else 0.0
+
+        logger.debug("Evaluation metrics: %s", metrics)
         return metrics
 
 
