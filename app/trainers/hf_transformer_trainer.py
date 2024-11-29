@@ -15,10 +15,7 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from scipy.special import softmax
 from transformers import __version__ as transformers_version
 from transformers import (
-    BertForMaskedLM,
-    BertForTokenClassification,
-    RobertaForMaskedLM,
-    RobertaForTokenClassification,
+    AutoModelForMaskedLM,
     DataCollatorForLanguageModeling,
     TrainingArguments,
     Trainer,
@@ -36,7 +33,7 @@ from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export
 from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from domain import ModelType, DatasetSplit
+from domain import ModelType, DatasetSplit, HfTransformerBackbone
 
 
 logger = logging.getLogger("cms")
@@ -207,26 +204,27 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
 
     @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
-        if isinstance(model, BertForMaskedLM) or isinstance(model, BertForTokenClassification):
-            mlm_model = BertForMaskedLM.from_pretrained(copied_model_directory)
-            mlm_model.bert = model.bert
-        elif isinstance(model, RobertaForMaskedLM) or isinstance(model, RobertaForTokenClassification):
-            mlm_model = RobertaForMaskedLM.from_pretrained(copied_model_directory)
-            mlm_model.roberta = model.roberta
-        else:
-            raise ValueError(f"Unsupported model type: {type(model)}")
+        mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
+        backbone_found = False
+        for backbone in HfTransformerBackbone:
+            if hasattr(model, backbone.value):
+                setattr(mlm_model, backbone.value, getattr(model, backbone.value))
+                backbone_found = True
+                break
+        if not backbone_found:
+            raise ValueError(f"Unsupported model architecture: {type(model)}")
         return mlm_model
 
     @staticmethod
     def _get_final_model(model: PreTrainedModel, mlm_model: PreTrainedModel) -> PreTrainedModel:
-        if isinstance(model, BertForMaskedLM) or isinstance(model, RobertaForMaskedLM):
-            model = mlm_model
-        elif isinstance(model, BertForTokenClassification):
-            model.bert = mlm_model.bert
-        elif isinstance(model, RobertaForTokenClassification):
-            model.roberta = mlm_model.roberta
-        else:
-            raise ValueError(f"Unsupported model type: {type(model)}")
+        backbone_found = False
+        for backbone in HfTransformerBackbone:
+            if hasattr(model, backbone.value):
+                setattr(model, backbone.value, getattr(mlm_model, backbone.value))
+                backbone_found = True
+                break
+        if not backbone_found:
+            raise ValueError(f"Unsupported model architecture: {type(model)}")
         return model
 
     @staticmethod

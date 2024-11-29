@@ -66,7 +66,7 @@ class _MedcatTrainerCommon(object):
         model.config.version.description = description or model.config.version.description
         model_pack_name = model.create_model_pack(model_dir, "model")
         model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
-        logger.debug("Model pack saved to %s", model_pack_path)
+        logger.debug("Model package saved to %s", model_pack_path)
         return model_pack_path
 
 

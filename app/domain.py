@@ -67,6 +67,16 @@ class Device(str, Enum):
     MPS = "mps"
 
 
+class HfTransformerBackbone(Enum):
+    ALBERT = "albert"
+    BERT = "bert"
+    DISTILBERT = "distilbert"
+    DEBERTA = "deberta"
+    MOBILEBERT = "mobilebert"
+    ROBERTA = "roberta"
+    XLM_ROBERTA = "xlm_roberta"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")

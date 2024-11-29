@@ -50,6 +50,30 @@ def test_generate_api_doc_per_model():
     assert "OpenAPI doc exported to" in result.output
 
 
+def test_stream_chat_help():
+    result = runner.invoke(cmd_app, ["stream", "chat", "--help"])
+    assert result.exit_code == 0
+    assert "This gets NER entities by chatting with the model" in result.output
+
+
+def test_stream_json_lines_help():
+    result = runner.invoke(cmd_app, ["stream", "json-lines", "--help"])
+    assert result.exit_code == 0
+    assert "This gets NER entities as a JSON Lines stream" in result.output
+
+
+def test_package_hf_model_help():
+    result = runner.invoke(cmd_app, ["package", "hf-model", "--help"])
+    assert result.exit_code == 0
+    assert "This packages a remotely hosted or locally cached" in result.output
+
+
+def test_package_hf_dataset_help():
+    result = runner.invoke(cmd_app, ["package", "hf-dataset", "--help"])
+    assert result.exit_code == 0
+    assert "This packages a remotely hosted or locally cached" in result.output
+
+
 def test_generate_api_doc_help():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--help"])
     assert result.exit_code == 0

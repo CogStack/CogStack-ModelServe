@@ -89,6 +89,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
                                              hf_dataset_repo_id: Annotated[Union[str, None], Query(description="The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided")] = None,
                                              hf_dataset_config: Annotated[Union[str, None], Query(description="The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided")] = None,
                                              hf_dataset_package: Annotated[Union[UploadFile, None], File(description="A ZIP file containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'")] = None,
+                                             trust_remote_code: Annotated[bool, Query(description="Whether to trust the remote code of the dataset")] = False,
                                              text_column_name: Annotated[str, Query(description="The name of the text column in the dataset")] = "text",
                                              epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                                              lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
@@ -117,7 +118,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
         input_file_name = hf_dataset_repo_id
         hf_dataset = datasets.load_dataset(hf_dataset_repo_id,
                                            cache_dir=get_settings().TRAINING_CACHE_DIR,
-                                           trust_remote_code=True,
+                                           trust_remote_code=trust_remote_code,
                                            name=hf_dataset_config)
         for split in hf_dataset.keys():
             if text_column_name not in hf_dataset[split].column_names:

@@ -17,17 +17,24 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
 - [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
+- [Hugging Face Transformer Model](https://cogstack.github.io/CogStack-ModelServe/docs/hf_transformer_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
 You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
 ```commandline
 python app/cli/cli.py --help
 python app/cli/cli.py serve --help
+python app/cli/cli.py train --help
 ```
 
 ## Download models:
 
-CMS runs the NLP model packaged in a single ZIP file. To download the GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org) if you are interested in trying out Alpha release such as the de-identification model.
+CMS runs the NLP model packaged in a single ZIP file. To download the GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org) 
+if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
+package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP file by running:
+```commandline
+python app/cli/cli.py --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
+```
 
 ## Run ModelServe in the system environment:
 
@@ -51,6 +58,7 @@ The following table summarises the servable model types with their respective ou
 |    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
 |    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
 | transformers_deid | de-identification |  labelled with PII concepts   |
+|  hf_transformer   |   hf-transformer  |        customer labels        |
 
 ## Run ModelServe in the container environment:
 

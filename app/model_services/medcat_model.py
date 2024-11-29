@@ -60,7 +60,7 @@ class MedCATModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
         cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
-        logger.info("Model pack loaded from %s", os.path.normpath(model_file_path))
+        logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
         return cat
 
     @staticmethod
@@ -158,9 +158,9 @@ class MedCATModel(AbstractModelService):
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            for _, row in df.iterrows():
+            for idx, row in df.iterrows():
                 if "athena_ids" in row and row["athena_ids"]:
-                    row["athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
+                    df.loc[idx, "athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
             if self._config.INCLUDE_SPAN_TEXT == "true":
                 df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "source_value": "text", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
             else:

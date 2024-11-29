@@ -28,6 +28,8 @@ from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
 from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
+from huggingface_hub import snapshot_download  # noqa
+from datasets import load_dataset  # noqa
 from domain import ModelType, TrainingType, BuildBackend, Device  # noqa
 from registry import model_service_registry  # noqa
 from api.api import get_model_server, get_stream_server # noqa
@@ -39,6 +41,8 @@ from management.tracker_client import TrackerClient  # noqa
 cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
 stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
 cmd_app.add_typer(stream_app, name="stream")
+package_app = typer.Typer(name="python cli.py package", help="This groups various package operations", add_completion=False)
+cmd_app.add_typer(package_app, name="package")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
 
@@ -93,14 +97,14 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_server_app = get_model_server()
     else:
         logger.error("Neither the model path or the mlflow model uri was passed in")
-        sys.exit(1)
+        typer.Exit(code=1)
 
     logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:
     uvicorn.run(model_server_app if not streamable else get_stream_server(), host=host, port=int(port), log_config=None)
     # interrupted = True
-    print("Shutting down due to either keyboard interrupt or system exit")
+    typer.echo("Shutting down due to either keyboard interrupt or system exit")
 
 
 @cmd_app.command("train", help="This pretrains or fine-tunes various CogStack NLP models")
@@ -141,7 +145,7 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service_dep.model_service = model_service
     else:
         logger.error("Neither the model path or the mlflow model uri was passed in")
-        sys.exit(1)
+        typer.Exit(code=1)
 
     training_id = str(uuid.uuid4())
     with open(data_file_path, "r") as data_file:
@@ -154,7 +158,7 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
             model_service.train_metacat(*training_args, **json.loads(hyperparameters))
         else:
             logger.error("Training type %s is not supported or the corresponding trainer has not been enabled in the .env file.", training_type)
-            sys.exit(1)
+            typer.Exit(code=1)
 
 
 @cmd_app.command("register", help="This pushes a pretrained NLP model to the CogStack ModelServe registry")
@@ -174,7 +178,7 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
         model_service_type = model_service_registry[model_type]
     else:
         logger.error("Unknown model type: %s", model_type)
-        sys.exit(1)
+        typer.Exit(code=1)
 
     m_config = json.loads(model_config) if model_config is not None else None
     m_metrics = json.loads(model_metrics) if model_metrics is not None else None
@@ -190,10 +194,10 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
                                          model_config=m_config,
                                          model_metrics=m_metrics,
                                          model_tags=m_tags)
-    print(f"Pushed {model_path} as a new model version ({run_name})")
+    typer.echo(f"Pushed {model_path} as a new model version ({run_name})")
 
 
-@stream_app.command("json_lines", help="This gets NER entities as a JSON Lines stream")
+@stream_app.command("json-lines", help="This gets NER entities as a JSON Lines stream")
 def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
                              base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
                              timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
@@ -212,7 +216,7 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
                                             timeout=timeout) as response:
                         response.raise_for_status()
                         async for line in response.content:
-                            print(line.decode("utf-8"), end="")
+                            typer.echo(line.decode("utf-8"), nl=False)
             finally:
                 logger.debug("Closing the session...")
                 await session.close()
@@ -247,8 +251,8 @@ def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8
                         try:
                             await websocket.send(text)
                             response = await websocket.recv()
-                            print("CMS =>")
-                            print(response)
+                            typer.echo("CMS =>")
+                            typer.echo(response)
                         except websockets.ConnectionClosed as e:
                             logger.error(f"Connection closed: {e}")
                             break
@@ -296,7 +300,83 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
 
     with open(doc_name, "w") as api_doc:
         json.dump(app.openapi(), api_doc, indent=4)
-    print(f"OpenAPI doc exported to {doc_name}")
+    typer.echo(f"OpenAPI doc exported to {doc_name}")
+
+
+@package_app.command("hf-model", help="This packages a remotely hosted or locally cached Hugging Face model into a model package")
+def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of the model to download from Hugging Face Hub, e.g., 'google-bert/bert-base-cased'"),
+                  hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
+                  cached_model_dir: str = typer.Option("", help="Path to the cached model directory, will only be used if --hf-repo-id is not provided"),
+                  output_model_package: str = typer.Option("", help="Path to save the model package, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
+                  remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
+) -> None:
+    if hf_repo_id == "" and cached_model_dir == "":
+        typer.echo("ERROR: Neither the repository ID of the Hugging Face model nor the cached model directory is passed in.")
+        raise typer.Exit(code=1)
+
+    if output_model_package == "":
+        typer.echo("ERROR: The model package path is not passed in.")
+        raise typer.Exit(code=1)
+
+    model_package_archive = os.path.abspath(os.path.expanduser(output_model_package))
+
+    if hf_repo_id:
+        try:
+            if not hf_repo_revision:
+                download_path = snapshot_download(repo_id=hf_repo_id)
+            else:
+                download_path = snapshot_download(repo_id=hf_repo_id, revision=hf_repo_revision)
+
+            shutil.make_archive(model_package_archive, "zip", download_path)
+        finally:
+            if remove_cached:
+                cached_model_path = os.path.abspath(os.path.join(download_path, "..", ".."))
+                shutil.rmtree(cached_model_path)
+    elif cached_model_dir:
+        cached_model_path = os.path.abspath(os.path.expanduser(cached_model_dir))
+        shutil.make_archive(model_package_archive, "zip", cached_model_path)
+
+    typer.echo(f"Model package saved to {model_package_archive}.zip")
+
+
+@package_app.command("hf-dataset", help="This packages a remotely hosted or locally cached Hugging Face dataset into a dataset package")
+def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository ID of the dataset to download from Hugging Face Hub, e.g., 'stanfordnlp/imdb'"),
+                    hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
+                    cached_dataset_dir: str = typer.Option("", help="Path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
+                    output_dataset_package: str = typer.Option("", help="Path to save the dataset package, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
+                    remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
+                    trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset"),
+) -> None:
+    if hf_dataset_id == "" and cached_dataset_dir == "":
+        typer.echo("ERROR: Neither the repository ID of the Hugging Face dataset nor the cached dataset directory is passed in.")
+        raise typer.Exit(code=1)
+    if output_dataset_package == "":
+        typer.echo("ERROR: The dataset package path is not passed in.")
+        raise typer.Exit(code=1)
+
+    dataset_package_archive = os.path.abspath(os.path.expanduser(output_dataset_package))
+
+    if hf_dataset_id != "":
+        cache_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "cache"))
+        cached_dataset_path = os.path.join(cache_dir, "datasets", hf_dataset_id.replace("/", "_"))
+
+        try:
+            if hf_dataset_revision == "":
+                dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, trust_remote_code=trust_remote_code)
+            else:
+                dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, revision=hf_dataset_revision,
+                                       trust_remote_code=trust_remote_code)
+
+            dataset.save_to_disk(cached_dataset_path)
+            shutil.make_archive(dataset_package_archive, "zip", cached_dataset_path)
+        finally:
+            if remove_cached:
+                shutil.rmtree(cache_dir)
+    elif cached_dataset_dir != "":
+        cached_dataset_path = os.path.abspath(os.path.expanduser(cached_dataset_dir))
+        shutil.make_archive(dataset_package_archive, "zip", cached_dataset_path)
+
+    typer.echo(f"Dataset package saved to {dataset_package_archive}.zip")
 
 
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
@@ -339,19 +419,19 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
                 if output == "" and process.poll() is not None:
                     break
                 if output:
-                    print(output.strip())
+                    typer.echo(output.strip())
             process.wait()
 
             if process.returncode == 0:
-                print(f"The '{backend.value}' command ran successfully.")
+                typer.echo(f"The '{backend.value}' command ran successfully.")
             else:
-                print(f"The '{backend.value}' command failed.")
+                typer.echo(f"The '{backend.value}' command failed.")
         except FileNotFoundError:
-            print(f"The '{backend.value}' command not found.")
+            typer.echo(f"The '{backend.value}' command not found.")
         except KeyboardInterrupt:
-            print("The build was terminated by the user.")
+            typer.echo("The build was terminated by the user.")
         except Exception as e:
-            print(f"An unexpected error occurred: {e}")
+            typer.echo(f"An unexpected error occurred: {e}")
         finally:
             process.kill()
 
@@ -382,7 +462,7 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
         openapi = app.openapi()
         openapi["info"]["title"] = api_title
         json.dump(app.openapi(), api_doc, indent=4)
-    print(f"OpenAPI doc exported to {doc_name}")
+    typer.echo(f"OpenAPI doc exported to {doc_name}")
 
 
 def _get_logger(debug: Optional[bool] = None,

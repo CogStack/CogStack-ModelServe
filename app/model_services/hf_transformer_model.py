@@ -86,10 +86,14 @@ class HuggingfaceTransformerModel(AbstractModelService):
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
         with zipfile.ZipFile(model_file_path, "r") as f:
             f.extractall(model_path)
-        model = AutoModelForTokenClassification.from_pretrained(model_path)
-        tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=512, add_special_tokens=False, do_lower_case=False)
-        logger.info("Model pack loaded from %s", os.path.normpath(model_file_path))
-        return model, tokenizer
+        try:
+            model = AutoModelForTokenClassification.from_pretrained(model_path)
+            tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=model.config.max_position_embeddings, add_special_tokens=False, do_lower_case=False)
+            logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
+            return model, tokenizer
+        except ValueError as e:
+            logger.error(e)
+            raise ConfigurationException("Model package is not valid or not supported")
 
     def init_model(self) -> None:
         if all([hasattr(self, "_model"),
@@ -122,15 +126,15 @@ class HuggingfaceTransformerModel(AbstractModelService):
 
     def annotate(self, text: str) -> Dict:
         entities = self._ner_pipeline(text)
+        print(entities)
         df = pd.DataFrame(entities)
 
         if df.empty:
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
-            for _, row in df.iterrows():
-                if "athena_ids" in row and row["athena_ids"]:
-                    row["athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
-            df.rename(columns={"word": "label_name", "entity_group": "label_id", "score": "accuracy"}, inplace=True)
+            for idx, row in df.iterrows():
+                df.loc[idx, "label_id"] = str(self._model.config.label2id[row["entity_group"]])
+            df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
         records = df.to_dict("records")
         return records
 

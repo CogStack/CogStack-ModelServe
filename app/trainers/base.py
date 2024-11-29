@@ -123,7 +123,7 @@ class TrainerCommon(object):
     def _housekeep_file(file_path: Optional[str]) -> None:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
-            logger.debug("model pack housekept")
+            logger.debug("model package housekept")
         if file_path and os.path.exists(file_path.replace(".zip", "")):
             shutil.rmtree(file_path.replace(".zip", ""))
             logger.debug("Unpacked model directory housekept")

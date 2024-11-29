@@ -10,6 +10,7 @@ psycopg2-binary~=2.9.4
 boto3~=1.28.84
 typer~=0.7.0
 prometheus-fastapi-instrumentator~=5.11.2
+sentencepiece~=0.2.0
 slowapi~=0.1.7
 graypy~=2.1.0
 fastapi-users~=11.0.0

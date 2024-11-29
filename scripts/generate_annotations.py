@@ -91,7 +91,7 @@ if __name__ == "__main__":
         "-m",
         "--model-pack-path",
         type=str,
-        help="The path to the first model pack"
+        help="The path to the first model package"
     )
     parser.add_argument(
         "-o",
@@ -108,7 +108,7 @@ if __name__ == "__main__":
         print("ERROR: The path to the text file is empty. Use '-t' to pass in the file containing texts as a JSON list.")
         sys.exit(1)
     if FLAGS.model_pack_path == "":
-        print("ERROR: The path to the model pack is empty. Use '-m' to pass in the model pack path.")
+        print("ERROR: The path to the model package is empty. Use '-m' to pass in the model pack path.")
         sys.exit(1)
     if FLAGS.output == "":
         print("ERROR: The path to the output file is empty. Use '-o' to pass in the file of annotations.")
