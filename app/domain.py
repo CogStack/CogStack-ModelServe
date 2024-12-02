@@ -13,7 +13,7 @@ class ModelType(str, Enum):
     MEDCAT_DEID = "medcat_deid"
     ANONCAT = "anoncat"
     TRANSFORMERS_DEID = "transformers_deid"
-    HF_TRANSFORMER = "hf_transformer"
+    HUGGINGFACE_NER = "huggingface_ner"
 
 
 class Tags(str, Enum):
@@ -69,11 +69,16 @@ class Device(str, Enum):
 
 class HfTransformerBackbone(Enum):
     ALBERT = "albert"
+    BIG_BIRD = "bert"
     BERT = "bert"
     DISTILBERT = "distilbert"
+    FUNNEL = "funnel"
+    LAYOUTLM = "layoutlm"
+    LONGFORMER = "longformer"
     DEBERTA = "deberta"
     MOBILEBERT = "mobilebert"
     ROBERTA = "roberta"
+    SQUEEZEBERT = "transformer"
     XLM_ROBERTA = "xlm_roberta"
 
 

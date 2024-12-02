@@ -266,7 +266,7 @@ def test_train_unsupervised(model_service, client):
 def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
     model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
-        "model_description": "hf_transformer_model_description",
+        "model_description": "huggingface_ner_model_description",
         "model_type": ModelType.MEDCAT_SNOMED,
         "model_card": None,
     })

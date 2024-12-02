@@ -19,6 +19,8 @@ from utils import (
     breakdown_annotations,
     augment_annotations,
     safetensors_to_pytorch,
+    non_default_device_is_available,
+    get_hf_pipeline_device_id,
 )
 
 
@@ -211,6 +213,18 @@ def test_safetensors_to_pytorch():
             assert not bool(output.readline())
             safetensors_to_pytorch(input.name, output.name)
             assert bool(output.readline())
+
+
+def test_non_default_device_is_available():
+    assert not non_default_device_is_available("default")
+    assert non_default_device_is_available("cpu")
+
+
+def test_get_hf_pipeline_device_id():
+    assert get_hf_pipeline_device_id("cpu") == -1
+    assert get_hf_pipeline_device_id("cuda") == 0
+    assert get_hf_pipeline_device_id("cuda:0") == 0
+    assert get_hf_pipeline_device_id("mps:1") == 1
 
 
 class _DummyModel(torch.nn.Module):

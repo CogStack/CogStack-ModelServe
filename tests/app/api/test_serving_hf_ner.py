@@ -4,7 +4,7 @@ import api.globals as cms_globals
 from fastapi.testclient import TestClient
 from api.api import get_model_server
 from utils import get_settings
-from model_services.hf_transformer_model import HuggingfaceTransformerModel
+from model_services.huggingface_ner_model import HuggingFaceNerModel
 from domain import ModelCard, ModelType
 from unittest.mock import create_autospec
 
@@ -24,7 +24,7 @@ MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "res
 
 @pytest.fixture(scope="function")
 def model_service():
-    return create_autospec(HuggingfaceTransformerModel)
+    return create_autospec(HuggingFaceNerModel)
 
 
 @pytest.fixture(scope="function")
@@ -39,8 +39,8 @@ def client(model_service):
 def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
     model_card = ModelCard.parse_obj({
         "api_version": "0.0.1",
-        "model_description": "hf_transformer_model_description",
-        "model_type": ModelType.HF_TRANSFORMER,
+        "model_description": "huggingface_ner_model_description",
+        "model_type": ModelType.HUGGINGFACE_NER,
         "model_card": None,
     })
     model_service.info.return_value = model_card

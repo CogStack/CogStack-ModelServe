@@ -33,14 +33,14 @@ from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export
 from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from domain import ModelType, DatasetSplit, HfTransformerBackbone
+from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
 
 
 logger = logging.getLogger("cms")
 
 
 @final
-class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
+class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 
     def __init__(self, model_service: AbstractModelService) -> None:
         UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
@@ -55,7 +55,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
 
 
     @staticmethod
-    def run(trainer: "HFTransformerUnsupervisedTrainer",
+    def run(trainer: "HuggingFaceNerUnsupervisedTrainer",
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
@@ -136,6 +136,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
                 save_steps=1000,
                 load_best_model_at_end=True,
                 save_total_limit=3,
+                use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
             )
 
             if training_params.get("lr_override") is not None:
@@ -156,7 +157,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
 
             model = trainer._get_final_model(model, mlm_model)
             if not skip_save_model:
-                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, f"{ModelType.HF_TRANSFORMER.value}_{run_id}.zip")
+                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
                 model.save_pretrained(copied_model_directory, safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
                 shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
                 model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name, trainer._model_manager)
@@ -251,7 +252,7 @@ class HFTransformerUnsupervisedTrainer(UnsupervisedTrainer):
 
 
 @final
-class HFTransformerSupervisedTrainer(SupervisedTrainer):
+class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
 
     MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT = 5
     PAD_LABEL_ID = -100
@@ -279,7 +280,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
         def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
             return {
                 "input_ids": torch.tensor([self._add_padding(f["input_ids"], self.max_length, self.pad_token_id) for f in features], dtype=torch.long),
-                "labels": torch.tensor([self._add_padding(f["labels"], self.max_length, HFTransformerSupervisedTrainer.PAD_LABEL_ID) for f in features], dtype=torch.long),
+                "labels": torch.tensor([self._add_padding(f["labels"], self.max_length, HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID) for f in features], dtype=torch.long),
                 "attention_mask": torch.tensor([self._add_padding(f["attention_mask"], self.max_length, 0) for f in features], dtype=torch.long),
             }
 
@@ -290,7 +291,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
             return target + paddings
 
     @staticmethod
-    def run(trainer: "HFTransformerSupervisedTrainer",
+    def run(trainer: "HuggingFaceNerSupervisedTrainer",
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -363,6 +364,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
                 metric_for_best_model="eval_f1_avg",
                 load_best_model_at_end=True,
                 save_total_limit=3,
+                use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
             )
 
             if training_params.get("lr_override") is not None:
@@ -384,7 +386,7 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
 
             if not skip_save_model:
                 retrained_model_pack_path = os.path.join(trainer._retrained_models_dir,
-                                                         f"{ModelType.HF_TRANSFORMER.value}_{run_id}.zip")
+                                                         f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
                 model.save_pretrained(copied_model_directory)
                 shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
                 model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name,
@@ -417,10 +419,9 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
         with open(data_file.name, "r") as f:
             training_data = json.load(f)
             te_stats_df = get_stats_from_trainer_export(training_data, return_df=True)
-            rear_concept_ids = te_stats_df[(te_stats_df["anno_count"] - te_stats_df["anno_ignorance_counts"]) < HFTransformerSupervisedTrainer.MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT]["concept"].unique()
+            rear_concept_ids = te_stats_df[(te_stats_df["anno_count"] - te_stats_df["anno_ignorance_counts"]) < HuggingFaceNerSupervisedTrainer.MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT]["concept"].unique()
             logger.debug(f"The following concept(s) will be excluded due to the low example count(s): {rear_concept_ids}")
-            filtered_training_data = filter_by_concept_ids(training_data, ModelType.HF_TRANSFORMER,
-                                                           extra_excluded=rear_concept_ids)
+            filtered_training_data = filter_by_concept_ids(training_data, ModelType.HUGGINGFACE_NER, extra_excluded=rear_concept_ids)
             filtered_concepts = get_stats_from_trainer_export(filtered_training_data, return_df=True)["concept"].unique()
             return filtered_training_data, filtered_concepts
 
@@ -428,8 +429,8 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
     def _update_model_with_concepts(model: PreTrainedModel, concepts: List[str]) -> PreTrainedModel:
         if model.config.label2id == {"LABEL_0": 0, "LABEL_1": 1}:
             logger.debug("Cannot find existing labels and IDs, creating new ones...")
-            model.config.label2id = {"O": HFTransformerSupervisedTrainer.DEFAULT_LABEL_ID, "X": 1}
-            model.config.id2label = {HFTransformerSupervisedTrainer.DEFAULT_LABEL_ID: "O", 1: "X"}
+            model.config.label2id = {"O": HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID, "X": 1}
+            model.config.id2label = {HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID: "O", 1: "X"}
         avg_weight = torch.mean(model.classifier.weight, dim=0, keepdim=True)
         avg_bias = torch.mean(model.classifier.bias, dim=0, keepdim=True)
         for concept in concepts:
@@ -470,10 +471,10 @@ class HFTransformerSupervisedTrainer(SupervisedTrainer):
     def _compute_token_level_metrics(eval_pred: EvalPrediction, id2label: Dict[int, str]) -> Dict[str, Any]:
         predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
         label_ids = eval_pred.label_ids
-        non_padding_indices = np.where(label_ids != HFTransformerSupervisedTrainer.PAD_LABEL_ID)
+        non_padding_indices = np.where(label_ids != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
         non_padding_predictions = predictions[non_padding_indices].flatten()
         non_padding_label_ids = label_ids[non_padding_indices].flatten()
-        filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HFTransformerSupervisedTrainer.DEFAULT_LABEL_ID)])
+        filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
         _labels = list(id2label.keys())
         precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids,
                                                                          filtered_predictions,

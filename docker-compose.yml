@@ -251,10 +251,10 @@ services:
       retries: 3
       start_period: 60s
 
-  hf-transformer:
+  huggingface-ner:
     build:
       context: ./
-      dockerfile: ./docker/hf-transformer/Dockerfile
+      dockerfile: ./docker/huggingface-ner/Dockerfile
       args:
         - CMS_MODEL_NAME=Huggingface Transformer model
         - CMS_UID=${CMS_UID:-1000}
@@ -262,7 +262,7 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_hf-transformer
+    container_name: cms_huggingface-ner
     restart: always
     networks:
       - cms

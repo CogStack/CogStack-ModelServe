@@ -17,7 +17,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
 - [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
-- [Hugging Face Transformer Model](https://cogstack.github.io/CogStack-ModelServe/docs/hf_transformer_model_apis.html)
+- [Hugging Face NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
 You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
@@ -58,7 +58,7 @@ The following table summarises the servable model types with their respective ou
 |    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
 |    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
 | transformers_deid | de-identification |  labelled with PII concepts   |
-|  hf_transformer   |   hf-transformer  |        customer labels        |
+|  huggingface_ner  |  huggingface_ner  |        customer labels        |
 
 ## Run ModelServe in the container environment:
 

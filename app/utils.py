@@ -369,3 +369,11 @@ def non_default_device_is_available(device: str) -> bool:
         device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
         device.startswith(Device.CPU.value)
     ])
+
+
+def get_hf_pipeline_device_id(device: str) -> int:
+    if device.startswith(Device.GPU.value) or device.startswith(Device.MPS.value):
+        device_id = 0 if len(device.split(":")) == 1 else int(device.split(":")[1])
+    else:
+        device_id = -1
+    return device_id

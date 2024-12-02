@@ -9,8 +9,8 @@ from medcat.cat import CAT
 from config import Settings
 from model_services.medcat_model import MedCATModel
 from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
-from domain import ModelCard, ModelType, Device
-from utils import non_default_device_is_available
+from domain import ModelCard, ModelType
+from utils import non_default_device_is_available, get_hf_pipeline_device_id
 from exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -123,17 +123,12 @@ class MedCATModelDeIdentification(MedCATModel):
             if non_default_device_is_available(self._config.DEVICE):
                 self._model.config.general["device"] = self._config.DEVICE
                 self._model._addl_ner[0].model.to(torch.device(self._config.DEVICE))
-                if self._config.DEVICE.startswith(Device.GPU.value):
-                    device = 0 if len(self._config.DEVICE.split(":")) == 1 else self._config.DEVICE.split(":")[1]
-                elif self._config.DEVICE.startswith(Device.MPS.value):
-                    device = Device.MPS.value
-                else:
-                    device = -1
                 self._model._addl_ner[0].ner_pipe = pipeline(model=self._model._addl_ner[0].model,
                                                              framework="pt",
                                                              task="ner",
                                                              tokenizer=self._model._addl_ner[0].tokenizer.hf_tokenizer,
-                                                             device=device)
+                                                             device=get_hf_pipeline_device_id(self._config.DEVICE),
+                                                             aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY)
             else:
                 if self._config.DEVICE != "default":
                     logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", self._config.DEVICE)

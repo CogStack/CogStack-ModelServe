@@ -10,23 +10,21 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizerBase,
-    BertForTokenClassification,
     pipeline,
 )
 from transformers.pipelines import Pipeline
-
 from exception import ConfigurationException
 from model_services.base import AbstractModelService
-from trainers.hf_transformer_trainer import HFTransformerUnsupervisedTrainer, HFTransformerSupervisedTrainer
+from trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
-from utils import get_settings, non_default_device_is_available
+from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id
 
 
 logger = logging.getLogger("cms")
 
 
-class HuggingfaceTransformerModel(AbstractModelService):
+class HuggingFaceNerModel(AbstractModelService):
 
     def __init__(self,
                  config: Settings,
@@ -75,7 +73,7 @@ class HuggingfaceTransformerModel(AbstractModelService):
         return "0.0.1"
 
     @classmethod
-    def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingfaceTransformerModel":
+    def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingFaceNerModel":
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
@@ -103,24 +101,23 @@ class HuggingfaceTransformerModel(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model, self._tokenizer = self.load_model(self._model_pack_path)
-            _aggregation_strategy = "average" if isinstance(self._model, BertForTokenClassification) else "simple"
             _pipeline = partial(pipeline,
                                 task="ner",
                                 model=self._model,
                                 tokenizer=self._tokenizer,
                                 stride=10,
-                                aggregation_strategy=_aggregation_strategy)
+                                aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY)
             if non_default_device_is_available(get_settings().DEVICE):
-                self._ner_pipeline = _pipeline(device=get_settings().DEVICE)
+                self._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
             else:
                 self._ner_pipeline = _pipeline()
             if self._enable_trainer:
-                self._supervised_trainer = HFTransformerSupervisedTrainer(self)
-                self._unsupervised_trainer = HFTransformerUnsupervisedTrainer(self)
+                self._supervised_trainer = HuggingFaceNerSupervisedTrainer(self)
+                self._unsupervised_trainer = HuggingFaceNerUnsupervisedTrainer(self)
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.HF_TRANSFORMER,
+                         model_type=ModelType.HUGGINGFACE_NER,
                          api_version=self.api_version,
                          model_card=self._model.config.to_dict())
 

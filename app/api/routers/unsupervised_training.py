@@ -103,7 +103,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
     if hf_dataset_repo_id is None and hf_dataset_package is None:
         raise ClientException("Either 'hf_dataset_repo_id' or 'hf_dataset_package' must be provided")
 
-    if model_service.info().model_type not in [ModelType.HF_TRANSFORMER, ModelType.MEDCAT_SNOMED, ModelType.MEDCAT_ICD10, ModelType.MEDCAT_UMLS]:
+    if model_service.info().model_type not in [ModelType.HUGGINGFACE_NER, ModelType.MEDCAT_SNOMED, ModelType.MEDCAT_ICD10, ModelType.MEDCAT_UMLS]:
         raise ConfigurationException(f"Currently this endpoint is not available for models of type: {model_service.info().model_type.value}")
 
     data_dir = tempfile.TemporaryDirectory()

@@ -1,5 +1,5 @@
 FROM python:3.10
-LABEL "org.cogstack.model-serve"="hf_transformer"
+LABEL "org.cogstack.model-serve"="huggingface_ner"
 
 ARG CMS_MODEL_NAME
 ARG HTTP_PROXY
@@ -25,7 +25,7 @@ RUN addgroup --gid $CMS_GID cms || true && \
     echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 COPY app /app
-COPY docker/hf-transformer/requirements.txt /app/requirements.txt
+COPY docker/huggingface-ner/requirements.txt /app/requirements.txt
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
@@ -35,4 +35,4 @@ RUN pip install --no-cache-dir -U pip &&\
 WORKDIR /app
 EXPOSE 8000
 USER cms:cms
-CMD ["sh", "-c", "python cli/cli.py serve --model-type hf_transformer --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python cli/cli.py serve --model-type huggingface_ner --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]

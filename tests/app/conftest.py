@@ -7,7 +7,7 @@ from model_services.medcat_model_icd10 import MedCATModelIcd10
 from model_services.medcat_model_umls import MedCATModelUmls
 from model_services.medcat_model_deid import MedCATModelDeIdentification
 from model_services.trf_model_deid import TransformersModelDeIdentification
-from model_services.hf_transformer_model import HuggingfaceTransformerModel
+from model_services.huggingface_ner_model import HuggingFaceNerModel
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "model")
 
@@ -76,7 +76,7 @@ def trf_model():
 
 
 @pytest.fixture(scope="function")
-def hf_transformer_model():
+def huggingface_ner_model():
     config = Settings()
-    config.BASE_MODEL_FILE = "hf_transformer_model.zip"
-    return HuggingfaceTransformerModel(config, MODEL_PARENT_DIR)
+    config.BASE_MODEL_FILE = "huggingface_ner_model.zip"
+    return HuggingFaceNerModel(config, MODEL_PARENT_DIR)

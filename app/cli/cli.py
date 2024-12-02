@@ -58,7 +58,7 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
                 debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
     logger = _get_logger(debug, model_type, model_name)
     get_settings().DEVICE = device.value
-    if model_type in [ModelType.HF_TRANSFORMER, ModelType.MEDCAT_DEID, ModelType.TRANSFORMERS_DEID]:
+    if model_type in [ModelType.HUGGINGFACE_NER, ModelType.MEDCAT_DEID, ModelType.TRANSFORMERS_DEID]:
         get_settings().DISABLE_METACAT_TRAINING = "true"
 
     if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:

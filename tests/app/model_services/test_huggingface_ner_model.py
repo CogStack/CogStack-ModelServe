@@ -5,55 +5,55 @@ from unittest.mock import Mock
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from domain import ModelType
-from model_services.hf_transformer_model import HuggingfaceTransformerModel
+from model_services.huggingface_ner_model import HuggingFaceNerModel
 
 
-def test_model_name(hf_transformer_model):
-    assert hf_transformer_model.model_name == "Huggingface Transformer model"
+def test_model_name(huggingface_ner_model):
+    assert huggingface_ner_model.model_name == "Huggingface Transformer model"
 
 
-def test_api_version(hf_transformer_model):
-    assert hf_transformer_model.api_version == "0.0.1"
+def test_api_version(huggingface_ner_model):
+    assert huggingface_ner_model.api_version == "0.0.1"
 
 
-def test_from_model(hf_transformer_model):
-    new_model_service = hf_transformer_model.from_model(hf_transformer_model.model, hf_transformer_model.tokenizer)
-    assert isinstance(new_model_service, HuggingfaceTransformerModel)
-    assert new_model_service.model == hf_transformer_model.model
-    assert new_model_service.tokenizer == hf_transformer_model.tokenizer
+def test_from_model(huggingface_ner_model):
+    new_model_service = huggingface_ner_model.from_model(huggingface_ner_model.model, huggingface_ner_model.tokenizer)
+    assert isinstance(new_model_service, HuggingFaceNerModel)
+    assert new_model_service.model == huggingface_ner_model.model
+    assert new_model_service.tokenizer == huggingface_ner_model.tokenizer
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_init_model(hf_transformer_model):
-    hf_transformer_model.init_model()
-    assert hf_transformer_model.model is not None
-    assert hf_transformer_model.tokenizer is not None
+def test_init_model(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+    assert huggingface_ner_model.model is not None
+    assert huggingface_ner_model.tokenizer is not None
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_load_model(hf_transformer_model):
-    model, tokenizer = HuggingfaceTransformerModel.load_model(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip"))
+def test_load_model(huggingface_ner_model):
+    model, tokenizer = HuggingFaceNerModel.load_model(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip"))
     assert isinstance(model, PreTrainedModel)
     assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_info(hf_transformer_model):
-    hf_transformer_model.init_model()
-    model_card = hf_transformer_model.info()
+def test_info(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+    model_card = huggingface_ner_model.info()
     assert type(model_card.api_version) is str
     assert type(model_card.model_description) is str
-    assert model_card.model_type == ModelType.HF_TRANSFORMER
+    assert model_card.model_type == ModelType.HUGGINGFACE_NER
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_annotate(hf_transformer_model):
-    hf_transformer_model.init_model()
-    annotations = hf_transformer_model.annotate(
+def test_annotate(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+    annotations = huggingface_ner_model.annotate(
         """The patient is a 60-year-old female, who complained of coughing during meals. """
         """ Her outpatient evaluation revealed a mild-to-moderate cognitive linguistic deficit, which was completed approximately"""
         """ 2 months ago.  The patient had a history of hypertension and TIA/stroke.  The patient denied history of heartburn"""
@@ -82,25 +82,25 @@ def test_annotate(hf_transformer_model):
     assert isinstance(annotations, list)
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_train_unsupervised(hf_transformer_model):
-    hf_transformer_model.init_model()
-    hf_transformer_model._config.REDEPLOY_TRAINED_MODEL = "false"
-    hf_transformer_model._config.SKIP_SAVE_MODEL = "true"
-    hf_transformer_model._unsupervised_trainer = Mock()
+def test_train_unsupervised(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+    huggingface_ner_model._config.REDEPLOY_TRAINED_MODEL = "false"
+    huggingface_ner_model._config.SKIP_SAVE_MODEL = "true"
+    huggingface_ner_model._unsupervised_trainer = Mock()
     with tempfile.TemporaryFile("r+") as f:
-        hf_transformer_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
-    hf_transformer_model._unsupervised_trainer.train.assert_called()
+        huggingface_ner_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
+    huggingface_ner_model._unsupervised_trainer.train.assert_called()
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "hf_transformer_model.zip")),
+@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
                     reason="requires the model file to be present in the resources folder")
-def test_train_supervised(hf_transformer_model):
-    hf_transformer_model.init_model()
-    hf_transformer_model._config.REDEPLOY_TRAINED_MODEL = "false"
-    hf_transformer_model._config.SKIP_SAVE_MODEL = "true"
-    hf_transformer_model._supervised_trainer = Mock()
+def test_train_supervised(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+    huggingface_ner_model._config.REDEPLOY_TRAINED_MODEL = "false"
+    huggingface_ner_model._config.SKIP_SAVE_MODEL = "true"
+    huggingface_ner_model._supervised_trainer = Mock()
     with tempfile.TemporaryFile("r+") as f:
-        hf_transformer_model.train_supervised(f, 1, 1, "training_id", "input_file_name")
-    hf_transformer_model._supervised_trainer.train.assert_called()
+        huggingface_ner_model.train_supervised(f, 1, 1, "training_id", "input_file_name")
+    huggingface_ner_model._supervised_trainer.train.assert_called()

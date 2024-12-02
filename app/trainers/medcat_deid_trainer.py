@@ -16,9 +16,8 @@ from transformers import pipeline
 from medcat import __version__ as medcat_version
 from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
-from utils import get_settings, non_default_device_is_available
+from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id
 from management import tracker_client
-from domain import Device
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
 
@@ -280,17 +279,11 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
     def _customise_training_device(ner: TransformersNER, device_name: str) -> TransformersNER:
         if non_default_device_is_available(device_name):
             ner.model.to(torch.device(device_name))
-            if device_name.startswith(Device.GPU.value):
-                device = 0 if len(device_name.split(":")) == 1 else device_name.split(":")[1]
-            elif device_name.startswith(Device.MPS.value):
-                device = Device.MPS.value
-            else:
-                device = -1
             ner.ner_pipe = pipeline(model=ner.model,
                                     framework="pt",
                                     task="ner",
                                     tokenizer=ner.tokenizer.hf_tokenizer,
-                                    device=device)
+                                    device=get_hf_pipeline_device_id(device_name))
         else:
             if device_name != "default":
                 logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", device_name)
