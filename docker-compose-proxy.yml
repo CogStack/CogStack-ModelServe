@@ -34,6 +34,7 @@ services:
       - 28182:28182 # de-identification
       - 28183:28183 # medcat-deid
       - 28184:28184 # medcat-umls
+      - 28185:28185 # huggingface-ner
       - 28199:28199 # minio
       - 28200:28200 # mlflow-ui
       - 28201:28201 # prometheus

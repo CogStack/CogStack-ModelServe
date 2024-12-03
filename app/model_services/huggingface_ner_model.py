@@ -42,7 +42,7 @@ class HuggingFaceNerModel(AbstractModelService):
         self._tokenizer: PreTrainedTokenizerBase = None
         self._ner_pipeline: Pipeline = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
-        self.model_name = model_name or "Huggingface Transformer model"
+        self.model_name = model_name or "Hugging Face NER model"
 
     @property
     def model(self) -> PreTrainedModel:
@@ -136,7 +136,7 @@ class HuggingFaceNerModel(AbstractModelService):
         return records
 
     def batch_annotate(self, texts: List[str]) -> List[Dict]:
-        raise NotImplementedError("Batch annotation is not yet implemented for Huggingface transformer models")
+        raise NotImplementedError("Batch annotation is not yet implemented for Hugging Face NER models")
 
     def train_supervised(self,
                          data_file: TextIO,

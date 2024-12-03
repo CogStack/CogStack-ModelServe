@@ -49,6 +49,12 @@ scrape_configs:
     - targets:
       - "medcat-umls:8000"
 
+  - job_name: "cms_huggingface-ner"
+    scrape_interval: 15s
+    static_configs:
+    - targets:
+      - "huggingface-ner:8000"
+
   - job_name: "cms_cadvisor"
     scrape_interval: 15s
     static_configs:

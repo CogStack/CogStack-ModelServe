@@ -58,7 +58,7 @@ The following table summarises the servable model types with their respective ou
 |    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
 |    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
 | transformers_deid | de-identification |  labelled with PII concepts   |
-|  huggingface_ner  |  huggingface_ner  |        customer labels        |
+|  huggingface_ner  |  huggingface_ner  |    customer managed labels    |
 
 ## Run ModelServe in the container environment:
 
