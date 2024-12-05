@@ -77,6 +77,16 @@ class HuggingFaceNerModel(AbstractModelService):
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
+        _pipeline = partial(pipeline,
+                            task="ner",
+                            model=model,
+                            tokenizer=tokenizer,
+                            stride=10,
+                            aggregation_strategy=get_settings().HF_PIPELINE_AGGREGATION_STRATEGY)
+        if non_default_device_is_available(get_settings().DEVICE):
+            model_service._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
+        else:
+            model_service._ner_pipeline = _pipeline()
         return model_service
 
     @staticmethod
@@ -123,7 +133,6 @@ class HuggingFaceNerModel(AbstractModelService):
 
     def annotate(self, text: str) -> Dict:
         entities = self._ner_pipeline(text)
-        print(entities)
         df = pd.DataFrame(entities)
 
         if df.empty:

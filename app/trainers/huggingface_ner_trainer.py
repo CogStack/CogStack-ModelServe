@@ -7,8 +7,9 @@ import shutil
 import datasets
 import random
 import tempfile
-from functools import partial
 import numpy as np
+import pandas as pd
+from functools import partial
 from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union
 from torch import nn
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
@@ -30,7 +31,7 @@ from transformers import (
 from management.model_manager import ModelManager
 from management.tracker_client import TrackerClient
 from model_services.base import AbstractModelService
-from processors.metrics_collector import get_stats_from_trainer_export
+from processors.metrics_collector import get_stats_from_trainer_export, sanity_check_model_with_trainer_export
 from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
@@ -151,6 +152,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
                 callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
             )
 
+            trainer._tracker_client.log_model_config(model.config.to_dict())
             trainer._tracker_client.log_trainer_version(transformers_version)
             logger.info("Performing unsupervised training...")
             hf_trainer.train()
@@ -257,6 +259,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
     MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT = 5
     PAD_LABEL_ID = -100
     DEFAULT_LABEL_ID = 0
+    CONTINUING_TOKEN_LABEL_ID = 1
 
     def __init__(self, model_service: AbstractModelService) -> None:
         if not isinstance(model_service.tokenizer, PreTrainedTokenizerFast):
@@ -303,116 +306,145 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
         results_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "results"))
         logs_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
-        try:
-            logger.info("Loading a new model copy for training...")
-            copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-            model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
-            copied_model_directory = copied_model_pack_path.replace(".zip", "")
+        eval_mode = training_params["nepochs"] == 0
+        trainer._tracker_client.log_trainer_mode(not eval_mode)
+        if not eval_mode:
+            try:
+                logger.info("Loading a new model copy for training...")
+                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
+                model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
+                copied_model_directory = copied_model_pack_path.replace(".zip", "")
 
-            if non_default_device_is_available(trainer._config.DEVICE):
-                model.to(trainer._config.DEVICE)
+                if non_default_device_is_available(trainer._config.DEVICE):
+                    model.to(trainer._config.DEVICE)
 
-            filtered_training_data, filtered_concepts = trainer._filter_training_data_and_concepts(data_file)
-            logger.debug(f"Filtered concepts: {filtered_concepts}")
-            model = trainer._update_model_with_concepts(model, filtered_concepts)
+                filtered_training_data, filtered_concepts = trainer._filter_training_data_and_concepts(data_file)
+                logger.debug(f"Filtered concepts: {filtered_concepts}")
+                model = trainer._update_model_with_concepts(model, filtered_concepts)
 
-            documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
-            random.shuffle(documents)
-            test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
-            train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
-            eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
+                documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
+                random.shuffle(documents)
+                test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
+                train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
+                eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
 
-            dataset_features = datasets.Features({
-                "input_ids": datasets.Sequence(datasets.Value("int32")),
-                "labels": datasets.Sequence(datasets.Value("int32")),
-                "attention_mask": datasets.Sequence(datasets.Value("int32")),
-            })
-            train_dataset = datasets.Dataset.from_generator(
-                trainer._tokenize_and_chunk,
-                features=dataset_features,
-                gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
-                cache_dir=trainer._config.TRAINING_CACHE_DIR
-            )
-            eval_dataset = datasets.Dataset.from_generator(
-                trainer._tokenize_and_chunk,
-                features=dataset_features,
-                gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
-                cache_dir = trainer._config.TRAINING_CACHE_DIR
-            )
-            train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
-            eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
+                dataset_features = datasets.Features({
+                    "input_ids": datasets.Sequence(datasets.Value("int32")),
+                    "labels": datasets.Sequence(datasets.Value("int32")),
+                    "attention_mask": datasets.Sequence(datasets.Value("int32")),
+                })
+                train_dataset = datasets.Dataset.from_generator(
+                    trainer._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
+                    cache_dir=trainer._config.TRAINING_CACHE_DIR
+                )
+                eval_dataset = datasets.Dataset.from_generator(
+                    trainer._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
+                    cache_dir = trainer._config.TRAINING_CACHE_DIR
+                )
+                train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
+                eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
 
-            data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=tokenizer.pad_token_id)
+                data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=tokenizer.pad_token_id)
 
-            training_args = TrainingArguments(
-                output_dir=results_path,
-                logging_dir=logs_path,
-                eval_strategy="epoch",
-                do_eval=True,
-                save_strategy="epoch",
-                logging_strategy="epoch",
-                overwrite_output_dir=True,
-                num_train_epochs=training_params["nepochs"],
-                per_device_train_batch_size=1,
-                per_device_eval_batch_size=1,
-                eval_accumulation_steps=1,
-                gradient_accumulation_steps=4,
-                weight_decay=0.01,
-                warmup_ratio=0.08,
-                logging_steps=log_frequency,
-                save_steps=1000,
-                metric_for_best_model="eval_f1_avg",
-                load_best_model_at_end=True,
-                save_total_limit=3,
-                use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
-            )
+                training_args = TrainingArguments(
+                    output_dir=results_path,
+                    logging_dir=logs_path,
+                    eval_strategy="epoch",
+                    do_eval=True,
+                    save_strategy="epoch",
+                    logging_strategy="epoch",
+                    overwrite_output_dir=True,
+                    num_train_epochs=training_params["nepochs"],
+                    per_device_train_batch_size=1,
+                    per_device_eval_batch_size=1,
+                    eval_accumulation_steps=1,
+                    gradient_accumulation_steps=4,
+                    weight_decay=0.01,
+                    warmup_ratio=0.08,
+                    logging_steps=log_frequency,
+                    save_steps=1000,
+                    metric_for_best_model="eval_f1_avg",
+                    load_best_model_at_end=True,
+                    save_total_limit=3,
+                    use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
+                )
 
-            if training_params.get("lr_override") is not None:
-                training_args.learning_rate = training_params["lr_override"]
+                if training_params.get("lr_override") is not None:
+                    training_args.learning_rate = training_params["lr_override"]
 
-            hf_trainer = Trainer(
-                model=model,
-                args=training_args,
-                data_collator=data_collator,
-                train_dataset=train_dataset,
-                eval_dataset=eval_dataset,
-                compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label),
-                callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
-            )
+                hf_trainer = Trainer(
+                    model=model,
+                    args=training_args,
+                    data_collator=data_collator,
+                    train_dataset=train_dataset,
+                    eval_dataset=eval_dataset,
+                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label),
+                    callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
+                )
 
-            trainer._tracker_client.log_trainer_version(transformers_version)
-            logger.info("Performing supervised training...")
-            hf_trainer.train()
+                trainer._tracker_client.log_model_config(model.config.to_dict())
+                trainer._tracker_client.log_trainer_version(transformers_version)
 
-            if not skip_save_model:
-                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir,
-                                                         f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
-                model.save_pretrained(copied_model_directory)
-                shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
-                model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name,
-                                                               trainer._model_manager)
-                logger.info(f"Retrained model saved: {model_uri}")
-            else:
-                logger.info("Skipped saving on the retrained model")
-            if redeploy:
-                trainer.deploy_model(trainer._model_service, model, tokenizer)
-            else:
-                del model
-                del tokenizer
-                gc.collect()
-                logger.info("Skipped deployment on the retrained model")
-            logger.info("Unsupervised training finished")
-            trainer._tracker_client.end_with_success()
-        except Exception as e:
-            logger.exception("Unsupervised training failed")
-            trainer._tracker_client.log_exceptions(e)
-            trainer._tracker_client.end_with_failure()
-        finally:
-            data_file.close()
-            with trainer._training_lock:
-                trainer._training_in_progress = False
-            trainer._clean_up_training_cache()
-            trainer._housekeep_file(copied_model_pack_path)
+                logger.info("Performing supervised training...")
+                hf_trainer.train()
+
+                cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+                trainer._tracker_client.log_document_size(num_of_docs)
+                trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
+                trainer._tracker_client.log_classes(model.config.label2id.keys())
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model, tokenizer))
+
+                if not skip_save_model:
+                    retrained_model_pack_path = os.path.join(trainer._retrained_models_dir,
+                                                             f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
+                    model.save_pretrained(copied_model_directory)
+                    shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
+                    model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name,
+                                                                   trainer._model_manager)
+                    logger.info(f"Retrained model saved: {model_uri}")
+                else:
+                    logger.info("Skipped saving on the retrained model")
+                if redeploy:
+                    trainer.deploy_model(trainer._model_service, model, tokenizer)
+                else:
+                    del model
+                    del tokenizer
+                    gc.collect()
+                    logger.info("Skipped deployment on the retrained model")
+                logger.info("Unsupervised training finished")
+                trainer._tracker_client.end_with_success()
+            except Exception as e:
+                logger.exception("Unsupervised training failed")
+                trainer._tracker_client.log_exceptions(e)
+                trainer._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with trainer._training_lock:
+                    trainer._training_in_progress = False
+                trainer._clean_up_training_cache()
+                trainer._housekeep_file(copied_model_pack_path)
+        else:
+            try:
+                logger.info("Evaluating the running model...")
+                trainer._tracker_client.log_model_config(trainer._model_service._model.config.to_dict())
+                trainer._tracker_client.log_trainer_version(transformers_version)
+                cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+                trainer._tracker_client.log_document_size(num_of_docs)
+                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
+                trainer._tracker_client.end_with_success()
+                logger.info("Model evaluation finished")
+            except Exception as e:
+                logger.exception("Model evaluation failed")
+                trainer._tracker_client.log_exceptions(e)
+                trainer._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with trainer._training_lock:
+                    trainer._training_in_progress = False
 
     @staticmethod
     def _filter_training_data_and_concepts(data_file: TextIO) -> Tuple[Dict, List]:
@@ -429,8 +461,8 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
     def _update_model_with_concepts(model: PreTrainedModel, concepts: List[str]) -> PreTrainedModel:
         if model.config.label2id == {"LABEL_0": 0, "LABEL_1": 1}:
             logger.debug("Cannot find existing labels and IDs, creating new ones...")
-            model.config.label2id = {"O": HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID, "X": 1}
-            model.config.id2label = {HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID: "O", 1: "X"}
+            model.config.label2id = {"O": HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID, "X": HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID}
+            model.config.id2label = {HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID: "O", HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID: "X"}
         avg_weight = torch.mean(model.classifier.weight, dim=0, keepdim=True)
         avg_bias = torch.mean(model.classifier.bias, dim=0, keepdim=True)
         for concept in concepts:
@@ -475,42 +507,85 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
         non_padding_predictions = predictions[non_padding_indices].flatten()
         non_padding_label_ids = label_ids[non_padding_indices].flatten()
         filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
-        _labels = list(id2label.keys())
-        precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids,
-                                                                         filtered_predictions,
-                                                                         labels=_labels,
-                                                                         average=None)
+        filtered_labels = list({k: v for k, v in id2label.items() if k != HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID}.values())
+        precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids, filtered_predictions, average=None)
         accuracy = accuracy_score(filtered_label_ids, filtered_predictions)
         metrics = {
             "accuracy": accuracy,
-            "f1_avg": np.average(f1),
-            "precision_avg": np.average(precision),
-            "recall_avg": np.average(recall),
-            "support_avg": np.average(support),
+            "f1_avg": np.average(f1[1:]),
+            "precision_avg": np.average(precision[1:]),
+            "recall_avg": np.average(recall[1:]),
+            "support_avg": np.average(support[1:]),
         }
 
-        for idx, p in enumerate(precision[:10]):    # limit by the number of labels to avoid excessive metrics logging
-            if support[idx] == 0:  # the concept has no true labels
+        for idx, (label, p) in enumerate(zip(filtered_labels, precision[:10])):    # limit by the number of labels to avoid excessive metrics logging
+            if idx == 0 or support[idx] == 0:  # the concept has the default label or no true labels
                 continue
-            metrics[f"{id2label.get(idx)}/precision"] = p if p is not None else 0.0
-            metrics[f"{id2label.get(idx)}/recall"] = recall[idx] if recall[idx] is not None else 0.0
-            metrics[f"{id2label.get(idx)}/f1"] = f1[idx] if f1[idx] is not None else 0.0
-            metrics[f"{id2label.get(idx)}/support"] = support[idx] if support[idx] is not None else 0.0
+            metrics[f"{label}/precision"] = p if p is not None else 0.0
+            metrics[f"{label}/recall"] = recall[idx] if recall[idx] is not None else 0.0
+            metrics[f"{label}/f1"] = f1[idx] if f1[idx] is not None else 0.0
+            metrics[f"{label}/support"] = support[idx] if support[idx] is not None else 0.0
 
         logger.debug("Evaluation metrics: %s", metrics)
         return metrics
+
+    def _save_trained_concepts(self,
+                               training_concepts: Dict,
+                               training_unique_concepts: Dict,
+                               training_ignorance_counts: Dict,
+                               model: PreTrainedModel) -> None:
+        if len(training_concepts.keys()) != 0:
+            unknown_concepts = set(training_concepts.keys()) - set(model.config.label2id.keys())
+            unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
+            self._tracker_client.send_model_stats({
+                "unknown_concept_count": len(unknown_concepts),
+                "unknown_concept_pct": unknown_concept_pct,
+            }, 0)
+            if unknown_concepts:
+                self._tracker_client.save_dataframe_as_csv("unknown_concepts.csv",
+                                                           pd.DataFrame({"concept": list(unknown_concepts)}),
+                                                           self._model_name)
+            concept_names = []
+            annotation_count = []
+            annotation_unique_count = []
+            annotation_ignorance_count = []
+            concepts = list(training_concepts.keys())
+            for c in concepts:
+                concept_names.append(model.config.label2id.keys())
+                annotation_count.append(training_concepts[c])
+                annotation_unique_count.append(training_unique_concepts[c])
+                annotation_ignorance_count.append(training_ignorance_counts[c])
+            self._tracker_client.save_dataframe_as_csv("trained_concepts.csv",
+                                                       pd.DataFrame({
+                                                           "concept": concepts,
+                                                           "name": concept_names,
+                                                           "anno_count": annotation_count,
+                                                           "anno_unique_count": annotation_unique_count,
+                                                           "anno_ignorance_count": annotation_ignorance_count,
+                                                       }),
+                                                       self._model_name)
+
+    def _sanity_check_model_and_save_results(self, data_file_path: str, model_service: AbstractModelService) -> None:
+        self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
+                                                   sanity_check_model_with_trainer_export(data_file_path,
+                                                                                          model_service,
+                                                                                          return_df=True,
+                                                                                          include_anchors=True),
+                                                   self._model_name)
 
 
 @final
 class MLflowLoggingCallback(TrainerCallback):
     def __init__(self, tracker_client: TrackerClient) -> None:
         self.tracker_client = tracker_client
+        self.epoch = 0
 
-    def on_log(self,
+    def on_epoch_end(self,
                args: TrainingArguments,
                state: TrainerState,
                control: TrainerControl,
-               logs: Dict[str, float],
                **kwargs: Dict[str, Any]) -> None:
+        logs = kwargs.get("logs")
         if logs is not None:
-            self.tracker_client.send_hf_training_logs(logs)
+            self.tracker_client.send_hf_training_logs(logs, self.epoch)
+        self.epoch += 1

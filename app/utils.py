@@ -264,6 +264,58 @@ def safetensors_to_pytorch(safetensors_file_path: Union[str, os.PathLike],
     torch.save(state_dict, pytorch_file_path)
 
 
+def func_deprecated(message: Optional[str] = None) -> Callable:
+    def decorator(func: Callable) -> Callable:
+
+        @functools.wraps(func)
+        def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
+            warnings.simplefilter("always", DeprecationWarning)
+            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""), stacklevel=2)
+            warnings.simplefilter("default", DeprecationWarning)
+            return func(*args, **kwargs)
+        return wrapped
+    return decorator
+
+
+def cls_deprecated(message: Optional[str] = None) -> Callable:
+    def decorator(cls: Type) -> Callable:
+        decorated_init = cls.__init__
+
+        @functools.wraps(decorated_init)
+        def wrapped(self: "Type", *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
+            warnings.simplefilter("always", DeprecationWarning)
+            warnings.warn("Class {} has been deprecated.{}".format(cls.__name__, " " + message if message else ""))
+            warnings.simplefilter("default", DeprecationWarning)
+            decorated_init(self, *args, **kwargs)
+        cls.__init__ = wrapped
+        return cls
+    return decorator
+
+
+def reset_random_seed() -> None:
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
+def non_default_device_is_available(device: str) -> bool:
+    return any([
+        device.startswith(Device.GPU.value) and torch.cuda.is_available(),
+        device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
+        device.startswith(Device.CPU.value)
+    ])
+
+
+def get_hf_pipeline_device_id(device: str) -> int:
+    if device.startswith(Device.GPU.value) or device.startswith(Device.MPS.value):
+        device_id = 0 if len(device.split(":")) == 1 else int(device.split(":")[1])
+    else:
+        device_id = -1
+    return device_id
+
+
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
     "2680757": "observable entity",
@@ -325,55 +377,3 @@ TYPE_ID_TO_NAME_PATCH = {
     "25624495": '© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.',
     "55540447": "linkage concept"
 }
-
-
-def func_deprecated(message: Optional[str] = None) -> Callable:
-    def decorator(func: Callable) -> Callable:
-
-        @functools.wraps(func)
-        def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
-            warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""), stacklevel=2)
-            warnings.simplefilter("default", DeprecationWarning)
-            return func(*args, **kwargs)
-        return wrapped
-    return decorator
-
-
-def cls_deprecated(message: Optional[str] = None) -> Callable:
-    def decorator(cls: Type) -> Callable:
-        decorated_init = cls.__init__
-
-        @functools.wraps(decorated_init)
-        def wrapped(self: "Type", *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
-            warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("Class {} has been deprecated.{}".format(cls.__name__, " " + message if message else ""))
-            warnings.simplefilter("default", DeprecationWarning)
-            decorated_init(self, *args, **kwargs)
-        cls.__init__ = wrapped
-        return cls
-    return decorator
-
-
-def reset_random_seed() -> None:
-    seed = 42
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-
-
-def non_default_device_is_available(device: str) -> bool:
-    return any([
-        device.startswith(Device.GPU.value) and torch.cuda.is_available(),
-        device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
-        device.startswith(Device.CPU.value)
-    ])
-
-
-def get_hf_pipeline_device_id(device: str) -> int:
-    if device.startswith(Device.GPU.value) or device.startswith(Device.MPS.value):
-        device_id = 0 if len(device.split(":")) == 1 else int(device.split(":")[1])
-    else:
-        device_id = -1
-    return device_id

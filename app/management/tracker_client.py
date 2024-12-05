@@ -72,8 +72,8 @@ class TrackerClient(object):
         mlflow.log_metrics(metrics, step)
 
     @staticmethod
-    def send_hf_training_logs(logs: Dict) -> None:
-        mlflow.log_metrics(logs)
+    def send_hf_training_logs(logs: Dict, step: int) -> None:
+        mlflow.log_metrics(logs, step)
 
     @staticmethod
     def save_model_local(local_dir: str,
