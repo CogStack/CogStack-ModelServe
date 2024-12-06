@@ -108,6 +108,8 @@ services:
         condition: "service_healthy"
       minio:
         condition: "service_healthy"
+      model-bucket-init:
+        condition: "service_completed_successfully"
 
   mlflow-deployments:
     build:
