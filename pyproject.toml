@@ -33,6 +33,7 @@ dependencies = [
     "websockets~=12.0",
     "pynvml~=11.5.3",
     "toml~=0.10.2",
+    "peft<0.14.0"
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
