@@ -79,8 +79,8 @@ class HuggingFaceNerModel(AbstractModelService):
         model_service.tokenizer = tokenizer
         _pipeline = partial(pipeline,
                             task="ner",
-                            model=model,
-                            tokenizer=tokenizer,
+                            model=model_service.model,
+                            tokenizer=model_service.tokenizer,
                             stride=10,
                             aggregation_strategy=get_settings().HF_PIPELINE_AGGREGATION_STRATEGY)
         if non_default_device_is_available(get_settings().DEVICE):
@@ -139,7 +139,7 @@ class HuggingFaceNerModel(AbstractModelService):
             df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
         else:
             for idx, row in df.iterrows():
-                df.loc[idx, "label_id"] = str(self._model.config.label2id[row["entity_group"]])
+                df.loc[idx, "label_id"] = row["entity_group"]
             df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
         records = df.to_dict("records")
         return records

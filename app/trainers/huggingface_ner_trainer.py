@@ -28,6 +28,7 @@ from transformers import (
     TrainerControl,
     EvalPrediction,
 )
+from evaluate.visualization import radar_plot
 from management.model_manager import ModelManager
 from management.tracker_client import TrackerClient
 from model_services.base import AbstractModelService
@@ -35,6 +36,7 @@ from processors.metrics_collector import get_stats_from_trainer_export, sanity_c
 from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
+from exception import AnnotationException
 
 
 logger = logging.getLogger("cms")
@@ -257,6 +259,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
 
     MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT = 5
+    MAX_CONCEPTS_TO_TRACK = 20
     PAD_LABEL_ID = -100
     DEFAULT_LABEL_ID = 0
     CONTINUING_TOKEN_LABEL_ID = 1
@@ -322,11 +325,20 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 logger.debug(f"Filtered concepts: {filtered_concepts}")
                 model = trainer._update_model_with_concepts(model, filtered_concepts)
 
-                documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
-                random.shuffle(documents)
                 test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
-                train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
-                eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
+                if test_size < 0:
+                    logger.info("Using pre-defined train-validation-test split in trainer export...")
+                    if len(filtered_training_data["projects"]) < 2:
+                        raise AnnotationException("Not enough projects in the training data to provide a train-validation-test split")
+                    train_documents = filtered_training_data["projects"][0]["documents"]
+                    random.shuffle(train_documents)
+                    eval_documents = filtered_training_data["projects"][1]["documents"]
+                else:
+                    documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
+                    random.shuffle(documents)
+                    test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
+                    train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
+                    eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
 
                 dataset_features = datasets.Features({
                     "input_ids": datasets.Sequence(datasets.Value("int32")),
@@ -349,30 +361,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
 
                 data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=tokenizer.pad_token_id)
-
-                training_args = TrainingArguments(
-                    output_dir=results_path,
-                    logging_dir=logs_path,
-                    eval_strategy="epoch",
-                    do_eval=True,
-                    save_strategy="epoch",
-                    logging_strategy="epoch",
-                    overwrite_output_dir=True,
-                    num_train_epochs=training_params["nepochs"],
-                    per_device_train_batch_size=1,
-                    per_device_eval_batch_size=1,
-                    eval_accumulation_steps=1,
-                    gradient_accumulation_steps=4,
-                    weight_decay=0.01,
-                    warmup_ratio=0.08,
-                    logging_steps=log_frequency,
-                    save_steps=1000,
-                    metric_for_best_model="eval_f1_avg",
-                    load_best_model_at_end=True,
-                    save_total_limit=3,
-                    use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
-                )
-
+                training_args = trainer._get_training_args(results_path, logs_path, training_params, log_frequency)
                 if training_params.get("lr_override") is not None:
                     training_args.learning_rate = training_params["lr_override"]
 
@@ -382,7 +371,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                     data_collator=data_collator,
                     train_dataset=train_dataset,
                     eval_dataset=eval_dataset,
-                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label),
+                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label, tracker_client=trainer._tracker_client, model_name=trainer._model_name),
                     callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
                 )
 
@@ -395,7 +384,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
                 trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-                trainer._tracker_client.log_classes(model.config.label2id.keys())
+                trainer._tracker_client.log_classes_and_names(model.config.id2label)
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model, tokenizer))
 
                 if not skip_save_model:
@@ -415,10 +404,10 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                     del tokenizer
                     gc.collect()
                     logger.info("Skipped deployment on the retrained model")
-                logger.info("Unsupervised training finished")
+                logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
             except Exception as e:
-                logger.exception("Unsupervised training failed")
+                logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)
                 trainer._tracker_client.end_with_failure()
             finally:
@@ -432,6 +421,35 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 logger.info("Evaluating the running model...")
                 trainer._tracker_client.log_model_config(trainer._model_service._model.config.to_dict())
                 trainer._tracker_client.log_trainer_version(transformers_version)
+                with open(data_file.name, "r") as f:
+                    eval_data = json.load(f)
+                eval_documents = [document for project in eval_data["projects"] for document in project["documents"]]
+                dataset_features = datasets.Features({
+                    "input_ids": datasets.Sequence(datasets.Value("int32")),
+                    "labels": datasets.Sequence(datasets.Value("int32")),
+                    "attention_mask": datasets.Sequence(datasets.Value("int32")),
+                })
+                eval_dataset = datasets.Dataset.from_generator(
+                    trainer._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"documents": eval_documents, "tokenizer": trainer._model_service.tokenizer, "max_length": trainer._max_length, "model": trainer._model_service._model},
+                    cache_dir=trainer._config.TRAINING_CACHE_DIR
+                )
+                eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
+                data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=trainer._model_service.tokenizer.pad_token_id)
+                training_args = trainer._get_training_args(results_path, logs_path, training_params, log_frequency)
+                hf_trainer = Trainer(
+                    model=trainer._model_service.model,
+                    args=training_args,
+                    data_collator=data_collator,
+                    train_dataset=None,
+                    eval_dataset=None,
+                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=trainer._model_service.model.config.id2label, tracker_client=trainer._tracker_client, model_name=trainer._model_name),
+                    tokenizer=None,
+                )
+                eval_metrics = hf_trainer.evaluate(eval_dataset)
+                logger.debug("Evaluation metrics: %s", eval_metrics)
+                trainer._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
@@ -487,7 +505,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 for annotation in document["annotations"]:
                     start = annotation["start"]
                     end = annotation["end"]
-                    label_id = model.config.label2id[annotation["cui"]]
+                    label_id = model.config.label2id.get(annotation["cui"], HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)
                     for idx, offset_mapping in enumerate(chunked_offsets_mapping):
                         if start <= offset_mapping[0] and offset_mapping[1] <= end:
                             chunked_labels[idx] = label_id
@@ -500,34 +518,89 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 }
 
     @staticmethod
-    def _compute_token_level_metrics(eval_pred: EvalPrediction, id2label: Dict[int, str]) -> Dict[str, Any]:
+    def _compute_token_level_metrics(eval_pred: EvalPrediction, id2label: Dict[int, str], tracker_client: TrackerClient, model_name: str) -> Dict[str, Any]:
         predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
         label_ids = eval_pred.label_ids
         non_padding_indices = np.where(label_ids != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
         non_padding_predictions = predictions[non_padding_indices].flatten()
         non_padding_label_ids = label_ids[non_padding_indices].flatten()
+        labels = list(id2label.values())
+        precision, recall, f1, support = precision_recall_fscore_support(non_padding_label_ids, non_padding_predictions, labels=list(id2label.keys()), average=None)
         filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
-        filtered_labels = list({k: v for k, v in id2label.items() if k != HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID}.values())
-        precision, recall, f1, support = precision_recall_fscore_support(filtered_label_ids, filtered_predictions, average=None)
         accuracy = accuracy_score(filtered_label_ids, filtered_predictions)
         metrics = {
             "accuracy": accuracy,
-            "f1_avg": np.average(f1[1:]),
-            "precision_avg": np.average(precision[1:]),
-            "recall_avg": np.average(recall[1:]),
-            "support_avg": np.average(support[1:]),
+            "f1_avg": np.average(f1[2:]),
+            "precision_avg": np.average(precision[2:]),
+            "recall_avg": np.average(recall[2:]),
+            "support_avg": np.average(support[2:]),
         }
+        aggregated_labels = []
+        aggregated_metrics = []
 
-        for idx, (label, p) in enumerate(zip(filtered_labels, precision[:10])):    # limit by the number of labels to avoid excessive metrics logging
-            if idx == 0 or support[idx] == 0:  # the concept has the default label or no true labels
+        # limit the number of labels to avoid excessive metrics logging
+        for idx, (label, precision, recall, f1, support) in enumerate(zip(labels[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                          precision[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                          recall[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                          f1[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                          support[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2])):
+            if support == 0:  # the concept has no true labels
                 continue
-            metrics[f"{label}/precision"] = p if p is not None else 0.0
-            metrics[f"{label}/recall"] = recall[idx] if recall[idx] is not None else 0.0
-            metrics[f"{label}/f1"] = f1[idx] if f1[idx] is not None else 0.0
-            metrics[f"{label}/support"] = support[idx] if support[idx] is not None else 0.0
+            metrics[f"{label}/precision"] = precision if precision is not None else 0.0
+            metrics[f"{label}/recall"] = recall if recall is not None else 0.0
+            metrics[f"{label}/f1"] = f1 if f1 is not None else 0.0
+            metrics[f"{label}/support"] = support if support is not None else 0.0
 
+            aggregated_labels.append(label)
+            aggregated_metrics.append({
+                "per_concept_p": metrics[f"{label}/precision"],
+                "per_concept_r": metrics[f"{label}/recall"],
+                "per_concept_f1": metrics[f"{label}/f1"],
+            })
+
+        HuggingFaceNerSupervisedTrainer._save_metrics_plot(aggregated_metrics, aggregated_labels, tracker_client, model_name)
         logger.debug("Evaluation metrics: %s", metrics)
         return metrics
+
+    @staticmethod
+    def _save_metrics_plot(metrics: List[Dict],
+                           concepts: List[str],
+                           tracker_client: TrackerClient,
+                           model_name: str) -> None:
+        try:
+            plot = radar_plot(data=metrics, model_names=concepts)
+            with tempfile.TemporaryDirectory() as d:
+                with open(os.path.join(d, "metrics.png"), "w") as f:
+                    plot.savefig(fname=f.name, format="png", bbox_inches="tight")
+                    f.flush()
+                    tracker_client.save_plot(f.name, model_name)
+        except Exception as e:
+            logger.error("Error occurred while plotting the metrics")
+            logger.exception(e)
+
+    def _get_training_args(self, results_path: str, logs_path: str, training_params: Dict, log_frequency: int) -> TrainingArguments:
+        return TrainingArguments(
+            output_dir=results_path,
+            logging_dir=logs_path,
+            eval_strategy="epoch",
+            do_eval=True,
+            save_strategy="epoch",
+            logging_strategy="epoch",
+            overwrite_output_dir=True,
+            num_train_epochs=training_params["nepochs"],
+            per_device_train_batch_size=1,
+            per_device_eval_batch_size=1,
+            eval_accumulation_steps=1,
+            gradient_accumulation_steps=4,
+            weight_decay=0.01,
+            warmup_ratio=0.08,
+            logging_steps=log_frequency,
+            save_steps=1000,
+            metric_for_best_model="eval_f1_avg",
+            load_best_model_at_end=True,
+            save_total_limit=3,
+            use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
+        )
 
     def _save_trained_concepts(self,
                                training_concepts: Dict,
@@ -545,20 +618,17 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 self._tracker_client.save_dataframe_as_csv("unknown_concepts.csv",
                                                            pd.DataFrame({"concept": list(unknown_concepts)}),
                                                            self._model_name)
-            concept_names = []
             annotation_count = []
             annotation_unique_count = []
             annotation_ignorance_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
-                concept_names.append(model.config.label2id.keys())
                 annotation_count.append(training_concepts[c])
                 annotation_unique_count.append(training_unique_concepts[c])
                 annotation_ignorance_count.append(training_ignorance_counts[c])
             self._tracker_client.save_dataframe_as_csv("trained_concepts.csv",
                                                        pd.DataFrame({
                                                            "concept": concepts,
-                                                           "name": concept_names,
                                                            "anno_count": annotation_count,
                                                            "anno_unique_count": annotation_unique_count,
                                                            "anno_ignorance_count": annotation_ignorance_count,
@@ -580,12 +650,12 @@ class MLflowLoggingCallback(TrainerCallback):
         self.tracker_client = tracker_client
         self.epoch = 0
 
-    def on_epoch_end(self,
+    def on_log(self,
                args: TrainingArguments,
                state: TrainerState,
                control: TrainerControl,
+               logs: Dict[str, float],
                **kwargs: Dict[str, Any]) -> None:
-        logs = kwargs.get("logs")
         if logs is not None:
-            self.tracker_client.send_hf_training_logs(logs, self.epoch)
+            self.tracker_client.send_hf_metrics_logs(logs, self.epoch)
         self.epoch += 1

@@ -61,10 +61,10 @@ def test_send_model_stats(mlflow_fixture):
     mlflow.log_metrics.assert_called_once_with({"key_name": 1}, 1)
 
 
-def test_send_hf_training_logs(mlflow_fixture):
+def test_send_hf_metrics_logs(mlflow_fixture):
     tracker_client = TrackerClient("")
 
-    tracker_client.send_hf_training_logs({"Key name": 1}, 1)
+    tracker_client.send_hf_metrics_logs({"Key name": 1}, 1)
 
     mlflow.log_metrics.assert_called_once_with({"Key name": 1}, 1)
 

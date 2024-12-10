@@ -73,7 +73,10 @@ class TrainerCommon(object):
                     self._tracker_client.save_processed_artifact(data_file.name, self._model_name)
 
                     dataset = None
-                    if training_type == TrainingType.UNSUPERVISED.value and isinstance(data_file, TextIO):
+                    if training_type == TrainingType.UNSUPERVISED.value and isinstance(data_file, tempfile.TemporaryDirectory):
+                        dataset = datasets.load_from_disk(data_file.name)
+                        self._tracker_client.save_train_dataset(dataset)
+                    elif training_type == TrainingType.UNSUPERVISED.value:
                         try:
                             dataset = datasets.load_dataset(doc_dataset.__file__,
                                                             data_files={"documents": data_file.name},
@@ -84,7 +87,7 @@ class TrainerCommon(object):
                         finally:
                             if dataset is not None:
                                 dataset.cleanup_cache_files()
-                    elif training_type == TrainingType.SUPERVISED.value and isinstance(data_file, TextIO):
+                    elif training_type == TrainingType.SUPERVISED.value:
                         try:
                             dataset = datasets.load_dataset(anno_dataset.__file__,
                                                             data_files={"annotations": data_file.name},
@@ -95,9 +98,6 @@ class TrainerCommon(object):
                         finally:
                             if dataset is not None:
                                 dataset.cleanup_cache_files()
-                    elif training_type == TrainingType.UNSUPERVISED.value and isinstance(data_file, tempfile.TemporaryDirectory):
-                        dataset = datasets.load_from_disk(data_file.name)
-                        self._tracker_client.save_train_dataset(dataset)
                     else:
                         raise ValueError(f"Unknown training type: {training_type}")
 
