@@ -688,85 +688,6 @@
                 }
             }
         },
-        "/train_metacat": {
-            "post": {
-                "tags": [
-                    "Training"
-                ],
-                "summary": "Train Metacat",
-                "description": "Upload one or more trainer export files and trigger the metacat training",
-                "operationId": "train_metacat",
-                "parameters": [
-                    {
-                        "description": "The number of training epochs",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "minimum": 0.0,
-                            "title": "Epochs",
-                            "description": "The number of training epochs",
-                            "default": 1
-                        },
-                        "name": "epochs",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of processed documents after which training metrics will be logged",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "minimum": 1.0,
-                            "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
-                            "default": 1
-                        },
-                        "name": "log_frequency",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The description on the training or change logs",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "Description",
-                            "description": "The description on the training or change logs"
-                        },
-                        "name": "description",
-                        "in": "query"
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/Body_train_metacat_train_metacat_post"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "202": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/evaluate": {
             "post": {
                 "tags": [
@@ -1284,24 +1205,6 @@
                     "trainer_export"
                 ],
                 "title": "Body_get_sanity_check_with_trainer_export_sanity_check_post"
-            },
-            "Body_train_metacat_train_metacat_post": {
-                "properties": {
-                    "trainer_export": {
-                        "items": {
-                            "type": "string",
-                            "format": "binary"
-                        },
-                        "type": "array",
-                        "title": "Trainer Export",
-                        "description": "One or more trainer export files to be uploaded"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "trainer_export"
-                ],
-                "title": "Body_train_metacat_train_metacat_post"
             },
             "Body_train_supervised_train_supervised_post": {
                 "properties": {

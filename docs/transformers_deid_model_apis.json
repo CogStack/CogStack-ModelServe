@@ -205,6 +205,21 @@
                 "operationId": "get_redacted_text",
                 "parameters": [
                     {
+                        "description": "List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]",
+                        "required": false,
+                        "schema": {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array",
+                            "title": "Concepts To Keep",
+                            "description": "List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]",
+                            "default": []
+                        },
+                        "name": "concepts_to_keep",
+                        "in": "query"
+                    },
+                    {
                         "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
                         "required": false,
                         "schema": {
@@ -363,13 +378,12 @@
                         "in": "query"
                     },
                     {
-                        "description": "The override of the test size in percentage",
+                        "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
                         "required": false,
                         "schema": {
                             "type": "number",
-                            "minimum": 0.0,
                             "title": "Test Size",
-                            "description": "The override of the test size in percentage",
+                            "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
                             "default": 0.2
                         },
                         "name": "test_size",
@@ -1016,7 +1030,8 @@
                     "medcat_icd10",
                     "medcat_deid",
                     "anoncat",
-                    "transformers_deid"
+                    "transformers_deid",
+                    "huggingface_ner"
                 ],
                 "title": "ModelType",
                 "description": "An enumeration."
