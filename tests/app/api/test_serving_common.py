@@ -97,7 +97,7 @@ def test_process_unknown_jsonl_properties(model_service, client):
     assert "Invalid JSON properties found." in response.json()["message"]
 
 
-def test_redact_with_white_list():
+def test_redact_with_white_list(model_service, client):
     annotations = [{
         "label_name": "Spinal stenosis",
         "label_id": "76107001",

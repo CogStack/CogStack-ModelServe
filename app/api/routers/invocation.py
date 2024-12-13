@@ -189,7 +189,7 @@ def get_redacted_text(request: Request,
         return PlainTextResponse(content="WARNING: No entities were detected for redaction.", status_code=200)
     else:
         for annotation in annotations:
-            
+
             if annotation["label_id"] in concepts_to_keep:
                 continue
 
