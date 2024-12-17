@@ -32,6 +32,7 @@ async def train_supervised(request: Request,
                            test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)")] = 0.2,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
+                           tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
@@ -51,7 +52,7 @@ async def train_supervised(request: Request,
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
-    training_id = str(uuid.uuid4())
+    training_id = tracking_id or str(uuid.uuid4())
     try:
         training_accepted = model_service.train_supervised(data_file,
                                                            epochs,

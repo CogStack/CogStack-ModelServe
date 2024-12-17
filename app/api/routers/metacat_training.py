@@ -29,6 +29,7 @@ async def train_metacat(request: Request,
                         epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                         log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                         description: Annotated[Union[str, None], Query(description="The description on the training or change logs")] = None,
+                        tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
@@ -49,7 +50,7 @@ async def train_metacat(request: Request,
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
-    training_id = str(uuid.uuid4())
+    training_id = tracking_id or str(uuid.uuid4())
     try:
         training_accepted = model_service.train_metacat(data_file,
                                                         epochs,

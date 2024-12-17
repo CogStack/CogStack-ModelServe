@@ -33,6 +33,7 @@ async def train_unsupervised(request: Request,
                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
+                             tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
     Upload one or more plain text files and trigger the unsupervised training
@@ -61,7 +62,7 @@ async def train_unsupervised(request: Request,
     logger.debug("Training data concatenated")
     data_file.flush()
     data_file.seek(0)
-    training_id = str(uuid.uuid4())
+    training_id = tracking_id or str(uuid.uuid4())
     try:
         training_accepted = model_service.train_unsupervised(data_file,
                                                              epochs,
@@ -96,6 +97,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
                                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits", ge=0.0)] = 0.2,
                                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
+                                             tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
     Trigger the unsupervised training with a dataset from Hugging Face Hub
@@ -129,7 +131,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
         logger.debug("Training dataset downloaded and transformed")
         hf_dataset.save_to_disk(data_dir.name)
 
-    training_id = str(uuid.uuid4())
+    training_id = tracking_id or str(uuid.uuid4())
     training_accepted = model_service.train_unsupervised(data_dir,
                                                          epochs,
                                                          log_frequency,
