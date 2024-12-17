@@ -11,7 +11,7 @@ from domain import ModelCard, ModelType
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from management.model_manager import ModelManager
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, patch
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"
@@ -258,13 +258,14 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did, client)
 
 
 def test_train_supervised(model_service, client):
+    model_service.train_supervised.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/train_supervised", files=[("trainer_export", f)])
 
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
-    assert "training_id" in response.json()
+    assert all(key in response.json() for key in ["training_id", "experiment_id", "run_id"])
 
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f:
@@ -278,13 +279,14 @@ def test_train_supervised(model_service, client):
 
 
 def test_train_unsupervised(model_service, client):
+    model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("[\"Spinal stenosis\"]"))
         response = client.post("/train_unsupervised", files=[("training_data", f)])
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
-    assert "training_id" in response.json()
+    assert all(key in response.json() for key in ["training_id", "experiment_id", "run_id"])
 
     # test with provided tracking ID
     with tempfile.TemporaryFile("r+b") as f:
@@ -305,12 +307,13 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+    model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
 
     response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb")
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
-    assert "training_id" in response.json()
+    assert all(key in response.json() for key in ["training_id", "experiment_id", "run_id"])
 
     # test with provided tracking ID
     response = client.post(f"/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb&tracking_id={TRACKING_ID}")
@@ -322,13 +325,14 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
 
 
 def test_train_metacat(model_service, client):
+    model_service.train_metacat.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/train_metacat", files=[("trainer_export", f)])
 
     model_service.train_metacat.assert_called()
     assert response.status_code == 202
     assert response.json()["message"] == "Your training started successfully."
-    assert "training_id" in response.json()
+    assert all(key in response.json() for key in ["training_id", "experiment_id", "run_id"])
 
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f:
@@ -341,7 +345,8 @@ def test_train_metacat(model_service, client):
     assert response.json().get("training_id") == TRACKING_ID
 
 
-def test_evaluate_with_trainer_export(client):
+def test_evaluate_with_trainer_export(model_service, client):
+    model_service.train_supervised.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.post("/evaluate", files=[("trainer_export", f)])
 

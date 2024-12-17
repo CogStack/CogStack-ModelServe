@@ -44,9 +44,10 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
         "model_card": None,
     })
     model_service.info.return_value = model_card
+    model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
 
     response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb")
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
-    assert "training_id" in response.json()
+    assert all([key in response.json() for key in ["training_id", "experiment_id", "run_id"]])

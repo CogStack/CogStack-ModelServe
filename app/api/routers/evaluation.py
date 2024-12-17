@@ -57,11 +57,26 @@ async def get_evaluation_with_trainer_export(request: Request,
     data_file.flush()
     data_file.seek(0)
     evaluation_id = tracking_id or str(uuid.uuid4())
-    evaluation_accepted = model_service.train_supervised(data_file, 0, sys.maxsize, evaluation_id, ",".join(file_names))
+    evaluation_accepted, experiment_id, run_id = model_service.train_supervised(
+        data_file, 0, sys.maxsize, evaluation_id, ",".join(file_names)
+    )
     if evaluation_accepted:
-        return JSONResponse(content={"message": "Your evaluation started successfully.", "evaluation_id": evaluation_id}, status_code=HTTP_202_ACCEPTED)
+        return JSONResponse(
+            content={
+                "message": "Your evaluation started successfully.",
+                "evaluation_id": evaluation_id,
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_202_ACCEPTED
+        )
     else:
-        return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)
+        return JSONResponse(
+            content={
+                "message": "Another training or evaluation on this model is still active. Please retry later.",
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_503_SERVICE_UNAVAILABLE
+        )
 
 
 @router.post("/sanity-check",
