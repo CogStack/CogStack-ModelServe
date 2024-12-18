@@ -20,6 +20,7 @@ config.ENABLE_EVALUATION_APIS = "true"
 config.ENABLE_PREVIEWS_APIS = "true"
 config.AUTH_USER_ENABLED = "true"
 
+TRACKING_ID = "123e4567-e89b-12d3-a456-426614174000"
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
@@ -196,6 +197,19 @@ def test_preview_trainer_export(client):
     assert response.headers["Content-Type"] == "application/octet-stream"
     assert len(response.text.split("<br/>")) == 4
 
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post(f"/preview_trainer_export?tracking_id={TRACKING_ID}", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/octet-stream"
+    assert len(response.text.split("<br/>")) == 4
+    assert TRACKING_ID in response.headers["Content-Disposition"]
+
 
 def test_preview_trainer_export_str(client):
     with open(TRAINER_EXPORT_PATH, "r") as f:
@@ -252,6 +266,16 @@ def test_train_supervised(model_service, client):
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
 
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post(f"/train_supervised?tracking_id={TRACKING_ID}", files=[("trainer_export", f)])
+
+    model_service.train_supervised.assert_called()
+    assert response.status_code == 202
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+    assert response.json().get("training_id") == TRACKING_ID
+
 
 def test_train_unsupervised(model_service, client):
     with tempfile.TemporaryFile("r+b") as f:
@@ -261,6 +285,16 @@ def test_train_unsupervised(model_service, client):
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
+
+    # test with provided tracking ID
+    with tempfile.TemporaryFile("r+b") as f:
+        f.write(str.encode("[\"Spinal stenosis\"]"))
+        response = client.post(f"/train_unsupervised?tracking_id={TRACKING_ID}", files=[("training_data", f)])
+
+    model_service.train_unsupervised.assert_called()
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+    assert response.json().get("training_id") == TRACKING_ID
 
 
 def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
@@ -278,6 +312,14 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
 
+    # test with provided tracking ID
+    response = client.post(f"/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb&tracking_id={TRACKING_ID}")
+
+    model_service.train_unsupervised.assert_called()
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+    assert response.json().get("training_id") == TRACKING_ID
+
 
 def test_train_metacat(model_service, client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
@@ -288,6 +330,16 @@ def test_train_metacat(model_service, client):
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
 
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post(f"/train_metacat?tracking_id={TRACKING_ID}", files=[("trainer_export", f)])
+
+    model_service.train_metacat.assert_called()
+    assert response.status_code == 202
+    assert response.json()["message"] == "Your training started successfully."
+    assert "training_id" in response.json()
+    assert response.json().get("training_id") == TRACKING_ID
+
 
 def test_evaluate_with_trainer_export(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
@@ -297,6 +349,15 @@ def test_evaluate_with_trainer_export(client):
     assert response.json()["message"] == "Your evaluation started successfully."
     assert "evaluation_id" in response.json()
 
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post(f"/evaluate?tracking_id={TRACKING_ID}", files=[("trainer_export", f)])
+
+    assert response.status_code == 202
+    assert response.json()["message"] == "Your evaluation started successfully."
+    assert "evaluation_id" in response.json()
+    assert response.json().get("evaluation_id") == TRACKING_ID
+
 
 def test_sanity_check_with_trainer_export(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
@@ -305,6 +366,15 @@ def test_sanity_check_with_trainer_export(client):
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
+
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.post(f"/sanity-check?tracking_id={TRACKING_ID}", files=[("trainer_export", f)])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "concept,name,precision,recall,f1"
+    assert TRACKING_ID in response.headers["Content-Disposition"]
 
 
 def test_inter_annotator_agreement_scores_per_concept(client):
@@ -318,6 +388,19 @@ def test_inter_annotator_agreement_scores_per_concept(client):
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
+
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post(f"/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept&tracking_id={TRACKING_ID}", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "concept,iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta"
+    assert TRACKING_ID in response.headers["Content-Disposition"]
 
 
 @pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
@@ -381,6 +464,19 @@ def test_concat_trainer_exports(client):
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
     assert len(response.text) == 36918
 
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post(f"/concat_trainer_exports?tracking_id={TRACKING_ID}", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "application/json; charset=utf-8"
+    assert len(response.text) == 36918
+    assert TRACKING_ID in response.headers["Content-Disposition"]
+
 
 def test_get_annotation_stats(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
@@ -393,6 +489,19 @@ def test_get_annotation_stats(client):
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.text.split("\n")[0] == "concept,anno_count,anno_unique_counts,anno_ignorance_counts"
+
+    # test with provided tracking ID
+    with open(TRAINER_EXPORT_PATH, "rb") as f1:
+        with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
+            response = client.post(f"/annotation-stats?tracking_id={TRACKING_ID}", files=[
+                ("trainer_export", f1),
+                ("trainer_export", f2),
+            ])
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.text.split("\n")[0] == "concept,anno_count,anno_unique_counts,anno_ignorance_counts"
+    assert TRACKING_ID in response.headers["Content-Disposition"]
 
 
 def test_extract_entities_from_text_list_file_as_json_file(model_service, client):
@@ -435,3 +544,27 @@ def test_extract_entities_from_text_list_file_as_json_file(model_service, client
             },
         }]
     }] * 15
+
+    # test with provided tracking ID
+    with open(MULTI_TEXTS_FILE_PATH, "rb") as f:
+        response = client.post(f"/process_bulk_file?tracking_id={TRACKING_ID}", files=[("multi_text_file", f)])
+
+    assert isinstance(response, httpx.Response)
+    assert json.loads(response.content) == [{
+        "text": "Description: Intracerebral hemorrhage (very acute clinical changes occurred immediately).\nCC: Left hand numbness on presentation; then developed lethargy later that day.\nHX: On the day of presentation, this 72 y/o RHM suddenly developed generalized weakness and lightheadedness, and could not rise from a chair. Four hours later he experienced sudden left hand numbness lasting two hours. There were no other associated symptoms except for the generalized weakness and lightheadedness. He denied vertigo.\nHe had been experiencing falling spells without associated LOC up to several times a month for the past year.\nMEDS: procardia SR, Lasix, Ecotrin, KCL, Digoxin, Colace, Coumadin.\nPMH: 1)8/92 evaluation for presyncope (Echocardiogram showed: AV fibrosis/calcification, AV stenosis/insufficiency, MV stenosis with annular calcification and regurgitation, moderate TR, Decreased LV systolic function, severe LAE. MRI brain: focal areas of increased T2 signal in the left cerebellum and in the brainstem probably representing microvascular ischemic disease. IVG (MUGA scan)revealed: global hypokinesis of the LV and biventricular dysfunction, RV ejection Fx 45% and LV ejection Fx 39%. He was subsequently placed on coumadin severe valvular heart disease), 2)HTN, 3)Rheumatic fever and heart disease, 4)COPD, 5)ETOH abuse, 6)colonic polyps, 7)CAD, 8)CHF, 9)Appendectomy, 10)Junctional tachycardia.",
+        "annotations": [{
+            "label_name": "Spinal stenosis",
+            "label_id": "76107001",
+            "start": 0,
+            "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {
+                    "value": "Affirmed",
+                    "confidence": 0.9999833106994629,
+                    "name": "Status"
+                }
+            },
+        }]
+    }] * 15
+    assert TRACKING_ID in response.headers["Content-Disposition"]

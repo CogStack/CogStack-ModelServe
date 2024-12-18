@@ -1,10 +1,18 @@
 import logging
+import re
+from typing import Union
+from typing_extensions import Annotated
+
+from fastapi import HTTPException, Query
+from starlette.status import HTTP_400_BAD_REQUEST
 
 from typing import Optional
 from config import Settings
 from registry import model_service_registry
 from model_services.base import AbstractModelService
 from management.model_manager import ModelManager
+
+TRACKING_ID_REGEX = re.compile(r"^[a-zA-Z0-9][\w\-]{0,255}$")
 
 logger = logging.getLogger("cms")
 
@@ -45,3 +53,14 @@ class ModelManagerDep(object):
 
     def __call__(self) -> ModelManager:
         return self._model_manager
+
+
+def validate_tracking_id(
+    tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the requested task")] = None,
+) -> Union[str, None]:
+    if tracking_id is not None and TRACKING_ID_REGEX.match(tracking_id) is None:
+        raise HTTPException(
+            status_code=HTTP_400_BAD_REQUEST,
+            detail=f"Invalid tracking ID '{tracking_id}', must be an alphanumeric string of length 1 to 256",
+        )
+    return tracking_id

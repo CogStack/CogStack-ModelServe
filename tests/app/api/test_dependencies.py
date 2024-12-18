@@ -1,4 +1,7 @@
-from api.dependencies import ModelServiceDep
+import pytest
+from fastapi import HTTPException
+
+from api.dependencies import ModelServiceDep, validate_tracking_id
 from config import Settings
 from model_services.medcat_model import MedCATModel
 from model_services.medcat_model_icd10 import MedCATModelIcd10
@@ -36,3 +39,28 @@ def test_transformer_deid_dep():
 def test_huggingface_ner_dep():
     model_service_dep = ModelServiceDep("huggingface_ner", Settings())
     assert isinstance(model_service_dep(), HuggingFaceNerModel)
+
+
+@pytest.mark.parametrize(
+    "run_id",
+    [
+        "a" * 32,
+        "A" * 32,
+        "a" * 256,
+        "f0" * 16,
+        "abcdef0123456789" * 2,
+        "abcdefghijklmnopqrstuvqxyz",
+        "123e4567-e89b-12d3-a456-426614174000",
+        "123e4567e89b12d3a45642661417400",
+    ],
+)
+def test_validate_tracking_id(run_id):
+    assert validate_tracking_id(run_id) == run_id
+
+
+@pytest.mark.parametrize("run_id", ["a/bc" * 8, "", "a" * 400, "*" * 5])
+def test_validate_tracking_id_invalid(run_id):
+    with pytest.raises(HTTPException) as exc_info:
+        validate_tracking_id(run_id)
+    assert exc_info.value.status_code == 400
+    assert "Invalid tracking ID" in exc_info.value.detail

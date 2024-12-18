@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from domain import TextWithAnnotations, TextWithPublicKey, TextStreamItem, ModelCard, Tags
 from model_services.base import AbstractModelService
 from utils import get_settings
+from api.dependencies import validate_tracking_id
 from api.utils import get_rate_limiter, encrypt
 from management.prometheus_metrics import (
     cms_doc_annotations,
@@ -132,6 +133,7 @@ def get_entities_from_multiple_texts(request: Request,
              description="Upload a file containing a list of plain text and extract the NER entities in JSON")
 def extract_entities_from_multi_text_file(request: Request,
                                           multi_text_file: Annotated[UploadFile, File(description="A file containing a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+                                          tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
     with tempfile.NamedTemporaryFile() as data_file:
         for line in multi_text_file.file:
@@ -160,8 +162,9 @@ def extract_entities_from_multi_text_file(request: Request,
         output = json.dumps(body)
         logger.debug(output)
         json_file = BytesIO(output.encode())
+        tracking_id = tracking_id or str(uuid.uuid4())
         response = StreamingResponse(json_file, media_type="application/json")
-        response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{str(uuid.uuid4())}.json"'
+        response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{tracking_id}.json"'
         return response
 
 
