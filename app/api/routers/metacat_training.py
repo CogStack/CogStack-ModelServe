@@ -2,7 +2,7 @@ import tempfile
 import uuid
 import json
 import logging
-from typing import List, Union
+from typing import List, Tuple, Union
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
@@ -53,7 +53,7 @@ async def train_metacat(request: Request,
     data_file.seek(0)
     training_id = tracking_id or str(uuid.uuid4())
     try:
-        training_accepted = model_service.train_metacat(data_file,
+        training_response = model_service.train_metacat(data_file,
                                                         epochs,
                                                         log_frequency,
                                                         training_id,
@@ -65,13 +65,27 @@ async def train_metacat(request: Request,
         for file in files:
             file.close()
 
-    return _get_training_response(training_accepted, training_id)
+    return _get_training_response(training_response, training_id)
 
 
-def _get_training_response(training_accepted: bool, training_id: str) -> JSONResponse:
+def _get_training_response(training_response: Tuple[bool, str, str], training_id: str) -> JSONResponse:
+    training_accepted, experiment_id, run_id = training_response
     if training_accepted:
         logger.debug("Training accepted with ID: %s", training_id)
-        return JSONResponse(content={"message": "Your training started successfully.", "training_id": training_id}, status_code=HTTP_202_ACCEPTED)
+        return JSONResponse(
+            content={
+                "message": "Your training started successfully.",
+                "training_id": training_id,
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_202_ACCEPTED
+        )
     else:
         logger.debug("Training refused due to another active training or evaluation on this model")
-        return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry your training later."}, status_code=HTTP_503_SERVICE_UNAVAILABLE)
+        return JSONResponse(
+            content={
+                "message": "Another training or evaluation on this model is still active. Please retry your training later.",
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_503_SERVICE_UNAVAILABLE
+        )

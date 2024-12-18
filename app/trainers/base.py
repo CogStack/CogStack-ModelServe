@@ -9,7 +9,7 @@ import datasets
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-from typing import TextIO, Callable, Dict, Optional, Any, List, Union, final
+from typing import TextIO, Callable, Dict, Tuple, Optional, Any, List, Union, final
 from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
@@ -26,6 +26,8 @@ class TrainerCommon(object):
         self._model_name = model_name
         self._training_lock = threading.Lock()
         self._training_in_progress = False
+        self._experiment_id = None
+        self._run_id = None
         self._tracker_client = TrackerClient(self._config.MLFLOW_TRACKING_URI)
         self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
 
@@ -36,6 +38,14 @@ class TrainerCommon(object):
     @model_name.setter
     def model_name(self, model_name: str) -> None:
         self._model_name = model_name
+
+    @property
+    def experiment_id(self) -> str:
+        return self._experiment_id or ""
+
+    @property
+    def run_id(self) -> str:
+        return self._run_id or ""
 
     @final
     def start_training(self,
@@ -48,13 +58,13 @@ class TrainerCommon(object):
                        input_file_name: str,
                        raw_data_files: Optional[List[TextIO]] = None,
                        description: Optional[str] = None,
-                       synchronised: bool = False) -> bool:
+                       synchronised: bool = False) -> Tuple[bool, str, str]:
         with self._training_lock:
             if self._training_in_progress:
-                return False
+                return False, self.experiment_id, self.run_id
             else:
                 loop = asyncio.get_event_loop()
-                experiment_id, run_id = self._tracker_client.start_tracking(
+                self._experiment_id, self._run_id = self._tracker_client.start_tracking(
                     model_name=self._model_name,
                     input_file_name=input_file_name,
                     base_model_original=self._config.BASE_MODEL_FULL_PATH,
@@ -101,15 +111,15 @@ class TrainerCommon(object):
                     else:
                         raise ValueError(f"Unknown training type: {training_type}")
 
-                logger.info("Starting training job: %s with experiment ID: %s", training_id, experiment_id)
+                logger.info("Starting training job: %s with experiment ID: %s", training_id, self.experiment_id)
                 self._training_in_progress = True
                 training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                                           partial(run, self, training_params, data_file, log_frequency, run_id, description)))
+                                                                           partial(run, self, training_params, data_file, log_frequency, self.run_id, description)))
 
         if synchronised:
             loop.run_until_complete(training_task)
 
-        return True
+        return True, self.experiment_id, self.run_id
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
@@ -161,7 +171,7 @@ class SupervisedTrainer(ABC, TrainerCommon):
               raw_data_files: Optional[List[TextIO]] = None,
               description: Optional[str] = None,
               synchronised: bool = False,
-              **hyperparams: Dict[str, Any]) -> bool:
+              **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
         training_type = TrainingType.SUPERVISED.value
         training_params = {
             "data_path": data_file.name,
@@ -204,7 +214,7 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               raw_data_files: Optional[List[TextIO]] = None,
               description: Optional[str] = None,
               synchronised: bool = False,
-              **hyperparams: Dict[str, Any]) -> bool:
+              **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
             "nepochs": epochs,

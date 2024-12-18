@@ -56,11 +56,11 @@ class AbstractModelService(ABC):
     def init_model(self) -> None:
         raise NotImplementedError
 
-    def train_supervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
+    def train_supervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
         raise NotImplementedError
 
-    def train_unsupervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
+    def train_unsupervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
         raise NotImplementedError
 
-    def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> bool:
+    def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
         raise NotImplementedError

@@ -119,7 +119,7 @@ class MedCATModel(AbstractModelService):
                          raw_data_files: Optional[List[TextIO]] = None,
                          description: Optional[str] = None,
                          synchronised: bool = False,
-                         **hyperparams: Dict[str, Any]) -> bool:
+                         **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
@@ -133,7 +133,7 @@ class MedCATModel(AbstractModelService):
                            raw_data_files: Optional[List[TextIO]] = None,
                            description: Optional[str] = None,
                            synchronised: bool = False,
-                           **hyperparams: Dict[str, Any]) -> bool:
+                           **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
         return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
@@ -147,7 +147,7 @@ class MedCATModel(AbstractModelService):
                       raw_data_files: Optional[List[TextIO]] = None,
                       description: Optional[str] = None,
                       synchronised: bool = False,
-                      **hyperparams: Dict[str, Any]) -> bool:
+                      **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
         if self._metacat_trainer is None:
             raise ConfigurationException("The metacat trainer is not enabled")
         return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
