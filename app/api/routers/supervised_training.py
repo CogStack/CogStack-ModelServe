@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
 import api.globals as cms_globals
+from api.dependencies import validate_tracking_id
 from domain import Tags
 from model_services.base import AbstractModelService
 from processors.metrics_collector import concat_trainer_exports
@@ -32,7 +33,7 @@ async def train_supervised(request: Request,
                            test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)")] = 0.2,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
-                           tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
+                           tracking_id: Union[str, None] = Depends(validate_tracking_id),
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []

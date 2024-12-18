@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse
 
 import api.globals as cms_globals
+from api.dependencies import validate_tracking_id
 from domain import Tags, Scope
 from model_services.base import AbstractModelService
 from processors.metrics_collector import (
@@ -34,7 +35,7 @@ router = APIRouter()
              description="Evaluate the model being served with a trainer export")
 async def get_evaluation_with_trainer_export(request: Request,
                                              trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                             tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the evaluation task")] = None,
+                                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
@@ -70,7 +71,7 @@ async def get_evaluation_with_trainer_export(request: Request,
              description="Sanity check the model being served with a trainer export")
 def get_sanity_check_with_trainer_export(request: Request,
                                          trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                         tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the sanity check task")] = None,
+                                         tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
     files = []
     file_names = []
@@ -106,7 +107,7 @@ def get_inter_annotator_agreement_scores(request: Request,
                                          annotator_a_project_id: Annotated[int, Query(description="The project ID from one annotator")],
                                          annotator_b_project_id: Annotated[int, Query(description="The project ID from another annotator")],
                                          scope: Annotated[str, Query(enum=[s.value for s in Scope], description="The scope for which the score will be calculated, e.g., per_concept, per_document or per_span")],
-                                         tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the IAA task")] = None) -> StreamingResponse:
+                                         tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -143,7 +144,7 @@ def get_inter_annotator_agreement_scores(request: Request,
              description="Concatenate multiple trainer export files into a single file for download")
 def get_concatenated_trainer_exports(request: Request,
                                      trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
-                                     tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the concatenation task")] = None) -> JSONResponse:
+                                     tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> JSONResponse:
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -167,7 +168,7 @@ def get_concatenated_trainer_exports(request: Request,
              description="Get annotation stats of trainer export files")
 def get_annotation_stats(request: Request,
                          trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                         tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the annotation stats task")] = None) -> StreamingResponse:
+                         tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
     files = []
     file_names = []
     for te in trainer_export:

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 import api.globals as cms_globals
+from api.dependencies import validate_tracking_id
 from domain import Tags, ModelType
 from model_services.base import AbstractModelService
 from utils import get_settings
@@ -33,7 +34,7 @@ async def train_unsupervised(request: Request,
                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
-                             tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
+                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
     Upload one or more plain text files and trigger the unsupervised training
@@ -97,7 +98,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
                                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits", ge=0.0)] = 0.2,
                                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
                                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
-                                             tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the training task")] = None,
+                                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
     Trigger the unsupervised training with a dataset from Hugging Face Hub

@@ -11,6 +11,7 @@ from spacy import displacy
 from starlette.status import HTTP_404_NOT_FOUND
 
 import api.globals as cms_globals
+from api.dependencies import validate_tracking_id
 from domain import Doc, Tags
 from model_services.base import AbstractModelService
 from processors.metrics_collector import concat_trainer_exports
@@ -27,7 +28,7 @@ logger = logging.getLogger("cms")
              description="Extract the NER entities in HTML for preview")
 async def get_rendered_entities_from_text(request: Request,
                                           text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
-                                          tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the preview task")] = None,
+                                          tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
     annotations = model_service.annotate(text)
     entities = annotations_to_entities(annotations, model_service.model_name)
@@ -50,7 +51,7 @@ def get_rendered_entities_from_trainer_export(request: Request,
                                               trainer_export_str: Annotated[str, Form(description="The trainer export raw JSON string")] = "{\"projects\": []}",
                                               project_id: Annotated[Union[int, None], Query(description="The target project ID, and if not provided, all projects will be included")] = None,
                                               document_id: Annotated[Union[int, None], Query(description="The target document ID, and if not provided, all documents of the target project(s) will be included")] = None,
-                                              tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the trainer export preview task")] = None) -> Response:
+                                              tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> Response:
     data: Dict = {"projects": []}
     if trainer_export is not None:
         files = []
