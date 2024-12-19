@@ -78,15 +78,11 @@ cms = "app.cli.cli:cmd_app"
 
 [tool.ruff]
 line-length = 120
-indent-width = 4
 target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C90"]
 ignore = ["E501", "E226", "C901"]
-fixable = ["ALL"]
-unfixable = []
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.mypy]
 ignore_missing_imports = true
