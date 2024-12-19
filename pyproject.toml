@@ -77,43 +77,16 @@ version = {attr = "app.__version__"}
 cms = "app.cli.cli:cmd_app"
 
 [tool.ruff]
-include = [
-    "app/model_services/*.py",
-    "app/management/*.py",
-    "app/processors/*.py",
-    "app/api/*.py",
-    "app/api/routers/*.py",
-    "app/api/auth/*.py",
-    "app/cli/*.py",
-    "app/trainers/*.py",
-    "app/*.py",
-    "scripts/generate_annotations.py",
-    "scripts/hf_model_packager.py",
-    "scripts/medcat_concept_diff.py",
-    "scripts/medcat_config_diff.py",
-    "scripts/remove_model_version.py",
-    "scripts/generate_annotations.py",
-    "tests/",
-]
-
-line-length = 120
-indent-width = 4
+line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "C90"]
-ignore = ["E501", "E226", "C901"]
-fixable = ["ALL"]
-unfixable = []
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+select = ["E", "F", "I", "W", "C90"]
+ignore = ["C901"]
 
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-skip-magic-trailing-comma = false
-line-ending = "auto"
-docstring-code-format = false
-docstring-code-line-length = "dynamic"
+[tool.ruff.lint.isort]
+known-first-party = ["config", "domain", "exception", "helper", "registry", "utils"]
+known-local-folder = ["api", "cli", "data", "management", "model_services", "processors", "trainers"]
 
 [tool.mypy]
 ignore_missing_imports = true
