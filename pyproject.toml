@@ -84,6 +84,10 @@ target-version = "py310"
 select = ["E", "F", "I", "W", "C90"]
 ignore = ["C901"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["config", "domain", "exception", "helper", "registry", "utils"]
+known-local-folder = ["api", "cli", "data", "management", "model_services", "processors", "trainers"]
+
 [tool.mypy]
 ignore_missing_imports = true
 no_implicit_optional = true
