@@ -82,7 +82,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "C90"]
-ignore = ["E501", "E226", "C901"]
+ignore = ["C901"]
 
 [tool.mypy]
 ignore_missing_imports = true
