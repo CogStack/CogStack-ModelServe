@@ -1,25 +1,35 @@
 import logging
-import pandas as pd
 from typing import Dict, Optional, final
-from model_services.medcat_model import MedCATModel
+
+import pandas as pd
+
 from config import Settings
 from domain import ModelCard, ModelType
+
+from model_services.medcat_model import MedCATModel
 
 logger = logging.getLogger("cms")
 
 
 @final
 class MedCATModelIcd10(MedCATModel):
-
     ICD10_KEY = "icd10"
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
-        super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        enable_trainer: Optional[bool] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            config,
+            model_parent_dir=model_parent_dir,
+            enable_trainer=enable_trainer,
+            model_name=model_name,
+            base_model_file=base_model_file,
+        )
         self.model_name = model_name or "ICD-10 MedCAT model"
 
     @property
@@ -27,10 +37,12 @@ class MedCATModelIcd10(MedCATModel):
         return "0.0.1"
 
     def info(self) -> ModelCard:
-        return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.MEDCAT_ICD10,
-                         api_version=self.api_version,
-                         model_card=self.model.get_model_card(as_dict=True))
+        return ModelCard(
+            model_description=self.model_name,
+            model_type=ModelType.MEDCAT_ICD10,
+            api_version=self.api_version,
+            model_card=self.model.get_model_card(as_dict=True),
+        )
 
     def get_records_from_doc(self, doc: Dict) -> Dict:
         df = pd.DataFrame(doc["entities"].values())
@@ -55,11 +67,22 @@ class MedCATModelIcd10(MedCATModel):
                         else:
                             logger.error("Unknown format for the ICD-10 code(s): %s", icd10)
                         if "athena_ids" in output_row and output_row["athena_ids"]:
-                            output_row["athena_ids"] = [athena_id["code"] for athena_id in output_row["athena_ids"]]
+                            output_row["athena_ids"] = [
+                                athena_id["code"] for athena_id in output_row["athena_ids"]
+                            ]
                     new_rows.append(output_row)
             if new_rows:
                 df = pd.DataFrame(new_rows)
-                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+                df.rename(
+                    columns={
+                        "pretty_name": "label_name",
+                        self.ICD10_KEY: "label_id",
+                        "types": "categories",
+                        "acc": "accuracy",
+                        "athena_ids": "athena_ids",
+                    },
+                    inplace=True,
+                )
                 df = self._retrieve_meta_annotations(df)
             else:
                 df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])

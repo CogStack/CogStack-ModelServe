@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+import difflib
 import os
 import sys
-import difflib
-import jsonpickle
 from argparse import ArgumentParser
+
+import jsonpickle
 from medcat.cat import CAT
 
 jsonpickle.set_encoder_options("json", sort_keys=True, indent=4)
@@ -12,11 +13,7 @@ jsonpickle.set_encoder_options("json", sort_keys=True, indent=4)
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "-a",
-        "--model-pack-path",
-        type=str,
-        default="",
-        help="The path to the first model pack"
+        "-a", "--model-pack-path", type=str, default="", help="The path to the first model pack"
     )
     parser.add_argument(
         "-b",
@@ -38,9 +35,11 @@ if __name__ == "__main__":
     cat_a = CAT.load_model_pack(model_pack_path)
     cat_b = CAT.load_model_pack(another_model_pack_path)
     json_string_a = jsonpickle.encode(
-            {field: getattr(cat_a.cdb.config, field) for field in cat_a.cdb.config.fields()})
+        {field: getattr(cat_a.cdb.config, field) for field in cat_a.cdb.config.fields()}
+    )
     json_string_b = jsonpickle.encode(
-            {field: getattr(cat_b.cdb.config, field) for field in cat_b.cdb.config.fields()})
+        {field: getattr(cat_b.cdb.config, field) for field in cat_b.cdb.config.fields()}
+    )
 
     print(f"--- a|{model_pack_path}")
     print(f"+++ b|{another_model_pack_path}")

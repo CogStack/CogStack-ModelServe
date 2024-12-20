@@ -1,13 +1,15 @@
-import json
 import hashlib
-import pandas as pd
-from typing import Tuple, Dict, List, Set, Union, Optional, TextIO
+import json
 from collections import defaultdict
+from typing import Dict, List, Optional, Set, TextIO, Tuple, Union
+
+import pandas as pd
 from sklearn.metrics import cohen_kappa_score
 from tqdm.autonotebook import tqdm
-from model_services.base import AbstractModelService
+
 from exception import AnnotationException
 
+from model_services.base import AbstractModelService
 
 ANCHOR_DELIMITER = ";"
 DOC_SPAN_DELIMITER = "_"
@@ -15,10 +17,12 @@ STATE_MISSING = hashlib.sha1("MISSING".encode("utf-8")).hexdigest()
 META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8")).hexdigest()
 
 
-def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Dict],
-                                           model_service: AbstractModelService,
-                                           return_df: bool = False,
-                                           include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
+def sanity_check_model_with_trainer_export(
+    trainer_export: Union[str, TextIO, Dict],
+    model_service: AbstractModelService,
+    return_df: bool = False,
+    include_anchors: bool = False,
+) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
     if isinstance(trainer_export, str):
         with open(trainer_export, "r") as file:
             data = json.load(file)
@@ -36,7 +40,9 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
                 if entry["correct"]:
                     if document["id"] not in correct_cuis[project["id"]]:
                         correct_cuis[project["id"]][document["id"]] = []
-                    correct_cuis[project["id"]][document["id"]].append([entry["start"], entry["end"], entry["cui"]])
+                    correct_cuis[project["id"]][document["id"]].append(
+                        [entry["start"], entry["end"], entry["cui"]]
+                    )
 
     true_positives: Dict = {}
     false_positives: Dict = {}
@@ -45,41 +51,60 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
     concept_anchors: Dict = {}
     true_positive_count, false_positive_count, false_negative_count = 0, 0, 0
 
-    for project in tqdm(data["projects"], desc="Evaluating projects", total=len(data["projects"]), leave=False):
+    for project in tqdm(
+        data["projects"], desc="Evaluating projects", total=len(data["projects"]), leave=False
+    ):
         predictions: Dict = {}
         documents = project["documents"]
         true_positives[project["id"]] = {}
         false_positives[project["id"]] = {}
         false_negatives[project["id"]] = {}
 
-        for document in tqdm(documents, desc="Evaluating documents", total=len(documents), leave=False):
-            true_positives[project["id"]][document["id"]] = {}
-            false_positives[project["id"]][document["id"]] = {}
-            false_negatives[project["id"]][document["id"]] = {}
+        for document in tqdm(
+            documents, desc="Evaluating documents", total=len(documents), leave=False
+        ):
+            p_id, d_id = project["id"], document["id"]
+            true_positives[p_id][d_id] = {}
+            false_positives[p_id][d_id] = {}
+            false_negatives[p_id][d_id] = {}
 
             annotations = model_service.annotate(document["text"])
-            predictions[document["id"]] = []
+            predictions[d_id] = []
             for annotation in annotations:
-                predictions[document["id"]].append([annotation["start"], annotation["end"], annotation["label_id"]])
+                predictions[d_id].append(
+                    [annotation["start"], annotation["end"], annotation["label_id"]]
+                )
                 concept_names[annotation["label_id"]] = annotation["label_name"]
-                concept_anchors[annotation["label_id"]] = concept_anchors.get(annotation["label_id"], [])
-                concept_anchors[annotation["label_id"]].append(f"P{project['id']}/D{document['id']}/S{annotation['start']}/E{ annotation['end']}")
+                concept_anchors[annotation["label_id"]] = concept_anchors.get(
+                    annotation["label_id"], []
+                )
+                concept_anchors[annotation["label_id"]].append(
+                    f"P{p_id}/D{document['id']}/S{annotation['start']}/E{ annotation['end']}"
+                )
 
-            predicted = {tuple(x) for x in predictions[document["id"]]}
-            actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
+            predicted = {tuple(x) for x in predictions[d_id]}
+            actual = {tuple(x) for x in correct_cuis[p_id][d_id]}
             doc_tps = list(predicted.intersection(actual))
             doc_fps = list(predicted.difference(actual))
             doc_fns = list(actual.difference(predicted))
-            true_positives[project["id"]][document["id"]] = doc_tps
-            false_positives[project["id"]][document["id"]] = doc_fps
-            false_negatives[project["id"]][document["id"]] = doc_fns
+            true_positives[p_id][d_id] = doc_tps
+            false_positives[p_id][d_id] = doc_fps
+            false_negatives[p_id][d_id] = doc_fns
             true_positive_count += len(doc_tps)
             false_positive_count += len(doc_fps)
             false_negative_count += len(doc_fns)
 
-    precision = true_positive_count / (true_positive_count + false_positive_count) if (true_positive_count + false_positive_count) != 0 else 0
-    recall = true_positive_count / (true_positive_count + false_negative_count) if (true_positive_count + false_negative_count) != 0 else 0
-    f1 = 2*((precision*recall) / (precision + recall)) if (precision + recall) != 0 else 0
+    precision = (
+        true_positive_count / (true_positive_count + false_positive_count)
+        if (true_positive_count + false_positive_count) != 0
+        else 0
+    )
+    recall = (
+        true_positive_count / (true_positive_count + false_negative_count)
+        if (true_positive_count + false_negative_count) != 0
+        else 0
+    )
+    f1 = 2 * ((precision * recall) / (precision + recall)) if (precision + recall) != 0 else 0
 
     fp_counts: Dict = defaultdict(int)
     fn_counts: Dict = defaultdict(int)
@@ -108,29 +133,44 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
     for cui in tp_counts.keys():
         per_cui_prec[cui] = tp_counts[cui] / (tp_counts[cui] + fp_counts[cui])
         per_cui_rec[cui] = tp_counts[cui] / (tp_counts[cui] + fn_counts[cui])
-        per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
+        per_cui_f1[cui] = (
+            2 * (per_cui_prec[cui] * per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
+        )
         per_cui_name[cui] = concept_names[cui]
         per_cui_anchors[cui] = ANCHOR_DELIMITER.join(concept_anchors[cui])
 
     if return_df:
-        df = pd.DataFrame({
-            "concept": per_cui_prec.keys(),
-            "name": per_cui_name.values(),
-            "precision": per_cui_prec.values(),
-            "recall": per_cui_rec.values(),
-            "f1": per_cui_f1.values(),
-        })
+        df = pd.DataFrame(
+            {
+                "concept": per_cui_prec.keys(),
+                "name": per_cui_name.values(),
+                "precision": per_cui_prec.values(),
+                "recall": per_cui_rec.values(),
+                "f1": per_cui_f1.values(),
+            }
+        )
         if include_anchors:
             df["anchors"] = per_cui_anchors.values()
         return df
     else:
-        return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors if include_anchors else None
+        return (
+            precision,
+            recall,
+            f1,
+            per_cui_prec,
+            per_cui_rec,
+            per_cui_f1,
+            per_cui_name,
+            per_cui_anchors if include_anchors else None,
+        )
 
 
-def concat_trainer_exports(data_file_paths: List[str],
-                           combined_data_file_path: Optional[str] = None,
-                           allow_recurring_project_ids: bool = False,
-                           allow_recurring_doc_ids: bool = True) -> Union[Dict, str]:
+def concat_trainer_exports(
+    data_file_paths: List[str],
+    combined_data_file_path: Optional[str] = None,
+    allow_recurring_project_ids: bool = False,
+    allow_recurring_doc_ids: bool = True,
+) -> Union[Dict, str]:
     combined: Dict = {"projects": []}
     project_ids = []
     for path in data_file_paths:
@@ -138,13 +178,17 @@ def concat_trainer_exports(data_file_paths: List[str],
             data = json.load(f)
             for project in data["projects"]:
                 if project["id"] in project_ids and not allow_recurring_project_ids:
-                    raise AnnotationException(f'Found multiple projects share the same ID: {project["id"]}')
+                    raise AnnotationException(
+                        f'Found multiple projects share the same ID: {project["id"]}'
+                    )
                 project_ids.append(project["id"])
         combined["projects"].extend(data["projects"])
     document_ids = [doc["id"] for project in combined["projects"] for doc in project["documents"]]
     if not allow_recurring_doc_ids and len(document_ids) > len(set(document_ids)):
-        recurring_ids = list(set([doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1]))
-        raise AnnotationException(f'Found multiple documents share the same ID(s): {recurring_ids}')
+        recurring_ids = list(
+            set([doc_id for doc_id in document_ids if document_ids.count(doc_id) > 1])
+        )
+        raise AnnotationException(f"Found multiple documents share the same ID(s): {recurring_ids}")
 
     if isinstance(combined_data_file_path, str):
         with open(combined_data_file_path, "w") as f:
@@ -155,8 +199,9 @@ def concat_trainer_exports(data_file_paths: List[str],
         return combined
 
 
-def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
-                                  return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
+def get_stats_from_trainer_export(
+    trainer_export: Union[str, TextIO, Dict], return_df: bool = False
+) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
     if isinstance(trainer_export, str):
         with open(trainer_export, "r") as file:
             data = json.load(file)
@@ -177,32 +222,42 @@ def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
             elif isinstance(doc["annotations"], dict):
                 annotations = list(doc["annotations"].values())
             for annotation in annotations:
-                if any([not annotation.get("validated", True),
-                       annotation.get("deleted", False),
-                       annotation.get("killed", False),
-                       annotation.get("irrelevant", False)]):
+                if any(
+                    [
+                        not annotation.get("validated", True),
+                        annotation.get("deleted", False),
+                        annotation.get("killed", False),
+                        annotation.get("irrelevant", False),
+                    ]
+                ):
                     cui_ignorance_counts[annotation["cui"]] += 1
-                cui_values[annotation["cui"]].append(doc["text"][annotation["start"]:annotation["end"]].lower())
+                cui_values[annotation["cui"]].append(
+                    doc["text"][annotation["start"] : annotation["end"]].lower()
+                )
             num_of_docs += 1
 
     cui_counts = {cui: len(values) for cui, values in cui_values.items()}
     cui_unique_counts = {cui: len(set(values)) for cui, values in cui_values.items()}
 
     if return_df:
-        return pd.DataFrame({
-            "concept": cui_counts.keys(),
-            "anno_count": cui_counts.values(),
-            "anno_unique_counts": cui_unique_counts.values(),
-            "anno_ignorance_counts": [cui_ignorance_counts[c] for c in cui_counts.keys()],
-        })
+        return pd.DataFrame(
+            {
+                "concept": cui_counts.keys(),
+                "anno_count": cui_counts.values(),
+                "anno_unique_counts": cui_unique_counts.values(),
+                "anno_ignorance_counts": [cui_ignorance_counts[c] for c in cui_counts.keys()],
+            }
+        )
     else:
         return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
-def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
-                               project_id: int,
-                               another_project_id: int,
-                               return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_concept(
+    export_file: Union[str, TextIO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
 
@@ -215,7 +270,9 @@ def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
             docspan_key = _get_docspan_key(document, annotation)
             docspan2cui_a[docspan_key] = annotation["cui"]
             docspan2state_proj_a[docspan_key] = _get_hashed_annotation_state(annotation, state_keys)
-            docspan2metastate_proj_a[docspan_key] = _get_hashed_meta_annotation_state(annotation["meta_anns"])
+            docspan2metastate_proj_a[docspan_key] = _get_hashed_meta_annotation_state(
+                annotation["meta_anns"]
+            )
 
     docspan2cui_b = {}
     docspan2state_proj_b = {}
@@ -225,47 +282,90 @@ def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
             docspan_key = _get_docspan_key(document, annotation)
             docspan2cui_b[docspan_key] = annotation["cui"]
             docspan2state_proj_b[docspan_key] = _get_hashed_annotation_state(annotation, state_keys)
-            docspan2metastate_proj_b[docspan_key] = _get_hashed_meta_annotation_state(annotation["meta_anns"])
+            docspan2metastate_proj_b[docspan_key] = _get_hashed_meta_annotation_state(
+                annotation["meta_anns"]
+            )
 
     cui_states = {}
     cui_metastates = {}
     cuis = set(docspan2cui_a.values()).union(set(docspan2cui_b.values()))
     for cui in cuis:
-        docspans = set(_filter_docspan_by_value(docspan2cui_a, cui).keys()).union(set(_filter_docspan_by_value(docspan2cui_b, cui).keys()))
-        cui_states[cui] = [(docspan2state_proj_a.get(docspan, STATE_MISSING), docspan2state_proj_b.get(docspan, STATE_MISSING)) for docspan in docspans]
-        cui_metastates[cui] = [(docspan2metastate_proj_a.get(docspan, META_STATE_MISSING), docspan2metastate_proj_b.get(docspan, META_STATE_MISSING)) for docspan in docspans]
+        docspans = set(_filter_docspan_by_value(docspan2cui_a, cui).keys()).union(
+            set(_filter_docspan_by_value(docspan2cui_b, cui).keys())
+        )
+        cui_states[cui] = [
+            (
+                docspan2state_proj_a.get(docspan, STATE_MISSING),
+                docspan2state_proj_b.get(docspan, STATE_MISSING),
+            )
+            for docspan in docspans
+        ]
+        cui_metastates[cui] = [
+            (
+                docspan2metastate_proj_a.get(docspan, META_STATE_MISSING),
+                docspan2metastate_proj_b.get(docspan, META_STATE_MISSING),
+            )
+            for docspan in docspans
+        ]
 
     per_cui_anno_iia_pct = {}
     per_cui_anno_cohens_kappa = {}
     for cui, cui_state_pairs in cui_states.items():
-        per_cui_anno_iia_pct[cui] = len([1 for csp in cui_state_pairs if csp[0] == csp[1]]) / len(cui_state_pairs) * 100
-        per_cui_anno_cohens_kappa[cui] = _get_cohens_kappa_coefficient(*map(list, zip(*cui_state_pairs)))
+        per_cui_anno_iia_pct[cui] = (
+            len([1 for csp in cui_state_pairs if csp[0] == csp[1]]) / len(cui_state_pairs) * 100
+        )
+        per_cui_anno_cohens_kappa[cui] = _get_cohens_kappa_coefficient(
+            *map(list, zip(*cui_state_pairs))
+        )
     per_cui_metaanno_iia_pct = {}
     per_cui_metaanno_cohens_kappa = {}
     for cui, cui_metastate_pairs in cui_metastates.items():
-        per_cui_metaanno_iia_pct[cui] = len([1 for cmp in cui_metastate_pairs if cmp[0] == cmp[1]]) / len(cui_metastate_pairs) * 100
-        per_cui_metaanno_cohens_kappa[cui] = _get_cohens_kappa_coefficient(*map(list, zip(*cui_metastate_pairs)))
+        per_cui_metaanno_iia_pct[cui] = (
+            len([1 for cmp in cui_metastate_pairs if cmp[0] == cmp[1]])
+            / len(cui_metastate_pairs)
+            * 100
+        )
+        per_cui_metaanno_cohens_kappa[cui] = _get_cohens_kappa_coefficient(
+            *map(list, zip(*cui_metastate_pairs))
+        )
 
     if return_df:
-        df = pd.DataFrame({
-            "concept": per_cui_anno_iia_pct.keys(),
-            "iaa_percentage": per_cui_anno_iia_pct.values(),
-            "cohens_kappa": per_cui_anno_cohens_kappa.values(),
-            "iaa_percentage_meta": per_cui_metaanno_iia_pct.values(),
-            "cohens_kappa_meta": per_cui_metaanno_cohens_kappa.values()
-        }).sort_values(["concept"], ascending=True)
+        df = pd.DataFrame(
+            {
+                "concept": per_cui_anno_iia_pct.keys(),
+                "iaa_percentage": per_cui_anno_iia_pct.values(),
+                "cohens_kappa": per_cui_anno_cohens_kappa.values(),
+                "iaa_percentage_meta": per_cui_metaanno_iia_pct.values(),
+                "cohens_kappa_meta": per_cui_metaanno_cohens_kappa.values(),
+            }
+        ).sort_values(["concept"], ascending=True)
         return df.fillna("NaN")
     else:
-        return per_cui_anno_iia_pct, per_cui_anno_cohens_kappa, per_cui_metaanno_iia_pct, per_cui_metaanno_cohens_kappa
+        return (
+            per_cui_anno_iia_pct,
+            per_cui_anno_cohens_kappa,
+            per_cui_metaanno_iia_pct,
+            per_cui_metaanno_cohens_kappa,
+        )
 
 
-def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
-                           project_id: int,
-                           another_project_id: int,
-                           return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_doc(
+    export_file: Union[str, TextIO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
-    state_keys = {"validated", "correct", "deleted", "alternative", "killed", "manually_created", "cui"}
+    state_keys = {
+        "validated",
+        "correct",
+        "deleted",
+        "alternative",
+        "killed",
+        "manually_created",
+        "cui",
+    }
 
     docspan2doc_id_a = {}
     docspan2state_proj_a = {}
@@ -275,7 +375,9 @@ def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
             docspan_key = _get_docspan_key(document, annotation)
             docspan2doc_id_a[docspan_key] = document["id"]
             docspan2state_proj_a[docspan_key] = _get_hashed_annotation_state(annotation, state_keys)
-            docspan2metastate_proj_a[docspan_key] = _get_hashed_meta_annotation_state(annotation["meta_anns"])
+            docspan2metastate_proj_a[docspan_key] = _get_hashed_meta_annotation_state(
+                annotation["meta_anns"]
+            )
 
     docspan2doc_id_b = {}
     docspan2state_proj_b = {}
@@ -285,48 +387,90 @@ def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
             docspan_key = _get_docspan_key(document, annotation)
             docspan2doc_id_b[docspan_key] = document["id"]
             docspan2state_proj_b[docspan_key] = _get_hashed_annotation_state(annotation, state_keys)
-            docspan2metastate_proj_b[docspan_key] = _get_hashed_meta_annotation_state(annotation["meta_anns"])
+            docspan2metastate_proj_b[docspan_key] = _get_hashed_meta_annotation_state(
+                annotation["meta_anns"]
+            )
 
     doc_states = {}
     doc_metastates = {}
     doc_ids = sorted(set(docspan2doc_id_a.values()).union(set(docspan2doc_id_b.values())))
     for doc_id in doc_ids:
         docspans = set(_filter_docspan_by_value(docspan2doc_id_a, doc_id).keys()).union(
-            set(_filter_docspan_by_value(docspan2doc_id_b, doc_id).keys()))
-        doc_states[doc_id] = [(docspan2state_proj_a.get(docspan, STATE_MISSING), docspan2state_proj_b.get(docspan, STATE_MISSING)) for docspan in docspans]
-        doc_metastates[doc_id] = [(docspan2metastate_proj_a.get(docspan, META_STATE_MISSING), docspan2metastate_proj_b.get(docspan, META_STATE_MISSING)) for docspan in docspans]
+            set(_filter_docspan_by_value(docspan2doc_id_b, doc_id).keys())
+        )
+        doc_states[doc_id] = [
+            (
+                docspan2state_proj_a.get(docspan, STATE_MISSING),
+                docspan2state_proj_b.get(docspan, STATE_MISSING),
+            )
+            for docspan in docspans
+        ]
+        doc_metastates[doc_id] = [
+            (
+                docspan2metastate_proj_a.get(docspan, META_STATE_MISSING),
+                docspan2metastate_proj_b.get(docspan, META_STATE_MISSING),
+            )
+            for docspan in docspans
+        ]
 
     per_doc_anno_iia_pct = {}
     per_doc_anno_cohens_kappa = {}
     for doc_id, doc_state_pairs in doc_states.items():
-        per_doc_anno_iia_pct[str(doc_id)] = len([1 for dsp in doc_state_pairs if dsp[0] == dsp[1]]) / len(doc_state_pairs) * 100
-        per_doc_anno_cohens_kappa[str(doc_id)] = _get_cohens_kappa_coefficient(*map(list, zip(*doc_state_pairs)))
+        per_doc_anno_iia_pct[str(doc_id)] = (
+            len([1 for dsp in doc_state_pairs if dsp[0] == dsp[1]]) / len(doc_state_pairs) * 100
+        )
+        per_doc_anno_cohens_kappa[str(doc_id)] = _get_cohens_kappa_coefficient(
+            *map(list, zip(*doc_state_pairs))
+        )
     per_doc_metaanno_iia_pct = {}
     per_doc_metaanno_cohens_kappa = {}
     for doc_id, doc_metastate_pairs in doc_metastates.items():
-        per_doc_metaanno_iia_pct[str(doc_id)] = len([1 for dmp in doc_metastate_pairs if dmp[0] == dmp[1]]) / len(doc_metastate_pairs) * 100
-        per_doc_metaanno_cohens_kappa[str(doc_id)] = _get_cohens_kappa_coefficient(*map(list, zip(*doc_metastate_pairs)))
+        per_doc_metaanno_iia_pct[str(doc_id)] = (
+            len([1 for dmp in doc_metastate_pairs if dmp[0] == dmp[1]])
+            / len(doc_metastate_pairs)
+            * 100
+        )
+        per_doc_metaanno_cohens_kappa[str(doc_id)] = _get_cohens_kappa_coefficient(
+            *map(list, zip(*doc_metastate_pairs))
+        )
 
     if return_df:
-        df = pd.DataFrame({
-            "doc_id": per_doc_anno_iia_pct.keys(),
-            "iaa_percentage": per_doc_anno_iia_pct.values(),
-            "cohens_kappa": per_doc_anno_cohens_kappa.values(),
-            "iaa_percentage_meta": per_doc_metaanno_iia_pct.values(),
-            "cohens_kappa_meta": per_doc_metaanno_cohens_kappa.values()
-        }).sort_values(["doc_id"], ascending=True)
+        df = pd.DataFrame(
+            {
+                "doc_id": per_doc_anno_iia_pct.keys(),
+                "iaa_percentage": per_doc_anno_iia_pct.values(),
+                "cohens_kappa": per_doc_anno_cohens_kappa.values(),
+                "iaa_percentage_meta": per_doc_metaanno_iia_pct.values(),
+                "cohens_kappa_meta": per_doc_metaanno_cohens_kappa.values(),
+            }
+        ).sort_values(["doc_id"], ascending=True)
         return df.fillna("NaN")
     else:
-        return per_doc_anno_iia_pct, per_doc_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
+        return (
+            per_doc_anno_iia_pct,
+            per_doc_anno_cohens_kappa,
+            per_doc_metaanno_iia_pct,
+            per_doc_metaanno_cohens_kappa,
+        )
 
 
-def get_iaa_scores_per_span(export_file: Union[str, TextIO],
-                            project_id: int,
-                            another_project_id: int,
-                            return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_span(
+    export_file: Union[str, TextIO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
-    state_keys = {"validated", "correct", "deleted", "alternative", "killed", "manually_created", "cui"}
+    state_keys = {
+        "validated",
+        "correct",
+        "deleted",
+        "alternative",
+        "killed",
+        "manually_created",
+        "cui",
+    }
 
     docspan2state_proj_a = {}
     docspan2statemeta_proj_a = {}
@@ -334,7 +478,11 @@ def get_iaa_scores_per_span(export_file: Union[str, TextIO],
         for annotation in document["annotations"]:
             docspan_key = _get_docspan_key(document, annotation)
             docspan2state_proj_a[docspan_key] = [str(annotation.get(key)) for key in state_keys]
-            docspan2statemeta_proj_a[docspan_key] = [str(meta_ann) for meta_ann in annotation["meta_anns"].items()] if annotation["meta_anns"] else [META_STATE_MISSING]
+            docspan2statemeta_proj_a[docspan_key] = (
+                [str(meta_ann) for meta_ann in annotation["meta_anns"].items()]
+                if annotation["meta_anns"]
+                else [META_STATE_MISSING]
+            )
 
     docspan2state_proj_b = {}
     docspan2statemeta_proj_b = {}
@@ -342,48 +490,106 @@ def get_iaa_scores_per_span(export_file: Union[str, TextIO],
         for annotation in document["annotations"]:
             docspan_key = _get_docspan_key(document, annotation)
             docspan2state_proj_b[docspan_key] = [str(annotation.get(key)) for key in state_keys]
-            docspan2statemeta_proj_b[docspan_key] = [str(meta_ann) for meta_ann in annotation["meta_anns"].items()] if annotation["meta_anns"] else [META_STATE_MISSING]
+            docspan2statemeta_proj_b[docspan_key] = (
+                [str(meta_ann) for meta_ann in annotation["meta_anns"].items()]
+                if annotation["meta_anns"]
+                else [META_STATE_MISSING]
+            )
 
     docspans = set(docspan2state_proj_a.keys()).union(set(docspan2state_proj_b.keys()))
-    docspan_states = {docspan: (docspan2state_proj_a.get(docspan, [STATE_MISSING]*len(state_keys)), docspan2state_proj_b.get(docspan, [STATE_MISSING]*len(state_keys))) for docspan in docspans}
+    docspan_states = {
+        docspan: (
+            docspan2state_proj_a.get(docspan, [STATE_MISSING] * len(state_keys)),
+            docspan2state_proj_b.get(docspan, [STATE_MISSING] * len(state_keys)),
+        )
+        for docspan in docspans
+    }
     docspan_metastates = {}
     for docspan in docspans:
         if docspan in docspan2statemeta_proj_a and docspan not in docspan2statemeta_proj_b:
-            docspan_metastates[docspan] = (docspan2statemeta_proj_a[docspan], [STATE_MISSING] * len(docspan2statemeta_proj_a[docspan]))
+            docspan_metastates[docspan] = (
+                docspan2statemeta_proj_a[docspan],
+                [STATE_MISSING] * len(docspan2statemeta_proj_a[docspan]),
+            )
         elif docspan not in docspan2statemeta_proj_a and docspan in docspan2statemeta_proj_b:
-            docspan_metastates[docspan] = ([STATE_MISSING] * len(docspan2statemeta_proj_b[docspan]), docspan2statemeta_proj_b[docspan])
+            docspan_metastates[docspan] = (
+                [STATE_MISSING] * len(docspan2statemeta_proj_b[docspan]),
+                docspan2statemeta_proj_b[docspan],
+            )
         else:
-            docspan_metastates[docspan] = (docspan2statemeta_proj_a[docspan], docspan2statemeta_proj_b[docspan])
+            docspan_metastates[docspan] = (
+                docspan2statemeta_proj_a[docspan],
+                docspan2statemeta_proj_b[docspan],
+            )
 
     per_span_anno_iia_pct = {}
     per_span_anno_cohens_kappa = {}
     for docspan, docspan_state_pairs in docspan_states.items():
-        per_span_anno_iia_pct[docspan] = len([1 for state_a, state_b in zip(docspan_state_pairs[0], docspan_state_pairs[1]) if state_a == state_b]) / len(state_keys) * 100
-        per_span_anno_cohens_kappa[docspan] = _get_cohens_kappa_coefficient(docspan_state_pairs[0], docspan_state_pairs[1])
+        per_span_anno_iia_pct[docspan] = (
+            len(
+                [
+                    1
+                    for state_a, state_b in zip(docspan_state_pairs[0], docspan_state_pairs[1])
+                    if state_a == state_b
+                ]
+            )
+            / len(state_keys)
+            * 100
+        )
+        per_span_anno_cohens_kappa[docspan] = _get_cohens_kappa_coefficient(
+            docspan_state_pairs[0], docspan_state_pairs[1]
+        )
     per_doc_metaanno_iia_pct = {}
     per_doc_metaanno_cohens_kappa = {}
     for docspan, docspan_metastate_pairs in docspan_metastates.items():
-        per_doc_metaanno_iia_pct[docspan] = len([1 for state_a, state_b in zip(docspan_metastate_pairs[0], docspan_metastate_pairs[1]) if state_a == state_b]) / len(docspan_metastate_pairs[0]) * 100
-        per_doc_metaanno_cohens_kappa[docspan] = _get_cohens_kappa_coefficient(docspan_metastate_pairs[0], docspan_metastate_pairs[1])
+        per_doc_metaanno_iia_pct[docspan] = (
+            len(
+                [
+                    1
+                    for state_a, state_b in zip(
+                        docspan_metastate_pairs[0], docspan_metastate_pairs[1]
+                    )
+                    if state_a == state_b
+                ]
+            )
+            / len(docspan_metastate_pairs[0])
+            * 100
+        )
+        per_doc_metaanno_cohens_kappa[docspan] = _get_cohens_kappa_coefficient(
+            docspan_metastate_pairs[0], docspan_metastate_pairs[1]
+        )
 
     if return_df:
-        df = pd.DataFrame({
-            "doc_id": [int(key.split(DOC_SPAN_DELIMITER)[0]) for key in per_span_anno_iia_pct.keys()],
-            "span_start": [int(key.split(DOC_SPAN_DELIMITER)[1]) for key in per_span_anno_iia_pct.keys()],
-            "span_end": [int(key.split(DOC_SPAN_DELIMITER)[2]) for key in per_span_anno_iia_pct.keys()],
-            "iaa_percentage": per_span_anno_iia_pct.values(),
-            "cohens_kappa": per_span_anno_cohens_kappa.values(),
-            "iaa_percentage_meta": per_doc_metaanno_iia_pct.values(),
-            "cohens_kappa_meta": per_doc_metaanno_cohens_kappa.values()
-        }).sort_values(["doc_id", "span_start", "span_end"], ascending=[True, True, True])
+        df = pd.DataFrame(
+            {
+                "doc_id": [
+                    int(key.split(DOC_SPAN_DELIMITER)[0]) for key in per_span_anno_iia_pct.keys()
+                ],
+                "span_start": [
+                    int(key.split(DOC_SPAN_DELIMITER)[1]) for key in per_span_anno_iia_pct.keys()
+                ],
+                "span_end": [
+                    int(key.split(DOC_SPAN_DELIMITER)[2]) for key in per_span_anno_iia_pct.keys()
+                ],
+                "iaa_percentage": per_span_anno_iia_pct.values(),
+                "cohens_kappa": per_span_anno_cohens_kappa.values(),
+                "iaa_percentage_meta": per_doc_metaanno_iia_pct.values(),
+                "cohens_kappa_meta": per_doc_metaanno_cohens_kappa.values(),
+            }
+        ).sort_values(["doc_id", "span_start", "span_end"], ascending=[True, True, True])
         return df.fillna("NaN")
     else:
-        return per_span_anno_iia_pct, per_span_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
+        return (
+            per_span_anno_iia_pct,
+            per_span_anno_cohens_kappa,
+            per_doc_metaanno_iia_pct,
+            per_doc_metaanno_cohens_kappa,
+        )
 
 
-def _extract_project_pair(export_file: Union[str, TextIO],
-                          project_id: int,
-                          another_project_id: int) -> Tuple[Dict, Dict]:
+def _extract_project_pair(
+    export_file: Union[str, TextIO], project_id: int, another_project_id: int
+) -> Tuple[Dict, Dict]:
     if isinstance(export_file, str):
         with open(export_file, "r") as file:
             data = json.load(file)
@@ -405,7 +611,8 @@ def _extract_project_pair(export_file: Union[str, TextIO],
 
 
 def _get_docspan_key(document: Dict, annotation: Dict) -> str:
-    return f"{document['id']}{DOC_SPAN_DELIMITER}{annotation.get('start')}{DOC_SPAN_DELIMITER}{annotation.get('end')}"
+    start, end = annotation.get("start"), annotation.get("end")
+    return f"{document['id']}{DOC_SPAN_DELIMITER}{start}{DOC_SPAN_DELIMITER}{end}"
 
 
 def _filter_common_docs(projects: List[Dict]) -> List[Dict]:
@@ -425,13 +632,21 @@ def _filter_docspan_by_value(docspan2value: Dict, value: str) -> Dict:
 
 
 def _get_hashed_annotation_state(annotation: Dict, state_keys: Set[str]) -> str:
-    return hashlib.sha1("_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8")).hexdigest()
+    return hashlib.sha1(
+        "_".join([str(annotation.get(key)) for key in state_keys]).encode("utf-8")
+    ).hexdigest()
 
 
 def _get_hashed_meta_annotation_state(meta_anno: Dict) -> str:
-    meta_anno = {key: val for key, val in sorted(meta_anno.items(), key=lambda item: item[0])}  # may not be necessary
+    meta_anno = {
+        key: val for key, val in sorted(meta_anno.items(), key=lambda item: item[0])
+    }  # may not be necessary
     return hashlib.sha1(str(meta_anno).encode("utf=8")).hexdigest()
 
 
 def _get_cohens_kappa_coefficient(y1_labels: List, y2_labels: List) -> float:
-    return cohen_kappa_score(y1_labels, y2_labels) if len(set(y1_labels).union(set(y2_labels))) != 1 else 1.0
+    return (
+        cohen_kappa_score(y1_labels, y2_labels)
+        if len(set(y1_labels).union(set(y2_labels))) != 1
+        else 1.0
+    )

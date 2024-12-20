@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
+import difflib
 import os
 import sys
-import difflib
-import jsonpickle
 from argparse import ArgumentParser
+
+import jsonpickle
 from medcat.cat import CAT
 
 jsonpickle.set_encoder_options("json", sort_keys=True, indent=4)
@@ -12,11 +13,7 @@ jsonpickle.set_encoder_options("json", sort_keys=True, indent=4)
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "-a",
-        "--model-pack-path",
-        type=str,
-        default="",
-        help="The path to the first model pack"
+        "-a", "--model-pack-path", type=str, default="", help="The path to the first model pack"
     )
     parser.add_argument(
         "-b",
@@ -28,7 +25,7 @@ if __name__ == "__main__":
         "-p",
         "--with-preferred-name",
         action="store_true",
-        help="Print preferred names of concepts as the second column"
+        help="Print preferred names of concepts as the second column",
     )
     FLAGS, unparsed = parser.parse_known_args()
 

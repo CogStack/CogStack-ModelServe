@@ -2,14 +2,17 @@ import os
 import sys
 from argparse import ArgumentParser
 from typing import Union
-from mlflow.tracking import MlflowClient
+
 from mlflow.store.artifact.artifact_repository_registry import get_artifact_repository
+from mlflow.tracking import MlflowClient
 
 ARTIFACTS_DESTINATION = "s3://cms-model-bucket/"
 DEFAULT_ARTIFACT_ROOT = "mlflow-artifacts:/"
 
 
-def _remove_model_version(client: MlflowClient, model_name: str, model_version: Union[int, str]) -> None:
+def _remove_model_version(
+    client: MlflowClient, model_name: str, model_version: Union[int, str]
+) -> None:
     versions = client.search_model_versions(f"name='{model_name}'")
     model_version = str(model_version)
     if versions is None or len(versions) == 0:
@@ -23,10 +26,11 @@ def _remove_model_version(client: MlflowClient, model_name: str, model_version: 
                 raise ValueError("You cannot delete models which have not been archived!")
             if m_version.status != "READY":
                 raise ValueError("You cannot delete models which are not ready yet!")
-            confirm = input("""
-You cannot undo this action. When you delete a model, all model artifacts stored by the Model Registry
-and all the metadata associated with the registered model are deleted. Do you want to proceed? (y/n)
-                            """).lower() == ("y" or "yes")
+            confirm = input(
+                "You cannot undo this action. When you delete a model, all model artifacts stored"
+                " by the Model Registry and all the metadata associated with the registered model"
+                " are deleted. Do you want to proceed? (y/n)"
+            ).lower() == ("y" or "yes")
             if confirm:
                 client.delete_model_version(name=model_name, version=model_version)
                 print(f"Version '{model_version}' of model '{model_name}' was deleted")
@@ -40,7 +44,9 @@ and all the metadata associated with the registered model are deleted. Do you wa
 
     if deleted and run_id:
         run = client.get_run(run_id)
-        artifact_repo = get_artifact_repository(run.info.artifact_uri.replace(ARTIFACTS_DESTINATION, DEFAULT_ARTIFACT_ROOT))
+        artifact_repo = get_artifact_repository(
+            run.info.artifact_uri.replace(ARTIFACTS_DESTINATION, DEFAULT_ARTIFACT_ROOT)
+        )
         artifact_repo.delete_artifacts()
         print(f"Artifacts for version '{model_version}' of model '{model_name}' were deleted")
 
@@ -48,25 +54,21 @@ and all the metadata associated with the registered model are deleted. Do you wa
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
-        "-u",
-        "--mlflow-tracking-uri",
-        type=str,
-        default="",
-        help="The MLflow tracking URI"
+        "-u", "--mlflow-tracking-uri", type=str, default="", help="The MLflow tracking URI"
     )
     parser.add_argument(
         "-n",
         "--mlflow-model-name",
         type=str,
         default="",
-        help="The name of the registered MLflow model"
+        help="The name of the registered MLflow model",
     )
     parser.add_argument(
         "-v",
         "--mlflow-model-version",
         type=str,
         default="",
-        help="The version of the registered MLflow model"
+        help="The version of the registered MLflow model",
     )
     FLAGS, unparsed = parser.parse_known_args()
     if FLAGS.mlflow_tracking_uri == "":
