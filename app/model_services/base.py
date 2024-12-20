@@ -1,12 +1,12 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict, final
+from typing import Any, Dict, Iterable, List, Tuple, final
+
 from config import Settings
 from domain import ModelCard
 
 
 class AbstractModelService(ABC):
-
     @abstractmethod
     def __init__(self, config: Settings, *args: Tuple, **kwargs: Dict[str, Any]) -> None:
         self._config = config

@@ -1,17 +1,17 @@
-import httpx
 import json
-import pytest
-
-import api.globals as cms_globals
-
-from fastapi.testclient import TestClient
-from starlette.websockets import WebSocketDisconnect
-from api.api import get_stream_server
-from utils import get_settings
-from model_services.medcat_model import MedCATModel
-from management.model_manager import ModelManager
 from unittest.mock import create_autospec
 
+import httpx
+import pytest
+from fastapi.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
+
+from utils import get_settings
+
+import api.globals as cms_globals
+from api.api import get_stream_server
+from management.model_manager import ModelManager
+from model_services.medcat_model import MedCATModel
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"
@@ -37,7 +37,9 @@ def app(model_service):
 @pytest.mark.asyncio
 async def test_stream_process_empty_stream(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process", data="", headers={"Content-Type": "application/x-ndjson"})
+        response = await ac.post(
+            "/stream/process", data="", headers={"Content-Type": "application/x-ndjson"}
+        )
 
     assert response.status_code == 200
     jsonlines = b""
@@ -49,9 +51,11 @@ async def test_stream_process_empty_stream(model_service, app):
 @pytest.mark.asyncio
 async def test_stream_process_invalidate_jsonl(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process",
-                                 data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
-                                 headers={"Content-Type": "application/x-ndjson"})
+        response = await ac.post(
+            "/stream/process",
+            data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
+            headers={"Content-Type": "application/x-ndjson"},
+        )
 
     assert response.status_code == 200
     jsonlines = b""
@@ -63,15 +67,23 @@ async def test_stream_process_invalidate_jsonl(model_service, app):
 @pytest.mark.asyncio
 async def test_stream_process_unknown_jsonl_property(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process",
-                                 data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
-                                 headers={"Content-Type": "application/x-ndjson"})
+        response = await ac.post(
+            "/stream/process",
+            data=(
+                '{"unknown": "doc1", "text": "Spinal stenosis"}\n'
+                '{"unknown": "doc2", "text": "Spinal stenosis"}'
+            ),
+            headers={"Content-Type": "application/x-ndjson"},
+        )
 
     assert response.status_code == 200
     jsonlines = b""
     async for chunk in response.aiter_bytes():
         jsonlines += chunk
-    assert "Invalid JSON properties found" in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
+    assert (
+        "Invalid JSON properties found"
+        in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
+    )
 
 
 def test_websocket_process_on_annotation_error(model_service, app):

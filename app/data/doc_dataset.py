@@ -1,7 +1,8 @@
+from pathlib import Path
+from typing import Dict, Iterable, List, Tuple
+
 import datasets
 import ijson
-from pathlib import Path
-from typing import List, Iterable, Tuple, Dict
 
 
 class TextDatasetConfig(datasets.BuilderConfig):
@@ -9,7 +10,6 @@ class TextDatasetConfig(datasets.BuilderConfig):
 
 
 class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
-
     BUILDER_CONFIGS = [
         TextDatasetConfig(
             name="free_text",
@@ -20,18 +20,24 @@ class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
 
     def _info(self) -> datasets.DatasetInfo:
         return datasets.DatasetInfo(
-            description="Free text Dataset. This is a dataset containing document records each of which has 'doc_name' and 'text' attributes",
+            description=(
+                "Free text Dataset. This is a dataset containing document records each of which has"
+                " 'doc_name' and 'text' attributes"
+            ),
             features=datasets.Features(
                 {
                     "name": datasets.Value("string"),
                     "text": datasets.Value("string"),
                 }
-            )
+            ),
         )
 
     def _split_generators(self, _: datasets.DownloadManager) -> List[datasets.SplitGenerator]:
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": self.config.data_files["documents"]})
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={"filepaths": self.config.data_files["documents"]},
+            )
         ]
 
     def _generate_examples(self, filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:

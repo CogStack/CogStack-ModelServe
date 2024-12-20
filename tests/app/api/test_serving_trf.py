@@ -1,12 +1,14 @@
-import pytest
-import api.globals as cms_globals
-from fastapi.testclient import TestClient
-from api.api import get_model_server
-from utils import get_settings
-from model_services.trf_model_deid import TransformersModelDeIdentification
 from unittest.mock import create_autospec
-from domain import ModelCard, ModelType
 
+import pytest
+from fastapi.testclient import TestClient
+
+from domain import ModelCard, ModelType
+from utils import get_settings
+
+import api.globals as cms_globals
+from api.api import get_model_server
+from model_services.trf_model_deid import TransformersModelDeIdentification
 
 config = get_settings()
 config.AUTH_USER_ENABLED = "true"
@@ -31,24 +33,28 @@ def test_healthz(client):
 
 
 def test_readyz(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "deid_model_description",
-        "model_type": ModelType.TRANSFORMERS_DEID,
-        "model_card": None,
-    })
+    model_card = ModelCard.parse_obj(
+        {
+            "api_version": "0.0.1",
+            "model_description": "deid_model_description",
+            "model_type": ModelType.TRANSFORMERS_DEID,
+            "model_card": None,
+        }
+    )
     model_service.info.return_value = model_card
 
     assert client.get("/readyz").content.decode("utf-8") == ModelType.TRANSFORMERS_DEID
 
 
 def test_info(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "deid_model_description",
-        "model_type": ModelType.TRANSFORMERS_DEID,
-        "model_card": None,
-    })
+    model_card = ModelCard.parse_obj(
+        {
+            "api_version": "0.0.1",
+            "model_description": "deid_model_description",
+            "model_type": ModelType.TRANSFORMERS_DEID,
+            "model_card": None,
+        }
+    )
     model_service.info.return_value = model_card
 
     response = client.get("/info")
@@ -57,38 +63,39 @@ def test_info(model_service, client):
 
 
 def test_process(model_service, client):
-    annotations = [{
-        "label_name": "NW1 2BU",
-        "label_id": "C2120",
-        "start": 0,
-        "end": 6,
-    }]
-    model_service.annotate.return_value = annotations
-
-    response = client.post("/process",
-                           data="NW1 2BU",
-                           headers={"Content-Type": "text/plain"})
-
-    assert response.json() == {
-        "text": "NW1 2BU",
-        "annotations": annotations
-    }
-
-
-def test_process_bulk(model_service, client):
-    annotations_list = [
-        [{
+    annotations = [
+        {
             "label_name": "NW1 2BU",
             "label_id": "C2120",
             "start": 0,
             "end": 6,
-        }],
-        [{
-            "label_name": "NW1 2DA",
-            "label_id": "C2120",
-            "start": 0,
-            "end": 6,
-        }]
+        }
+    ]
+    model_service.annotate.return_value = annotations
+
+    response = client.post("/process", data="NW1 2BU", headers={"Content-Type": "text/plain"})
+
+    assert response.json() == {"text": "NW1 2BU", "annotations": annotations}
+
+
+def test_process_bulk(model_service, client):
+    annotations_list = [
+        [
+            {
+                "label_name": "NW1 2BU",
+                "label_id": "C2120",
+                "start": 0,
+                "end": 6,
+            }
+        ],
+        [
+            {
+                "label_name": "NW1 2DA",
+                "label_id": "C2120",
+                "start": 0,
+                "end": 6,
+            }
+        ],
     ]
     model_service.batch_annotate.return_value = annotations_list
 
@@ -97,38 +104,42 @@ def test_process_bulk(model_service, client):
     assert response.json() == [
         {
             "text": "NW1 2BU",
-            "annotations": [{
-                "label_name": "NW1 2BU",
-                "label_id": "C2120",
-                "start": 0,
-                "end": 6,
-            }]
+            "annotations": [
+                {
+                    "label_name": "NW1 2BU",
+                    "label_id": "C2120",
+                    "start": 0,
+                    "end": 6,
+                }
+            ],
         },
         {
             "text": "NW1 2DA",
-            "annotations": [{
-                "label_name": "NW1 2DA",
-                "label_id": "C2120",
-                "start": 0,
-                "end": 6,
-            }]
-        }
+            "annotations": [
+                {
+                    "label_name": "NW1 2DA",
+                    "label_id": "C2120",
+                    "start": 0,
+                    "end": 6,
+                }
+            ],
+        },
     ]
 
 
 def test_preview(model_service, client):
-    annotations = [{
-        "label_name": "NW1 2BU",
-        "label_id": "C2120",
-        "start": 0,
-        "end": 6,
-    }]
+    annotations = [
+        {
+            "label_name": "NW1 2BU",
+            "label_id": "C2120",
+            "start": 0,
+            "end": 6,
+        }
+    ]
     model_service.annotate.return_value = annotations
     model_service.model_name = "De-Identification Model"
 
-    response = client.post("/preview",
-                           data="NW1 2BU",
-                           headers={"Content-Type": "text/plain"})
+    response = client.post("/preview", data="NW1 2BU", headers={"Content-Type": "text/plain"})
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"

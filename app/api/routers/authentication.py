@@ -1,7 +1,11 @@
 import logging
-import api.globals as cms_globals
+
 from fastapi import APIRouter
+
 from domain import Tags
+
+import api.globals as cms_globals
+
 router = APIRouter()
 logger = logging.getLogger("cms")
 

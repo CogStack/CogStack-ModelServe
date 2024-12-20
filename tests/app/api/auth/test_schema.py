@@ -1,5 +1,6 @@
-from api.auth.schemas import UserRead, UserCreate, UserUpdate
 from fastapi_users import schemas
+
+from api.auth.schemas import UserCreate, UserRead, UserUpdate
 
 
 def test_import():

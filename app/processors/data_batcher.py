@@ -1,4 +1,4 @@
-from typing import Iterable, List, Any
+from typing import Any, Iterable, List
 
 
 def mini_batch(data: Iterable[Any], batch_size: Any) -> Iterable[List[Any]]:

@@ -1,5 +1,6 @@
-from fastapi_users.authentication.backend import AuthenticationBackend
 from fastapi_users import FastAPIUsers
+from fastapi_users.authentication.backend import AuthenticationBackend
+
 from api.auth.users import Props
 
 
