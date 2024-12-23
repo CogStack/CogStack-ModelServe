@@ -1,11 +1,11 @@
+import inspect
 import json
 import logging.config
 import os
+import subprocess
 import sys
 import uuid
-import inspect
 import warnings
-import subprocess
 
 current_frame = inspect.currentframe()
 if current_frame is None:  # noqa
@@ -32,33 +32,53 @@ from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
 from domain import ModelType, TrainingType, BuildBackend, Device  # noqa
 from registry import model_service_registry  # noqa
-from api.api import get_model_server, get_stream_server # noqa
+from api.api import get_model_server, get_stream_server  # noqa
 from utils import get_settings, send_gelf_message  # noqa
 from management.model_manager import ModelManager  # noqa
 from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
-cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
-stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
+cmd_app = typer.Typer(
+    name="python cli.py",
+    help="CLI for various CogStack ModelServe operations",
+    add_completion=False,
+)
+stream_app = typer.Typer(
+    name="python cli.py stream", help="This groups various stream operations", add_completion=False
+)
 cmd_app.add_typer(stream_app, name="stream")
-package_app = typer.Typer(name="python cli.py package", help="This groups various package operations", add_completion=False)
+package_app = typer.Typer(
+    name="python cli.py package",
+    help="This groups various package operations",
+    add_completion=False,
+)
 cmd_app.add_typer(package_app, name="package")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
 
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
-def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                model_path: str = typer.Option("", help="The file path to the model package"),
-                mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
-                host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
-                port: str = typer.Option("8000", help="The port of the server"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
-                device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
-                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def serve_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    model_path: str = typer.Option("", help="The file path to the model package"),
+    mlflow_model_uri: str = typer.Option(
+        "", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"
+    ),
+    host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
+    port: str = typer.Option("8000", help="The port of the server"),
+    model_name: Optional[str] = typer.Option(
+        None, help="The string representation of the model name"
+    ),
+    streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
+    device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     logger = _get_logger(debug, model_type, model_name)
     get_settings().DEVICE = device.value
-    if model_type in [ModelType.HUGGINGFACE_NER, ModelType.MEDCAT_DEID, ModelType.TRANSFORMERS_DEID]:
+    if model_type in [
+        ModelType.HUGGINGFACE_NER,
+        ModelType.MEDCAT_DEID,
+        ModelType.TRANSFORMERS_DEID,
+    ]:
         get_settings().DISABLE_METACAT_TRAINING = "true"
 
     if "GELF_INPUT_URI" in os.environ and os.environ["GELF_INPUT_URI"]:
@@ -69,7 +89,10 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
             logger.addHandler(gelf_tcp_handler)
             logging.getLogger("uvicorn").addHandler(gelf_tcp_handler)
         except Exception:
-            logger.exception("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
+            logger.exception(
+                '$GELF_INPUT_URI is set to "%s" but it\'s not ready to receive logs',
+                os.environ["GELF_INPUT_URI"],
+            )
 
     config = get_settings()
 
@@ -90,7 +113,9 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service.init_model()
         cms_globals.model_manager_dep = ModelManagerDep(model_service)
     elif mlflow_model_uri:
-        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
+        model_service = ModelManager.retrieve_model_service_from_uri(
+            mlflow_model_uri, config, dst_model_path
+        )
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         cms_globals.model_manager_dep = ModelManagerDep(model_service)
@@ -102,24 +127,43 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:
-    uvicorn.run(model_server_app if not streamable else get_stream_server(), host=host, port=int(port), log_config=None)
+    uvicorn.run(
+        model_server_app if not streamable else get_stream_server(),
+        host=host,
+        port=int(port),
+        log_config=None,
+    )
     # interrupted = True
     typer.echo("Shutting down due to either keyboard interrupt or system exit")
 
 
 @cmd_app.command("train", help="This pretrains or fine-tunes various CogStack NLP models")
-def train_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                base_model_path: str = typer.Option("", help="The file path to the base model package to be trained on"),
-                mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to train", metavar="models:/MODEL_NAME/ENV"),
-                training_type: TrainingType = typer.Option(..., help="The type of training"),
-                data_file_path: str = typer.Option(..., help="The path to the training asset file"),
-                epochs: int = typer.Option(1, help="The number of training epochs"),
-                log_frequency: int = typer.Option(1, help="The number of processed documents after which training metrics will be logged"),
-                hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
-                description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
-                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def train_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    base_model_path: str = typer.Option(
+        "", help="The file path to the base model package to be trained on"
+    ),
+    mlflow_model_uri: str = typer.Option(
+        "", help="The URI of the MLflow model to train", metavar="models:/MODEL_NAME/ENV"
+    ),
+    training_type: TrainingType = typer.Option(..., help="The type of training"),
+    data_file_path: str = typer.Option(..., help="The path to the training asset file"),
+    epochs: int = typer.Option(1, help="The number of training epochs"),
+    log_frequency: int = typer.Option(
+        1, help="The number of processed documents after which training metrics will be logged"
+    ),
+    hyperparameters: str = typer.Option(
+        "{}", help="The overriding hyperparameters serialised as JSON string"
+    ),
+    description: Optional[str] = typer.Option(
+        None, help="The description of the training or change logs"
+    ),
+    model_name: Optional[str] = typer.Option(
+        None, help="The string representation of the model name"
+    ),
+    device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     logger = _get_logger(debug, model_type, model_name)
 
     config = get_settings()
@@ -140,7 +184,9 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service.init_model()
     elif mlflow_model_uri:
-        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
+        model_service = ModelManager.retrieve_model_service_from_uri(
+            mlflow_model_uri, config, dst_model_path
+        )
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
     else:
@@ -149,27 +195,61 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
     training_id = str(uuid.uuid4())
     with open(data_file_path, "r") as data_file:
-        training_args = [data_file, epochs, log_frequency, training_id, data_file.name, [data_file], description, True]
-        if training_type == TrainingType.SUPERVISED and model_service._supervised_trainer is not None:
+        training_args = [
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            data_file.name,
+            [data_file],
+            description,
+            True,
+        ]
+        if (
+            training_type == TrainingType.SUPERVISED
+            and model_service._supervised_trainer is not None
+        ):
             model_service.train_supervised(*training_args, **json.loads(hyperparameters))
-        elif training_type == TrainingType.UNSUPERVISED and model_service._unsupervised_trainer is not None:
+        elif (
+            training_type == TrainingType.UNSUPERVISED
+            and model_service._unsupervised_trainer is not None
+        ):
             model_service.train_unsupervised(*training_args, **json.loads(hyperparameters))
-        elif training_type == TrainingType.META_SUPERVISED and model_service._metacat_trainer is not None:
+        elif (
+            training_type == TrainingType.META_SUPERVISED
+            and model_service._metacat_trainer is not None
+        ):
             model_service.train_metacat(*training_args, **json.loads(hyperparameters))
         else:
-            logger.error("Training type %s is not supported or the corresponding trainer has not been enabled in the .env file.", training_type)
+            logger.error(
+                "Training type %s is not supported or the corresponding trainer has not been"
+                " enabled in the .env file.",
+                training_type,
+            )
             typer.Exit(code=1)
 
 
-@cmd_app.command("register", help="This pushes a pretrained NLP model to the CogStack ModelServe registry")
-def register_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                   model_path: str = typer.Option(..., help="The file path to the model package"),
-                   model_name: str = typer.Option(..., help="The string representation of the registered model"),
-                   training_type: Optional[str] = typer.Option(None, help="The type of training the model went through"),
-                   model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
-                   model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
-                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
-                   debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+@cmd_app.command(
+    "register", help="This pushes a pretrained NLP model to the CogStack ModelServe registry"
+)
+def register_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    model_path: str = typer.Option(..., help="The file path to the model package"),
+    model_name: str = typer.Option(..., help="The string representation of the registered model"),
+    training_type: Optional[str] = typer.Option(
+        None, help="The type of training the model went through"
+    ),
+    model_config: Optional[str] = typer.Option(
+        None, help="The string representation of a JSON object"
+    ),
+    model_metrics: Optional[str] = typer.Option(
+        None, help="The string representation of a JSON array"
+    ),
+    model_tags: Optional[str] = typer.Option(
+        None, help="The string representation of a JSON object"
+    ),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
     tracker_client = TrackerClient(config.MLFLOW_TRACKING_URI)
@@ -186,22 +266,26 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     t_type = training_type if training_type is not None else ""
 
     run_name = str(uuid.uuid4())
-    tracker_client.save_pretrained_model(model_name=model_name,
-                                         model_path=model_path,
-                                         model_manager=ModelManager(model_service_type, config),
-                                         training_type=t_type,
-                                         run_name=run_name,
-                                         model_config=m_config,
-                                         model_metrics=m_metrics,
-                                         model_tags=m_tags)
+    tracker_client.save_pretrained_model(
+        model_name=model_name,
+        model_path=model_path,
+        model_manager=ModelManager(model_service_type, config),
+        training_type=t_type,
+        run_name=run_name,
+        model_config=m_config,
+        model_metrics=m_metrics,
+        model_tags=m_tags,
+    )
     typer.echo(f"Pushed {model_path} as a new model version ({run_name})")
 
 
 @stream_app.command("json-lines", help="This gets NER entities as a JSON Lines stream")
-def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
-                             base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
-                             timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
-                             debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def stream_jsonl_annotations(
+    jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
+    base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
+    timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     logger = _get_logger(debug)
 
     async def get_jsonl_stream(base_url: str, jsonl_file_path: str) -> None:
@@ -210,10 +294,12 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
             try:
                 async with aiohttp.ClientSession() as session:
                     timeout = aiohttp.ClientTimeout(total=timeout_in_secs)
-                    async with session.post(f"{base_url}/stream/process",
-                                            data=file.read().encode("utf-8"),
-                                            headers=headers,
-                                            timeout=timeout) as response:
+                    async with session.post(
+                        f"{base_url}/stream/process",
+                        data=file.read().encode("utf-8"),
+                        headers=headers,
+                        timeout=timeout,
+                    ) as response:
                         response.raise_for_status()
                         async for line in response.content:
                             typer.echo(line.decode("utf-8"), nl=False)
@@ -226,13 +312,17 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
 
 
 @stream_app.command("chat", help="This gets NER entities by chatting with the model")
-def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url"),
-                                  debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def chat_to_get_jsonl_annotations(
+    base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     logger = _get_logger(debug)
+
     async def chat_with_model(base_url: str) -> None:
         try:
             chat_endpoint = f"{base_url}/stream/ws"
             async with websockets.connect(chat_endpoint, ping_interval=None) as websocket:
+
                 async def keep_alive() -> None:
                     while True:
                         try:
@@ -242,10 +332,14 @@ def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8
                             break
 
                 keep_alive_task = asyncio.create_task(keep_alive())
-                logging.info("Connected to CMS. Start typing you input and press <ENTER> to submit:")
+                logging.info(
+                    "Connected to CMS. Start typing you input and press <ENTER> to submit:"
+                )
                 try:
                     while True:
-                        text = await asyncio.get_event_loop().run_in_executor(None, sys.stdin.readline)
+                        text = await asyncio.get_event_loop().run_in_executor(
+                            None, sys.stdin.readline
+                        )
                         if text.strip() == "":
                             continue
                         try:
@@ -270,14 +364,22 @@ def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8
 
 
 @cmd_app.command("export-model-apis")
-def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                               add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
-                               add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
-                               add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
-                               add_user_authentication: bool = typer.Option(False, help="Add user authentication APIs to the doc"),
-                               exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
-                               exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
-                               model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
+def generate_api_doc_per_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
+    add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
+    add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
+    add_user_authentication: bool = typer.Option(
+        False, help="Add user authentication APIs to the doc"
+    ),
+    exclude_unsupervised_training: bool = typer.Option(
+        False, help="Exclude the unsupervised training API"
+    ),
+    exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
+    model_name: Optional[str] = typer.Option(
+        None, help="The string representation of the model name"
+    ),
+) -> None:
     """
     This generates model-specific API docs for enabled endpoints
     """
@@ -303,15 +405,45 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
     typer.echo(f"OpenAPI doc exported to {doc_name}")
 
 
-@package_app.command("hf-model", help="This packages a remotely hosted or locally cached Hugging Face model into a model package")
-def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of the model to download from Hugging Face Hub, e.g., 'google-bert/bert-base-cased'"),
-                  hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
-                  cached_model_dir: str = typer.Option("", help="Path to the cached model directory, will only be used if --hf-repo-id is not provided"),
-                  output_model_package: str = typer.Option("", help="Path to save the model package, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
-                  remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
+@package_app.command(
+    "hf-model",
+    help=(
+        "This packages a remotely hosted or locally cached Hugging Face model into a model package"
+    ),
+)
+def package_model(
+    hf_repo_id: str = typer.Option(
+        "",
+        help=(
+            "The repository ID of the model to download from Hugging Face Hub,"
+            " e.g., 'google-bert/bert-base-cased'"
+        ),
+    ),
+    hf_repo_revision: str = typer.Option(
+        "", help="The revision of the model to download from Hugging Face Hub"
+    ),
+    cached_model_dir: str = typer.Option(
+        "",
+        help=(
+            "Path to the cached model directory, will only be used if --hf-repo-id is not provided"
+        ),
+    ),
+    output_model_package: str = typer.Option(
+        "",
+        help=(
+            "Path to save the model package, minus any format-specific extension,"
+            " e.g., './model_packages/bert-base-cased'"
+        ),
+    ),
+    remove_cached: bool = typer.Option(
+        False, help="Whether to remove the downloaded cache after the model package is saved"
+    ),
 ) -> None:
     if hf_repo_id == "" and cached_model_dir == "":
-        typer.echo("ERROR: Neither the repository ID of the Hugging Face model nor the cached model directory is passed in.")
+        typer.echo(
+            "ERROR: Neither the repository ID of the Hugging Face model nor the cached model"
+            " directory is passed in."
+        )
         raise typer.Exit(code=1)
 
     if output_model_package == "":
@@ -339,16 +471,50 @@ def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of
     typer.echo(f"Model package saved to {model_package_archive}.zip")
 
 
-@package_app.command("hf-dataset", help="This packages a remotely hosted or locally cached Hugging Face dataset into a dataset package")
-def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository ID of the dataset to download from Hugging Face Hub, e.g., 'stanfordnlp/imdb'"),
-                    hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
-                    cached_dataset_dir: str = typer.Option("", help="Path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
-                    output_dataset_package: str = typer.Option("", help="Path to save the dataset package, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
-                    remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
-                    trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset"),
+@package_app.command(
+    "hf-dataset",
+    help=(
+        "This packages a remotely hosted or locally cached Hugging Face dataset into a dataset"
+        " package"
+    ),
+)
+def package_dataset(
+    hf_dataset_id: str = typer.Option(
+        "",
+        help=(
+            "The repository ID of the dataset to download from Hugging Face Hub,"
+            " e.g., 'stanfordnlp/imdb'"
+        ),
+    ),
+    hf_dataset_revision: str = typer.Option(
+        "", help="The revision of the dataset to download from Hugging Face Hub"
+    ),
+    cached_dataset_dir: str = typer.Option(
+        "",
+        help=(
+            "Path to the cached dataset directory, will only be used if --hf-dataset-id is not"
+            " provided"
+        ),
+    ),
+    output_dataset_package: str = typer.Option(
+        "",
+        help=(
+            "Path to save the dataset package, minus any format-specific extension,"
+            " e.g., './dataset_packages/imdb'"
+        ),
+    ),
+    remove_cached: bool = typer.Option(
+        False, help="Whether to remove the downloaded cache after the dataset package is saved"
+    ),
+    trust_remote_code: bool = typer.Option(
+        False, help="Whether to trust and use the remote script of the dataset"
+    ),
 ) -> None:
     if hf_dataset_id == "" and cached_dataset_dir == "":
-        typer.echo("ERROR: Neither the repository ID of the Hugging Face dataset nor the cached dataset directory is passed in.")
+        typer.echo(
+            "ERROR: Neither the repository ID of the Hugging Face dataset nor the cached dataset"
+            " directory is passed in."
+        )
         raise typer.Exit(code=1)
     if output_dataset_package == "":
         typer.echo("ERROR: The dataset package path is not passed in.")
@@ -362,10 +528,16 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
 
         try:
             if hf_dataset_revision == "":
-                dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, trust_remote_code=trust_remote_code)
+                dataset = load_dataset(
+                    path=hf_dataset_id, cache_dir=cache_dir, trust_remote_code=trust_remote_code
+                )
             else:
-                dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, revision=hf_dataset_revision,
-                                       trust_remote_code=trust_remote_code)
+                dataset = load_dataset(
+                    path=hf_dataset_id,
+                    cache_dir=cache_dir,
+                    revision=hf_dataset_revision,
+                    trust_remote_code=trust_remote_code,
+                )
 
             dataset.save_to_disk(cached_dataset_path)
             shutil.make_archive(dataset_package_archive, "zip", cached_dataset_path)
@@ -380,37 +552,61 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
 
 
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
-def build_image(dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
-                context_dir: str = typer.Option(..., help="The directory containing the set of files accessible to the build"),
-                model_name: Optional[str] = typer.Option("cms_model", help="The string representation of the model name"),
-                user_id: Optional[int] = typer.Option(1000, help="The ID for the non-root user"),
-                group_id: Optional[int] = typer.Option(1000, help="The group ID for the non-root user"),
-                http_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTP proxy"),
-                https_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTPS proxy"),
-                no_proxy: Optional[str] = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
-                tag: str = typer.Option(None, help="The tag of the built image"),
-                backend: Optional[BuildBackend] = typer.Option(BuildBackend.DOCKER, help="The backend used for building the image")) -> None:
+def build_image(
+    dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
+    context_dir: str = typer.Option(
+        ..., help="The directory containing the set of files accessible to the build"
+    ),
+    model_name: Optional[str] = typer.Option(
+        "cms_model", help="The string representation of the model name"
+    ),
+    user_id: Optional[int] = typer.Option(1000, help="The ID for the non-root user"),
+    group_id: Optional[int] = typer.Option(1000, help="The group ID for the non-root user"),
+    http_proxy: Optional[str] = typer.Option(
+        "", help="The string representation of the HTTP proxy"
+    ),
+    https_proxy: Optional[str] = typer.Option(
+        "", help="The string representation of the HTTPS proxy"
+    ),
+    no_proxy: Optional[str] = typer.Option(
+        "localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"
+    ),
+    tag: str = typer.Option(None, help="The tag of the built image"),
+    backend: Optional[BuildBackend] = typer.Option(
+        BuildBackend.DOCKER, help="The backend used for building the image"
+    ),
+) -> None:
     assert backend is not None
     cmd = [
         *backend.value.split(),
-        '-f', dockerfile_path,
-        '--progress=plain',
-        '-t', f'{model_name}:{tag}',
-        '--build-arg', f'CMS_MODEL_NAME={model_name}',
-        '--build-arg', f'CMS_UID={str(user_id)}',
-        '--build-arg', f'CMS_GID={str(group_id)}',
-        '--build-arg', f'HTTP_PROXY={http_proxy}',
-        '--build-arg', f'HTTPS_PROXY={https_proxy}',
-        '--build-arg', f'NO_PROXY={no_proxy}',
+        "-f",
+        dockerfile_path,
+        "--progress=plain",
+        "-t",
+        f"{model_name}:{tag}",
+        "--build-arg",
+        f"CMS_MODEL_NAME={model_name}",
+        "--build-arg",
+        f"CMS_UID={str(user_id)}",
+        "--build-arg",
+        f"CMS_GID={str(group_id)}",
+        "--build-arg",
+        f"HTTP_PROXY={http_proxy}",
+        "--build-arg",
+        f"HTTPS_PROXY={https_proxy}",
+        "--build-arg",
+        f"NO_PROXY={no_proxy}",
         context_dir,
     ]
-    with subprocess.Popen(cmd,
-                          shell=False,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          close_fds=True,
-                          universal_newlines=True,
-                          bufsize=1) as process:
+    with subprocess.Popen(
+        cmd,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        close_fds=True,
+        universal_newlines=True,
+        bufsize=1,
+    ) as process:
         assert process is not None
         try:
             while True:
@@ -437,7 +633,11 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
 
 
 @cmd_app.command("export-openapi-spec")
-def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")) -> None:
+def generate_api_doc(
+    api_title: str = typer.Option(
+        "CogStack Model Serve APIs", help="The string representation of the API title"
+    ),
+) -> None:
     """
     This generates a single API doc for all endpoints
     """
@@ -465,9 +665,11 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
     typer.echo(f"OpenAPI doc exported to {doc_name}")
 
 
-def _get_logger(debug: Optional[bool] = None,
-                model_type: Optional[ModelType] = None,
-                model_name: Optional[str] = None) -> logging.Logger:
+def _get_logger(
+    debug: Optional[bool] = None,
+    model_type: Optional[ModelType] = None,
+    model_name: Optional[str] = None,
+) -> logging.Logger:
     if debug is not None:
         get_settings().DEBUG = "true" if debug else "false"
     if get_settings().DEBUG != "true":
@@ -481,6 +683,7 @@ def _get_logger(debug: Optional[bool] = None,
         record.model_type = model_type
         record.model_name = model_name if model_name is not None else "NULL"
         return record
+
     logging.setLogRecordFactory(log_record_factory)
 
     return logger

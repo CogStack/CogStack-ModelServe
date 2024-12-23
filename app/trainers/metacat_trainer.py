@@ -1,21 +1,22 @@
-import os
-import logging
-import shutil
 import gc
-from typing import Dict, TextIO, Optional, List
+import logging
+import os
+import shutil
+from typing import Dict, List, Optional, TextIO
 
 import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
-from trainers.medcat_trainer import MedcatSupervisedTrainer
+
 from exception import TrainingFailedException
 from utils import non_default_device_is_available
+
+from trainers.medcat_trainer import MedcatSupervisedTrainer
 
 logger = logging.getLogger("cms")
 
 
 class MetacatTrainer(MedcatSupervisedTrainer):
-
     @staticmethod
     def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:
         params = {}
@@ -32,12 +33,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         return params
 
     @staticmethod
-    def run(trainer: "MetacatTrainer",
-            training_params: Dict,
-            data_file: TextIO,
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        trainer: "MetacatTrainer",
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
@@ -48,10 +51,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
+                copied_model_pack_path = trainer._make_model_file_copy(
+                    trainer._model_pack_path, run_id
+                )
                 if non_default_device_is_available(trainer._config.DEVICE):
-                    model = trainer._model_service.load_model(copied_model_pack_path,
-                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
+                    model = trainer._model_service.load_model(
+                        copied_model_pack_path,
+                        meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}},
+                    )
                     model.config.general["device"] = trainer._config.DEVICE
                 else:
                     model = trainer._model_service.load_model(copied_model_pack_path)
@@ -64,42 +71,82 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     if training_params.get("test_size") is not None:
                         meta_cat.config.train.test_size = training_params["test_size"]
                     meta_cat.config.train.nepochs = training_params["nepochs"]
-                    trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
+                    trainer._tracker_client.log_model_config(
+                        trainer.get_flattened_config(meta_cat, category_name)
+                    )
                     trainer._tracker_client.log_trainer_version(medcat_version)
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
-                        winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                        winner_report = meta_cat.train(
+                            data_file.name,
+                            os.path.join(
+                                copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"
+                            ),
+                        )
                         is_retrained = True
                         report_stats = {
-                            f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
-                            f"{category_name}_macro_avg_recall": winner_report["report"]["macro avg"]["recall"],
-                            f"{category_name}_macro_avg_f1": winner_report["report"]["macro avg"]["f1-score"],
-                            f"{category_name}_macro_avg_support": winner_report["report"]["macro avg"]["support"],
-                            f"{category_name}_weighted_avg_precision": winner_report["report"]["weighted avg"]["precision"],
-                            f"{category_name}_weighted_avg_recall": winner_report["report"]["weighted avg"]["recall"],
-                            f"{category_name}_weighted_avg_f1": winner_report["report"]["weighted avg"]["f1-score"],
-                            f"{category_name}_weighted_avg_support": winner_report["report"]["weighted avg"]["support"],
+                            f"{category_name}_macro_avg_precision": winner_report["report"][
+                                "macro avg"
+                            ]["precision"],
+                            f"{category_name}_macro_avg_recall": winner_report["report"][
+                                "macro avg"
+                            ]["recall"],
+                            f"{category_name}_macro_avg_f1": winner_report["report"]["macro avg"][
+                                "f1-score"
+                            ],
+                            f"{category_name}_macro_avg_support": winner_report["report"][
+                                "macro avg"
+                            ]["support"],
+                            f"{category_name}_weighted_avg_precision": winner_report["report"][
+                                "weighted avg"
+                            ]["precision"],
+                            f"{category_name}_weighted_avg_recall": winner_report["report"][
+                                "weighted avg"
+                            ]["recall"],
+                            f"{category_name}_weighted_avg_f1": winner_report["report"][
+                                "weighted avg"
+                            ]["f1-score"],
+                            f"{category_name}_weighted_avg_support": winner_report["report"][
+                                "weighted avg"
+                            ]["support"],
                         }
-                        trainer._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
+                        trainer._tracker_client.send_model_stats(
+                            report_stats, winner_report["epoch"]
+                        )
                     except Exception as e:
-                        logger.exception("Failed on training meta model: %s. This could be benign if training data has no annotations belonging to this category.", category_name)
+                        logger.exception(
+                            "Failed on training meta model: %s. This could be benign if training"
+                            " data has no annotations belonging to this category.",
+                            category_name,
+                        )
                         trainer._tracker_client.log_exceptions(e)
 
                 if not is_retrained:
-                    exception = TrainingFailedException("No metacat model has been retrained. Double-check the presence of metacat models and your annotations.")
-                    logger.error("Error occurred while retraining the model: %s", exception, exc_info=True)
+                    exception = TrainingFailedException(
+                        "No metacat model has been retrained. Double-check the presence of metacat"
+                        " models and your annotations."
+                    )
+                    logger.error(
+                        "Error occurred while retraining the model: %s", exception, exc_info=True
+                    )
                     trainer._tracker_client.log_exceptions(exception)
                     trainer._tracker_client.end_with_failure()
                     return
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
+                    model_pack_path = trainer.save_model_pack(
+                        model, trainer._retrained_models_dir, description
+                    )
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    model_uri = trainer._tracker_client.save_model(
+                        model_pack_path, trainer._model_name, trainer._model_manager
+                    )
                     logger.info("Retrained model saved: %s", model_uri)
-                    trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                    trainer._tracker_client.save_model_artifact(
+                        cdb_config_path, trainer._model_name
+                    )
                 else:
                     logger.info("Skipped saving on the retrained model")
                 if redeploy:
@@ -124,7 +171,9 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     os.remove(cdb_config_path)
 
                 # Remove intermediate results folder on successful training
-                results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
+                results_path = os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "results")
+                )
                 if results_path and os.path.isdir(results_path):
                     shutil.rmtree(results_path)
         else:
@@ -133,20 +182,35 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 metrics: List[Dict] = []
                 for meta_cat in trainer._model_service._model._meta_cats:
                     category_name = meta_cat.config.general["category_name"]
-                    trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
+                    trainer._tracker_client.log_model_config(
+                        trainer.get_flattened_config(meta_cat, category_name)
+                    )
                     trainer._tracker_client.log_trainer_version(medcat_version)
                     result = meta_cat.eval(data_file.name)
-                    metrics.append({"precision": result.get("precision"), "recall": result.get("recall"), "f1": result.get("f1")})
+                    metrics.append(
+                        {
+                            "precision": result.get("precision"),
+                            "recall": result.get("recall"),
+                            "f1": result.get("f1"),
+                        }
+                    )
 
                 if metrics:
-                    trainer._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
-                                                                  pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
-                                                                  trainer._model_service._model_name)
+                    trainer._tracker_client.save_dataframe_as_csv(
+                        "sanity_check_result.csv",
+                        pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
+                        trainer._model_service._model_name,
+                    )
                     trainer._tracker_client.end_with_success()
                     logger.info("Model evaluation finished")
                 else:
-                    exception = TrainingFailedException("No metacat model has been evaluated. Double-check the presence of metacat models and your annotations.")
-                    logger.error("Error occurred while evaluating the model: %s", exception, exc_info=True)
+                    exception = TrainingFailedException(
+                        "No metacat model has been evaluated. Double-check the presence of metacat"
+                        " models and your annotations."
+                    )
+                    logger.error(
+                        "Error occurred while evaluating the model: %s", exception, exc_info=True
+                    )
                     trainer._tracker_client.log_exceptions(exception)
                     trainer._tracker_client.end_with_failure()
                     return

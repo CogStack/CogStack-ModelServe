@@ -1,8 +1,10 @@
 import os
-import pytest
 from unittest.mock import patch
-from cli.cli import cmd_app
+
+import pytest
 from typer.testing import CliRunner
+
+from cli.cli import cmd_app
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 
@@ -15,11 +17,24 @@ def test_serve_help():
     assert "This serves various CogStack NLP models" in result.output
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_serve_model():
     with patch("uvicorn.run", side_effect=KeyboardInterrupt):
-        result = runner.invoke(cmd_app, ["serve", "--model-type", "medcat_deid", "--model-name", "deid model", "--model-path", os.path.join(MODEL_PARENT_DIR, "deid_model.zip")])
+        result = runner.invoke(
+            cmd_app,
+            [
+                "serve",
+                "--model-type",
+                "medcat_deid",
+                "--model-name",
+                "deid model",
+                "--model-path",
+                os.path.join(MODEL_PARENT_DIR, "deid_model.zip"),
+            ],
+        )
     assert result.exit_code == 1
     assert "\nAborted.\n" in result.output
 
@@ -30,10 +45,23 @@ def test_register_help():
     assert "This pushes a pretrained NLP model to the CogStack ModelServe registry" in result.output
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_register_nodel():
-    result = runner.invoke(cmd_app, ["register", "--model-type", "medcat_deid", "--model-name", "deid model", "--model-path", os.path.join(MODEL_PARENT_DIR, "deid_model.zip")])
+    result = runner.invoke(
+        cmd_app,
+        [
+            "register",
+            "--model-type",
+            "medcat_deid",
+            "--model-name",
+            "deid model",
+            "--model-path",
+            os.path.join(MODEL_PARENT_DIR, "deid_model.zip"),
+        ],
+    )
     assert result.exit_code == 0
     assert "as a new model version" in result.output
 

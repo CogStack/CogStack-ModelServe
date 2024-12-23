@@ -1,23 +1,25 @@
-import json
-import socket
-import random
-import struct
-import inspect
-import os
 import copy
 import functools
+import inspect
+import json
+import os
+import random
+import socket
+import struct
 import warnings
-import torch
+from functools import lru_cache
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from urllib.parse import ParseResult
+
 import numpy as np
 import pandas as pd
+import torch
+from safetensors.torch import load_file
 from spacy.lang.en import English
 from spacy.util import filter_spans
-from safetensors.torch import load_file
-from urllib.parse import ParseResult
-from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any, Union, Tuple, Type
-from domain import Annotation, Entity, CodeType, ModelType, Device
+
 from config import Settings
+from domain import Annotation, CodeType, Device, Entity, ModelType
 
 
 @lru_cache
@@ -43,13 +45,17 @@ def annotations_to_entities(annotations: List[Annotation], model_name: str) -> L
     entities = []
     code_base_uri = get_code_base_uri(model_name)
     for _, annotation in enumerate(annotations):
-        entities.append({
-            "start": annotation["start"],
-            "end": annotation["end"],
-            "label": f"{annotation['label_name']}",
-            "kb_id": annotation["label_id"],
-            "kb_url": f"{code_base_uri}/{annotation['label_id']}" if code_base_uri is not None else "#"
-        })
+        entities.append(
+            {
+                "start": annotation["start"],
+                "end": annotation["end"],
+                "label": f"{annotation['label_name']}",
+                "kb_id": annotation["label_id"],
+                "kb_url": f"{code_base_uri}/{annotation['label_id']}"
+                if code_base_uri is not None
+                else "#",
+            }
+        )
     return entities
 
 
@@ -71,19 +77,30 @@ def send_gelf_message(message: str, gelf_input_uri: ParseResult) -> None:
 
 def get_func_params_as_dict(func: Callable) -> Dict:
     signature = inspect.signature(func)
-    params = {name: param.default for name, param in signature.parameters.items() if param.default is not inspect.Parameter.empty}
+    params = {
+        name: param.default
+        for name, param in signature.parameters.items()
+        if param.default is not inspect.Parameter.empty
+    }
     return params
 
 
 def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
-    return pd.json_normalize(trainer_export,
-                             record_path=["projects", "documents", "annotations"],
-                             meta=[
-                                 ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
-                                 ["projects", "documents", "id"], ["projects", "documents", "name"],
-                                 ["projects", "documents", "text"], ["projects", "documents", "last_modified"]
-                             ],
-                             sep=".")
+    return pd.json_normalize(
+        trainer_export,
+        record_path=["projects", "documents", "annotations"],
+        meta=[
+            ["projects", "name"],
+            ["projects", "id"],
+            ["projects", "cuis"],
+            ["projects", "tuis"],
+            ["projects", "documents", "id"],
+            ["projects", "documents", "name"],
+            ["projects", "documents", "text"],
+            ["projects", "documents", "last_modified"],
+        ],
+        sep=".",
+    )
 
 
 def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
@@ -102,7 +119,7 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
             keys = col.split(sep)
             current = result_row
             for i, k in enumerate(keys):
-                if i == len(keys)-1:
+                if i == len(keys) - 1:
                     current[k] = cell
                 else:
                     if k not in current:
@@ -112,50 +129,82 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
     return result
 
 
-def filter_by_concept_ids(trainer_export: Dict[str, Any],
-                          model_type: Optional[ModelType] = None,
-                          extra_excluded: Optional[List[str]] = None) -> Dict[str, Any]:
+def filter_by_concept_ids(
+    trainer_export: Dict[str, Any],
+    model_type: Optional[ModelType] = None,
+    extra_excluded: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     concept_ids = get_settings().TRAINING_CONCEPT_ID_WHITELIST.split(",")
     filtered = copy.deepcopy(trainer_export)
     for project in filtered.get("projects", []):
         for document in project.get("documents", []):
             if concept_ids == [""]:
-                document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("correct", True) and not anno.get("deleted", False) and not anno.get("killed", False)]
+                document["annotations"] = [
+                    anno
+                    for anno in document.get("annotations", [])
+                    if anno.get("correct", True)
+                    and not anno.get("deleted", False)
+                    and not anno.get("killed", False)
+                ]
             else:
-                document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") in concept_ids and anno.get("correct", True) and not anno.get("deleted", False) and not anno.get("killed", False)]
+                document["annotations"] = [
+                    anno
+                    for anno in document.get("annotations", [])
+                    if anno.get("cui") in concept_ids
+                    and anno.get("correct", True)
+                    and not anno.get("deleted", False)
+                    and not anno.get("killed", False)
+                ]
 
             if extra_excluded is not None and len(extra_excluded) > 0:
-                document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") not in extra_excluded]
+                document["annotations"] = [
+                    anno
+                    for anno in document.get("annotations", [])
+                    if anno.get("cui") not in extra_excluded
+                ]
 
     if model_type in [ModelType.TRANSFORMERS_DEID, ModelType.MEDCAT_DEID, ModelType.ANONCAT]:
         # special preprocessing for the DeID annotations and consider removing this.
         for project in filtered["projects"]:
             for document in project["documents"]:
                 for annotation in document["annotations"]:
-                    if annotation["cui"] == "N1100" or annotation["cui"] == "N1200":    # for metric calculation
+                    if (
+                        annotation["cui"] == "N1100" or annotation["cui"] == "N1200"
+                    ):  # for metric calculation
                         annotation["cui"] = "N1000"
-                    if annotation["cui"] == "W5000" and (model_type in [ModelType.MEDCAT_DEID, ModelType.ANONCAT]):    # for compatibility
+                    if annotation["cui"] == "W5000" and (
+                        model_type in [ModelType.MEDCAT_DEID, ModelType.ANONCAT]
+                    ):  # for compatibility
                         annotation["cui"] = "C2500"
 
     return filtered
 
 
-def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, transform: Callable) -> Dict[str, Any]:
+def replace_spans_of_concept(
+    trainer_export: Dict[str, Any], concept_id: str, transform: Callable
+) -> Dict[str, Any]:
     doc_with_initials_ids = set()
     copied = copy.deepcopy(trainer_export)
     for project in copied.get("projects", []):
         for document in project.get("documents", []):
             text = document.get("text", "")
             offset = 0
-            document["annotations"] = sorted(document.get("annotations", []), key=lambda annotation: annotation["start"])
+            document["annotations"] = sorted(
+                document.get("annotations", []), key=lambda annotation: annotation["start"]
+            )
             for annotation in document.get("annotations", []):
                 annotation["start"] += offset
                 annotation["end"] += offset
-                if annotation["cui"] == concept_id and annotation.get("correct", True) and not annotation.get("deleted", False) and not annotation.get("killed", False):
+                if (
+                    annotation["cui"] == concept_id
+                    and annotation.get("correct", True)
+                    and not annotation.get("deleted", False)
+                    and not annotation.get("killed", False)
+                ):
                     original = annotation["value"]
                     modified = transform(original)
                     extended = len(modified) - len(original)
-                    text = text[:annotation["start"]] + modified + text[annotation["end"]:]
+                    text = text[: annotation["start"]] + modified + text[annotation["end"] :]
                     annotation["value"] = modified
                     annotation["end"] += extended
                     offset += extended
@@ -164,68 +213,102 @@ def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, tr
     return copied
 
 
-def breakdown_annotations(trainer_export: Dict[str, Any],
-                          target_concept_ids: List[str],
-                          primary_delimiter: str,
-                          secondary_delimiter: Optional[str] = None,
-                          *,
-                          include_delimiter: bool = True) -> Dict[str, Any]:
+def breakdown_annotations(
+    trainer_export: Dict[str, Any],
+    target_concept_ids: List[str],
+    primary_delimiter: str,
+    secondary_delimiter: Optional[str] = None,
+    *,
+    include_delimiter: bool = True,
+) -> Dict[str, Any]:
     assert isinstance(target_concept_ids, list), "The target_concept_ids is not a list"
     copied = copy.deepcopy(trainer_export)
     for project in copied["projects"]:
         for document in project["documents"]:
             new_annotations = []
             for annotation in document["annotations"]:
-                if annotation["cui"] in target_concept_ids and primary_delimiter in annotation["value"]:
+                if (
+                    annotation["cui"] in target_concept_ids
+                    and primary_delimiter in annotation["value"]
+                ):
                     start_offset = 0
                     for sub_text in annotation["value"].split(primary_delimiter):
                         if secondary_delimiter is not None and secondary_delimiter in sub_text:
                             for sub_sub_text in sub_text.split(secondary_delimiter):
-                                if sub_sub_text == "" or all(char.isspace() for char in sub_sub_text):
+                                if sub_sub_text == "" or all(
+                                    char.isspace() for char in sub_sub_text
+                                ):
                                     start_offset += len(sub_sub_text) + len(secondary_delimiter)
                                     continue
                                 sub_sub_annotation = copy.deepcopy(annotation)
                                 sub_sub_annotation["start"] = annotation["start"] + start_offset
-                                sub_sub_annotation["end"] = sub_sub_annotation["start"] + len(sub_sub_text) + (len(secondary_delimiter) if include_delimiter else 0)
-                                sub_sub_annotation["value"] = sub_sub_text + (secondary_delimiter if include_delimiter else "")
+                                sub_sub_annotation["end"] = (
+                                    sub_sub_annotation["start"]
+                                    + len(sub_sub_text)
+                                    + (len(secondary_delimiter) if include_delimiter else 0)
+                                )
+                                sub_sub_annotation["value"] = sub_sub_text + (
+                                    secondary_delimiter if include_delimiter else ""
+                                )
                                 start_offset += len(sub_sub_text) + len(secondary_delimiter)
                                 new_annotations.append(sub_sub_annotation)
                             if include_delimiter:
-                                new_annotations[-1]["value"] = new_annotations[-1]["value"][:-len(secondary_delimiter)] + primary_delimiter
+                                new_annotations[-1]["value"] = (
+                                    new_annotations[-1]["value"][: -len(secondary_delimiter)]
+                                    + primary_delimiter
+                                )
                         else:
                             if sub_text == "" or all(char.isspace() for char in sub_text):
                                 start_offset += len(sub_text) + len(primary_delimiter)
                                 continue
                             sub_annotation = copy.deepcopy(annotation)
                             sub_annotation["start"] = annotation["start"] + start_offset
-                            sub_annotation["end"] = sub_annotation["start"] + len(sub_text) + (len(primary_delimiter) if include_delimiter else 0)
-                            sub_annotation["value"] = sub_text + (primary_delimiter if include_delimiter else "")
+                            sub_annotation["end"] = (
+                                sub_annotation["start"]
+                                + len(sub_text)
+                                + (len(primary_delimiter) if include_delimiter else 0)
+                            )
+                            sub_annotation["value"] = sub_text + (
+                                primary_delimiter if include_delimiter else ""
+                            )
                             start_offset += len(sub_text) + len(primary_delimiter)
                             new_annotations.append(sub_annotation)
                     if include_delimiter:
                         new_annotations[-1]["end"] -= len(primary_delimiter)
-                        new_annotations[-1]["value"] = new_annotations[-1]["value"][:-len(primary_delimiter)]
+                        new_annotations[-1]["value"] = new_annotations[-1]["value"][
+                            : -len(primary_delimiter)
+                        ]
                 else:
                     new_annotations.append(annotation)
             document["annotations"] = new_annotations
     return copied
 
 
-def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], *, case_sensitive: bool = True) -> Dict:
+def augment_annotations(
+    trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], *, case_sensitive: bool = True
+) -> Dict:
     nlp = English()
     patterns = []
     for cui, regexes in cui_regexes_lists.items():
-        pts = [{
-            "label": cui,
-            "pattern": [{"TEXT": {"REGEX": part if case_sensitive else r"(?i)" + part}} for part in regex]
-        } for regex in regexes]
+        pts = [
+            {
+                "label": cui,
+                "pattern": [
+                    {"TEXT": {"REGEX": part if case_sensitive else r"(?i)" + part}}
+                    for part in regex
+                ],
+            }
+            for regex in regexes
+        ]
         patterns += pts
     ruler = nlp.add_pipe("entity_ruler")
-    ruler.add_patterns(patterns)    # type: ignore
+    ruler.add_patterns(patterns)  # type: ignore
     copied = copy.deepcopy(trainer_export)
     for project in copied["projects"]:
         for document in project["documents"]:
-            document["annotations"] = sorted(document["annotations"], key=lambda anno: anno["start"])
+            document["annotations"] = sorted(
+                document["annotations"], key=lambda anno: anno["start"]
+            )
             gaps = []
             gap_start = 0
             for annotation in document["annotations"]:
@@ -233,7 +316,7 @@ def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[
                     gaps.append((gap_start, annotation["start"]))
                 gap_start = annotation["end"]
             if gap_start < len(document["text"]):
-                gaps.append((gap_start, len(document["text"])+1))
+                gaps.append((gap_start, len(document["text"]) + 1))
             new_annotations = []
             doc = nlp(document["text"])
             spans = filter_spans(doc.ents)
@@ -253,27 +336,36 @@ def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[
                         new_annotations.append(annotation)
                         break
             document["annotations"] += new_annotations
-            document["annotations"] = sorted(document["annotations"], key=lambda anno: anno["start"])
+            document["annotations"] = sorted(
+                document["annotations"], key=lambda anno: anno["start"]
+            )
 
     return copied
 
 
-def safetensors_to_pytorch(safetensors_file_path: Union[str, os.PathLike],
-                           pytorch_file_path: Union[str, os.PathLike]) -> None:
+def safetensors_to_pytorch(
+    safetensors_file_path: Union[str, os.PathLike], pytorch_file_path: Union[str, os.PathLike]
+) -> None:
     state_dict = load_file(safetensors_file_path)
     torch.save(state_dict, pytorch_file_path)
 
 
 def func_deprecated(message: Optional[str] = None) -> Callable:
     def decorator(func: Callable) -> Callable:
-
         @functools.wraps(func)
         def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
             warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""), stacklevel=2)
+            warnings.warn(
+                "Function {} has been deprecated.{}".format(
+                    func.__name__, " " + message if message else ""
+                ),
+                stacklevel=2,
+            )
             warnings.simplefilter("default", DeprecationWarning)
             return func(*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 
@@ -284,11 +376,17 @@ def cls_deprecated(message: Optional[str] = None) -> Callable:
         @functools.wraps(decorated_init)
         def wrapped(self: "Type", *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
             warnings.simplefilter("always", DeprecationWarning)
-            warnings.warn("Class {} has been deprecated.{}".format(cls.__name__, " " + message if message else ""))
+            warnings.warn(
+                "Class {} has been deprecated.{}".format(
+                    cls.__name__, " " + message if message else ""
+                )
+            )
             warnings.simplefilter("default", DeprecationWarning)
             decorated_init(self, *args, **kwargs)
+
         cls.__init__ = wrapped
         return cls
+
     return decorator
 
 
@@ -301,11 +399,13 @@ def reset_random_seed() -> None:
 
 
 def non_default_device_is_available(device: str) -> bool:
-    return any([
-        device.startswith(Device.GPU.value) and torch.cuda.is_available(),
-        device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
-        device.startswith(Device.CPU.value)
-    ])
+    return any(
+        [
+            device.startswith(Device.GPU.value) and torch.cuda.is_available(),
+            device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
+            device.startswith(Device.CPU.value),
+        ]
+    )
 
 
 def get_hf_pipeline_device_id(device: str) -> int:
@@ -374,6 +474,10 @@ TYPE_ID_TO_NAME_PATCH = {
     "92873870": "special concept",
     "78096516": "environment / location",
     "72706784": "context-dependent category",
-    "25624495": '© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.',
-    "55540447": "linkage concept"
+    "25624495": (
+        "© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO)."
+        " All rights reserved. SNOMED CT®, was originally created by The College of American"
+        ' Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.'
+    ),
+    "55540447": "linkage concept",
 }

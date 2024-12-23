@@ -1,16 +1,16 @@
 import logging
 import re
-from typing import Union
-from typing_extensions import Annotated
+from typing import Optional, Union
 
 from fastapi import HTTPException, Query
 from starlette.status import HTTP_400_BAD_REQUEST
+from typing_extensions import Annotated
 
-from typing import Optional
 from config import Settings
 from registry import model_service_registry
-from model_services.base import AbstractModelService
+
 from management.model_manager import ModelManager
+from model_services.base import AbstractModelService
 
 TRACKING_ID_REGEX = re.compile(r"^[a-zA-Z0-9][\w\-]{0,255}$")
 
@@ -18,7 +18,6 @@ logger = logging.getLogger("cms")
 
 
 class ModelServiceDep(object):
-
     @property
     def model_service(self) -> AbstractModelService:
         return self._model_sevice
@@ -41,12 +40,11 @@ class ModelServiceDep(object):
                 self._model_sevice = model_service_registry[self._model_type](self._config)
             else:
                 logger.error("Unknown model type: %s", self._model_type)
-                exit(1)     # throw an exception?
+                exit(1)  # throw an exception?
             return self._model_sevice
 
 
 class ModelManagerDep(object):
-
     def __init__(self, model_service: AbstractModelService) -> None:
         self._model_manager = ModelManager(model_service.__class__, model_service.service_config)
         self._model_manager.model_service = model_service
@@ -56,11 +54,16 @@ class ModelManagerDep(object):
 
 
 def validate_tracking_id(
-    tracking_id: Annotated[Union[str, None], Query(description="The tracking ID of the requested task")] = None,
+    tracking_id: Annotated[
+        Union[str, None], Query(description="The tracking ID of the requested task")
+    ] = None,
 ) -> Union[str, None]:
     if tracking_id is not None and TRACKING_ID_REGEX.match(tracking_id) is None:
         raise HTTPException(
             status_code=HTTP_400_BAD_REQUEST,
-            detail=f"Invalid tracking ID '{tracking_id}', must be an alphanumeric string of length 1 to 256",
+            detail=(
+                f"Invalid tracking ID '{tracking_id}',"
+                " must be an alphanumeric string of length 1 to 256"
+            ),
         )
     return tracking_id
