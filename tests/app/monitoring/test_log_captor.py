@@ -1,4 +1,5 @@
 from contextlib import redirect_stdout
+
 from management.log_captor import LogCaptor
 
 

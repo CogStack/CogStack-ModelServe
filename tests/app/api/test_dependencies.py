@@ -1,14 +1,15 @@
 import pytest
 from fastapi import HTTPException
 
-from api.dependencies import ModelServiceDep, validate_tracking_id
 from config import Settings
+
+from api.dependencies import ModelServiceDep, validate_tracking_id
+from model_services.huggingface_ner_model import HuggingFaceNerModel
 from model_services.medcat_model import MedCATModel
+from model_services.medcat_model_deid import MedCATModelDeIdentification
 from model_services.medcat_model_icd10 import MedCATModelIcd10
 from model_services.medcat_model_umls import MedCATModelUmls
-from model_services.medcat_model_deid import MedCATModelDeIdentification
 from model_services.trf_model_deid import TransformersModelDeIdentification
-from model_services.huggingface_ner_model import HuggingFaceNerModel
 
 
 def test_medcat_snomed_dep():

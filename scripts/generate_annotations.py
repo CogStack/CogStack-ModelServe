@@ -4,13 +4,16 @@ import json
 import random
 import sys
 from argparse import ArgumentParser
-from typing import List, Dict
+from typing import Dict, List
+
 from medcat.cat import CAT
 from spacy.lang.en import English
 from tqdm.autonotebook import tqdm
 
 
-def generate_annotations(cuis: List, texts: List, minimum_words: int, cui2original_names: Dict) -> Dict:
+def generate_annotations(
+    cuis: List, texts: List, minimum_words: int, cui2original_names: Dict
+) -> Dict:
     original_names = {cui: cui2original_names[cui] for cui in cuis if cui in cui2original_names}
     new_snames = {}
     for cui, names in original_names.items():
@@ -30,10 +33,12 @@ def generate_annotations(cuis: List, texts: List, minimum_words: int, cui2origin
                 }
                 patterns.append(pattern)
     ruler = nlp.add_pipe("entity_ruler", config={"phrase_matcher_attr": "LOWER"})
-    ruler.add_patterns(patterns)    # type: ignore
+    ruler.add_patterns(patterns)  # type: ignore
 
     documents = []
-    for doc_id, text in enumerate(tqdm(texts, desc="Evaluating projects", total=len(texts), leave=False)):
+    for doc_id, text in enumerate(
+        tqdm(texts, desc="Evaluating projects", total=len(texts), leave=False)
+    ):
         doc = nlp(text)
         annotations = []
         for ent in doc.ents:
@@ -65,7 +70,7 @@ if __name__ == "__main__":
         "--cuis",
         type=str,
         default="",
-        help="The path to the file containing newline-separated CUIs"
+        help="The path to the file containing newline-separated CUIs",
     )
     parser.add_argument(
         "-t",
@@ -85,13 +90,10 @@ if __name__ == "__main__":
         "--min-words",
         type=int,
         default=1,
-        help="The lowest number of words each generated annotation will have"
+        help="The lowest number of words each generated annotation will have",
     )
     parser.add_argument(
-        "-m",
-        "--model-pack-path",
-        type=str,
-        help="The path to the first model package"
+        "-m", "--model-pack-path", type=str, help="The path to the first model package"
     )
     parser.add_argument(
         "-o",
@@ -101,17 +103,32 @@ if __name__ == "__main__":
     )
     FLAGS, unparsed = parser.parse_known_args()
 
+    error_prefix = "ERROR:"
     if FLAGS.cuis == "":
-        print("ERROR: The path to the CUI file is empty. Use '-c' to pass in the file containing newline-separated CUIs.")
+        print(
+            error_prefix,
+            "The path to the CUI file is empty."
+            "Use '-c' to pass in the file containing newline-separated CUIs.",
+        )
         sys.exit(1)
     if FLAGS.texts == "":
-        print("ERROR: The path to the text file is empty. Use '-t' to pass in the file containing texts as a JSON list.")
+        print(
+            error_prefix,
+            "The path to the text file is empty."
+            "Use '-t' to pass in the file containing texts as a JSON list.",
+        )
         sys.exit(1)
     if FLAGS.model_pack_path == "":
-        print("ERROR: The path to the model package is empty. Use '-m' to pass in the model pack path.")
+        print(
+            error_prefix,
+            "The path to the model package is empty. Use '-m' to pass in the model pack path.",
+        )
         sys.exit(1)
     if FLAGS.output == "":
-        print("ERROR: The path to the output file is empty. Use '-o' to pass in the file of annotations.")
+        print(
+            error_prefix,
+            "The path to the output file is empty. Use '-o' to pass in the file of annotations.",
+        )
         sys.exit(1)
 
     with open(FLAGS.cuis, "r") as f:
@@ -123,7 +140,9 @@ if __name__ == "__main__":
         texts = random.sample(texts, FLAGS.sample_size)
 
     cat = CAT.load_model_pack(FLAGS.model_pack_path)
-    annotations = generate_annotations(cuis, texts, FLAGS.min_words, cat.cdb.addl_info["cui2original_names"])
+    annotations = generate_annotations(
+        cuis, texts, FLAGS.min_words, cat.cdb.addl_info["cui2original_names"]
+    )
 
     with open(FLAGS.output, "w") as f:
         json.dump(annotations, f, indent=4)

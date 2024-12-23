@@ -1,26 +1,33 @@
-import mlflow
 import tempfile
-import pandas as pd
 from typing import Generator
 from unittest.mock import Mock, call
+
+import mlflow
+import pandas as pd
 from mlflow.pyfunc import PythonModelContext
-from model_services.base import AbstractModelService
-from management.model_manager import ModelManager
+
 from config import Settings
 from exception import ManagedModelException
+
+from management.model_manager import ModelManager
+from model_services.base import AbstractModelService
 
 
 def test_retrieve_python_model_from_uri(mlflow_fixture):
     config = Settings()
     ModelManager.retrieve_python_model_from_uri("model_uri", config)
-    mlflow.set_tracking_uri.assert_has_calls([call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)])
+    mlflow.set_tracking_uri.assert_has_calls(
+        [call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)]
+    )
     mlflow.pyfunc.load_model.assert_called_once_with(model_uri="model_uri")
 
 
 def test_retrieve_model_service_from_uri(mlflow_fixture):
     config = Settings()
     model_service = ModelManager.retrieve_model_service_from_uri("model_uri", config)
-    mlflow.set_tracking_uri.assert_has_calls([call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)])
+    mlflow.set_tracking_uri.assert_has_calls(
+        [call(config.MLFLOW_TRACKING_URI), call(config.MLFLOW_TRACKING_URI)]
+    )
     mlflow.pyfunc.load_model.assert_called_once_with(model_uri="model_uri")
     assert model_service._config.BASE_MODEL_FULL_PATH == "model_uri"
     assert model_service._config == config
@@ -30,45 +37,54 @@ def test_download_model_package(mlflow_fixture):
     try:
         ModelManager.download_model_package("mlflow_tracking_uri", "/tmp")
     except ManagedModelException as e:
-        assert "Cannot find the model .zip file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
+        assert (
+            "Cannot find the model .zip file inside artifacts downloaded from mlflow_tracking_uri"
+            == str(e)
+        )
 
 
 def test_log_model_with_registration(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_info = model_manager.log_model("model_name", "filepath", "model_name")
     assert model_info is not None
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=model_manager,
-                                                    signature=model_manager.model_signature,
-                                                    code_path=model_manager._get_code_path_list(),
-                                                    pip_requirements=model_manager._get_pip_requirements_from_file(),
-                                                    artifacts={"model_path": "filepath"},
-                                                    registered_model_name="model_name")
+    mlflow.pyfunc.log_model.assert_called_once_with(
+        artifact_path="model_name",
+        python_model=model_manager,
+        signature=model_manager.model_signature,
+        code_path=model_manager._get_code_path_list(),
+        pip_requirements=model_manager._get_pip_requirements_from_file(),
+        artifacts={"model_path": "filepath"},
+        registered_model_name="model_name",
+    )
 
 
 def test_log_model_without_registration(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_info = model_manager.log_model("model_name", "filepath")
     assert model_info is not None
-    mlflow.pyfunc.log_model.assert_called_once_with(artifact_path="model_name",
-                                                    python_model=model_manager,
-                                                    signature=model_manager.model_signature,
-                                                    code_path=model_manager._get_code_path_list(),
-                                                    pip_requirements=model_manager._get_pip_requirements_from_file(),
-                                                    artifacts={"model_path": "filepath"},
-                                                    registered_model_name=None)
+    mlflow.pyfunc.log_model.assert_called_once_with(
+        artifact_path="model_name",
+        python_model=model_manager,
+        signature=model_manager.model_signature,
+        code_path=model_manager._get_code_path_list(),
+        pip_requirements=model_manager._get_pip_requirements_from_file(),
+        artifacts={"model_path": "filepath"},
+        registered_model_name=None,
+    )
 
 
 def test_save_model(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     with tempfile.TemporaryDirectory() as local_dir:
         model_manager.save_model(local_dir, ".")
-        mlflow.pyfunc.save_model.assert_called_once_with(path=local_dir,
-                                                         python_model=model_manager,
-                                                         signature=model_manager.model_signature,
-                                                         code_path=model_manager._get_code_path_list(),
-                                                         pip_requirements=model_manager._get_pip_requirements_from_file(),
-                                                         artifacts={"model_path": "."})
+        mlflow.pyfunc.save_model.assert_called_once_with(
+            path=local_dir,
+            python_model=model_manager,
+            signature=model_manager.model_signature,
+            code_path=model_manager._get_code_path_list(),
+            pip_requirements=model_manager._get_pip_requirements_from_file(),
+            artifacts={"model_path": "."},
+        )
 
 
 def test_load_context(mlflow_fixture):
@@ -81,7 +97,7 @@ def test_get_model_signature():
     model_manager = ModelManager(_MockedModelService, Settings())
     assert model_manager.model_signature.inputs.to_dict() == [
         {"type": "string", "name": "name", "required": False},
-        {"type": "string", "name": "text", "required": True}
+        {"type": "string", "name": "text", "required": True},
     ]
     assert model_manager.model_signature.outputs.to_dict() == [
         {"type": "string", "name": "doc_name", "required": True},
@@ -100,58 +116,88 @@ def test_predict(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    output = model_manager.predict(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
+    model_manager._model_service.annotate.return_value = [
+        {
+            "label_name": "Spinal stenosis",
+            "label_id": "76107001",
+            "start": 0,
+            "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+        }
+    ]
+    output = model_manager.predict(
+        None,
+        pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]),
+    )
     assert output.to_dict() == {
         "doc_name": {0: "doc_1", 1: "doc_2"},
         "label_name": {0: "Spinal stenosis", 1: "Spinal stenosis"},
         "label_id": {0: "76107001", 1: "76107001"},
-        "start": {0: 0, 1: 0}, "end": {0: 15, 1: 15},
+        "start": {0: 0, 1: 0},
+        "end": {0: 15, 1: 15},
         "accuracy": {0: 1.0, 1: 1.0},
-        "meta_anns": {0: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}, 1: {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}}}
+        "meta_anns": {
+            0: {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+            1: {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+        },
+    }
 
 
 def test_predict_stream(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [{
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    }]
-    output = model_manager.predict_stream(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
+    model_manager._model_service.annotate.return_value = [
+        {
+            "label_name": "Spinal stenosis",
+            "label_id": "76107001",
+            "start": 0,
+            "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+        }
+    ]
+    output = model_manager.predict_stream(
+        None,
+        pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]),
+    )
     assert isinstance(output, Generator)
     assert list(output) == [
-        {"doc_name": "doc_1", "label_name": "Spinal stenosis", "label_id": "76107001", "start": 0, "end": 15, "accuracy": 1.0, "meta_anns": {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}},
-        {"doc_name": "doc_2", "label_name": "Spinal stenosis", "label_id": "76107001", "start": 0, "end": 15, "accuracy": 1.0, "meta_anns": {"Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}}},
+        {
+            "doc_name": "doc_1",
+            "label_name": "Spinal stenosis",
+            "label_id": "76107001",
+            "start": 0,
+            "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+        },
+        {
+            "doc_name": "doc_2",
+            "label_name": "Spinal stenosis",
+            "label_id": "76107001",
+            "start": 0,
+            "end": 15,
+            "accuracy": 1.0,
+            "meta_anns": {
+                "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
+            },
+        },
     ]
 
 
 class _MockedModelService(AbstractModelService):
-
     def __init__(self, config: Settings, *args, **kwargs) -> None:
         self._config = config
         self.model_name = "Mocked Model"

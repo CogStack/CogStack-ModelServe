@@ -1,11 +1,13 @@
 from fastapi import FastAPI
+
 from utils import get_settings
+
 from api.utils import (
     add_exception_handlers,
     add_rate_limiter,
-    get_rate_limiter,
-    encrypt,
     decrypt,
+    encrypt,
+    get_rate_limiter,
 )
 
 
@@ -88,6 +90,12 @@ QySZIZwb2mZd3nozPMzBJuTh5QK+KPkzSeJTihuIZh8ZImD0LX3TX8KSdz9oZQQR
 cExDsxcGU7ZcTO9WVwDhqF/9ofkXfLOFKxugLNEA5RA3gRcpCxMRLS4k6dfN9N9o
 3RQZkF/usTTvyvFQR96frZb2FQ==
 -----END PRIVATE KEY-----"""
-    encrypted = "TLlMBh4GDf3BSsO/RKlqG5H7Sxv7OXGbl8qE/6YLQPm3coBbnrRRReX7pLamnjLPUU0PtIRIg2H/hWBWE/3cRtXDPT7jMtmGHMIPO/95A0DkrndIkOeQ29J6TBPBBG6YqBNRb2dyhDBwDIEDjPTiRe68sYz4KkxzSOkcz31314kSkZvdIDtQOgeRDa0/7U0VrJePL2N7SJvEiHf4Xa3vW3/20S3O8s/Yp0Azb/kS9dFa54VO1fNNhJ46OtPpdekiFDR5yvQfHwFVeSDdY+eAuYLTWa6bz/LrQkRAdRi9EW5Iz/q8WgKhZXQJfcXtiKfVuFar2N2KodY7C/45vMOfvw=="
+    encrypted = """
+TLlMBh4GDf3BSsO/RKlqG5H7Sxv7OXGbl8qE/6YLQPm3coBbnrRRReX7pLamnjLP
+UU0PtIRIg2H/hWBWE/3cRtXDPT7jMtmGHMIPO/95A0DkrndIkOeQ29J6TBPBBG6Y
+qBNRb2dyhDBwDIEDjPTiRe68sYz4KkxzSOkcz31314kSkZvdIDtQOgeRDa0/7U0V
+rJePL2N7SJvEiHf4Xa3vW3/20S3O8s/Yp0Azb/kS9dFa54VO1fNNhJ46OtPpdeki
+FDR5yvQfHwFVeSDdY+eAuYLTWa6bz/LrQkRAdRi9EW5Iz/q8WgKhZXQJfcXtiKfV
+uFar2N2KodY7C/45vMOfvw=="""
     decrypted = decrypt(encrypted, fake_private_key_pem)
     assert decrypted == "test"

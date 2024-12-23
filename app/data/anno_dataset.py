@@ -1,7 +1,9 @@
-import datasets
 import json
 from pathlib import Path
-from typing import List, Iterable, Tuple, Dict
+from typing import Dict, Iterable, List, Tuple
+
+import datasets
+
 from utils import filter_by_concept_ids
 
 
@@ -10,7 +12,6 @@ class AnnotationDatasetConfig(datasets.BuilderConfig):
 
 
 class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
-
     BUILDER_CONFIGS = [
         AnnotationDatasetConfig(
             name="json_annotation",
@@ -21,26 +22,38 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
 
     def _info(self) -> datasets.DatasetInfo:
         return datasets.DatasetInfo(
-            description="Annotation Dataset. This is a dataset containing flattened MedCAT Trainer export",
+            description=(
+                "Annotation Dataset. This is a dataset containing flattened MedCAT Trainer export"
+            ),
             features=datasets.Features(
                 {
                     "project": datasets.Value("string"),
-                    "name":datasets.Value("string"),
+                    "name": datasets.Value("string"),
                     "text": datasets.Value("string"),
-                    "starts": datasets.Value("string"), # Mlflow ColSpec schema does not support HF Dataset Sequence
-                    "ends": datasets.Value("string"),   # Mlflow ColSpec schema does not support HF Dataset Sequence
-                    "labels": datasets.Value("string"), # Mlflow ColSpec schema does not support HF Dataset Sequence
+                    "starts": datasets.Value(
+                        "string"
+                    ),  # Mlflow ColSpec schema does not support HF Dataset Sequence
+                    "ends": datasets.Value(
+                        "string"
+                    ),  # Mlflow ColSpec schema does not support HF Dataset Sequence
+                    "labels": datasets.Value(
+                        "string"
+                    ),  # Mlflow ColSpec schema does not support HF Dataset Sequence
                 }
-            )
+            ),
         )
 
     def _split_generators(self, _: datasets.DownloadManager) -> List[datasets.SplitGenerator]:
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepaths": self.config.data_files["annotations"]})
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={"filepaths": self.config.data_files["annotations"]},
+            )
         ]
 
     def _generate_examples(self, filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
         return generate_examples(filepaths)
+
 
 def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
     id_ = 1
@@ -57,12 +70,15 @@ def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
                         starts.append(str(annotation["start"]))
                         ends.append(str(annotation["end"]))
                         labels.append(annotation["cui"])
-                    yield str(id_), {
-                        "project": project.get("name"),
-                        "name": document.get("name"),
-                        "text": document.get("text"),
-                        "starts": ",".join(starts),
-                        "ends": ",".join(ends),
-                        "labels": ",".join(labels),
-                    }
+                    yield (
+                        str(id_),
+                        {
+                            "project": project.get("name"),
+                            "name": document.get("name"),
+                            "text": document.get("text"),
+                            "starts": ",".join(starts),
+                            "ends": ",".join(ends),
+                            "labels": ",".join(labels),
+                        },
+                    )
                     id_ += 1

@@ -1,6 +1,7 @@
+from utils import get_settings
+
 from api.api import get_model_server, get_stream_server
 from api.dependencies import ModelServiceDep
-from utils import get_settings
 
 
 def test_get_model_server():
@@ -21,11 +22,23 @@ def test_get_model_server():
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
     assert {"name": "Metadata", "description": "Get the model card"} in tags
-    assert {"name": "Annotations", "description": "Retrieve NER entities by running the model"} in tags
+    assert {
+        "name": "Annotations",
+        "description": "Retrieve NER entities by running the model",
+    } in tags
     assert {"name": "Redaction", "description": "Redact the extracted NER entities"} in tags
-    assert {"name": "Rendering", "description": "Preview embeddable annotation snippet in HTML"} in tags
-    assert {"name": "Training", "description": "Trigger model training on input annotations"} in tags
-    assert {"name": "Evaluating", "description": "Evaluate the deployed model with trainer export"} in tags
+    assert {
+        "name": "Rendering",
+        "description": "Preview embeddable annotation snippet in HTML",
+    } in tags
+    assert {
+        "name": "Training",
+        "description": "Trigger model training on input annotations",
+    } in tags
+    assert {
+        "name": "Evaluating",
+        "description": "Evaluate the deployed model with trainer export",
+    } in tags
     assert {"name": "Authentication", "description": "Authenticate registered users"} in tags
     assert "/info" in paths
     assert "/process" in paths
@@ -64,7 +77,10 @@ def test_get_stream_server():
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
-    assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
+    assert {
+        "name": "Streaming",
+        "description": "Retrieve NER entities as a stream by running the model",
+    } in tags
     assert "/stream/process" in paths
     assert "/stream/ws" in paths
     assert "/auth/jwt/login" in paths

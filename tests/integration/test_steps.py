@@ -1,15 +1,18 @@
 import json
-import httpx
-import api.globals as cms_globals
-from pytest_bdd import scenarios, given, when, then, parsers
 from unittest.mock import create_autospec
+
+import httpx
 from fastapi.testclient import TestClient
+from pytest_bdd import given, parsers, scenarios, then, when
+
+from domain import ModelCard, ModelType
+from helper import async_to_sync, data_table
+from utils import get_settings
+
+import api.globals as cms_globals
+from api.api import get_model_server, get_stream_server
 from management.model_manager import ModelManager
 from model_services.medcat_model import MedCATModel
-from domain import ModelCard, ModelType
-from api.api import get_model_server, get_stream_server
-from utils import get_settings
-from helper import data_table, async_to_sync
 
 scenarios("features/serving.feature")
 scenarios("features/serving_stream.feature")
@@ -27,11 +30,7 @@ def cms_is_running():
         "end": 15,
         "accuracy": 1.0,
         "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
+            "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
         },
     }
     model_service.annotate.return_value = [single_annotation]
@@ -40,12 +39,14 @@ def cms_is_running():
         [single_annotation],
     ]
     model_service.batch_annotate.return_value = annotations_list
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "medcat_model_description",
-        "model_type": ModelType.MEDCAT_SNOMED,
-        "model_card": None,
-    })
+    model_card = ModelCard.parse_obj(
+        {
+            "api_version": "0.0.1",
+            "model_description": "medcat_model_description",
+            "model_type": ModelType.MEDCAT_SNOMED,
+            "model_card": None,
+        }
+    )
     model_service.info.return_value = model_card
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
@@ -72,11 +73,7 @@ def cms_stream_is_running():
         "end": 15,
         "accuracy": 1.0,
         "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
+            "Status": {"value": "Affirmed", "confidence": 0.9999833106994629, "name": "Status"}
         },
     }
     model_service.async_annotate.return_value = [single_annotation]
@@ -109,9 +106,15 @@ def check_status_code(context, body, status_code):
     assert context["response"].status_code == status_code
 
 
-@when(data_table("I send a POST request with the following content", fixture="request", orient="dict"))
+@when(
+    data_table("I send a POST request with the following content", fixture="request", orient="dict")
+)
 def send_post_request(context, request):
-    context["response"] = context["client"].post(request[0]["endpoint"], data=request[0]["data"].replace("\\n", "\n"), headers={"Content-Type": request[0]["content_type"]})
+    context["response"] = context["client"].post(
+        request[0]["endpoint"],
+        data=request[0]["data"].replace("\\n", "\n"),
+        headers={"Content-Type": request[0]["content_type"]},
+    )
 
 
 @then("the response should contain json lines")
@@ -125,14 +128,8 @@ def check_response_jsonl(context):
 @then("the response should contain bulk annotations")
 def check_response_bulk(context):
     assert context["response"].json() == [
-        {
-            "text": "Spinal stenosis",
-            "annotations": [context["single_annotation"]]
-        },
-        {
-            "text": "Spinal stenosis",
-            "annotations": [context["single_annotation"]]
-        },
+        {"text": "Spinal stenosis", "annotations": [context["single_annotation"]]},
+        {"text": "Spinal stenosis", "annotations": [context["single_annotation"]]},
     ]
 
 
@@ -147,13 +144,19 @@ def check_response_previewed(context):
     assert context["response"].headers["Content-Type"] == "application/octet-stream"
 
 
-@when(data_table("I send an async POST request with the following content", fixture="request", orient="dict"))
+@when(
+    data_table(
+        "I send an async POST request with the following content", fixture="request", orient="dict"
+    )
+)
 @async_to_sync
 async def send_async_post_request(context_stream, request):
     async with httpx.AsyncClient(app=context_stream["app"], base_url="http://test") as ac:
-        context_stream["response"] = await ac.post(request[0]["endpoint"],
-                                                   data=request[0]["data"].replace("\\n", "\n").encode("utf-8"),
-                                                   headers={"Content-Type": request[0]["content_type"]})
+        context_stream["response"] = await ac.post(
+            request[0]["endpoint"],
+            data=request[0]["data"].replace("\\n", "\n").encode("utf-8"),
+            headers={"Content-Type": request[0]["content_type"]},
+        )
 
 
 @then("the response should contain annotation stream")
@@ -163,7 +166,10 @@ async def check_response_stream(context_stream):
     jsonlines = b""
     async for chunk in context_stream["response"].aiter_bytes():
         jsonlines += chunk
-    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **context_stream["single_annotation"]}
+    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {
+        "doc_name": "doc2",
+        **context_stream["single_annotation"],
+    }
 
 
 @when("I send a piece of text to the WS endpoint")

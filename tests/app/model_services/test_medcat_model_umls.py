@@ -1,10 +1,13 @@
 import os
 import tempfile
-import pytest
 from unittest.mock import Mock
-from tests.app.conftest import MODEL_PARENT_DIR
+
+import pytest
 from medcat.cat import CAT
+
 from domain import ModelType
+from tests.app.conftest import MODEL_PARENT_DIR
+
 from model_services.medcat_model_umls import MedCATModelUmls
 
 
@@ -22,22 +25,28 @@ def test_from_model(medcat_umls_model):
     assert new_model_service.model == medcat_umls_model.model
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_init_model(medcat_umls_model):
     medcat_umls_model.init_model()
     assert medcat_umls_model.model is not None
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_load_model(medcat_umls_model):
     cat = MedCATModelUmls.load_model(os.path.join(MODEL_PARENT_DIR, "umls_model.zip"))
     assert type(cat) is CAT
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_info(medcat_umls_model):
     medcat_umls_model.init_model()
     model_card = medcat_umls_model.info()
@@ -46,8 +55,10 @@ def test_info(medcat_umls_model):
     assert model_card.model_type == ModelType.MEDCAT_UMLS
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(medcat_umls_model):
     medcat_umls_model.init_model()
     annotations = medcat_umls_model.annotate("Spinal stenosis")
@@ -58,8 +69,10 @@ def test_annotate(medcat_umls_model):
     assert annotations[0]["accuracy"] > 0
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_train_supervised(medcat_umls_model):
     medcat_umls_model.init_model()
     medcat_umls_model._config.REDEPLOY_TRAINED_MODEL = "false"
@@ -70,8 +83,10 @@ def test_train_supervised(medcat_umls_model):
     medcat_umls_model._supervised_trainer.train.assert_called()
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "umls_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_train_unsupervised(medcat_umls_model):
     medcat_umls_model.init_model()
     medcat_umls_model._config.REDEPLOY_TRAINED_MODEL = "false"

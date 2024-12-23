@@ -1,11 +1,26 @@
 import os
+
 import datasets
+
 from app.data import anno_dataset
 
 
 def test_load_dataset():
-    trainer_export = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export_multi_projs.json")
-    dataset = datasets.load_dataset(anno_dataset.__file__, data_files={"annotations": trainer_export}, split="train", cache_dir="/tmp", trust_remote_code=True)
+    trainer_export = os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "resources",
+        "fixture",
+        "trainer_export_multi_projs.json",
+    )
+    dataset = datasets.load_dataset(
+        anno_dataset.__file__,
+        data_files={"annotations": trainer_export},
+        split="train",
+        cache_dir="/tmp",
+        trust_remote_code=True,
+    )
     assert dataset.features.to_dict() == {
         "project": {"dtype": "string", "_type": "Value"},
         "name": {"dtype": "string", "_type": "Value"},
@@ -23,7 +38,13 @@ def test_load_dataset():
 
 
 def test_generate_examples():
-    example_gen = anno_dataset.generate_examples([os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")])
+    example_gen = anno_dataset.generate_examples(
+        [
+            os.path.join(
+                os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json"
+            )
+        ]
+    )
     example = next(example_gen)
     assert example[0] == "1"
     assert "project" in example[1]

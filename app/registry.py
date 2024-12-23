@@ -1,10 +1,11 @@
 from domain import ModelType
-from model_services.trf_model_deid import TransformersModelDeIdentification
+
+from model_services.huggingface_ner_model import HuggingFaceNerModel
+from model_services.medcat_model_deid import MedCATModelDeIdentification
+from model_services.medcat_model_icd10 import MedCATModelIcd10
 from model_services.medcat_model_snomed import MedCATModelSnomed
 from model_services.medcat_model_umls import MedCATModelUmls
-from model_services.medcat_model_icd10 import MedCATModelIcd10
-from model_services.medcat_model_deid import MedCATModelDeIdentification
-from model_services.huggingface_ner_model import HuggingFaceNerModel
+from model_services.trf_model_deid import TransformersModelDeIdentification
 
 model_service_registry = {
     ModelType.MEDCAT_SNOMED.value: MedCATModelSnomed,
