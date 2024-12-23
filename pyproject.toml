@@ -52,6 +52,7 @@ Documentation = "https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_mo
 
 [project.optional-dependencies]
 dev = [
+    "pre-commit~=4.0.1",
     "pytest~=7.1.2",
     "pytest-mock~=3.7.0",
     "pytest-timeout~=2.1.0",

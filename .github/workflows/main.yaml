@@ -32,4 +32,4 @@ jobs:
         uses: astral-sh/ruff-action@v1
       - name: Test
         run: |
-          pytest --cov --cov-report=html:coverage_reports #--random-order 
+          pytest --cov --cov-report=html:coverage_reports #--random-order

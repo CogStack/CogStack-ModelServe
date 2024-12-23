@@ -29,7 +29,7 @@ python app/cli/cli.py train --help
 
 ## Download models:
 
-CMS runs the NLP model packaged in a single ZIP file. To download the GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org) 
+CMS runs the NLP model packaged in a single ZIP file. To download the GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org)
 if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
 package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP file by running:
 ```commandline
