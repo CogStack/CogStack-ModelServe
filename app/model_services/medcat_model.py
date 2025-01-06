@@ -101,10 +101,12 @@ class MedCATModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[Dict]:
         batch_size_chars = 500000
 
-        docs = self.model.multiprocessing(self._data_iterator(texts),
-                                          batch_size_chars=batch_size_chars,
-                                          nproc=max(int(cpu_count() / 2), 1),
-                                          addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
+        docs = self.model.multiprocessing_batch_char_size(
+            self._data_iterator(texts),
+            batch_size_chars=batch_size_chars,
+            nproc=max(int(cpu_count() / 2), 1),
+            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"]
+        )
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append(self.get_records_from_doc(doc))
