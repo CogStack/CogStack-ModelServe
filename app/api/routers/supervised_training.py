@@ -31,6 +31,7 @@ async def train_supervised(request: Request,
                            epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                            lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                            test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)")] = 0.2,
+                           early_stopping_patience: Annotated[Union[int, None], Query(description="The number of evaluations to wait for improvement before stopping the training. (A non-positive value can be used to disable early stopping)")] = -1,
                            log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
                            description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
                            tracking_id: Union[str, None] = Depends(validate_tracking_id),
@@ -64,7 +65,8 @@ async def train_supervised(request: Request,
                                                            description=description,
                                                            synchronised=False,
                                                            lr_override=lr_override,
-                                                           test_size=test_size)
+                                                           test_size=test_size,
+                                                           early_stopping_patience=early_stopping_patience)
     finally:
         for file in files:
             file.close()

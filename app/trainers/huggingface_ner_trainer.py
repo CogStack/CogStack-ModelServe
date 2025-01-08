@@ -27,6 +27,7 @@ from transformers import (
     TrainerState,
     TrainerControl,
     EvalPrediction,
+    EarlyStoppingCallback,
 )
 from evaluate.visualization import radar_plot
 from management.model_manager import ModelManager
@@ -145,13 +146,18 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             if training_params.get("lr_override") is not None:
                 training_args.learning_rate = training_params["lr_override"]
 
+            trainer_callbacks = [MLflowLoggingCallback(trainer._tracker_client)]
+            early_stopping_patience = training_params.get("early_stopping_patience", -1)
+            if early_stopping_patience > 0:
+                trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
+
             hf_trainer = Trainer(
                 model=mlm_model,
                 args=training_args,
                 data_collator=data_collator,
                 train_dataset=train_dataset,
                 eval_dataset=eval_dataset,
-                callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
+                callbacks=trainer_callbacks,
             )
 
             trainer._tracker_client.log_model_config(model.config.to_dict())
@@ -325,6 +331,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 logger.debug(f"Filtered concepts: {filtered_concepts}")
                 model = trainer._update_model_with_concepts(model, filtered_concepts)
 
+
                 test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
                 if test_size < 0:
                     logger.info("Using pre-defined train-validation-test split in trainer export...")
@@ -365,6 +372,11 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 if training_params.get("lr_override") is not None:
                     training_args.learning_rate = training_params["lr_override"]
 
+                trainer_callbacks = [MLflowLoggingCallback(trainer._tracker_client)]
+                early_stopping_patience = training_params.get("early_stopping_patience", -1)
+                if early_stopping_patience > 0:
+                    trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
+
                 hf_trainer = Trainer(
                     model=model,
                     args=training_args,
@@ -372,7 +384,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                     train_dataset=train_dataset,
                     eval_dataset=eval_dataset,
                     compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label, tracker_client=trainer._tracker_client, model_name=trainer._model_name),
-                    callbacks=[MLflowLoggingCallback(trainer._tracker_client)]
+                    callbacks=trainer_callbacks,
                 )
 
                 trainer._tracker_client.log_model_config(model.config.to_dict())
@@ -579,6 +591,14 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
             logger.exception(e)
 
     def _get_training_args(self, results_path: str, logs_path: str, training_params: Dict, log_frequency: int) -> TrainingArguments:
+        scaling_factor = 2
+        cpu_count = os.cpu_count() or 1
+        effective_batch_size = cpu_count * scaling_factor
+        workers = max(1, cpu_count // scaling_factor)
+        per_device_train_batch_size = max(1, effective_batch_size // workers)
+        per_device_eval_batch_size = max(1, effective_batch_size // workers)
+        eval_accumulation_steps = max(1, per_device_eval_batch_size // scaling_factor)
+        torch.set_num_threads(workers)
         return TrainingArguments(
             output_dir=results_path,
             logging_dir=logs_path,
@@ -588,15 +608,16 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
             logging_strategy="epoch",
             overwrite_output_dir=True,
             num_train_epochs=training_params["nepochs"],
-            per_device_train_batch_size=1,
-            per_device_eval_batch_size=1,
-            eval_accumulation_steps=1,
-            gradient_accumulation_steps=4,
+            per_device_train_batch_size=per_device_train_batch_size,
+            per_device_eval_batch_size=per_device_eval_batch_size,
+            eval_accumulation_steps=eval_accumulation_steps,
+            gradient_accumulation_steps=1,
             weight_decay=0.01,
             warmup_ratio=0.08,
             logging_steps=log_frequency,
             save_steps=1000,
             metric_for_best_model="eval_f1_avg",
+            greater_is_better=True,
             load_best_model_at_end=True,
             save_total_limit=3,
             use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,

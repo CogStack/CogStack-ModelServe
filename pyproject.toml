@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cogstack-model-serve"
 authors = [{name = "Xi Bai", email = "baixiac@gmail.com"}]
-description = "A model serving systecm for CogStack NLP solutions"
+description = "A model serving and governance system for CogStack NLP solutions"
 requires-python = ">=3.8"
 dynamic = ["version"]
 dependencies = [
@@ -62,7 +62,7 @@ dev = [
     "httpx~=0.24.1",
     "mypy==1.8.0",
     "ruff==0.6.9",
-    "locust~=2.11.0",
+    "locust~=2.31.8",
     "typer-cli~=0.12.3",
     "types-toml==0.10.8.20240310",
 ]

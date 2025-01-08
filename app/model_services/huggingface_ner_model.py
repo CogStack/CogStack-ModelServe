@@ -92,8 +92,11 @@ class HuggingFaceNerModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
-        with zipfile.ZipFile(model_file_path, "r") as f:
-            f.extractall(model_path)
+        if model_file_path.endswith(".zip"):
+            with zipfile.ZipFile(model_file_path, "r") as f:
+                f.extractall(model_path)
+        else:
+            raise ConfigurationException("Model package should be a zip file")
         try:
             model = AutoModelForTokenClassification.from_pretrained(model_path)
             tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=model.config.max_position_embeddings, add_special_tokens=False, do_lower_case=False)

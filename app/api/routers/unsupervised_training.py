@@ -8,7 +8,7 @@ import zipfile
 from typing import List, Tuple, Union
 from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, UploadFile, Query, Request, File
+from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 import api.globals as cms_globals
@@ -33,7 +33,7 @@ async def train_unsupervised(request: Request,
                              lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
                              log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
-                             description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
+                             description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
                              tracking_id: Union[str, None] = Depends(validate_tracking_id),
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """

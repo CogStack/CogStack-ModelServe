@@ -260,7 +260,7 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did, client)
 def test_train_supervised(model_service, client):
     model_service.train_supervised.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/train_supervised", files=[("trainer_export", f)])
+        response = client.post("/train_supervised?epochs=1&lr_override=0.01&test_size=0.2&early_stopping_patience=-1&log_frequency=1", files=[("trainer_export", f)])
 
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
@@ -282,7 +282,7 @@ def test_train_unsupervised(model_service, client):
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("[\"Spinal stenosis\"]"))
-        response = client.post("/train_unsupervised", files=[("training_data", f)])
+        response = client.post("/train_unsupervised?epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1", files=[("training_data", f)])
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -309,7 +309,7 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
     model_service.info.return_value = model_card
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
 
-    response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb")
+    response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb&hf_dataset_config=plain_text&trust_remote_code=false&text_column_name=text&epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1")
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -327,7 +327,7 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
 def test_train_metacat(model_service, client):
     model_service.train_metacat.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/train_metacat", files=[("trainer_export", f)])
+        response = client.post("/train_metacat?epochs=1&log_frequency=1", files=[("trainer_export", f)])
 
     model_service.train_metacat.assert_called()
     assert response.status_code == 202
