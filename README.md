@@ -22,9 +22,9 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 
 You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
 ```commandline
-python app/cli/cli.py --help
-python app/cli/cli.py serve --help
-python app/cli/cli.py train --help
+cms --help
+cms serve --help
+cms train --help
 ```
 
 ## Download models:
@@ -33,7 +33,7 @@ CMS runs the NLP model packaged in a single ZIP file. To download the GA models,
 if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
 package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP file by running:
 ```commandline
-python app/cli/cli.py package hf-model --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
+cms --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
 ```
 
 ## Run ModelServe in the system environment:
@@ -44,7 +44,7 @@ Default configuration properties can be found in `./app/envs/.envs` and further 
 ### Serve models via HTTP APIs
 To serve NLP models from your system environment, run the following command:
 ```commandline
-python app/cli/cli.py serve --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+cms serve --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
 ```
 Then the API docs similar to the ones shown above will be accessible at http://127.0.0.1:8000/docs.
 
@@ -108,12 +108,12 @@ export MLFLOW_TRACKING_URI=<MLFLOW_TRACKING_URI>
 
 After that, you can run ModelServe with a registered model. For example, with `minio` as the model storage backend,
 ```commandline
-python app/cli/cli.py serve --model-type medcat_icd10 --mlflow-model-uri s3://cms-model-bucket/EXPERIMENT_ID/RUN_ID/artifacts/REGISTERED_MODEL_NAME --host 0.0.0.0 --port 8000
+cms serve --model-type medcat_icd10 --mlflow-model-uri s3://cms-model-bucket/EXPERIMENT_ID/RUN_ID/artifacts/REGISTERED_MODEL_NAME --host 0.0.0.0 --port 8000
 ```
 
 You may want to push the package of a pretrained model to the registry before serving. For example, with `minio` being the model storage backend,
 ```commandline
-python app/cli/cli.py register --model-type medcat_snomed --model-path PATH/TO/MODEL_PACKAGE.zip --model-name REGISTERED_MODEL_NAME
+cms register --model-type medcat_snomed --model-path PATH/TO/MODEL_PACKAGE.zip --model-name REGISTERED_MODEL_NAME
 ```
 
 You can also serve a registered model through standard MLflow APIs instead of ModelServe APIs:

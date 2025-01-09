@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import json
 import logging.config
 import os
@@ -38,10 +40,10 @@ from management.model_manager import ModelManager  # noqa
 from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from management.tracker_client import TrackerClient  # noqa
 
-cmd_app = typer.Typer(name="python cli.py", help="CLI for various CogStack ModelServe operations", add_completion=False)
-stream_app = typer.Typer(name="python cli.py stream", help="This groups various stream operations", add_completion=False)
+cmd_app = typer.Typer(name="cms", help="CLI for various CogStack ModelServe operations", add_completion=True)
+stream_app = typer.Typer(name="stream", help="This groups various stream operations", add_completion=True)
 cmd_app.add_typer(stream_app, name="stream")
-package_app = typer.Typer(name="python cli.py package", help="This groups various package operations", add_completion=False)
+package_app = typer.Typer(name="package", help="This groups various package operations", add_completion=True)
 cmd_app.add_typer(package_app, name="package")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
