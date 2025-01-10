@@ -11,7 +11,7 @@ from domain import ModelCard, ModelType
 from utils import get_settings
 from model_services.medcat_model import MedCATModel
 from management.model_manager import ModelManager
-from unittest.mock import create_autospec, patch
+from unittest.mock import create_autospec, Mock
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"
@@ -343,6 +343,21 @@ def test_train_metacat(model_service, client):
     assert response.json()["message"] == "Your training started successfully."
     assert "training_id" in response.json()
     assert response.json().get("training_id") == TRACKING_ID
+
+
+def test_train_info(model_service, client):
+    tracker_client = Mock()
+    tracker_client.get_info_by_job_id.return_value = [{"run_id": "run_id", "status": "status"}]
+    model_service.get_tracker_client.return_value = tracker_client
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.get("/train_info?training_id=e3f303a9-3296-4a69-99e6-10de4e911453")
+
+    model_service.get_tracker_client.assert_called()
+    tracker_client.get_info_by_job_id.assert_called_with("e3f303a9-3296-4a69-99e6-10de4e911453")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["run_id"] == "run_id"
+    assert response.json()[0]["status"] == "status"
 
 
 def test_evaluate_with_trainer_export(model_service, client):

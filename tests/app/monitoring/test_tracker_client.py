@@ -275,3 +275,14 @@ def test_send_batched_model_stats(mlflow_fixture):
 def test_get_experiment_name():
     assert TrackerClient.get_experiment_name("SNOMED model") == "SNOMED_model"
     assert TrackerClient.get_experiment_name("SNOMED model", "unsupervised") == "SNOMED_model_unsupervised"
+
+
+def test_get_info_by_job_id(mlflow_fixture):
+    tracker_client = TrackerClient("")
+
+    job_info = tracker_client.get_info_by_job_id("job_id")
+
+    mlflow.search_runs.assert_called_once_with(filter_string="tags.mlflow.runName = 'job_id'",
+                                               search_all_experiments=True,
+                                               output_format="list")
+    assert len(job_info) == 1

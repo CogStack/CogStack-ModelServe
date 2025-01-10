@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict, final
+from typing import Any, List, Iterable, Tuple, Dict, final, Optional
 from config import Settings
 from domain import ModelCard
 
@@ -11,6 +11,9 @@ class AbstractModelService(ABC):
     def __init__(self, config: Settings, *args: Tuple, **kwargs: Dict[str, Any]) -> None:
         self._config = config
         self._model_name = "CMS model"
+        self._supervised_trainer = None
+        self._unsupervised_trainer = None
+        self._metacat_trainer = None
 
     @final
     @property
@@ -64,3 +67,13 @@ class AbstractModelService(ABC):
 
     def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
         raise NotImplementedError
+
+    def get_tracker_client(self) -> Optional[Any]:
+        if self._supervised_trainer is not None:
+            return self._supervised_trainer.tracker_client
+        elif self._unsupervised_trainer is not None:
+            return self._unsupervised_trainer.tracker_client
+        elif self._metacat_trainer is not None:
+            return self._metacat_trainer.tracker_client
+        else:
+            return None

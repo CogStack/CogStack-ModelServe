@@ -47,6 +47,10 @@ class TrainerCommon(object):
     def run_id(self) -> str:
         return self._run_id or ""
 
+    @property
+    def tracker_client(self) -> TrackerClient:
+        return self._tracker_client
+
     @final
     def start_training(self,
                        run: Callable,

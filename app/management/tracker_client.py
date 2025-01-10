@@ -10,6 +10,7 @@ from typing import Dict, Tuple, List, Optional, Union, final
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
+from mlflow.exceptions import MlflowException
 from management.model_manager import ModelManager
 from exception import StartTrainingException
 
@@ -206,6 +207,22 @@ class TrackerClient(object):
     @staticmethod
     def get_experiment_name(model_name: str, training_type: Optional[str] = "") -> str:
         return f"{model_name} {training_type}".replace(" ", "_") if training_type else model_name.replace(" ", "_")
+
+    @staticmethod
+    def get_info_by_job_id(job_id: str) -> List[Dict]:
+        try:
+            runs = mlflow.search_runs(filter_string=f"tags.mlflow.runName = '{job_id}'",
+                                      search_all_experiments=True,
+                                      output_format="list")
+            if len(runs) == 0:
+                logger.debug("Cannot find any runs with job ID '%s'", job_id)
+                return []
+            return [dict(run.info) for run in runs]
+        except MlflowException as e:
+            logger.exception(e)
+            logger.warning("Failed to retrieve the information about run '%s'", job_id)
+        return []
+
 
     def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000) -> None:
         if batch_size <= 0:

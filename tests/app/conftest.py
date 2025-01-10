@@ -1,6 +1,6 @@
 import os
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, MagicMock
 from config import Settings
 from model_services.medcat_model_snomed import MedCATModelSnomed
 from model_services.medcat_model_icd10 import MedCATModelIcd10
@@ -16,6 +16,7 @@ MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "m
 def mlflow_fixture(mocker):
     active_run = Mock()
     pyfunc_model = Mock()
+    active_run.info = MagicMock()
     active_run.info.run_id = "run_id"
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
@@ -36,6 +37,7 @@ def mlflow_fixture(mocker):
     mocker.patch("mlflow.artifacts.download_artifacts")
     mocker.patch("mlflow.register_model")
     mocker.patch("mlflow.pyfunc.save_model")
+    mocker.patch("mlflow.search_runs", return_value=[active_run])
 
 
 @pytest.fixture(scope="function")

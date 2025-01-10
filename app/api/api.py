@@ -56,6 +56,7 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
         if config.DISABLE_METACAT_TRAINING != "true":
             app = _load_metacat_training_router(app)
             logger.debug("Metacat training router loaded")
+        app = _load_training_operations(app)
 
     if config.ENABLE_EVALUATION_APIS == "true":
         app = _load_evaluation_router(app)
@@ -242,6 +243,12 @@ def _load_metacat_training_router(app: FastAPI) -> FastAPI:
     app.include_router(metacat_training.router)
     return app
 
+
+def _load_training_operations(app: FastAPI) -> FastAPI:
+    from api.routers import training_operations
+    importlib.reload(training_operations)
+    app.include_router(training_operations.router)
+    return app
 
 def _load_health_check_router(app: FastAPI) -> FastAPI:
     from api.routers import health_check
