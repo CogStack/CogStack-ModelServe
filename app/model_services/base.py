@@ -1,19 +1,28 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict, final, Optional
+from typing import Any, List, Iterable, Tuple, Dict, final, Optional, Generic, TypeVar, Protocol
 from config import Settings
 from domain import ModelCard
 
+class _TrainerCommon(Protocol):
+    def stop_training(self) -> bool:
+        ...
 
-class AbstractModelService(ABC):
+    @property
+    def tracker_client(self) -> Any:
+        ...
+
+T = TypeVar("T", bound=_TrainerCommon)
+
+class AbstractModelService(ABC, Generic[T]):
 
     @abstractmethod
     def __init__(self, config: Settings, *args: Tuple, **kwargs: Dict[str, Any]) -> None:
         self._config = config
         self._model_name = "CMS model"
-        self._supervised_trainer = None
-        self._unsupervised_trainer = None
-        self._metacat_trainer = None
+        self._supervised_trainer: Optional[T] = None
+        self._unsupervised_trainer: Optional[T] = None
+        self._metacat_trainer: Optional[T] = None
 
     @final
     @property
@@ -67,6 +76,12 @@ class AbstractModelService(ABC):
 
     def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
         raise NotImplementedError
+
+    def cancel_training(self) -> bool:
+        st_stopped = False if self._supervised_trainer is None else self._supervised_trainer.stop_training()
+        ut_stopped = False if self._unsupervised_trainer is None else self._unsupervised_trainer.stop_training()
+        mt_stopped = False if self._metacat_trainer is None else self._metacat_trainer.stop_training()
+        return st_stopped or ut_stopped or mt_stopped
 
     def get_tracker_client(self) -> Optional[Any]:
         if self._supervised_trainer is not None:

@@ -47,7 +47,6 @@ package_app = typer.Typer(name="package", help="This groups various package oper
 cmd_app.add_typer(package_app, name="package")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
-
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
 def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
                 model_path: str = typer.Option("", help="The file path to the model package"),
@@ -465,6 +464,23 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
         openapi["info"]["title"] = api_title
         json.dump(app.openapi(), api_doc, indent=4)
     typer.echo(f"OpenAPI doc exported to {doc_name}")
+
+
+@cmd_app.callback()
+# ruff: noqa
+def show_banner() -> None:
+    banner = """
+       _____             _____ _             _      __  __           _      _  _____
+      / ____|           / ____| |           | |    |  \/  |         | |    | |/ ____|
+     | |     ___   __ _| (___ | |_ __ _  ___| | __ | \  / | ___   __| | ___| | (___   ___ _ ____   _____
+     | |    / _ \ / _` |\___ \| __/ _` |/ __| |/ / | |\/| |/ _ \ / _` |/ _ \ |\___ \ / _ \ '__\ \ / / _ \\
+     | |___| (_) | (_| |____) | || (_| | (__|   <  | |  | | (_) | (_| |  __/ |____) |  __/ |   \ V /  __/
+      \_____\___/ \__, |_____/ \__\__,_|\___|_|\_\ |_|  |_|\___/ \__,_|\___|_|_____/ \___|_|    \_/ \___|
+                   __/ |
+                  |___/
+
+    """
+    typer.echo(banner)
 
 
 def _get_logger(debug: Optional[bool] = None,

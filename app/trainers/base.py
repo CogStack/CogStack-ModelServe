@@ -30,6 +30,7 @@ class TrainerCommon(object):
         self._run_id = None
         self._tracker_client = TrackerClient(self._config.MLFLOW_TRACKING_URI)
         self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
+        self._cancel_event = threading.Event()
 
     @property
     def model_name(self) -> str:
@@ -124,6 +125,15 @@ class TrainerCommon(object):
             loop.run_until_complete(training_task)
 
         return True, self.experiment_id, self.run_id
+
+    @final
+    def stop_training(self) -> bool:
+        with self._training_lock:
+            if self._training_in_progress:
+                self._cancel_event.set()
+                return True
+            return False
+
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:

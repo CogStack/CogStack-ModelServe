@@ -6,6 +6,10 @@ class TrainingFailedException(Exception):
     """ An exception raised due to failure on training"""
 
 
+class TrainingCancelledException(Exception):
+    """ An exception raised due to cancellation of training"""
+
+
 class ConfigurationException(Exception):
     """ An exception raised due to configuration errors"""
 

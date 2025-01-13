@@ -350,7 +350,7 @@ def test_train_info(model_service, client):
     tracker_client.get_info_by_job_id.return_value = [{"run_id": "run_id", "status": "status"}]
     model_service.get_tracker_client.return_value = tracker_client
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.get("/train_info?training_id=e3f303a9-3296-4a69-99e6-10de4e911453")
+        response = client.get("/train_eval_info?train_eval_id=e3f303a9-3296-4a69-99e6-10de4e911453")
 
     model_service.get_tracker_client.assert_called()
     tracker_client.get_info_by_job_id.assert_called_with("e3f303a9-3296-4a69-99e6-10de4e911453")
@@ -377,6 +377,13 @@ def test_evaluate_with_trainer_export(model_service, client):
     assert response.json()["message"] == "Your evaluation started successfully."
     assert "evaluation_id" in response.json()
     assert response.json().get("evaluation_id") == TRACKING_ID
+
+
+def test_cancel_training(model_service, client):
+    response = client.post("/cancel_training")
+
+    model_service.cancel_training.assert_called()
+    assert response.status_code == 202
 
 
 def test_sanity_check_with_trainer_export(client):

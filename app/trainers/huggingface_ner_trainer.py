@@ -7,6 +7,7 @@ import shutil
 import datasets
 import random
 import tempfile
+import threading
 import numpy as np
 import pandas as pd
 from functools import partial
@@ -146,7 +147,9 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             if training_params.get("lr_override") is not None:
                 training_args.learning_rate = training_params["lr_override"]
 
-            trainer_callbacks = [MLflowLoggingCallback(trainer._tracker_client)]
+            mlflow_logging_callback = MLflowLoggingCallback(trainer._tracker_client)
+            cancel_event_check_callback = CancelEventCheckCallback(trainer._cancel_event)
+            trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
             early_stopping_patience = training_params.get("early_stopping_patience", -1)
             if early_stopping_patience > 0:
                 trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
@@ -164,6 +167,11 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             trainer._tracker_client.log_trainer_version(transformers_version)
             logger.info("Performing unsupervised training...")
             hf_trainer.train()
+
+            if cancel_event_check_callback.training_cancelled:
+                logger.info("Supervised training was cancelled by the user")
+                trainer._tracker_client.end_with_interruption()
+                return
 
             model = trainer._get_final_model(model, mlm_model)
             if not skip_save_model:
@@ -372,7 +380,9 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 if training_params.get("lr_override") is not None:
                     training_args.learning_rate = training_params["lr_override"]
 
-                trainer_callbacks = [MLflowLoggingCallback(trainer._tracker_client)]
+                mlflow_logging_callback = MLflowLoggingCallback(trainer._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(trainer._cancel_event)
+                trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
                 early_stopping_patience = training_params.get("early_stopping_patience", -1)
                 if early_stopping_patience > 0:
                     trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
@@ -392,6 +402,11 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
 
                 logger.info("Performing supervised training...")
                 hf_trainer.train()
+
+                if cancel_event_check_callback.training_cancelled:
+                    logger.info("Supervised training was cancelled")
+                    trainer._tracker_client.end_with_interruption()
+                    return
 
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
@@ -680,3 +695,20 @@ class MLflowLoggingCallback(TrainerCallback):
         if logs is not None:
             self.tracker_client.send_hf_metrics_logs(logs, self.epoch)
         self.epoch += 1
+
+
+@final
+class CancelEventCheckCallback(TrainerCallback):
+    def __init__(self, cancel_event: threading.Event) -> None:
+        self.cancel_event = cancel_event
+        self.training_cancelled = False
+
+    def on_step_end(self,
+                    args: TrainingArguments,
+                    state: TrainerState,
+                    control: TrainerControl,
+                    **kwargs: Dict[str, Any]) -> None:
+        if self.cancel_event.is_set():
+            control.should_training_stop = True
+            self.cancel_event.clear()
+            self.training_cancelled = True
