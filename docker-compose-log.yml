@@ -4,7 +4,6 @@ services:
 
   mongodb:
     image: mongo:5.0
-    container_name: cms_mongodb
     volumes:
       - mongodb_data:/data/db
     restart: always
@@ -20,7 +19,6 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:2.4.0
-    container_name: cms_opensearch
     environment:
       - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
       - bootstrap.memory_lock=true
@@ -47,7 +45,6 @@ services:
 
   graylog:
     image: graylog/graylog:5.0
-    container_name: cms_graylog
     depends_on:
       opensearch:
         condition: "service_healthy"

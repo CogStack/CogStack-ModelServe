@@ -4,7 +4,6 @@ services:
 
   prometheus:
     image: prom/prometheus:v2.41.0
-    container_name: cms_prometheus
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -29,7 +28,6 @@ services:
 
   grafana:
     image: grafana/grafana:9.3.2-ubuntu
-    container_name: cms_grafana
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -51,7 +49,6 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.25.0
-    container_name: cms_alertmanager
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -73,7 +70,6 @@ services:
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.46.0
-    container_name: cms_cadvisor
     restart: always
     networks:
       - cogstack-model-serve_cms

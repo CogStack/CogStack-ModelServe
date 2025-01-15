@@ -10,7 +10,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_proxy
     restart: always
     networks:
       - cogstack-model-serve_cms

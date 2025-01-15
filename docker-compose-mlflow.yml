@@ -4,7 +4,6 @@ services:
 
   mlflow-db:
     image: postgres:14
-    container_name: cms_mlflow-db
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -24,7 +23,6 @@ services:
 
   minio:
     image: minio/minio:RELEASE.2022-06-30T20-58-09Z
-    container_name: cms_minio
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -71,7 +69,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_mlflow-ui
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -80,7 +77,7 @@ services:
     environment:
       - MLFLOW_DB_USERNAME=$MLFLOW_DB_USERNAME
       - MLFLOW_DB_PASSWORD=$MLFLOW_DB_PASSWORD
-      - MLFLOW_BACKEND_STORE_URI=postgresql://$MLFLOW_DB_USERNAME:$MLFLOW_DB_PASSWORD@cms_mlflow-db:5432/mlflow-backend-store
+      - MLFLOW_BACKEND_STORE_URI=postgresql://$MLFLOW_DB_USERNAME:$MLFLOW_DB_PASSWORD@mlflow-db:5432/mlflow-backend-store
       - MLFLOW_TRACKING_URI=http://localhost:5000
       - ARTIFACTS_DESTINATION=s3://cms-model-bucket
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
@@ -121,7 +118,6 @@ services:
         - NO_PROXY=$NO_PROXY
     profiles:
       - wip
-    container_name: cms_mlflow-deployments
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -153,7 +149,8 @@ services:
         - NO_PROXY=$NO_PROXY
     profiles:
       - wip
-    container_name: cms_mlflow-${MODEL_NAME:-model}
+    labels:
+      - org.cogstack.model-serve.model-name=${MODEL_NAME:-model}
     restart: always
     networks:
       - cogstack-model-serve_cms

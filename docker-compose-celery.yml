@@ -12,7 +12,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_worker
     networks:
       - cms
     volumes:
@@ -32,7 +31,6 @@ services:
     build:
       context: ./
       dockerfile: ./docker/celery/Dockerfile-Dashboard
-    container_name: cms_worker_dashboard
     networks:
       - cms
     ports:
@@ -45,7 +43,6 @@ services:
 
   redis:
     image: redis:7
-    container_name: cms_redis
     networks:
       - cms
     ports:
