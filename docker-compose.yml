@@ -13,7 +13,6 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-snomed
     restart: always
     networks:
       - cms
@@ -63,7 +62,6 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-icd10
     restart: always
     networks:
       - cms
@@ -113,7 +111,6 @@ services:
           - HTTP_PROXY=$HTTP_PROXY
           - HTTPS_PROXY=$HTTPS_PROXY
           - NO_PROXY=$NO_PROXY
-    container_name: cms_trf-deid
     restart: always
     networks:
       - cms
@@ -162,7 +159,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-deid
     restart: always
     networks:
       - cms
@@ -212,7 +208,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_medcat-umls
     restart: always
     networks:
       - cms
@@ -262,7 +257,6 @@ services:
         - HTTP_PROXY=$HTTP_PROXY
         - HTTPS_PROXY=$HTTPS_PROXY
         - NO_PROXY=$NO_PROXY
-    container_name: cms_huggingface-ner
     restart: always
     networks:
       - cms
