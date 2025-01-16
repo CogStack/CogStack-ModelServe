@@ -38,7 +38,7 @@ from processors.metrics_collector import get_stats_from_trainer_export, sanity_c
 from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
-from exception import AnnotationException
+from exception import AnnotationException, TrainingCancelledException
 
 
 logger = logging.getLogger("cms")
@@ -169,9 +169,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             hf_trainer.train()
 
             if cancel_event_check_callback.training_cancelled:
-                logger.info("Supervised training was cancelled by the user")
-                trainer._tracker_client.end_with_interruption()
-                return
+                raise TrainingCancelledException("Training was cancelled by the user")
 
             model = trainer._get_final_model(model, mlm_model)
             if not skip_save_model:
@@ -192,6 +190,12 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
             trainer._tracker_client.end_with_success()
+        except TrainingCancelledException as e:
+            logger.exception(e)
+            logger.info("Unsupervised training was cancelled by the user")
+            del model
+            gc.collect()
+            trainer._tracker_client.end_with_interruption()
         except Exception as e:
             logger.exception("Unsupervised training failed")
             trainer._tracker_client.log_exceptions(e)
@@ -404,9 +408,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 hf_trainer.train()
 
                 if cancel_event_check_callback.training_cancelled:
-                    logger.info("Supervised training was cancelled")
-                    trainer._tracker_client.end_with_interruption()
-                    return
+                    raise TrainingCancelledException("Training was cancelled by the user")
 
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 trainer._tracker_client.log_document_size(num_of_docs)
@@ -433,6 +435,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Supervised training was cancelled")
+                del model
+                gc.collect()
+                trainer._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)

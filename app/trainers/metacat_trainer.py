@@ -8,7 +8,7 @@ import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
-from exception import TrainingFailedException
+from exception import TrainingFailedException, TrainingCancelledException
 from utils import non_default_device_is_available
 
 logger = logging.getLogger("cms")
@@ -58,6 +58,10 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 is_retrained = False
                 model.config.version.description = description or model.config.version.description
                 for meta_cat in model._meta_cats:
+                    if trainer._cancel_event.is_set():
+                        trainer._cancel_event.clear()
+                        raise TrainingCancelledException("Training was cancelled by the user")
+
                     category_name = meta_cat.config.general["category_name"]
                     if training_params.get("lr_override") is not None:
                         meta_cat.config.train.lr = training_params["lr_override"]
@@ -69,7 +73,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
-                        winner_report = meta_cat.train(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                        winner_report = meta_cat.train_from_json(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
                         is_retrained = True
                         report_stats = {
                             f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
@@ -110,6 +114,12 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Supervised training was cancelled by the user")
+                del model
+                gc.collect()
+                trainer._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)

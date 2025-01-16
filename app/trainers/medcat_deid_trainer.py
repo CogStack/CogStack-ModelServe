@@ -20,6 +20,7 @@ from utils import get_settings, non_default_device_is_available, get_hf_pipeline
 from management import tracker_client
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
+from exception import TrainingCancelledException
 
 logger = logging.getLogger("cms")
 
@@ -83,6 +84,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
+        training_cancelled = False
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
         eval_mode = training_params["nepochs"] == 0
@@ -125,6 +127,11 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 dataset = None
 
                 for training in range(training_params["nepochs"]):
+                    if trainer._cancel_event.is_set():
+                        trainer._cancel_event.clear()
+                        training_cancelled = True
+                        break
+
                     if dataset is not None:
                         dataset["train"] = dataset["train"].shuffle()
                         dataset["test"] = dataset["test"].shuffle()
@@ -183,6 +190,9 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
 
+                if training_cancelled:
+                    raise TrainingCancelledException("Training was cancelled by the user")
+
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -205,6 +215,12 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 results_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "results"))
                 if results_path and os.path.isdir(results_path):
                     shutil.rmtree(results_path)
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Supervised training was cancelled by the user")
+                del model
+                gc.collect()
+                trainer._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)

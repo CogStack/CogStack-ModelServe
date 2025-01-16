@@ -19,6 +19,7 @@ from processors.data_batcher import mini_batch
 from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
 from utils import get_func_params_as_dict, non_default_device_is_available
 from domain import DatasetSplit
+from exception import TrainingCancelledException
 
 logger = logging.getLogger("cms")
 
@@ -116,6 +117,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
                 train_supervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_supervised_params.items()}
                 model.config.version.description = description or model.config.version.description
+
                 with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
                     fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(data_file.name, **train_supervised_params)
                 trainer._save_examples(examples, ["tp", "tn"])
@@ -151,7 +153,9 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
                 trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
                 trainer._tracker_client.log_classes(cuis)
-                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
+                trainer._sanity_check_model_and_save_results(data_file.name,
+                                                             trainer._model_service.from_model(model))
+
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                     cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -169,6 +173,12 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
                 trainer._tracker_client.end_with_success()
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Supervised training was cancelled by the user")
+                del model
+                gc.collect()
+                trainer._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
                 trainer._tracker_client.log_exceptions(e)
@@ -215,6 +225,9 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 "f1": float(metric[3]),
             }
             self._tracker_client.send_model_stats(metrics, int(metric[0]))
+            if self._cancel_event.is_set():
+                self._cancel_event.clear()
+                raise TrainingCancelledException("Training cancelled by the user")
 
     def _save_trained_concepts(self,
                                training_concepts: Dict,
@@ -328,7 +341,11 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             num_of_docs = 0
             train_unsupervised_params = get_func_params_as_dict(model.train)
             train_unsupervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_unsupervised_params.items()}
+
             for batch in mini_batch(texts, batch_size=log_frequency):
+                if trainer._cancel_event.is_set():
+                    trainer._cancel_event.clear()
+                    raise TrainingCancelledException("Training cancelled by the user")
                 step += 1
                 model.train(batch, **train_unsupervised_params)
                 num_of_docs += len(batch)
@@ -348,6 +365,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                     "per_concept_train_count_after": train_count
                 })
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+
             if not skip_save_model:
                 model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
                 cdb_config_path = model_pack_path.replace(".zip", "_config.json")
@@ -365,6 +383,12 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
             trainer._tracker_client.end_with_success()
+        except TrainingCancelledException as e:
+            logger.exception(e)
+            logger.info("Unsupervised training was cancelled by the user")
+            del model
+            gc.collect()
+            trainer._tracker_client.end_with_interruption()
         except Exception as e:
             logger.exception("Unsupervised training failed")
             trainer._tracker_client.log_exceptions(e)
