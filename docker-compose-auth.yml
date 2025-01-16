@@ -1,10 +1,11 @@
 version: "3.6"
 
+name: cms
+
 services:
 
   auth-db:
     image: postgres:14
-    container_name: cms_auth-db
     restart: always
     networks:
       - cogstack-model-serve_cms

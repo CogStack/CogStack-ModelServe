@@ -1,6 +1,8 @@
 # This is for spinning up core services as single hosts in the DEV environment
 version: "3.6"
 
+name: dev-cms
+
 services:
 
   medcat-snomed:
@@ -8,7 +10,6 @@ services:
       file: ./docker-compose.yml
       service: medcat-snomed
     image: cogstack-model-serve_medcat-snomed:dev
-    container_name: dev-cms_medcat-snomed
     volumes:
       - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
     environment:
@@ -37,7 +38,6 @@ services:
       file: ./docker-compose.yml
       service: medcat-icd10
     image: cogstack-model-serve_medcat-icd10:dev
-    container_name: dev-cms_medcat-icd10
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -64,7 +64,6 @@ services:
       file: ./docker-compose.yml
       service: de-identification
     image: cogstack-model-serve_de-identification:dev
-    container_name: dev-cms_trf-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -91,7 +90,6 @@ services:
       file: ./docker-compose.yml
       service: medcat-deid
     image: cogstack-model-serve_medcat-deid:dev
-    container_name: dev-cms_medcat-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -118,7 +116,6 @@ services:
       file: ./docker-compose.yml
       service: medcat-umls
     image: cogstack-model-serve_medcat-umls:dev
-    container_name: dev-cms_medcat-umls
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
