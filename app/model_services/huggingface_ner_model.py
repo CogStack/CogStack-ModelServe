@@ -41,6 +41,7 @@ class HuggingFaceNerModel(AbstractModelService):
         self._tokenizer: PreTrainedTokenizerBase = None
         self._ner_pipeline: Pipeline = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
+        self._multi_label_threshold = 0.5
         self.model_name = model_name or "Hugging Face NER model"
 
     @property
@@ -143,6 +144,7 @@ class HuggingFaceNerModel(AbstractModelService):
             for idx, row in df.iterrows():
                 df.loc[idx, "label_id"] = row["entity_group"]
             df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
+            df = df[df["accuracy"] >= self._multi_label_threshold]
         records = df.to_dict("records")
         return records
 

@@ -84,7 +84,6 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
-        training_cancelled = False
         redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
         eval_mode = training_params["nepochs"] == 0
@@ -127,10 +126,6 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 dataset = None
 
                 for training in range(training_params["nepochs"]):
-                    if trainer._cancel_event.is_set():
-                        trainer._cancel_event.clear()
-                        training_cancelled = True
-                        break
 
                     if dataset is not None:
                         dataset["train"] = dataset["train"].shuffle()
@@ -163,35 +158,37 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         }
                         trainer._tracker_client.send_model_stats(mean_metrics, training)
 
-                cui2names = {}
-                eval_results.sort_values(by=["cui"])
-                aggregated_metrics = []
-                for _, row in eval_results.iterrows():
-                    if row["support"] == 0:  # the concept has not been used for annotation
-                        continue
-                    aggregated_metrics.append({
-                        "per_concept_p": row["p"] if row["p"] is not None else 0.0,
-                        "per_concept_r": row["r"] if row["r"] is not None else 0.0,
-                        "per_concept_f1": row["f1"] if row["f1"] is not None else 0.0,
-                        "per_concept_support": row["support"] if row["support"] is not None else 0.0,
-                        "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
-                        "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
-                    })
-                    cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
-                MedcatDeIdentificationSupervisedTrainer._save_metrics_plot(aggregated_metrics,
-                                                                           list(cui2names.values()),
-                                                                           trainer._tracker_client,
-                                                                           trainer._model_name)
-                trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-                trainer._save_examples(examples, ["tp", "tn"])
-                trainer._tracker_client.log_classes_and_names(cui2names)
-                cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
-                trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
+                    if (training + 1) == training_params["nepochs"] or trainer._cancel_event.is_set():
+                        cui2names = {}
+                        eval_results.sort_values(by=["cui"])
+                        aggregated_metrics = []
+                        for _, row in eval_results.iterrows():
+                            if row["support"] == 0:  # the concept has not been used for annotation
+                                continue
+                            aggregated_metrics.append({
+                                "per_concept_p": row["p"] if row["p"] is not None else 0.0,
+                                "per_concept_r": row["r"] if row["r"] is not None else 0.0,
+                                "per_concept_f1": row["f1"] if row["f1"] is not None else 0.0,
+                                "per_concept_support": row["support"] if row["support"] is not None else 0.0,
+                                "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
+                                "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
+                            })
+                            cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
+                        MedcatDeIdentificationSupervisedTrainer._save_metrics_plot(aggregated_metrics,
+                                                                                   list(cui2names.values()),
+                                                                                   trainer._tracker_client,
+                                                                                   trainer._model_name)
+                        trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+                        trainer._save_examples(examples, ["tp", "tn"])
+                        trainer._tracker_client.log_classes_and_names(cui2names)
+                        cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
+                        trainer._tracker_client.log_document_size(num_of_docs)
+                        trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
+                        trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model))
 
-                if training_cancelled:
-                    raise TrainingCancelledException("Training was cancelled by the user")
+                    if trainer._cancel_event.is_set():
+                        trainer._cancel_event.clear()
+                        raise TrainingCancelledException("Training was cancelled by the user")
 
                 if not skip_save_model:
                     model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)

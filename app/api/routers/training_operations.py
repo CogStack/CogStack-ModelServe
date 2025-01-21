@@ -86,8 +86,8 @@ async def get_evaluation_with_trainer_export(request: Request,
              tags=[Tags.Training.name],
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Cancel the in-progress training job (this is experimental and may not work as expected)")
-def cancel_training(request: Request,
-                    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+async def cancel_training(request: Request,
+                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     training_cancelled = model_service.cancel_training()
     if not training_cancelled:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST,
