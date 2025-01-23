@@ -10,7 +10,7 @@ from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedT
 from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
-from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available
+from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_package
 from exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -28,7 +28,7 @@ class MedCATModel(AbstractModelService):
         self._model: CAT = None
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
-        self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
+        self._model_pack_path = os.path.join(self._model_parent_dir, base_model_file or config.BASE_MODEL_FILE)
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
         self.model_name = model_name or "MedCAT model"
@@ -57,9 +57,14 @@ class MedCATModel(AbstractModelService):
 
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
-        cat = CAT.load_model_pack(model_file_path, *args, **kwargs)
-        logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
-        return cat
+        model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
+        if unpack_model_package(model_file_path, model_path):
+            cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), *args, **kwargs)
+            logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
+            return cat
+        else:
+            raise ConfigurationException("Model package archive format is not supported")
+
 
     @staticmethod
     def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:

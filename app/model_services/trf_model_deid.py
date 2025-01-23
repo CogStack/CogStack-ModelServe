@@ -28,7 +28,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         self._config = config
         model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
-        self._model_file_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
+        self._model_file_path = os.path.join(self._model_parent_dir, base_model_file or config.BASE_MODEL_FILE)
         if non_default_device_is_available(config.DEVICE):
             self._device = torch.device(config.DEVICE)
         self.model_name = model_name or "De-identification model"

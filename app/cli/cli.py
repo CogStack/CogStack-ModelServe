@@ -32,7 +32,7 @@ from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
-from domain import ModelType, TrainingType, BuildBackend, Device  # noqa
+from domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
 from registry import model_service_registry  # noqa
 from api.api import get_model_server, get_stream_server # noqa
 from utils import get_settings, send_gelf_message  # noqa
@@ -78,9 +78,11 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
     cms_globals.model_service_dep = model_service_dep
     model_server_app = get_model_server()
 
-    dst_model_path = os.path.join(parent_dir, "model", "model.zip")
-    if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
-        shutil.rmtree(dst_model_path.replace(".zip", ""))
+    dst_model_path = os.path.join(parent_dir, "model", "model.zip" if model_path.endswith(".zip") else "model.tar.gz")
+    config.BASE_MODEL_FILE = "model.zip" if model_path.endswith(".zip") else "model.tar.gz"
+    if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
+        shutil.rmtree(os.path.splitext(dst_model_path)[0])
+
     if model_path:
         try:
             shutil.copy2(model_path, dst_model_path)
@@ -129,9 +131,11 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
     model_service_dep = ModelServiceDep(model_type, config)
     cms_globals.model_service_dep = model_service_dep
 
-    dst_model_path = os.path.join(parent_dir, "model", "model.zip")
-    if dst_model_path and os.path.exists(dst_model_path.replace(".zip", "")):
-        shutil.rmtree(dst_model_path.replace(".zip", ""))
+    dst_model_path = os.path.join(parent_dir, "model", "model.zip" if base_model_path.endswith(".zip") else "model.tar.gz")
+    config.BASE_MODEL_FILE = "model.zip" if base_model_path.endswith(".zip") else "model.tar.gz"
+    if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
+        shutil.rmtree(os.path.splitext(dst_model_path)[0])
+
     if base_model_path:
         try:
             shutil.copy2(base_model_path, dst_model_path)
@@ -309,8 +313,9 @@ def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of
                   hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
                   cached_model_dir: str = typer.Option("", help="Path to the cached model directory, will only be used if --hf-repo-id is not provided"),
                   output_model_package: str = typer.Option("", help="Path to save the model package, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
+                  archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
                   remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
-) -> None:
+                  ) -> None:
     if hf_repo_id == "" and cached_model_dir == "":
         typer.echo("ERROR: Neither the repository ID of the Hugging Face model nor the cached model directory is passed in.")
         raise typer.Exit(code=1)
@@ -320,7 +325,6 @@ def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of
         raise typer.Exit(code=1)
 
     model_package_archive = os.path.abspath(os.path.expanduser(output_model_package))
-
     if hf_repo_id:
         try:
             if not hf_repo_revision:
@@ -328,16 +332,16 @@ def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of
             else:
                 download_path = snapshot_download(repo_id=hf_repo_id, revision=hf_repo_revision)
 
-            shutil.make_archive(model_package_archive, "zip", download_path)
+            shutil.make_archive(model_package_archive, archive_format.value, download_path)
         finally:
             if remove_cached:
                 cached_model_path = os.path.abspath(os.path.join(download_path, "..", ".."))
                 shutil.rmtree(cached_model_path)
     elif cached_model_dir:
         cached_model_path = os.path.abspath(os.path.expanduser(cached_model_dir))
-        shutil.make_archive(model_package_archive, "zip", cached_model_path)
+        shutil.make_archive(model_package_archive, archive_format.value, cached_model_path)
 
-    typer.echo(f"Model package saved to {model_package_archive}.zip")
+    typer.echo(f"Model package saved to {model_package_archive}.{'zip' if archive_format == ArchiveFormat.ZIP else 'tar.gz'}")
 
 
 @package_app.command("hf-dataset", help="This packages a remotely hosted or locally cached Hugging Face dataset into a dataset package")
@@ -345,6 +349,7 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
                     hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
                     cached_dataset_dir: str = typer.Option("", help="Path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
                     output_dataset_package: str = typer.Option("", help="Path to save the dataset package, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
+                    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the dataset package, e.g., 'zip' or 'gztar'"),
                     remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
                     trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset"),
 ) -> None:
@@ -369,15 +374,15 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
                                        trust_remote_code=trust_remote_code)
 
             dataset.save_to_disk(cached_dataset_path)
-            shutil.make_archive(dataset_package_archive, "zip", cached_dataset_path)
+            shutil.make_archive(dataset_package_archive, archive_format.value, cached_dataset_path)
         finally:
             if remove_cached:
                 shutil.rmtree(cache_dir)
     elif cached_dataset_dir != "":
         cached_dataset_path = os.path.abspath(os.path.expanduser(cached_dataset_dir))
-        shutil.make_archive(dataset_package_archive, "zip", cached_dataset_path)
+        shutil.make_archive(dataset_package_archive, archive_format.value, cached_dataset_path)
 
-    typer.echo(f"Dataset package saved to {dataset_package_archive}.zip")
+    typer.echo(f"Dataset package saved to {dataset_package_archive}.{'zip' if archive_format == ArchiveFormat.ZIP else 'tar.gz'}")
 
 
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")

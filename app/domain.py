@@ -82,6 +82,11 @@ class HfTransformerBackbone(Enum):
     XLM_ROBERTA = "xlm_roberta"
 
 
+class ArchiveFormat(Enum):
+    ZIP = "zip"
+    TAR_GZ = "gztar"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")

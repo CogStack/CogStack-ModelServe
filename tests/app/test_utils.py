@@ -2,7 +2,12 @@ import os
 import json
 import tempfile
 import torch
+import shutil
+import zipfile
+import tarfile
+import unittest
 from safetensors.torch import save_file
+
 
 from urllib.parse import urlparse
 from utils import (
@@ -21,6 +26,9 @@ from utils import (
     safetensors_to_pytorch,
     non_default_device_is_available,
     get_hf_pipeline_device_id,
+    get_model_package_extension,
+    unpack_model_package,
+    create_model_package,
 )
 
 
@@ -225,6 +233,105 @@ def test_get_hf_pipeline_device_id():
     assert get_hf_pipeline_device_id("cuda") == 0
     assert get_hf_pipeline_device_id("cuda:0") == 0
     assert get_hf_pipeline_device_id("mps:1") == 1
+
+
+def test_get_model_package_extension():
+    assert get_model_package_extension("model.zip") == ".zip"
+    assert get_model_package_extension("model.tar.gz") == ".tar.gz"
+    assert get_model_package_extension("model") == ""
+    assert get_model_package_extension("") == ""
+
+
+class TestUnpackModelPackage(unittest.TestCase):
+    def setUp(self):
+        self.model_folder_path = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.model_folder_path)
+
+    def test_unpack_zip_model_package(self):
+        model_file_path = os.path.join(self.model_folder_path, "model.zip")
+        with zipfile.ZipFile(model_file_path, "w") as f:
+            f.writestr("file1.txt", "content1")
+            f.writestr("subdir/file2.txt", "content2")
+
+        result = unpack_model_package(model_file_path, self.model_folder_path)
+
+        self.assertTrue(result)
+        self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "file1.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "subdir/file2.txt")))
+
+    def test_unpack_tar_gz_model_package(self):
+        model_file_path = os.path.join(self.model_folder_path, "model.tar.gz")
+        with tarfile.open(model_file_path, "w:gz") as f:
+            file1_path = os.path.join(self.model_folder_path, "file1.txt")
+            with open(file1_path, "w") as f1:
+                f1.write("content1")
+            f.add(file1_path, arcname="top_level/file1.txt")
+            subdir_path = os.path.join(self.model_folder_path, "subdir")
+            os.makedirs(subdir_path)
+            file2_path = os.path.join(subdir_path, "file2.txt")
+            with open(file2_path, "w") as f2:
+                f2.write("content2")
+            f.add(file2_path, arcname="top_level/subdir/file2.txt")
+
+        result = unpack_model_package(model_file_path, self.model_folder_path)
+
+        self.assertTrue(result)
+        self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "file1.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "subdir/file2.txt")))
+
+    def test_unpack_unsupported_model_package(self):
+        unknown_model_file_path = os.path.join(self.model_folder_path, "model.unknown")
+        with open(unknown_model_file_path, "w") as f:
+            f.write("content")
+
+        result = unpack_model_package(unknown_model_file_path, self.model_folder_path)
+
+        self.assertFalse(result)
+
+
+class TestCreateModelPackage(unittest.TestCase):
+    def setUp(self):
+        self.model_folder_path = tempfile.mkdtemp()
+        with open(os.path.join(self.model_folder_path, "file1.txt"), "w") as f:
+            f.write("content1")
+        subdir_path = os.path.join(self.model_folder_path, "subdir")
+        os.makedirs(subdir_path)
+        with open(os.path.join(subdir_path, "file2.txt"), "w") as f:
+            f.write("content2")
+
+    def tearDown(self):
+        shutil.rmtree(self.model_folder_path)
+
+    def test_create_zip_model_package(self):
+        model_file_path = os.path.join(self.model_folder_path, "model.zip")
+
+        result = create_model_package(self.model_folder_path, model_file_path)
+
+        self.assertTrue(result)
+        with zipfile.ZipFile(model_file_path, "r") as f:
+            extracted_files = f.namelist()
+            self.assertIn("file1.txt", extracted_files)
+            self.assertIn("subdir/file2.txt", extracted_files)
+
+    def test_create_tar_gz_model_package(self):
+        model_file_path = os.path.join(self.model_folder_path, "model.tar.gz")
+
+        result = create_model_package(self.model_folder_path, model_file_path)
+
+        self.assertTrue(result)
+        with tarfile.open(model_file_path, "r:gz") as f:
+            extracted_files = [member.name for member in f.getmembers()]
+            self.assertIn("file1.txt", extracted_files)
+            self.assertIn("subdir/file2.txt", extracted_files)
+
+    def test_create_unsupported_model_package(self):
+        unknown_model_file_path = os.path.join(self.model_folder_path, "model.unknown")
+
+        result = create_model_package(self.model_folder_path, unknown_model_file_path)
+
+        self.assertFalse(result)
 
 
 class _DummyModel(torch.nn.Module):

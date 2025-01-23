@@ -9,7 +9,7 @@ from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from exception import TrainingFailedException, TrainingCancelledException
-from utils import non_default_device_is_available
+from utils import non_default_device_is_available, get_model_package_extension
 
 logger = logging.getLogger("cms")
 
@@ -73,7 +73,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
-                        winner_report = meta_cat.train_from_json(data_file.name, os.path.join(copied_model_pack_path.replace(".zip", ""), f"meta_{category_name}"))
+                        mp_ext = get_model_package_extension(copied_model_pack_path)
+                        winner_report = meta_cat.train_from_json(data_file.name, os.path.join(copied_model_pack_path.replace(mp_ext, ""), f"meta_{category_name}"))
                         is_retrained = True
                         report_stats = {
                             f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
@@ -98,8 +99,12 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     return
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
-                    cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                    model_pack_path = trainer.save_model_pack(model,
+                                                              trainer._retrained_models_dir,
+                                                              trainer._config.BASE_MODEL_FILE,
+                                                              description)
+                    cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                                                              "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)

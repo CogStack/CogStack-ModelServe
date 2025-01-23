@@ -8,6 +8,8 @@ import copy
 import functools
 import warnings
 import torch
+import tarfile
+import zipfile
 import numpy as np
 import pandas as pd
 from spacy.lang.en import English
@@ -314,6 +316,53 @@ def get_hf_pipeline_device_id(device: str) -> int:
     else:
         device_id = -1
     return device_id
+
+
+def unpack_model_package(model_file_path: str, model_folder_path: str) -> bool:
+    if model_file_path.endswith(".zip"):
+        with zipfile.ZipFile(model_file_path, "r") as f:
+            f.extractall(model_folder_path)
+            return True
+    elif model_file_path.endswith(".tar.gz"):
+        with tarfile.open(model_file_path, "r:gz") as f:
+            for member in f.getmembers():
+                path_parts = member.name.split(os.sep)
+                stripped_path = os.sep.join(path_parts[1:])
+                if not stripped_path:
+                    continue
+                member.name = stripped_path
+                f.extract(member, path=model_folder_path)
+            return True
+    else:
+        return False
+
+
+def create_model_package(model_folder_path: str, model_file_path: str) -> bool:
+    if model_file_path.endswith(".zip"):
+        with zipfile.ZipFile(model_file_path, "w", zipfile.ZIP_DEFLATED) as f:
+            for root, dirs, files in os.walk(model_folder_path):
+                for file in files:
+                    rel_path = os.path.relpath(os.path.join(root, file), model_folder_path)
+                    f.write(os.path.join(root, file), rel_path)
+            return True
+    elif model_file_path.endswith(".tar.gz"):
+        with tarfile.open(model_file_path, "w:gz") as f:
+            for root, dirs, files in os.walk(model_folder_path):
+                for file in files:
+                    rel_path = os.path.relpath(os.path.join(root, file), model_folder_path)
+                    f.add(os.path.join(root, file), rel_path)
+            return True
+    else:
+        return False
+
+
+def get_model_package_extension(file_path: str, default_ext: str = "") -> str:
+    file_name, file_ext = os.path.splitext(file_path)
+    if file_ext == "":
+        return default_ext
+    else:
+        default_ext = file_ext + default_ext
+        return get_model_package_extension(file_name, default_ext)
 
 
 TYPE_ID_TO_NAME_PATCH = {

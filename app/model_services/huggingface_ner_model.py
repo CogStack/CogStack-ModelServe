@@ -1,6 +1,5 @@
 import os
 import logging
-import zipfile
 import pandas as pd
 
 from functools import partial
@@ -18,7 +17,7 @@ from model_services.base import AbstractModelService
 from trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
-from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id
+from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_package
 
 
 logger = logging.getLogger("cms")
@@ -35,7 +34,7 @@ class HuggingFaceNerModel(AbstractModelService):
         super().__init__(config)
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
-        self._model_pack_path = os.path.join(self._model_parent_dir, config.BASE_MODEL_FILE if base_model_file is None else base_model_file)
+        self._model_pack_path = os.path.join(self._model_parent_dir, base_model_file or config.BASE_MODEL_FILE)
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._model: PreTrainedModel = None
         self._tokenizer: PreTrainedTokenizerBase = None
@@ -92,19 +91,19 @@ class HuggingFaceNerModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
-        if model_file_path.endswith(".zip"):
-            with zipfile.ZipFile(model_file_path, "r") as f:
-                f.extractall(model_path)
+        if unpack_model_package(model_file_path, model_path):
+            try:
+                model = AutoModelForTokenClassification.from_pretrained(model_path)
+                tokenizer = AutoTokenizer.from_pretrained(model_path,
+                                                          model_max_length=model.config.max_position_embeddings,
+                                                          add_special_tokens=False, do_lower_case=False)
+                logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
+                return model, tokenizer
+            except ValueError as e:
+                logger.error(e)
+                raise ConfigurationException(f"Model package is not valid or not supported: {model_file_path}")
         else:
-            raise ConfigurationException("Model package should be a zip file")
-        try:
-            model = AutoModelForTokenClassification.from_pretrained(model_path)
-            tokenizer = AutoTokenizer.from_pretrained(model_path, model_max_length=model.config.max_position_embeddings, add_special_tokens=False, do_lower_case=False)
-            logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
-            return model, tokenizer
-        except ValueError as e:
-            logger.error(e)
-            raise ConfigurationException("Model package is not valid or not supported")
+            raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
     def init_model(self) -> None:
         if all([hasattr(self, "_model"),

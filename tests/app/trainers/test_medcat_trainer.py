@@ -39,7 +39,10 @@ def test_deploy_model():
 def test_save_model_pack():
     model = Mock()
     model.create_model_pack.return_value = "model_pack_name"
-    supervised_trainer.save_model_pack(model, "retrained_models_dir", "model description")
+    supervised_trainer.save_model_pack(model,
+                                       "retrained_models_dir",
+                                       "model.zip",
+                                       "model description")
     model.create_model_pack.called_once_with("retrained_models_dir", "model")
     assert model.config.version.description == "model description"
 

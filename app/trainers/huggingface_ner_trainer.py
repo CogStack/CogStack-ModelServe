@@ -3,7 +3,6 @@ import logging
 import torch
 import gc
 import json
-import shutil
 import datasets
 import random
 import tempfile
@@ -35,7 +34,13 @@ from management.model_manager import ModelManager
 from management.tracker_client import TrackerClient
 from model_services.base import AbstractModelService
 from processors.metrics_collector import get_stats_from_trainer_export, sanity_check_model_with_trainer_export
-from utils import filter_by_concept_ids, reset_random_seed, non_default_device_is_available
+from utils import (
+    filter_by_concept_ids,
+    reset_random_seed,
+    non_default_device_is_available,
+    create_model_package,
+    get_model_package_extension,
+)
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
 from exception import AnnotationException, TrainingCancelledException
@@ -52,7 +57,8 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
         self._model_service = model_service
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
-        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained",
+        self._retrained_models_dir = os.path.join(model_service._model_parent_dir,
+                                                  "retrained",
                                                   self._model_name.replace(" ", "_"))
         self._model_manager = ModelManager(type(model_service), model_service._config)
         self._max_length = model_service.model.config.max_position_embeddings
@@ -78,7 +84,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
             model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
-            copied_model_directory = copied_model_pack_path.replace(".zip", "")
+            copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
             mlm_model = trainer._get_mlm_model(model, copied_model_directory)
 
             if non_default_device_is_available(trainer._config.DEVICE):
@@ -173,10 +179,15 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 
             model = trainer._get_final_model(model, mlm_model)
             if not skip_save_model:
-                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
-                model.save_pretrained(copied_model_directory, safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
-                shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
-                model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name, trainer._model_manager)
+                model_pack_file_ext = get_model_package_extension(trainer._config.BASE_MODEL_FILE)
+                model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
+                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
+                model.save_pretrained(copied_model_directory,
+                                      safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                create_model_package(copied_model_directory, retrained_model_pack_path)
+                model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
+                                                               trainer._model_name,
+                                                               trainer._model_manager)
                 logger.info(f"Retrained model saved: {model_uri}")
             else:
                 logger.info("Skipped saving on the retrained model")
@@ -334,7 +345,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
                 model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
-                copied_model_directory = copied_model_pack_path.replace(".zip", "")
+                copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
 
                 if non_default_device_is_available(trainer._config.DEVICE):
                     model.to(trainer._config.DEVICE)
@@ -417,11 +428,14 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model, tokenizer))
 
                 if not skip_save_model:
-                    retrained_model_pack_path = os.path.join(trainer._retrained_models_dir,
-                                                             f"{ModelType.HUGGINGFACE_NER.value}_{run_id}.zip")
-                    model.save_pretrained(copied_model_directory)
-                    shutil.make_archive(retrained_model_pack_path.replace(".zip", ""), "zip", copied_model_directory)
-                    model_uri = trainer._tracker_client.save_model(retrained_model_pack_path, trainer._model_name,
+                    model_pack_file_ext = get_model_package_extension(trainer._config.BASE_MODEL_FILE)
+                    model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
+                    retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
+                    model.save_pretrained(copied_model_directory,
+                                          safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                    create_model_package(copied_model_directory, retrained_model_pack_path)
+                    model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
+                                                                   trainer._model_name,
                                                                    trainer._model_manager)
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:

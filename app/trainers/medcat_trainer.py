@@ -17,7 +17,12 @@ from model_services.base import AbstractModelService
 from trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from processors.data_batcher import mini_batch
 from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
-from utils import get_func_params_as_dict, non_default_device_is_available
+from utils import (
+    get_func_params_as_dict,
+    non_default_device_is_available,
+    get_model_package_extension,
+    create_model_package,
+)
 from domain import DatasetSplit
 from exception import TrainingCancelledException
 
@@ -62,11 +67,15 @@ class _MedcatTrainerCommon(object):
         logger.info("Retrained model deployed")
 
     @staticmethod
-    def save_model_pack(model: CAT, model_dir: str, description: Optional[str] = None) -> str:
+    def save_model_pack(model: CAT, model_dir: str, base_model_file: str, description: Optional[str] = None) -> str:
         logger.info("Saving retrained model to %s...", model_dir)
         model.config.version.description = description or model.config.version.description
         model_pack_name = model.create_model_pack(model_dir, "model")
-        model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
+        if get_model_package_extension(base_model_file) == ".tar.gz":
+            model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.tar.gz"
+            create_model_package(model_dir, model_pack_path)
+        else:
+            model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
         logger.debug("Model package saved to %s", model_pack_path)
         return model_pack_path
 
@@ -157,8 +166,12 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                              trainer._model_service.from_model(model))
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
-                    cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                    model_pack_path = trainer.save_model_pack(model,
+                                                              trainer._retrained_models_dir,
+                                                              trainer._config.BASE_MODEL_FILE,
+                                                              description)
+                    cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                                                              "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
@@ -367,8 +380,12 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
 
             if not skip_save_model:
-                model_pack_path = trainer.save_model_pack(model, trainer._retrained_models_dir, description)
-                cdb_config_path = model_pack_path.replace(".zip", "_config.json")
+                model_pack_path = trainer.save_model_pack(model,
+                                                          trainer._retrained_models_dir,
+                                                          trainer._config.BASE_MODEL_FILE,
+                                                          description)
+                cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                                                          "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
                 logger.info(f"Retrained model saved: {model_uri}")
