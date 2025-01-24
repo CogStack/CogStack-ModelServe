@@ -33,7 +33,7 @@ CMS runs the NLP model packaged in a single ZIP file. To download the GA models,
 if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
 package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP file by running:
 ```commandline
-python app/cli/cli.py --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
+python app/cli/cli.py package hf-model --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
 ```
 
 ## Run ModelServe in the system environment:
