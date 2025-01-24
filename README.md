@@ -29,11 +29,11 @@ cms train --help
 
 ## Download models:
 
-CMS runs the NLP model packaged in a single ZIP file. To download the GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org) 
+CMS runs the NLP model packaged in a ZIP file or a Gzipped tarball. To download pretrained GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org)
 if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
-package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP file by running:
+package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP or Gzipped tarball by running:
 ```commandline
-cms --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
+cms package hf-model --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip
 ```
 
 ## Run ModelServe in the system environment:
@@ -76,6 +76,10 @@ docker compose -f docker-compose.yml up -d <model-service>
 Then the API docs will be accessible at localhost on the mapped port specified in `docker-compose.yml`. The container runs
 as a `cms` non-root user configured during the image build. Ensure the model package file is owned by the currently
 logged-in user to avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
+
+Note that the CMS containers do not download remotely-hosted models during the launch process. Thus, after verifying
+the authenticity of the model you are going to run, ensure the model package file will be correctly mounted
+to the container as a volume with the destination path set to either `/app/model/model.zip` or `/app/model/model.tar.gz`.
 
 ### Auxiliary services
 In addition to the core services such as serving, training and evaluation, CMS provides several ready-to-use components to help users make these production-ready. Their presence and default configuration can be customised to what suits your own needs. The diagram below illustrates the interactions between core and auxiliary services:

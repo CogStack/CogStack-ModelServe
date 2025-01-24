@@ -10,6 +10,7 @@ ARG CMS_UID=1000
 ARG CMS_GID=1000
 
 ENV CMS_MODEL_NAME=$CMS_MODEL_NAME
+ENV CMS_MODEL_TYPE=medcat_snomed
 ENV HTTP_PROXY=$HTTP_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 ENV NO_PROXY=$NO_PROXY
@@ -27,14 +28,16 @@ RUN addgroup --gid $CMS_GID cms || true && \
 
 COPY app /app
 COPY docker/medcat-snomed/requirements.txt /app/requirements.txt
+COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
 RUN pip install --no-cache-dir -U pip &&\
     pip install --no-cache-dir -r /app/requirements.txt && \
     python -m spacy download en_core_web_md
+RUN chmod +x /app/entrypoint.sh
 
 WORKDIR /app
 EXPOSE 8000
 USER cms:cms
-CMD ["sh", "-c", "python cli/cli.py serve --model-type medcat_snomed --model-name \"${CMS_MODEL_NAME}\" --model-path /app/model/model.zip --host 0.0.0.0 --port 8000"]
+CMD ["/app/entrypoint.sh"]

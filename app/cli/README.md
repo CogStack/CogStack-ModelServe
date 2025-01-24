@@ -245,6 +245,7 @@ $ cms package hf-model [OPTIONS]
 * `--hf-repo-revision TEXT`: The revision of the model to download from Hugging Face Hub
 * `--cached-model-dir TEXT`: Path to the cached model directory, will only be used if --hf-repo-id is not provided
 * `--output-model-package TEXT`: Path to save the model package, minus any format-specific extension, e.g., &#x27;./model_packages/bert-base-cased&#x27;
+* `--archive-format [zip|gztar]`: The archive format of the model package, e.g., &#x27;zip&#x27; or &#x27;gztar&#x27;  [default: zip]
 * `--remove-cached / --no-remove-cached`: Whether to remove the downloaded cache after the model package is saved  [default: no-remove-cached]
 * `--help`: Show this message and exit.
 
@@ -264,6 +265,7 @@ $ cms package hf-dataset [OPTIONS]
 * `--hf-dataset-revision TEXT`: The revision of the dataset to download from Hugging Face Hub
 * `--cached-dataset-dir TEXT`: Path to the cached dataset directory, will only be used if --hf-dataset-id is not provided
 * `--output-dataset-package TEXT`: Path to save the dataset package, minus any format-specific extension, e.g., &#x27;./dataset_packages/imdb&#x27;
+* `--archive-format [zip|gztar]`: The archive format of the dataset package, e.g., &#x27;zip&#x27; or &#x27;gztar&#x27;  [default: zip]
 * `--remove-cached / --no-remove-cached`: Whether to remove the downloaded cache after the dataset package is saved  [default: no-remove-cached]
 * `--trust-remote-code / --no-trust-remote-code`: Whether to trust and use the remote script of the dataset  [default: no-trust-remote-code]
 * `--help`: Show this message and exit.
