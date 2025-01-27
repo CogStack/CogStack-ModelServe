@@ -3,7 +3,7 @@ import json
 import uuid
 import tempfile
 
-from typing import List
+from typing import List, Union
 from typing_extensions import Annotated
 from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse

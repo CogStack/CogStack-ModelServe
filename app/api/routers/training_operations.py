@@ -3,7 +3,7 @@ import logging
 import sys
 import tempfile
 import uuid
-from typing import List
+from typing import List, Union
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Request, Query, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -19,6 +19,7 @@ from processors.metrics_collector import concat_trainer_exports
 from utils import filter_by_concept_ids
 
 import api.globals as cms_globals
+from api.dependencies import validate_tracking_id
 from model_services.base import AbstractModelService
 
 router = APIRouter()
@@ -41,12 +42,13 @@ def train_eval_info(request: Request,
 
 
 @router.post("/evaluate",
-             tags=[Tags.Training.name],
+             tags=[Tags.Evaluating.name],
              response_class=JSONResponse,
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Evaluate the model being served with a trainer export")
 async def get_evaluation_with_trainer_export(request: Request,
                                              trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+                                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     files = []
     file_names = []
@@ -67,18 +69,27 @@ async def get_evaluation_with_trainer_export(request: Request,
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
-    evaluation_id = str(uuid.uuid4())
-    evaluation_accepted = model_service.train_supervised(data_file,
-                                                         0,
-                                                         sys.maxsize,
-                                                         evaluation_id,
-                                                         ",".join(file_names))
+    evaluation_id = tracking_id or str(uuid.uuid4())
+    evaluation_accepted, experiment_id, run_id = model_service.train_supervised(
+        data_file, 0, sys.maxsize, evaluation_id, ",".join(file_names)
+    )
     if evaluation_accepted:
-        return JSONResponse(content={"message": "Your evaluation started successfully.", "evaluation_id": evaluation_id},
-                            status_code=HTTP_202_ACCEPTED)
+        return JSONResponse(
+            content={
+                "message": "Your evaluation started successfully.",
+                "evaluation_id": evaluation_id,
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_202_ACCEPTED
+        )
     else:
-        return JSONResponse(content={"message": "Another training or evaluation on this model is still active. Please retry later."},
-                            status_code=HTTP_503_SERVICE_UNAVAILABLE)
+        return JSONResponse(
+            content={
+                "message": "Another training or evaluation on this model is still active. Please retry later.",
+                "experiment_id": experiment_id,
+                "run_id": run_id,
+            }, status_code=HTTP_503_SERVICE_UNAVAILABLE
+        )
 
 
 @router.post("/cancel_training",
