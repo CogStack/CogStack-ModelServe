@@ -388,20 +388,20 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
 def build_image(dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
                 context_dir: str = typer.Option(..., help="The directory containing the set of files accessible to the build"),
-                model_name: Optional[str] = typer.Option("cms_model", help="The string representation of the model name"),
-                user_id: Optional[int] = typer.Option(1000, help="The ID for the non-root user"),
-                group_id: Optional[int] = typer.Option(1000, help="The group ID for the non-root user"),
-                http_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTP proxy"),
-                https_proxy: Optional[str] = typer.Option("", help="The string representation of the HTTPS proxy"),
-                no_proxy: Optional[str] = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
-                tag: str = typer.Option(None, help="The tag of the built image"),
-                backend: Optional[BuildBackend] = typer.Option(BuildBackend.DOCKER, help="The backend used for building the image")) -> None:
+                model_name: str = typer.Option("CMS model", help="The string representation of the model name"),
+                user_id: int = typer.Option(1000, help="The ID for the non-root user"),
+                group_id: int = typer.Option(1000, help="The group ID for the non-root user"),
+                http_proxy: str = typer.Option("", help="The string representation of the HTTP proxy"),
+                https_proxy: str = typer.Option("", help="The string representation of the HTTPS proxy"),
+                no_proxy: str = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
+                version_tag: str = typer.Option("latest", help="The version tag of the built image"),
+                backend: BuildBackend = typer.Option(BuildBackend.DOCKER.value, help="The backend used for building the image")) -> None:
     assert backend is not None
     cmd = [
         *backend.value.split(),
         '-f', dockerfile_path,
         '--progress=plain',
-        '-t', f'{model_name}:{tag}',
+        '-t', f'{model_name.replace(" ", "-").lower()}:{version_tag}',
         '--build-arg', f'CMS_MODEL_NAME={model_name}',
         '--build-arg', f'CMS_UID={str(user_id)}',
         '--build-arg', f'CMS_GID={str(group_id)}',

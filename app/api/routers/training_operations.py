@@ -30,9 +30,9 @@ logger = logging.getLogger("cms")
             tags=[Tags.Training.name],
             dependencies=[Depends(cms_globals.props.current_active_user)],
             description="Get the training or evaluation job information by its ID")
-def train_eval_info(request: Request,
-                    train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
-                    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+async def train_eval_info(request: Request,
+                          train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
+                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     tracker_client = model_service.get_tracker_client()
     if tracker_client is None:
         return JSONResponse(status_code=HTTP_503_SERVICE_UNAVAILABLE,

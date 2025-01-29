@@ -23,10 +23,15 @@ server {
     error_log                 /var/log/nginx/error_prometheus.log;
 
     location / {
-        auth_basic "Authenticated User's Area";
-        auth_basic_user_file /etc/nginx/.htpasswd;
-        include cors.conf;
-        proxy_pass         http://prometheus:9090/;
+        include            cors.conf;
+        resolver           127.0.0.11 valid=30s;
+        set                $backend "prometheus:9090";
+        proxy_pass         http://$backend;
         proxy_set_header   Host $host;
+        error_page         502 503 504 = @fallback;
+    }
+
+    location @fallback {
+        return 503 "Service is temporarily unavailable. Please try again later.";
     }
 }

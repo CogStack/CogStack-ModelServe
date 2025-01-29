@@ -132,13 +132,13 @@ $ cms build [OPTIONS]
 
 * `--dockerfile-path TEXT`: The path to the Dockerfile  [required]
 * `--context-dir TEXT`: The directory containing the set of files accessible to the build  [required]
-* `--model-name TEXT`: The string representation of the model name  [default: cms_model]
+* `--model-name TEXT`: The string representation of the model name  [default: CMS model]
 * `--user-id INTEGER`: The ID for the non-root user  [default: 1000]
 * `--group-id INTEGER`: The group ID for the non-root user  [default: 1000]
 * `--http-proxy TEXT`: The string representation of the HTTP proxy
 * `--https-proxy TEXT`: The string representation of the HTTPS proxy
 * `--no-proxy TEXT`: The string representation of addresses by-passing proxies  [default: localhost,127.0.0.1]
-* `--tag TEXT`: The tag of the built image
+* `--version-tag TEXT`: The version tag of the built image  [default: latest]
 * `--backend [docker build|docker buildx build]`: The backend used for building the image  [default: docker build]
 * `--help`: Show this message and exit.
 
