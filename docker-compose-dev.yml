@@ -9,9 +9,18 @@ services:
     extends:
       file: ./docker-compose.yml
       service: medcat-snomed
-    image: cogstack-model-serve_medcat-snomed:dev
-    volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+    build:
+      context: ./
+      dockerfile: ./docker/medcat-snomed/Dockerfile
+      args:
+        - CMS_MODEL_NAME=SNOMED MedCAT model
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    image: local-cms-medcat-snomed:do-not-push
+    container_name: dev-cms-medcat-snomed
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -31,13 +40,24 @@ services:
       - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - NO_PROXY=localhost
+      - no_proxy=localhost
 
   medcat-icd10:
     extends:
       file: ./docker-compose.yml
       service: medcat-icd10
-    image: cogstack-model-serve_medcat-icd10:dev
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-icd10/Dockerfile
+        args:
+          - CMS_MODEL_NAME=ICD-10 MedCAT model
+          - CMS_UID=${CMS_UID:-1000}
+          - CMS_GID=${CMS_GID:-1000}
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    image: local-cms-medcat-icd10:do-not-push
+    container_name: dev-cms-medcat-icd10
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -57,13 +77,24 @@ services:
       - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - NO_PROXY=localhost
+      - no_proxy=localhost
 
   de-identification:
     extends:
       file: ./docker-compose.yml
       service: de-identification
-    image: cogstack-model-serve_de-identification:dev
+    build:
+      context: ./
+      dockerfile: ./docker/trf-deid/Dockerfile
+      args:
+        - CMS_MODEL_NAME=De-identification model
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    image: local-cms-trf-deid:do-not-push
+    container_name: dev-cms-trf-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -83,13 +114,24 @@ services:
       - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - NO_PROXY=localhost
+      - no_proxy=localhost
 
   medcat-deid:
     extends:
       file: ./docker-compose.yml
       service: medcat-deid
-    image: cogstack-model-serve_medcat-deid:dev
+    build:
+      context: ./
+      dockerfile: ./docker/medcat-deid/Dockerfile
+      args:
+        - CMS_MODEL_NAME=De-Identification MedCAT model
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    image: local-cms-medcat-deid:do-not-push
+    container_name: dev-cms-medcat-deid
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -109,13 +151,24 @@ services:
       - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
-      - NO_PROXY=localhost
+      - no_proxy=localhost
 
   medcat-umls:
     extends:
       file: ./docker-compose.yml
       service: medcat-umls
-    image: cogstack-model-serve_medcat-umls:dev
+    build:
+      context: ./
+      dockerfile: ./docker/medcat-umls/Dockerfile
+      args:
+        - CMS_MODEL_NAME=UMLS MedCAT model
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    image: local-cms-medcat-umls:do-not-push
+    container_name: dev-cms-medcat-umls
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - AWS_ACCESS_KEY_ID=
@@ -135,7 +188,47 @@ services:
       - NO_PROXY=localhost
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
+      - no_proxy=localhost
+
+  huggingface-ner:
+    extends:
+      file: ./docker-compose.yml
+      service: huggingface-ner
+    build:
+      context: ./
+      dockerfile: ./docker/huggingface-ner/Dockerfile
+      args:
+        - CMS_MODEL_NAME=Hugging Face NER model
+        - CMS_UID=${CMS_UID:-1000}
+        - CMS_GID=${CMS_GID:-1000}
+        - HTTP_PROXY=$HTTP_PROXY
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - NO_PROXY=$NO_PROXY
+    image: local-cms-huggingface-ner:do-not-push
+    container_name: dev-cms-huggingface-ner
+    restart: always
+    networks:
+      - cms
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-false}
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
       - NO_PROXY=localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=localhost
 
 volumes:
   retrained-models:

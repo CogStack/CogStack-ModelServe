@@ -6,12 +6,58 @@ on:
   pull_request:
     branches: [ master ]
 
-jobs:
-  build:
+env:
+  DOCKER_IMAGE_NAME: cogstacksystems/cogstack-modelserve
 
+jobs:
+  lint:
     runs-on: ubuntu-latest
     container: hadolint/hadolint:latest-debian
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+
       - name: Lint
-        run: hadolint --ignore DL3008 --ignore DL3013 --ignore DL3003 --ignore DL4006 docker/**/Dockerfile* docker/mlflow/**/Dockerfile*
+        run: hadolint --ignore DL3008 --ignore DL3013 --ignore DL3003 --ignore DL4006 docker/Dockerfile* docker/**/Dockerfile* docker/mlflow/**/Dockerfile*
+
+  build-and-push:
+    needs: lint
+    if: |
+      github.repository == 'CogStack/CogStack-ModelServe' &&
+      github.ref == 'refs/heads/master' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    concurrency: build-and-push
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE_NAME }}:dev
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
