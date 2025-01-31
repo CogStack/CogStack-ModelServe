@@ -5,13 +5,7 @@ name: cms
 services:
 
   proxy:
-    build:
-      context: ./
-      dockerfile: ./docker/nginx/Dockerfile
-      args:
-        - HTTP_PROXY=$HTTP_PROXY
-        - HTTPS_PROXY=$HTTPS_PROXY
-        - NO_PROXY=$NO_PROXY
+    image: nginx:1.23.0
     restart: always
     networks:
       - cogstack-model-serve_cms

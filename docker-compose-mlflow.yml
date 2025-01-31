@@ -64,13 +64,7 @@ services:
       - minio
 
   mlflow-ui:
-    build:
-      context: ./
-      dockerfile: ./docker/mlflow/server/Dockerfile
-      args:
-        - HTTP_PROXY=$HTTP_PROXY
-        - HTTPS_PROXY=$HTTPS_PROXY
-        - NO_PROXY=$NO_PROXY
+    image: cogstacksystems/cogstack-mlflow-ui:dev
     restart: always
     networks:
       - cogstack-model-serve_cms

@@ -6,6 +6,8 @@ services:
 
   medcat-snomed:
     image: cogstacksystems/cogstack-modelserve:dev
+    labels:
+      - org.cogstack.model-serve=medcat_snomed
     restart: always
     networks:
       - cms
@@ -48,6 +50,8 @@ services:
 
   medcat-icd10:
     image: cogstacksystems/cogstack-modelserve:dev
+    labels:
+      - org.cogstack.model-serve=medcat_icd10
     restart: always
     networks:
       - cms
@@ -90,6 +94,8 @@ services:
 
   de-identification:
     image: cogstacksystems/cogstack-modelserve:dev
+    labels:
+      - org.cogstack.model-serve=transformers_deid
     restart: always
     networks:
       - cms
@@ -131,6 +137,8 @@ services:
 
   medcat-deid:
     image: cogstacksystems/cogstack-modelserve:dev
+    labels:
+      - org.cogstack.model-serve=medcat_deid
     restart: always
     networks:
       - cms
@@ -173,7 +181,8 @@ services:
 
   medcat-umls:
     image: cogstacksystems/cogstack-modelserve:dev
-    container_name: cms_medcat-umls
+    labels:
+      - org.cogstack.model-serve=medcat_umls
     restart: always
     networks:
       - cms
@@ -216,6 +225,8 @@ services:
 
   huggingface-ner:
     image: cogstacksystems/cogstack-modelserve:dev
+    labels:
+      - org.cogstack.model-serve=huggingface_ner
     restart: always
     networks:
       - cms

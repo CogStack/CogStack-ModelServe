@@ -1,5 +1,5 @@
 FROM python:3.10
-LABEL "org.cogstack.model-serve"="trf-deid"
+LABEL "org.cogstack.model-serve"="transformers_deid"
 
 ARG CMS_MODEL_NAME
 ARG HTTP_PROXY
