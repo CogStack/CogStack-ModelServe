@@ -1,6 +1,7 @@
 name: docker extra
 
 on:
+  workflow_dispatch:
   push:
     branches: [ master ]
     paths:
@@ -29,7 +30,7 @@ jobs:
     if: |
       github.repository == 'CogStack/CogStack-ModelServe' &&
       github.ref == 'refs/heads/master' &&
-      github.event_name == 'push'
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read
