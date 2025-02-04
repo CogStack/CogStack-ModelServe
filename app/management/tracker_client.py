@@ -256,7 +256,10 @@ class TrackerClient(object):
         else:
             model_manager.log_model(model_name, filepath)
 
-        return mlflow.get_artifact_uri(model_name)
+        artifact_uri = mlflow.get_artifact_uri(model_name)
+        mlflow.set_tag("training.output.model_uri", artifact_uri)
+
+        return artifact_uri
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
