@@ -156,7 +156,13 @@ def test_save_model(mlflow_fixture):
     assert "artifacts/model_name" in artifact_uri
     model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
     mlflow_client.set_model_version_tag.assert_called_once_with(name="model_name", version="1", key="validation_status", value="validation_status")
-    mlflow.set_tag.assert_called_once_with("training.output.package", "file.zip")
+    mlflow.set_tag.has_calls(
+        [
+            call("training.output.package", "file.zip"),
+            call("training.output.model_uri", artifact_uri),
+        ],
+        any_order=False,
+    )
 
 
 def test_save_model_local(mlflow_fixture):
