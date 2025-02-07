@@ -10,7 +10,7 @@ from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedT
 from trainers.metacat_trainer import MetacatTrainer
 from domain import ModelCard
 from config import Settings
-from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_package
+from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_data_package
 from exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -58,7 +58,7 @@ class MedCATModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
-        if unpack_model_package(model_file_path, model_path):
+        if unpack_model_data_package(model_file_path, model_path):
             cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), *args, **kwargs)
             logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
             return cat

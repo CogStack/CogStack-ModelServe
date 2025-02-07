@@ -4,7 +4,6 @@ import uuid
 import ijson
 import logging
 import datasets
-import zipfile
 from typing import List, Tuple, Union
 from typing_extensions import Annotated
 
@@ -15,7 +14,7 @@ import api.globals as cms_globals
 from api.dependencies import validate_tracking_id
 from domain import Tags, ModelType
 from model_services.base import AbstractModelService
-from utils import get_settings
+from utils import get_settings, unpack_model_data_package
 from exception import ConfigurationException, ClientException
 
 router = APIRouter()
@@ -90,7 +89,7 @@ async def train_unsupervised(request: Request,
 async def train_unsupervised_with_hf_dataset(request: Request,
                                              hf_dataset_repo_id: Annotated[Union[str, None], Query(description="The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided")] = None,
                                              hf_dataset_config: Annotated[Union[str, None], Query(description="The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided")] = None,
-                                             hf_dataset_package: Annotated[Union[UploadFile, None], File(description="A ZIP file containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'")] = None,
+                                             hf_dataset_package: Annotated[Union[UploadFile, None], File(description="A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'")] = None,
                                              trust_remote_code: Annotated[bool, Query(description="Whether to trust the remote code of the dataset")] = False,
                                              text_column_name: Annotated[str, Query(description="The name of the text column in the dataset")] = "text",
                                              epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
@@ -111,12 +110,10 @@ async def train_unsupervised_with_hf_dataset(request: Request,
 
     data_dir = tempfile.TemporaryDirectory()
     if hf_dataset_package is not None:
-        input_file_name = hf_dataset_package.filename
-        with tempfile.NamedTemporaryFile() as zip_f:
-            zip_f.write(hf_dataset_package.file.read())
-            with zipfile.ZipFile(zip_f.name, "r") as f:
-                f.extractall(data_dir.name)
-        logger.debug("Training dataset uploaded and extracted")
+        if unpack_model_data_package(hf_dataset_package.filename, data_dir.name):
+            logger.debug("Training dataset uploaded and extracted")
+        else:
+            raise ClientException("Failed to extract the uploaded training dataset")
     else:
         input_file_name = hf_dataset_repo_id
         hf_dataset = datasets.load_dataset(hf_dataset_repo_id,

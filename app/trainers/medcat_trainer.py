@@ -20,8 +20,8 @@ from processors.metrics_collector import sanity_check_model_with_trainer_export,
 from utils import (
     get_func_params_as_dict,
     non_default_device_is_available,
-    get_model_package_extension,
-    create_model_package,
+    get_model_data_package_extension,
+    create_model_data_package,
 )
 from domain import DatasetSplit
 from exception import TrainingCancelledException
@@ -71,9 +71,9 @@ class _MedcatTrainerCommon(object):
         logger.info("Saving retrained model to %s...", model_dir)
         model.config.version.description = description or model.config.version.description
         model_pack_name = model.create_model_pack(model_dir, "model")
-        if get_model_package_extension(base_model_file) == ".tar.gz":
+        if get_model_data_package_extension(base_model_file) == ".tar.gz":
             model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.tar.gz"
-            create_model_package(model_dir, model_pack_path)
+            create_model_data_package(model_dir, model_pack_path)
         else:
             model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.zip"
         logger.debug("Model package saved to %s", model_pack_path)
@@ -170,7 +170,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                               trainer._retrained_models_dir,
                                                               trainer._config.BASE_MODEL_FILE,
                                                               description)
-                    cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                    cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                               "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
@@ -384,7 +384,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                                                           trainer._retrained_models_dir,
                                                           trainer._config.BASE_MODEL_FILE,
                                                           description)
-                cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                           "_config.json")
                 model.cdb.config.save(cdb_config_path)
                 model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

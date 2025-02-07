@@ -16,7 +16,7 @@ from transformers import pipeline
 from medcat import __version__ as medcat_version
 from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
-from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_package_extension
+from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
 from management import tracker_client
 from trainers.medcat_trainer import MedcatSupervisedTrainer
 from processors.metrics_collector import get_stats_from_trainer_export
@@ -195,7 +195,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                                                               trainer._retrained_models_dir,
                                                               trainer._config.BASE_MODEL_FILE,
                                                               description)
-                    cdb_config_path = model_pack_path.replace(get_model_package_extension(model_pack_path),
+                    cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                               "_config.json")
                     model.cdb.config.save(cdb_config_path)
                     model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)

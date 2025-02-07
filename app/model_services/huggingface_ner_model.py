@@ -17,7 +17,7 @@ from model_services.base import AbstractModelService
 from trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
 from domain import ModelCard, ModelType
 from config import Settings
-from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_package
+from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_data_package
 
 
 logger = logging.getLogger("cms")
@@ -91,7 +91,7 @@ class HuggingFaceNerModel(AbstractModelService):
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
-        if unpack_model_package(model_file_path, model_path):
+        if unpack_model_data_package(model_file_path, model_path):
             try:
                 model = AutoModelForTokenClassification.from_pretrained(model_path)
                 tokenizer = AutoTokenizer.from_pretrained(model_path,

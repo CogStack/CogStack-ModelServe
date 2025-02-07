@@ -26,9 +26,9 @@ from utils import (
     safetensors_to_pytorch,
     non_default_device_is_available,
     get_hf_pipeline_device_id,
-    get_model_package_extension,
-    unpack_model_package,
-    create_model_package,
+    get_model_data_package_extension,
+    unpack_model_data_package,
+    create_model_data_package,
 )
 
 
@@ -235,11 +235,11 @@ def test_get_hf_pipeline_device_id():
     assert get_hf_pipeline_device_id("mps:1") == 1
 
 
-def test_get_model_package_extension():
-    assert get_model_package_extension("model.zip") == ".zip"
-    assert get_model_package_extension("model.tar.gz") == ".tar.gz"
-    assert get_model_package_extension("model") == ""
-    assert get_model_package_extension("") == ""
+def test_get_model_data_package_extension():
+    assert get_model_data_package_extension("model.zip") == ".zip"
+    assert get_model_data_package_extension("model.tar.gz") == ".tar.gz"
+    assert get_model_data_package_extension("model") == ""
+    assert get_model_data_package_extension("") == ""
 
 
 class TestUnpackModelPackage(unittest.TestCase):
@@ -255,7 +255,7 @@ class TestUnpackModelPackage(unittest.TestCase):
             f.writestr("file1.txt", "content1")
             f.writestr("subdir/file2.txt", "content2")
 
-        result = unpack_model_package(model_file_path, self.model_folder_path)
+        result = unpack_model_data_package(model_file_path, self.model_folder_path)
 
         self.assertTrue(result)
         self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "file1.txt")))
@@ -275,7 +275,7 @@ class TestUnpackModelPackage(unittest.TestCase):
                 f2.write("content2")
             f.add(file2_path, arcname="top_level/subdir/file2.txt")
 
-        result = unpack_model_package(model_file_path, self.model_folder_path)
+        result = unpack_model_data_package(model_file_path, self.model_folder_path)
 
         self.assertTrue(result)
         self.assertTrue(os.path.exists(os.path.join(self.model_folder_path, "file1.txt")))
@@ -286,7 +286,7 @@ class TestUnpackModelPackage(unittest.TestCase):
         with open(unknown_model_file_path, "w") as f:
             f.write("content")
 
-        result = unpack_model_package(unknown_model_file_path, self.model_folder_path)
+        result = unpack_model_data_package(unknown_model_file_path, self.model_folder_path)
 
         self.assertFalse(result)
 
@@ -307,7 +307,7 @@ class TestCreateModelPackage(unittest.TestCase):
     def test_create_zip_model_package(self):
         model_file_path = os.path.join(self.model_folder_path, "model.zip")
 
-        result = create_model_package(self.model_folder_path, model_file_path)
+        result = create_model_data_package(self.model_folder_path, model_file_path)
 
         self.assertTrue(result)
         with zipfile.ZipFile(model_file_path, "r") as f:
@@ -318,7 +318,7 @@ class TestCreateModelPackage(unittest.TestCase):
     def test_create_tar_gz_model_package(self):
         model_file_path = os.path.join(self.model_folder_path, "model.tar.gz")
 
-        result = create_model_package(self.model_folder_path, model_file_path)
+        result = create_model_data_package(self.model_folder_path, model_file_path)
 
         self.assertTrue(result)
         with tarfile.open(model_file_path, "r:gz") as f:
@@ -329,7 +329,7 @@ class TestCreateModelPackage(unittest.TestCase):
     def test_create_unsupported_model_package(self):
         unknown_model_file_path = os.path.join(self.model_folder_path, "model.unknown")
 
-        result = create_model_package(self.model_folder_path, unknown_model_file_path)
+        result = create_model_data_package(self.model_folder_path, unknown_model_file_path)
 
         self.assertFalse(result)
 

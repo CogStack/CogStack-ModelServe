@@ -38,8 +38,8 @@ from utils import (
     filter_by_concept_ids,
     reset_random_seed,
     non_default_device_is_available,
-    create_model_package,
-    get_model_package_extension,
+    create_model_data_package,
+    get_model_data_package_extension,
 )
 from trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
@@ -179,12 +179,12 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 
             model = trainer._get_final_model(model, mlm_model)
             if not skip_save_model:
-                model_pack_file_ext = get_model_package_extension(trainer._config.BASE_MODEL_FILE)
+                model_pack_file_ext = get_model_data_package_extension(trainer._config.BASE_MODEL_FILE)
                 model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                 retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
                 model.save_pretrained(copied_model_directory,
                                       safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
-                create_model_package(copied_model_directory, retrained_model_pack_path)
+                create_model_data_package(copied_model_directory, retrained_model_pack_path)
                 model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
                                                                trainer._model_name,
                                                                trainer._model_manager)
@@ -428,12 +428,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                 trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model, tokenizer))
 
                 if not skip_save_model:
-                    model_pack_file_ext = get_model_package_extension(trainer._config.BASE_MODEL_FILE)
+                    model_pack_file_ext = get_model_data_package_extension(trainer._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
                     model.save_pretrained(copied_model_directory,
                                           safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
-                    create_model_package(copied_model_directory, retrained_model_pack_path)
+                    create_model_data_package(copied_model_directory, retrained_model_pack_path)
                     model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
                                                                    trainer._model_name,
                                                                    trainer._model_manager)

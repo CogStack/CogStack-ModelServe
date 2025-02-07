@@ -30,7 +30,7 @@ def test_download_model_package(mlflow_fixture):
     try:
         ModelManager.download_model_package("mlflow_tracking_uri", "/tmp")
     except ManagedModelException as e:
-        assert "Cannot find the model .zip file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
+        assert "Cannot find the model package file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
 
 
 def test_log_model_with_registration(mlflow_fixture):

@@ -14,7 +14,7 @@ from config import Settings
 from management.tracker_client import TrackerClient
 from data import doc_dataset, anno_dataset
 from domain import TrainingType
-from utils import get_model_package_extension
+from utils import get_model_data_package_extension
 
 logger = logging.getLogger("cms")
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -138,7 +138,7 @@ class TrainerCommon(object):
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
-        model_pack_file_ext = get_model_package_extension(model_file_path)
+        model_pack_file_ext = get_model_data_package_extension(model_file_path)
         copied_model_pack_path = model_file_path.replace(model_pack_file_ext,
                                                          f"_copied_{run_id}{model_pack_file_ext}")
         shutil.copy2(model_file_path, copied_model_pack_path)
@@ -152,7 +152,7 @@ class TrainerCommon(object):
             if os.path.exists(file_path):
                 os.remove(file_path)
                 logger.debug("model package housekept")
-            model_pack_file_ext = get_model_package_extension(file_path)
+            model_pack_file_ext = get_model_data_package_extension(file_path)
             if file_path and os.path.exists(file_path.replace(model_pack_file_ext, "")):
                 shutil.rmtree(file_path.replace(model_pack_file_ext, ""))
                 logger.debug("Unpacked model directory housekept")

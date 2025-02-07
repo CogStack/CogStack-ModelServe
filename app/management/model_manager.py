@@ -41,7 +41,9 @@ class ModelManager(PythonModel):
         self._model_service_type = model_service_type
         self._config = config
         self._model_service = None
-        self._model_signature = ModelSignature(inputs=ModelManager.input_schema, outputs=ModelManager.output_schema, params=None)
+        self._model_signature = ModelSignature(inputs=ModelManager.input_schema,
+                                               outputs=ModelManager.output_schema,
+                                               params=None)
 
     @property
     def model_service(self) -> AbstractModelService:
@@ -78,17 +80,21 @@ class ModelManager(PythonModel):
 
     @staticmethod
     def download_model_package(model_artifact_uri: str, dst_file_path: str) -> Optional[str]:
+        # This assumes the model package is the sole zip or tar.gz file in the artifacts directory
         with tempfile.TemporaryDirectory() as dir_downloaded:
             mlflow.artifacts.download_artifacts(artifact_uri=model_artifact_uri, dst_path=dir_downloaded)
-            # This assumes the model package is the sole zip file in the artifacts directory
             file_path = None
-            for file_path in glob.glob(os.path.join(dir_downloaded, "**", "*.zip")):
+            zip_files = glob.glob(os.path.join(dir_downloaded, "**", "*.zip"))
+            gztar_files = glob.glob(os.path.join(dir_downloaded, "**", "*.tar.gz"))
+            for file_path in (zip_files + gztar_files):
                 break
             if file_path:
                 shutil.copy(file_path, dst_file_path)
                 return dst_file_path
             else:
-                raise ManagedModelException(f"Cannot find the model .zip file inside artifacts downloaded from {model_artifact_uri}")
+                raise ManagedModelException(
+                    f"Cannot find the model package file inside artifacts downloaded from {model_artifact_uri}"
+                )
 
     def log_model(self,
                   model_name: str,
