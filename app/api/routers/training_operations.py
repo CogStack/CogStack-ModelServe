@@ -3,7 +3,7 @@ import logging
 import sys
 import tempfile
 import uuid
-from typing import List, Union
+from typing import List, Union, Dict, Any, cast
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Request, Query, UploadFile, File
 from fastapi.responses import JSONResponse
@@ -14,16 +14,19 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_503_SERVICE_UNAVAILABLE,
 )
-from domain import Tags
-from processors.metrics_collector import concat_trainer_exports
-from utils import filter_by_concept_ids
+from app.domain import Tags
+from app.processors.metrics_collector import concat_trainer_exports
+from app.utils import filter_by_concept_ids
 
-import api.globals as cms_globals
-from api.dependencies import validate_tracking_id
-from model_services.base import AbstractModelService
+import app.api.globals as cms_globals
+from app.api.dependencies import validate_tracking_id
+from app.model_services.base import AbstractModelService
 
 router = APIRouter()
 logger = logging.getLogger("cms")
+
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.get("/train_eval_info",
             response_class=JSONResponse,
@@ -65,7 +68,7 @@ async def get_evaluation_with_trainer_export(request: Request,
         for file in files:
             file.close()
     data_file = tempfile.NamedTemporaryFile(mode="w")
-    concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
+    concatenated = filter_by_concept_ids(cast(Dict[str, Any], concatenated), model_service.info().model_type)
     json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)

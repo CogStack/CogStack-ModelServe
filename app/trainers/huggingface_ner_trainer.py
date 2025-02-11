@@ -10,7 +10,7 @@ import threading
 import numpy as np
 import pandas as pd
 from functools import partial
-from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union
+from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union, cast, TYPE_CHECKING
 from torch import nn
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from scipy.special import softmax
@@ -30,29 +30,43 @@ from transformers import (
     EarlyStoppingCallback,
 )
 from evaluate.visualization import radar_plot
-from management.model_manager import ModelManager
-from management.tracker_client import TrackerClient
-from model_services.base import AbstractModelService
-from processors.metrics_collector import get_stats_from_trainer_export, sanity_check_model_with_trainer_export
-from utils import (
+from app.management.model_manager import ModelManager
+from app.management.tracker_client import TrackerClient
+from app.processors.metrics_collector import get_stats_from_trainer_export, sanity_check_model_with_trainer_export
+from app.utils import (
     filter_by_concept_ids,
     reset_random_seed,
     non_default_device_is_available,
     create_model_data_package,
     get_model_data_package_extension,
 )
-from trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
-from exception import AnnotationException, TrainingCancelledException
-
+from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
+from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
+from app.exception import AnnotationException, TrainingCancelledException
+if TYPE_CHECKING:
+    from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 
 logger = logging.getLogger("cms")
 
 
-@final
-class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
+class _HuggingFaceNerTrainerCommon(object):
 
-    def __init__(self, model_service: AbstractModelService) -> None:
+    @staticmethod
+    def deploy_model(model_service: "HuggingFaceNerModel",
+                     model: PreTrainedModel,
+                     tokenizer: PreTrainedTokenizerBase) -> None:
+        del model_service.model
+        del model_service.tokenizer
+        gc.collect()
+        model_service.model = model
+        model_service.tokenizer = tokenizer
+        logger.info("Retrained model deployed")
+
+
+@final
+class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrainerCommon):
+
+    def __init__(self, model_service: "HuggingFaceNerModel") -> None:
         UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
         self._model_service = model_service
         self._model_name = model_service.model_name
@@ -66,7 +80,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 
 
     @staticmethod
-    def run(trainer: "HuggingFaceNerUnsupervisedTrainer",
+    def run(trainer: "HuggingFaceNerUnsupervisedTrainer",   # type: ignore
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
@@ -226,17 +240,6 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
             trainer._housekeep_file(copied_model_pack_path)
 
     @staticmethod
-    def deploy_model(model_service: AbstractModelService,
-                     model: PreTrainedModel,
-                     tokenizer: PreTrainedTokenizerBase) -> None:
-        del model_service.model
-        del model_service.tokenizer
-        gc.collect()
-        model_service.model = model
-        model_service.tokenizer = tokenizer
-        logger.info("Retrained model deployed")
-
-    @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
         mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
         backbone_found = False
@@ -285,7 +288,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer):
 
 
 @final
-class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
+class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerCommon):
 
     MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT = 5
     MAX_CONCEPTS_TO_TRACK = 20
@@ -293,7 +296,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
     DEFAULT_LABEL_ID = 0
     CONTINUING_TOKEN_LABEL_ID = 1
 
-    def __init__(self, model_service: AbstractModelService) -> None:
+    def __init__(self, model_service: "HuggingFaceNerModel") -> None:
         if not isinstance(model_service.tokenizer, PreTrainedTokenizerFast):
             logger.error("The supervised trainer requires a fast tokenizer to function correctly")
         SupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
@@ -326,7 +329,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
             return target + paddings
 
     @staticmethod
-    def run(trainer: "HuggingFaceNerSupervisedTrainer",
+    def run(trainer: "HuggingFaceNerSupervisedTrainer", # type: ignore
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -518,10 +521,13 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
         with open(data_file.name, "r") as f:
             training_data = json.load(f)
             te_stats_df = get_stats_from_trainer_export(training_data, return_df=True)
+            te_stats_df = cast(pd.DataFrame, te_stats_df)
             rear_concept_ids = te_stats_df[(te_stats_df["anno_count"] - te_stats_df["anno_ignorance_counts"]) < HuggingFaceNerSupervisedTrainer.MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT]["concept"].unique()
             logger.debug(f"The following concept(s) will be excluded due to the low example count(s): {rear_concept_ids}")
             filtered_training_data = filter_by_concept_ids(training_data, ModelType.HUGGINGFACE_NER, extra_excluded=rear_concept_ids)
-            filtered_concepts = get_stats_from_trainer_export(filtered_training_data, return_df=True)["concept"].unique()
+            filtered_stats_df = get_stats_from_trainer_export(filtered_training_data, return_df=True)
+            filtered_stats_df = cast(pd.DataFrame, filtered_stats_df)
+            filtered_concepts = filtered_stats_df["concept"].unique()
             return filtered_training_data, filtered_concepts
 
     @staticmethod
@@ -693,7 +699,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer):
                                                        }),
                                                        self._model_name)
 
-    def _sanity_check_model_and_save_results(self, data_file_path: str, model_service: AbstractModelService) -> None:
+    def _sanity_check_model_and_save_results(self, data_file_path: str, model_service: "HuggingFaceNerModel") -> None:
         self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
                                                    sanity_check_model_with_trainer_export(data_file_path,
                                                                                           model_service,

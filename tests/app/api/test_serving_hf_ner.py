@@ -1,12 +1,12 @@
 import os
 import pytest
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 from fastapi.testclient import TestClient
-from api.api import get_model_server
-from utils import get_settings
-from model_services.huggingface_ner_model import HuggingFaceNerModel
-from domain import ModelCard, ModelType
 from unittest.mock import create_autospec
+from app.api.api import get_model_server
+from app.utils import get_settings
+from app.model_services.huggingface_ner_model import HuggingFaceNerModel
+from app.domain import ModelCard, ModelType
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"

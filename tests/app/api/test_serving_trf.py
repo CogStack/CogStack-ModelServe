@@ -1,11 +1,12 @@
 import pytest
-import api.globals as cms_globals
-from fastapi.testclient import TestClient
-from api.api import get_model_server
-from utils import get_settings
-from model_services.trf_model_deid import TransformersModelDeIdentification
+import app.api.globals as cms_globals
 from unittest.mock import create_autospec
-from domain import ModelCard, ModelType
+
+from fastapi.testclient import TestClient
+from app.api.api import get_model_server
+from app.utils import get_settings
+from app.model_services.trf_model_deid import TransformersModelDeIdentification
+from app.domain import ModelCard, ModelType, Annotation
 
 
 config = get_settings()
@@ -57,12 +58,12 @@ def test_info(model_service, client):
 
 
 def test_process(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "NW1 2BU",
         "label_id": "C2120",
         "start": 0,
         "end": 6,
-    }]
+    })]
     model_service.annotate.return_value = annotations
 
     response = client.post("/process",
@@ -71,24 +72,29 @@ def test_process(model_service, client):
 
     assert response.json() == {
         "text": "NW1 2BU",
-        "annotations": annotations
+        "annotations": [{
+            "label_name": "NW1 2BU",
+            "label_id": "C2120",
+            "start": 0,
+            "end": 6,
+        }]
     }
 
 
 def test_process_bulk(model_service, client):
     annotations_list = [
-        [{
+        [Annotation.parse_obj({
             "label_name": "NW1 2BU",
             "label_id": "C2120",
             "start": 0,
             "end": 6,
-        }],
-        [{
+        })],
+        [Annotation.parse_obj({
             "label_name": "NW1 2DA",
             "label_id": "C2120",
             "start": 0,
             "end": 6,
-        }]
+        })]
     ]
     model_service.batch_annotate.return_value = annotations_list
 
@@ -117,12 +123,12 @@ def test_process_bulk(model_service, client):
 
 
 def test_preview(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "NW1 2BU",
         "label_id": "C2120",
         "start": 0,
         "end": 6,
-    }]
+    })]
     model_service.annotate.return_value = annotations
     model_service.model_name = "De-Identification Model"
 

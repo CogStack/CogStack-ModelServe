@@ -1,4 +1,4 @@
-from processors.data_batcher import mini_batch
+from app.processors.data_batcher import mini_batch
 
 
 def test_mini_batch():

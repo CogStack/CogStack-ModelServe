@@ -2,15 +2,15 @@ import httpx
 import json
 import pytest
 
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
-from api.api import get_stream_server
-from utils import get_settings
-from model_services.medcat_model import MedCATModel
-from management.model_manager import ModelManager
 from unittest.mock import create_autospec
+from app.api.api import get_stream_server
+from app.utils import get_settings
+from app.model_services.medcat_model import MedCATModel
+from app.management.model_manager import ModelManager
 
 
 config = get_settings()

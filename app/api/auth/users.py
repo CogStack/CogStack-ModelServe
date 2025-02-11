@@ -7,7 +7,7 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi_users.authentication import AuthenticationBackend
 from api.auth.db import User, get_user_db
 from api.auth.backends import get_backends
-from utils import get_settings
+from app.utils import get_settings
 
 logger = logging.getLogger("cms")
 

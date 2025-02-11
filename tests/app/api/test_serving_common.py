@@ -4,14 +4,14 @@ import tempfile
 import httpx
 import json
 import pytest
-import api.globals as cms_globals
-from fastapi.testclient import TestClient
-from api.api import get_model_server
-from domain import ModelCard, ModelType
-from utils import get_settings
-from model_services.medcat_model import MedCATModel
-from management.model_manager import ModelManager
+import app.api.globals as cms_globals
 from unittest.mock import create_autospec, Mock
+from fastapi.testclient import TestClient
+from app.api.api import get_model_server
+from app.domain import ModelCard, ModelType, Annotation
+from app.utils import get_settings
+from app.model_services.medcat_model import MedCATModel
+from app.management.model_manager import ModelManager
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"
@@ -139,7 +139,7 @@ def test_warning_on_no_redaction(model_service, client):
 
 
 def test_redact_with_encryption(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -152,7 +152,7 @@ def test_redact_with_encryption(model_service, client):
                 "name": "Status"
             }
         },
-    }]
+    })]
     body = {
         "text": "Spinal stenosis",
         "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
@@ -533,7 +533,7 @@ def test_get_annotation_stats(client):
 
 def test_extract_entities_from_text_list_file_as_json_file(model_service, client):
     annotations_list = [
-        [{
+        [Annotation.parse_obj({
             "label_name": "Spinal stenosis",
             "label_id": "76107001",
             "start": 0,
@@ -546,7 +546,7 @@ def test_extract_entities_from_text_list_file_as_json_file(model_service, client
                     "name": "Status"
                 }
             },
-        }]
+        })]
     ] * 15
     model_service.batch_annotate.return_value = annotations_list
 

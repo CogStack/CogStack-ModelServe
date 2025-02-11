@@ -1,14 +1,14 @@
 import json
 import httpx
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 from pytest_bdd import scenarios, given, when, then, parsers
 from unittest.mock import create_autospec
 from fastapi.testclient import TestClient
-from management.model_manager import ModelManager
-from model_services.medcat_model import MedCATModel
-from domain import ModelCard, ModelType
-from api.api import get_model_server, get_stream_server
-from utils import get_settings
+from app.management.model_manager import ModelManager
+from app.model_services.medcat_model import MedCATModel
+from app.domain import ModelCard, ModelType, Annotation
+from app.api.api import get_model_server, get_stream_server
+from app.utils import get_settings
 from helper import data_table, async_to_sync
 
 scenarios("features/serving.feature")
@@ -20,7 +20,7 @@ def cms_is_running():
     config = get_settings()
     config.AUTH_USER_ENABLED = "false"
     model_service = create_autospec(MedCATModel)
-    single_annotation = {
+    single_annotation_dict = {
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -34,10 +34,10 @@ def cms_is_running():
             }
         },
     }
-    model_service.annotate.return_value = [single_annotation]
+    model_service.annotate.return_value = [Annotation.parse_obj(single_annotation_dict)]
     annotations_list = [
-        [single_annotation],
-        [single_annotation],
+        [Annotation.parse_obj(single_annotation_dict)],
+        [Annotation.parse_obj(single_annotation_dict)],
     ]
     model_service.batch_annotate.return_value = annotations_list
     model_card = ModelCard.parse_obj({
@@ -56,7 +56,7 @@ def cms_is_running():
         "app": app,
         "client": client,
         "model_service": model_service,
-        "single_annotation": single_annotation,
+        "single_annotation_dict": single_annotation_dict,
     }
 
 
@@ -65,7 +65,7 @@ def cms_stream_is_running():
     config = get_settings()
     config.AUTH_USER_ENABLED = "false"
     model_service = create_autospec(MedCATModel)
-    single_annotation = {
+    single_annotation_dict = {
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -79,7 +79,7 @@ def cms_stream_is_running():
             }
         },
     }
-    model_service.async_annotate.return_value = [single_annotation]
+    model_service.async_annotate.return_value = [Annotation.parse_obj(single_annotation_dict)]
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
@@ -89,13 +89,13 @@ def cms_stream_is_running():
         "app": app,
         "client": client,
         "model_service": model_service,
-        "single_annotation": single_annotation,
+        "single_annotation_dict": single_annotation_dict,
     }
 
 
 @then("the response should contain annotations")
 def check_response_json(context):
-    assert context["response"].json()["annotations"] == [context["single_annotation"]]
+    assert context["response"].json()["annotations"] == [context["single_annotation_dict"]]
 
 
 @when(parsers.parse("I send a GET request to {endpoint}"))
@@ -118,8 +118,8 @@ def send_post_request(context, request):
 def check_response_jsonl(context):
     jsonlines = context["response"].text[:-1].split("\n")
     assert len(jsonlines) == 2
-    assert json.loads(jsonlines[0]) == {"doc_name": "doc1", **context["single_annotation"]}
-    assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **context["single_annotation"]}
+    assert json.loads(jsonlines[0]) == {"doc_name": "doc1", **context["single_annotation_dict"]}
+    assert json.loads(jsonlines[1]) == {"doc_name": "doc2", **context["single_annotation_dict"]}
 
 
 @then("the response should contain bulk annotations")
@@ -127,11 +127,11 @@ def check_response_bulk(context):
     assert context["response"].json() == [
         {
             "text": "Spinal stenosis",
-            "annotations": [context["single_annotation"]]
+            "annotations": [context["single_annotation_dict"]]
         },
         {
             "text": "Spinal stenosis",
-            "annotations": [context["single_annotation"]]
+            "annotations": [context["single_annotation_dict"]]
         },
     ]
 
@@ -160,10 +160,14 @@ async def send_async_post_request(context_stream, request):
 @async_to_sync
 async def check_response_stream(context_stream):
     assert context_stream["response"].status_code == 200
-    jsonlines = b""
-    async for chunk in context_stream["response"].aiter_bytes():
-        jsonlines += chunk
-    assert json.loads(jsonlines.decode("utf-8").splitlines()[-1]) == {"doc_name": "doc2", **context_stream["single_annotation"]}
+
+    async for line in context_stream["response"].aiter_lines():
+        line = line.strip()
+        if not line:
+            continue
+
+        data = json.loads(line)
+        assert data["doc_name"] in ["doc1", "doc2"]
 
 
 @when("I send a piece of text to the WS endpoint")

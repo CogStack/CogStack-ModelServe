@@ -1,8 +1,9 @@
 import logging
 from typing import Optional, final
-from model_services.medcat_model import MedCATModel
-from config import Settings
-from domain import ModelCard, ModelType
+from app import __version__ as api_version
+from app.model_services.medcat_model import MedCATModel
+from app.config import Settings
+from app.domain import ModelCard, ModelType
 
 logger = logging.getLogger("cms")
 
@@ -21,7 +22,8 @@ class MedCATModelSnomed(MedCATModel):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,

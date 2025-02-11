@@ -7,7 +7,7 @@ import uuid
 import hashlib
 import logging
 import pandas as pd
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 
 from typing import Dict, List, Union, Iterator, Any
 from collections import defaultdict
@@ -17,19 +17,26 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query, Response
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
 from pydantic import ValidationError
-from domain import TextWithAnnotations, TextWithPublicKey, TextStreamItem, ModelCard, Tags
-from model_services.base import AbstractModelService
-from utils import get_settings
-from api.dependencies import validate_tracking_id
-from api.utils import get_rate_limiter, encrypt
-from management.prometheus_metrics import (
+from app.domain import (
+    Annotation,
+    TextWithAnnotations,
+    TextWithPublicKey,
+    TextStreamItem,
+    ModelCard,
+    Tags,
+)
+from app.model_services.base import AbstractModelService
+from app.utils import get_settings
+from app.api.dependencies import validate_tracking_id
+from app.api.utils import get_rate_limiter, encrypt
+from app.management.prometheus_metrics import (
     cms_doc_annotations,
     cms_avg_anno_acc_per_doc,
     cms_avg_anno_acc_per_concept,
     cms_avg_meta_anno_conf_per_doc,
     cms_bulk_processed_docs,
 )
-from processors.data_batcher import mini_batch
+from app.processors.data_batcher import mini_batch
 
 PATH_INFO = "/info"
 PATH_PROCESS = "/process"
@@ -45,6 +52,8 @@ limiter = get_rate_limiter(config)
 
 logger = logging.getLogger("cms")
 
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.get(PATH_INFO,
             response_model=ModelCard,
@@ -85,6 +94,7 @@ def get_entities_from_text(request: Request,
 @limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_entities_from_jsonlines_text(request: Request,
                                      json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
+    assert cms_globals.model_manager_dep is not None, "Model manager dependency not injected"
     model_manager = cms_globals.model_manager_dep()
     stream: Iterator[Dict[str, Any]] = itertools.chain()
 
@@ -142,16 +152,19 @@ def extract_entities_from_multi_text_file(request: Request,
 
         data_file.seek(0)
         texts = ijson.items(data_file, "item")
-        annotations_list = []
+        annotations_list: List[List[Annotation]] = []
         for batch in mini_batch(texts, batch_size=5):
             annotations_list += model_service.batch_annotate(batch)
 
-        body = []
+        body: List[TextWithAnnotations] = []
         annotation_sum = 0
         data_file.seek(0)
         texts = ijson.items(data_file, "item")
         for text, annotations in zip(texts, annotations_list):
-            body.append({"text": text, "annotations": annotations})
+            body.append(TextWithAnnotations.parse_obj({
+                "text": text,
+                "annotations": annotations
+            }))
             annotation_sum += len(annotations)
             _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
             _send_meta_confidence_metric(annotations, PATH_PROCESS_BULK)
@@ -159,7 +172,7 @@ def extract_entities_from_multi_text_file(request: Request,
         _send_bulk_processed_docs_metric(body, PATH_PROCESS_BULK)
         _send_annotation_num_metric(annotation_sum, PATH_PROCESS_BULK)
 
-        output = json.dumps(body)
+        output = json.dumps([b.dict(exclude_none=True) for b in body])
         logger.debug(output)
         json_file = BytesIO(output.encode())
         tracking_id = tracking_id or str(uuid.uuid4())
@@ -192,18 +205,17 @@ def get_redacted_text(request: Request,
         return PlainTextResponse(content="WARNING: No entities were detected for redaction.", status_code=200)
     else:
         for annotation in annotations:
-
-            if annotation["label_id"] in concepts_to_keep:
+            if annotation.label_id in concepts_to_keep:
                 continue
 
             if hash:
-                label = hashlib.sha256(text[annotation["start"]:annotation["end"]].encode()).hexdigest()
+                label = hashlib.sha256(text[annotation.start:annotation.end].encode()).hexdigest()
             elif mask is None or len(mask) == 0:
-                label = f"[{annotation['label_name']}]"
+                label = f"[{annotation.label_name}]"
             else:
                 label = mask
-            redacted_text += text[start_index:annotation["start"]] + label
-            start_index = annotation["end"]
+            redacted_text += text[start_index:annotation.start] + label
+            start_index = annotation.end
         redacted_text += text[start_index:]
         logger.debug(redacted_text)
         return PlainTextResponse(content=redacted_text, status_code=200)
@@ -232,10 +244,10 @@ def get_redacted_text_with_encryption(request: Request,
     else:
         for idx, annotation in enumerate(annotations):
             label = f"[REDACTED_{idx}]"
-            encrypted = encrypt(text_with_public_key.text[annotation["start"]:annotation["end"]], text_with_public_key.public_key_pem)
-            redacted_text += text_with_public_key.text[start_index:annotation["start"]] + label
+            encrypted = encrypt(text_with_public_key.text[annotation.start:annotation.end], text_with_public_key.public_key_pem)
+            redacted_text += text_with_public_key.text[start_index:annotation.start] + label
             encryptions.append({"label": label, "encryption": encrypted})
-            start_index = annotation["end"]
+            start_index = annotation.end
         redacted_text += text_with_public_key.text[start_index:]
 
         content = {"redacted_text": redacted_text, "encryptions": encryptions}
@@ -247,29 +259,36 @@ def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:
     cms_doc_annotations.labels(handler=handler).observe(annotation_num)
 
 
-def _send_accuracy_metric(annotations: List[Dict], handler: str) -> None:
-    if annotations and annotations[0].get("accuracy", None) is not None:
-        doc_avg_acc = statistics.mean([annotation["accuracy"] for annotation in annotations])
-        cms_avg_anno_acc_per_doc.labels(handler=handler).set(doc_avg_acc)
+def _send_accuracy_metric(annotations: List[Annotation], handler: str) -> None:
+    if annotations and annotations[0].accuracy is not None:
+        accuracies = [annotation.accuracy for annotation in annotations]
+        assert all(accuracies), "Accuracy should not be None"
+        doc_avg_acc = statistics.mean(accuracies)   # type: ignore
+        cms_avg_anno_acc_per_doc.labels(handler=handler).set(doc_avg_acc)   # type: ignore
 
         if config.LOG_PER_CONCEPT_ACCURACIES == "true":
             accumulated_concept_accuracy: Dict[str, float] = defaultdict(float)
             concept_count: Dict[str, int] = defaultdict(int)
             for annotation in annotations:
-                accumulated_concept_accuracy[annotation["label_id"]] += annotation["accuracy"]
-                concept_count[annotation["label_id"]] += 1
+                accumulated_concept_accuracy[annotation.label_id] += annotation.accuracy    # type: ignore
+                concept_count[annotation.label_id] += 1
             for concept, accumulated_accuracy in accumulated_concept_accuracy.items():
                 concept_avg_acc = accumulated_accuracy / concept_count[concept]
                 cms_avg_anno_acc_per_concept.labels(handler=handler, concept=concept).set(concept_avg_acc)
 
 
-def _send_meta_confidence_metric(annotations: List[Dict], handler: str) -> None:
-    if annotations and annotations[0].get("meta_anns", None):
-        avg_conf = statistics.mean([meta_value["confidence"] for annotation in annotations for _, meta_value in annotation["meta_anns"].items()])
+def _send_meta_confidence_metric(annotations: List[Annotation], handler: str) -> None:
+    if annotations and annotations[0].meta_anns:
+        confs = []
+        for annotation in annotations:
+            assert annotation.meta_anns is not None, "Meta annotations should not be None"
+            for _, meta_value in annotation.meta_anns.items():
+                confs.append(meta_value["confidence"])
+        avg_conf = statistics.mean(confs)
         cms_avg_meta_anno_conf_per_doc.labels(handler=handler).set(avg_conf)
 
 
-def _send_bulk_processed_docs_metric(processed_docs: List[Dict], handler: str) -> None:
+def _send_bulk_processed_docs_metric(processed_docs: List[TextWithAnnotations], handler: str) -> None:
     cms_bulk_processed_docs.labels(handler=handler).observe(len(processed_docs))
 
 

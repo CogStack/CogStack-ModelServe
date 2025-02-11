@@ -2,7 +2,7 @@ import logging
 import asyncio
 import importlib
 import os.path
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 
 from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -15,13 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from api.auth.db import make_sure_db_and_tables
-from api.auth.users import Props
-from api.dependencies import ModelServiceDep
-from api.utils import add_exception_handlers, add_rate_limiter
-from domain import Tags, TagsStreamable
-from management.tracker_client import TrackerClient
-from utils import get_settings
+from app.api.auth.db import make_sure_db_and_tables
+from app.api.auth.users import Props
+from app.api.dependencies import ModelServiceDep
+from app.api.utils import add_exception_handlers, add_rate_limiter
+from app.domain import Tags, TagsStreamable
+from app.management.tracker_client import TrackerClient
+from app.utils import get_settings
 
 
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -89,7 +89,10 @@ def get_stream_server(msd_overwritten: Optional[ModelServiceDep] = None) -> Fast
 
 
 def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool = False) -> FastAPI:
-    tags_metadata = [{"name": tag.name, "description": tag.value} for tag in (Tags if not streamable else TagsStreamable)]
+    tags_metadata = [{  # type: ignore
+        "name": tag.name,
+        "description": tag.value
+    } for tag in (Tags if not streamable else TagsStreamable)]
     config = get_settings()
     app = FastAPI(title="CogStack ModelServe",
                   summary="A model serving and governance system for CogStack NLP solutions",
@@ -158,6 +161,7 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
     def custom_openapi() -> Dict[str, Any]:
         if app.openapi_schema:
             return app.openapi_schema
+        assert cms_globals.model_service_dep is not None, "Model service dependency not set"
         openapi_schema = get_openapi(
             title=f"{cms_globals.model_service_dep().model_name} APIs",
             version=cms_globals.model_service_dep().api_version,
@@ -189,76 +193,76 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
 
 
 def _load_auth_router(app: FastAPI) -> FastAPI:
-    from api.routers import authentication
+    from app.api.routers import authentication
     importlib.reload(authentication)
     app.include_router(authentication.router)
     return app
 
 
 def _load_model_card(app: FastAPI) -> FastAPI:
-    from api.routers import model_card
+    from app.api.routers import model_card
     importlib.reload(model_card)
     app.include_router(model_card.router)
     return app
 
 
 def _load_invocation_router(app: FastAPI) -> FastAPI:
-    from api.routers import invocation
+    from app.api.routers import invocation
     importlib.reload(invocation)
     app.include_router(invocation.router)
     return app
 
 
 def _load_supervised_training_router(app: FastAPI) -> FastAPI:
-    from api.routers import supervised_training
+    from app.api.routers import supervised_training
     importlib.reload(supervised_training)
     app.include_router(supervised_training.router)
     return app
 
 
 def _load_evaluation_router(app: FastAPI) -> FastAPI:
-    from api.routers import evaluation
+    from app.api.routers import evaluation
     importlib.reload(evaluation)
     app.include_router(evaluation.router)
     return app
 
 
 def _load_preview_router(app: FastAPI) -> FastAPI:
-    from api.routers import preview
+    from app.api.routers import preview
     importlib.reload(preview)
     app.include_router(preview.router)
     return app
 
 
 def _load_unsupervised_training_router(app: FastAPI) -> FastAPI:
-    from api.routers import unsupervised_training
+    from app.api.routers import unsupervised_training
     importlib.reload(unsupervised_training)
     app.include_router(unsupervised_training.router)
     return app
 
 
 def _load_metacat_training_router(app: FastAPI) -> FastAPI:
-    from api.routers import metacat_training
+    from app.api.routers import metacat_training
     importlib.reload(metacat_training)
     app.include_router(metacat_training.router)
     return app
 
 
 def _load_training_operations(app: FastAPI) -> FastAPI:
-    from api.routers import training_operations
+    from app.api.routers import training_operations
     importlib.reload(training_operations)
     app.include_router(training_operations.router)
     return app
 
 def _load_health_check_router(app: FastAPI) -> FastAPI:
-    from api.routers import health_check
+    from app.api.routers import health_check
     importlib.reload(health_check)
     app.include_router(health_check.router)
     return app
 
 
 def _load_stream_router(app: FastAPI) -> FastAPI:
-    from api.routers import stream
+    from app.api.routers import stream
     importlib.reload(stream)
     app.include_router(stream.router, prefix="/stream")
     return app

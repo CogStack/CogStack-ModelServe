@@ -6,12 +6,13 @@ from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
-from config import Settings
-from model_services.medcat_model import MedCATModel
-from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
-from domain import ModelCard, ModelType
-from utils import non_default_device_is_available, get_hf_pipeline_device_id
-from exception import ConfigurationException
+from app import __version__ as api_version
+from app.config import Settings
+from app.model_services.medcat_model import MedCATModel
+from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
+from app.domain import ModelCard, ModelType, Annotation
+from app.utils import non_default_device_is_available, get_hf_pipeline_device_id
+from app.exception import ConfigurationException
 
 logger = logging.getLogger("cms")
 
@@ -34,7 +35,8 @@ class MedCATModelDeIdentification(MedCATModel):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     def info(self) -> ModelCard:
         model_card = self.model.get_model_card(as_dict=True)
@@ -44,15 +46,16 @@ class MedCATModelDeIdentification(MedCATModel):
                          api_version=self.api_version,
                          model_card=model_card)
 
-    def annotate(self, text: str) -> Dict:
+    def annotate(self, text: str) -> List[Annotation]:
         doc = self.model.get_entities(text)
         if doc["entities"]:
             for _, entity in doc["entities"].items():
                 entity["types"] = ["PII"]
 
-        return self.get_records_from_doc({"entities": doc["entities"]})
+        records = self.get_records_from_doc({"entities": doc["entities"]})
+        return [Annotation.parse_obj(record) for record in records]
 
-    def annotate_with_local_chunking(self, text: str) -> Dict:
+    def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
         tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
         leading_ws_len = len(text) - len(text.lstrip())
         text = text.lstrip()
@@ -104,16 +107,17 @@ class MedCATModelDeIdentification(MedCATModel):
 
         assert processed_char_len == (len(text) + leading_ws_len), f"{len(text) + leading_ws_len - processed_char_len} characters were not processed:\n{text}"
 
-        return self.get_records_from_doc({"entities": aggregated_entities})
+        records = self.get_records_from_doc({"entities": aggregated_entities})
+        return [Annotation.parse_obj(record) for record in records]
 
-    def batch_annotate(self, texts: List[str]) -> List[Dict]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         annotation_list = []
         for text in texts:
             annotation_list.append(self.annotate(text))
         return annotation_list
 
     def init_model(self) -> None:
-        if hasattr(self, "_model") and isinstance(self._model, CAT):    # type: ignore
+        if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path)

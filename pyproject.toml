@@ -33,7 +33,8 @@ dependencies = [
     "websockets~=12.0",
     "pynvml~=11.5.3",
     "toml~=0.10.2",
-    "peft<0.14.0"
+    "peft<0.14.0",
+    "huggingface-hub~=0.27.1"
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
@@ -120,7 +121,7 @@ docstring-code-line-length = "dynamic"
 ignore_missing_imports = true
 no_implicit_optional = true
 allow_redefinition = true
-follow_imports = "silent"
+follow_imports = "normal"
 warn_redundant_casts = true
 warn_unused_ignores = true
 check_untyped_defs = true

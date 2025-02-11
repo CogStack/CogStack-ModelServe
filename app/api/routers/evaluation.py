@@ -2,17 +2,18 @@ import io
 import json
 import uuid
 import tempfile
+import pandas as pd
 
-from typing import List, Union
+from typing import List, Dict, Any, Union, cast
 from typing_extensions import Annotated
 from fastapi import APIRouter, Query, Depends, UploadFile, Request, File
 from fastapi.responses import StreamingResponse, JSONResponse
 
-import api.globals as cms_globals
-from api.dependencies import validate_tracking_id
-from domain import Tags, Scope
-from model_services.base import AbstractModelService
-from processors.metrics_collector import (
+import app.api.globals as cms_globals
+from app.api.dependencies import validate_tracking_id
+from app.domain import Tags, Scope
+from app.model_services.base import AbstractModelService
+from app.processors.metrics_collector import (
     sanity_check_model_with_trainer_export,
     get_iaa_scores_per_concept,
     get_iaa_scores_per_doc,
@@ -20,10 +21,13 @@ from processors.metrics_collector import (
     concat_trainer_exports,
     get_stats_from_trainer_export,
 )
-from exception import AnnotationException
-from utils import filter_by_concept_ids
+from app.exception import AnnotationException
+from app.utils import filter_by_concept_ids
 
 router = APIRouter()
+
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.post("/sanity-check",
              tags=[Tags.Evaluating.name],
@@ -48,8 +52,10 @@ def get_sanity_check_with_trainer_export(request: Request,
     finally:
         for file in files:
             file.close()
+    concatenated = cast(Dict[str, Any], concatenated)
     concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
     metrics = sanity_check_model_with_trainer_export(concatenated, model_service, return_df=True, include_anchors=False)
+    metrics = cast(pd.DataFrame, metrics)
     stream = io.StringIO()
     metrics.to_csv(stream, index=False)
     tracking_id = tracking_id or str(uuid.uuid4())
@@ -90,6 +96,7 @@ def get_inter_annotator_agreement_scores(request: Request,
             iaa_scores = get_iaa_scores_per_span(combined, annotator_a_project_id, annotator_b_project_id, return_df=True)
         else:
             raise AnnotationException(f'Unknown scope: "{scope}"')
+        iaa_scores = cast(pd.DataFrame, iaa_scores)
         stream = io.StringIO()
         iaa_scores.to_csv(stream, index=False)
         tracking_id = tracking_id or str(uuid.uuid4())
@@ -145,6 +152,7 @@ def get_annotation_stats(request: Request,
         for file in files:
             file.close()
     stats = get_stats_from_trainer_export(concatenated, return_df=True)
+    stats = cast(pd.DataFrame, stats)
     stream = io.StringIO()
     stats.to_csv(stream, index=False)
     tracking_id = tracking_id or str(uuid.uuid4())

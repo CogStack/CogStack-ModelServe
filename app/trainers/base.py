@@ -10,11 +10,11 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import TextIO, Callable, Dict, Tuple, Optional, Any, List, Union, final
-from config import Settings
-from management.tracker_client import TrackerClient
-from data import doc_dataset, anno_dataset
-from domain import TrainingType
-from utils import get_model_data_package_extension
+from app.config import Settings
+from app.management.tracker_client import TrackerClient
+from app.data import doc_dataset, anno_dataset
+from app.domain import TrainingType
+from app.utils import get_model_data_package_extension
 
 logger = logging.getLogger("cms")
 logging.getLogger("asyncio").setLevel(logging.ERROR)

@@ -7,9 +7,9 @@ from typing import Dict, TextIO, Optional, List
 import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
-from trainers.medcat_trainer import MedcatSupervisedTrainer
-from exception import TrainingFailedException, TrainingCancelledException
-from utils import non_default_device_is_available, get_model_data_package_extension
+from app.trainers.medcat_trainer import MedcatSupervisedTrainer
+from app.exception import TrainingFailedException, TrainingCancelledException
+from app.utils import non_default_device_is_available, get_model_data_package_extension
 
 logger = logging.getLogger("cms")
 
@@ -32,7 +32,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         return params
 
     @staticmethod
-    def run(trainer: "MetacatTrainer",
+    def run(trainer: "MetacatTrainer",  # type: ignore
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

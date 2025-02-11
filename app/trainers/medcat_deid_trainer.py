@@ -16,11 +16,11 @@ from transformers import pipeline
 from medcat import __version__ as medcat_version
 from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
-from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
-from management import tracker_client
-from trainers.medcat_trainer import MedcatSupervisedTrainer
-from processors.metrics_collector import get_stats_from_trainer_export
-from exception import TrainingCancelledException
+from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
+from app.management import tracker_client
+from app.trainers.medcat_trainer import MedcatSupervisedTrainer
+from app.processors.metrics_collector import get_stats_from_trainer_export
+from app.exception import TrainingCancelledException
 
 logger = logging.getLogger("cms")
 
@@ -75,7 +75,7 @@ class LabelCountCallback(TrainerCallback):
 class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
 
     @staticmethod
-    def run(trainer: "MedcatDeIdentificationSupervisedTrainer",
+    def run(trainer: "MedcatDeIdentificationSupervisedTrainer", # type: ignore
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

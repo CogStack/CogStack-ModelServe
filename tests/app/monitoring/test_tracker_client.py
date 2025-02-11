@@ -3,10 +3,10 @@ import mlflow
 import datasets
 import pytest
 import pandas as pd
-from management.tracker_client import TrackerClient
-from data import doc_dataset
-from tests.app.helper import StringContains
 from unittest.mock import Mock, call
+from app.management.tracker_client import TrackerClient
+from app.data import doc_dataset
+from tests.app.helper import StringContains
 
 
 def test_start_new(mlflow_fixture):

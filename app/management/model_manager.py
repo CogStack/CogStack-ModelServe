@@ -11,10 +11,10 @@ from mlflow.pyfunc import PythonModel, PythonModelContext
 from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
 from mlflow.models.model import ModelInfo
-from model_services.base import AbstractModelService
-from config import Settings
-from exception import ManagedModelException
-from utils import func_deprecated
+from app.model_services.base import AbstractModelService
+from app.config import Settings
+from app.exception import ManagedModelException
+from app.utils import func_deprecated
 
 
 @final
@@ -40,13 +40,13 @@ class ModelManager(PythonModel):
     def __init__(self, model_service_type: Type, config: Settings) -> None:
         self._model_service_type = model_service_type
         self._config = config
-        self._model_service = None
+        self._model_service: Optional[AbstractModelService] = None
         self._model_signature = ModelSignature(inputs=ModelManager.input_schema,
                                                outputs=ModelManager.output_schema,
                                                params=None)
 
     @property
-    def model_service(self) -> AbstractModelService:
+    def model_service(self) -> Optional[AbstractModelService]:
         return self._model_service
 
     @model_service.setter
@@ -128,23 +128,35 @@ class ModelManager(PythonModel):
         model_service.init_model()
         self._model_service = model_service
 
-    def predict(self, context: PythonModelContext, model_input: DataFrame, params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    def predict(self,
+                context: PythonModelContext,
+                model_input: DataFrame,
+                params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
         output = []
         for idx, row in model_input.iterrows():
             annotations = self._model_service.annotate(row["text"])  # type: ignore
             for annotation in annotations:
-                annotation = {"doc_name": row["name"] if "name" in row else str(idx), **annotation}
+                annotation = {
+                    "doc_name": row["name"] if "name" in row else str(idx),
+                    **annotation.dict(exclude_none=True)
+                }
                 output.append(annotation)
         df = pd.DataFrame(output)
         df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
         return df
 
-    def predict_stream(self, context: PythonModelContext, model_input: DataFrame, params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
+    def predict_stream(self,
+                       context: PythonModelContext,
+                       model_input: DataFrame,
+                       params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
         for idx, row in model_input.iterrows():
             annotations = self._model_service.annotate(row["text"])  # type: ignore
             output = []
             for annotation in annotations:
-                annotation = {"doc_name": row["name"] if "name" in row else str(idx), **annotation}
+                annotation = {
+                    "doc_name": row["name"] if "name" in row else str(idx),
+                    **annotation.dict(exclude_none=True)
+                }
                 output.append(annotation)
             df = pd.DataFrame(output)
             df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
@@ -168,7 +180,7 @@ class ModelManager(PythonModel):
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logging.ini")),
         ]
 
-    @staticmethod
+    @staticmethod   # type: ignore
     @func_deprecated
     def _get_pip_requirements() -> str:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))

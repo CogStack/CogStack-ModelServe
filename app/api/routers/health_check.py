@@ -1,10 +1,11 @@
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 from fastapi import APIRouter, Depends
 from fastapi.responses import PlainTextResponse
-from model_services.base import AbstractModelService
+from app.model_services.base import AbstractModelService
 
 router = APIRouter()
 
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.get("/healthz",
             description="Health check endpoint",

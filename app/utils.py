@@ -17,9 +17,9 @@ from spacy.util import filter_spans
 from safetensors.torch import load_file
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any, Union, Tuple, Type
-from domain import Annotation, Entity, CodeType, ModelType, Device
-from config import Settings
+from typing import List, Optional, Dict, Callable, Any, Union, Type
+from app.domain import Annotation, Entity, CodeType, ModelType, Device
+from app.config import Settings
 
 
 @lru_cache
@@ -45,13 +45,13 @@ def annotations_to_entities(annotations: List[Annotation], model_name: str) -> L
     entities = []
     code_base_uri = get_code_base_uri(model_name)
     for _, annotation in enumerate(annotations):
-        entities.append({
-            "start": annotation["start"],
-            "end": annotation["end"],
-            "label": f"{annotation['label_name']}",
-            "kb_id": annotation["label_id"],
-            "kb_url": f"{code_base_uri}/{annotation['label_id']}" if code_base_uri is not None else "#"
-        })
+        entities.append(Entity(
+            start=annotation.start,
+            end=annotation.end,
+            label=annotation.label_name,
+            kb_id=annotation.label_id,
+            kb_url=f"{code_base_uri}/{annotation.label_id}" if code_base_uri is not None else "#"
+        ))
     return entities
 
 
@@ -270,7 +270,7 @@ def func_deprecated(message: Optional[str] = None) -> Callable:
     def decorator(func: Callable) -> Callable:
 
         @functools.wraps(func)
-        def wrapped(*args: Tuple, **kwargs: Dict[str, Any]) -> Callable:
+        def wrapped(*args: Any, **kwargs: Any) -> Callable:
             warnings.simplefilter("always", DeprecationWarning)
             warnings.warn("Function {} has been deprecated.{}".format(func.__name__, " " + message if message else ""), stacklevel=2)
             warnings.simplefilter("default", DeprecationWarning)
@@ -284,7 +284,7 @@ def cls_deprecated(message: Optional[str] = None) -> Callable:
         decorated_init = cls.__init__
 
         @functools.wraps(decorated_init)
-        def wrapped(self: "Type", *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
+        def wrapped(self: "Type", *args: Any, **kwargs: Any) -> Any:
             warnings.simplefilter("always", DeprecationWarning)
             warnings.warn("Class {} has been deprecated.{}".format(cls.__name__, " " + message if message else ""))
             warnings.simplefilter("default", DeprecationWarning)

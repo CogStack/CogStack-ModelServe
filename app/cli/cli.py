@@ -24,7 +24,7 @@ import graypy  # noqa
 import aiohttp  # noqa
 import asyncio  # noqa
 import websockets  # noqa
-import api.globals as cms_globals  # noqa
+import app.api.globals as cms_globals  # noqa
 
 from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
@@ -32,13 +32,13 @@ from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
-from domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
-from registry import model_service_registry  # noqa
-from api.api import get_model_server, get_stream_server # noqa
-from utils import get_settings, send_gelf_message  # noqa
-from management.model_manager import ModelManager  # noqa
-from api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
-from management.tracker_client import TrackerClient  # noqa
+from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
+from app.registry import model_service_registry  # noqa
+from app.api.api import get_model_server, get_stream_server # noqa
+from app.utils import get_settings, send_gelf_message  # noqa
+from app.management.model_manager import ModelManager  # noqa
+from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
+from app.management.tracker_client import TrackerClient  # noqa
 
 cmd_app = typer.Typer(name="cms", help="CLI for various CogStack ModelServe operations", add_completion=True)
 stream_app = typer.Typer(name="stream", help="This groups various stream operations", add_completion=True)

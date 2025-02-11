@@ -2,23 +2,25 @@ import tempfile
 import uuid
 import json
 import logging
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Any, Dict, cast
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 from api.dependencies import validate_tracking_id
-from domain import Tags
-from model_services.base import AbstractModelService
-from processors.metrics_collector import concat_trainer_exports
-from utils import filter_by_concept_ids
+from app.domain import Tags
+from app.model_services.base import AbstractModelService
+from app.processors.metrics_collector import concat_trainer_exports
+from app.utils import filter_by_concept_ids
 
 router = APIRouter()
 logger = logging.getLogger("cms")
 
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.post("/train_supervised",
              status_code=HTTP_202_ACCEPTED,
@@ -49,7 +51,7 @@ async def train_supervised(request: Request,
     concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
     logger.debug("Training exports concatenated")
     data_file = tempfile.NamedTemporaryFile(mode="w")
-    concatenated = filter_by_concept_ids(concatenated, model_service.info().model_type)
+    concatenated = filter_by_concept_ids(cast(Dict[str, Any], concatenated), model_service.info().model_type)
     logger.debug("Training exports filtered by concept IDs")
     json.dump(concatenated, data_file)
     data_file.flush()

@@ -6,25 +6,26 @@ import tempfile
 import ijson
 import datasets
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List, Union, final
+from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING
 
 import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
-from management.log_captor import LogCaptor
-from management.model_manager import ModelManager
-from model_services.base import AbstractModelService
-from trainers.base import SupervisedTrainer, UnsupervisedTrainer
-from processors.data_batcher import mini_batch
-from processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
-from utils import (
+from app.management.log_captor import LogCaptor
+from app.management.model_manager import ModelManager
+from app.trainers.base import SupervisedTrainer, UnsupervisedTrainer
+from app.processors.data_batcher import mini_batch
+from app.processors.metrics_collector import sanity_check_model_with_trainer_export, get_stats_from_trainer_export
+from app.utils import (
     get_func_params_as_dict,
     non_default_device_is_available,
     get_model_data_package_extension,
     create_model_data_package,
 )
-from domain import DatasetSplit
-from exception import TrainingCancelledException
+from app.domain import DatasetSplit
+from app.exception import TrainingCancelledException
+if TYPE_CHECKING:
+    from app.model_services.medcat_model import MedCATModel
 
 logger = logging.getLogger("cms")
 
@@ -56,12 +57,13 @@ class _MedcatTrainerCommon(object):
         return params
 
     @staticmethod
-    def deploy_model(model_service: AbstractModelService,
+    def deploy_model(model_service: "MedCATModel",
                      model: CAT,
                      skip_save_model: bool) -> None:
         if skip_save_model:
             model._versioning()
-        del model_service.model
+        if hasattr(model_service, "model"):
+            del model_service.model
         gc.collect()
         model_service.model = model
         logger.info("Retrained model deployed")
@@ -81,8 +83,10 @@ class _MedcatTrainerCommon(object):
 
 
 class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
+    _model_pack_path: str
+    _model_parent_dir: str
 
-    def __init__(self, model_service: AbstractModelService) -> None:
+    def __init__(self, model_service: "MedCATModel") -> None:
         SupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
         self._model_service = model_service
         self._model_name = model_service.model_name
@@ -92,7 +96,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: "MedcatSupervisedTrainer",
+    def run(trainer: "MedcatSupervisedTrainer", # type: ignore
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -127,7 +131,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 train_supervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_supervised_params.items()}
                 model.config.version.description = description or model.config.version.description
 
-                with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):
+                with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):    # type: ignore
                     fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(data_file.name, **train_supervised_params)
                 trainer._save_examples(examples, ["tp", "tn"])
                 del examples
@@ -281,7 +285,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                                                        }),
                                                        self._model_name)
 
-    def _sanity_check_model_and_save_results(self, data_file_path: str, medcat_model: AbstractModelService) -> None:
+    def _sanity_check_model_and_save_results(self, data_file_path: str, medcat_model: "MedCATModel") -> None:
         self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
                                                    sanity_check_model_with_trainer_export(data_file_path,
                                                                                           medcat_model,
@@ -308,7 +312,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 @final
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
 
-    def __init__(self, model_service: AbstractModelService) -> None:
+    def __init__(self, model_service: "MedCATModel") -> None:
         UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
         self._model_service = model_service
         self._model_name = model_service.model_name
@@ -318,7 +322,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     @staticmethod
-    def run(trainer: "MedcatUnsupervisedTrainer",
+    def run(trainer: "MedcatUnsupervisedTrainer",   # type: ignore
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,

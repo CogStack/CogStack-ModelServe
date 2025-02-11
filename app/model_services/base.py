@@ -1,8 +1,8 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, Dict, final, Optional, Generic, TypeVar, Protocol
-from config import Settings
-from domain import ModelCard
+from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol
+from app.config import Settings
+from app.domain import ModelCard, Annotation
 
 class _TrainerCommon(Protocol):
     def stop_training(self) -> bool:
@@ -17,7 +17,7 @@ T = TypeVar("T", bound=_TrainerCommon)
 class AbstractModelService(ABC, Generic[T]):
 
     @abstractmethod
-    def __init__(self, config: Settings, *args: Tuple, **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, config: Settings, *args: Any, **kwargs: Any) -> None:
         self._config = config
         self._model_name = "CMS model"
         self._supervised_trainer: Optional[T] = None
@@ -39,7 +39,7 @@ class AbstractModelService(ABC, Generic[T]):
 
     @staticmethod
     @abstractmethod
-    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Any:
+    def load_model(model_file_path: str, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
     @staticmethod
@@ -53,28 +53,28 @@ class AbstractModelService(ABC, Generic[T]):
         raise NotImplementedError
 
     @abstractmethod
-    def annotate(self, text: str) -> List[Dict[str, Any]]:
+    def annotate(self, text: str) -> List[Annotation]:
         raise NotImplementedError
 
-    async def async_annotate(self, text: str) -> Dict:
+    async def async_annotate(self, text: str) -> List[Annotation]:
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, self.annotate, text)  # type: ignore
+        return await loop.run_in_executor(None, self.annotate, text)
 
     @abstractmethod
-    def batch_annotate(self, texts: List[str]) -> List[List[Dict[str, Any]]]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError
 
     @abstractmethod
     def init_model(self) -> None:
         raise NotImplementedError
 
-    def train_supervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_supervised(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError
 
-    def train_unsupervised(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_unsupervised(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError
 
-    def train_metacat(self, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_metacat(self, *args: Any, **kwargs: Any) -> bool:
         raise NotImplementedError
 
     def cancel_training(self) -> bool:

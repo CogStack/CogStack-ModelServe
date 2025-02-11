@@ -1,9 +1,10 @@
 import logging
 import pandas as pd
-from typing import Dict, Optional, final
-from model_services.medcat_model import MedCATModel
-from config import Settings
-from domain import ModelCard, ModelType
+from typing import Dict, Optional, final, List
+from app import __version__ as api_version
+from app.model_services.medcat_model import MedCATModel
+from app.config import Settings
+from app.domain import ModelCard, ModelType
 
 logger = logging.getLogger("cms")
 
@@ -24,7 +25,8 @@ class MedCATModelIcd10(MedCATModel):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
@@ -32,7 +34,7 @@ class MedCATModelIcd10(MedCATModel):
                          api_version=self.api_version,
                          model_card=self.model.get_model_card(as_dict=True))
 
-    def get_records_from_doc(self, doc: Dict) -> Dict:
+    def get_records_from_doc(self, doc: Dict) -> List[Dict]:
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:

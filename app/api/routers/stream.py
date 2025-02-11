@@ -5,18 +5,18 @@ from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.websockets import WebSocketDisconnect
 from starlette.requests import ClientDisconnect
 
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 
 from typing import Any, Mapping, Optional, AsyncGenerator
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
 from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
 from pydantic import ValidationError
-from domain import Annotation, Tags, TextStreamItem
-from model_services.base import AbstractModelService
-from utils import get_settings
-from api.utils import get_rate_limiter
-from api.auth.users import get_user_manager, CmsUserManager
+from app.domain import Tags, TextStreamItem
+from app.model_services.base import AbstractModelService
+from app.utils import get_settings
+from app.api.utils import get_rate_limiter
+from app.api.auth.users import get_user_manager, CmsUserManager
 
 PATH_STREAM_PROCESS = "/process"
 PATH_WS_PROCESS = "/ws"
@@ -26,6 +26,8 @@ config = get_settings()
 limiter = get_rate_limiter(config)
 logger = logging.getLogger("cms")
 
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.post(PATH_STREAM_PROCESS,
              tags=[Tags.Annotations.name],
@@ -49,7 +51,7 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
             cookie = websocket.cookies.get("fastapiusersauth")
             if cookie is None:
                 raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="Authentication cookie not found")
-            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, user_manager)
+            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, user_manager) # type: ignore
             if not user or not user.is_active:
                 raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
 
@@ -74,9 +76,9 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
                 annotations = await model_service.async_annotate(text)
                 annotated_text = ""
                 start_index = 0
-                for annotation in annotations:
-                    annotated_text += f'{text[start_index:annotation["start"]]}[{annotation["label_name"]}: {text[annotation["start"]:annotation["end"]]}]'
-                    start_index = annotation["end"]
+                for anno in annotations:
+                    annotated_text += f'{text[start_index:anno.start]}[{anno.label_name}: {text[anno.start:anno.end]}]'
+                    start_index = anno.end
                 annotated_text += text[start_index:]
             except Exception as e:
                 await websocket.send_text(f"ERROR: {str(e)}")
@@ -145,9 +147,9 @@ async def _annotation_async_gen(request: Request, model_service: AbstractModelSe
                         json_line_obj = json.loads(line)
                         TextStreamItem(**json_line_obj)
                         annotations = await model_service.async_annotate(json_line_obj["text"])
-                        for annotation in annotations:
-                            annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
-                            yield Annotation(**annotation).json(exclude_none=True) + "\n"
+                        for anno in annotations:
+                            anno.doc_name = json_line_obj.get("name", str(doc_idx))
+                            yield anno.json(exclude_none=True) + "\n"
                     except json.JSONDecodeError:
                         yield json.dumps({"error": "Invalid JSON Line", "content": line}) + "\n"
                     except ValidationError:
@@ -159,9 +161,9 @@ async def _annotation_async_gen(request: Request, model_service: AbstractModelSe
                 json_line_obj = json.loads(buffer)
                 TextStreamItem(**json_line_obj)
                 annotations = model_service.annotate(json_line_obj["text"])
-                for annotation in annotations:
-                    annotation["doc_name"] = json_line_obj.get("name", str(doc_idx))
-                    yield Annotation(**annotation).json(exclude_none=True) + "\n"
+                for anno in annotations:
+                    anno.doc_name = json_line_obj.get("name", str(doc_idx))
+                    yield anno.json(exclude_none=True) + "\n"
             except json.JSONDecodeError:
                 yield json.dumps({"error": "Invalid JSON Line", "content": buffer}) + "\n"
             except ValidationError:

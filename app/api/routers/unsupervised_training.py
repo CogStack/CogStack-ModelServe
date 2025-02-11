@@ -10,16 +10,18 @@ from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
-import api.globals as cms_globals
+import app.api.globals as cms_globals
 from api.dependencies import validate_tracking_id
-from domain import Tags, ModelType
-from model_services.base import AbstractModelService
-from utils import get_settings, unpack_model_data_package
-from exception import ConfigurationException, ClientException
+from app.domain import Tags, ModelType
+from app.model_services.base import AbstractModelService
+from app.utils import get_settings, unpack_model_data_package
+from app.exception import ConfigurationException, ClientException
 
 router = APIRouter()
 logger = logging.getLogger("cms")
 
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.post("/train_unsupervised",
              status_code=HTTP_202_ACCEPTED,
@@ -110,7 +112,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
 
     data_dir = tempfile.TemporaryDirectory()
     if hf_dataset_package is not None:
-        if unpack_model_data_package(hf_dataset_package.filename, data_dir.name):
+        if hf_dataset_package.filename and unpack_model_data_package(hf_dataset_package.filename, data_dir.name):
             logger.debug("Training dataset uploaded and extracted")
         else:
             raise ClientException("Failed to extract the uploaded training dataset")

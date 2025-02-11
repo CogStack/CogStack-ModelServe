@@ -3,8 +3,9 @@ import pytest
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers.models.bert.modeling_bert import BertForTokenClassification
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
-from domain import ModelType
-from model_services.trf_model_deid import TransformersModelDeIdentification
+from app import __version__
+from app.domain import ModelType
+from app.model_services.trf_model_deid import TransformersModelDeIdentification
 
 
 def test_model_name(trf_model):
@@ -12,7 +13,7 @@ def test_model_name(trf_model):
 
 
 def test_api_version(trf_model):
-    assert trf_model.api_version == "0.0.1"
+    assert trf_model.api_version == __version__
 
 
 @pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),

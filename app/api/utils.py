@@ -17,8 +17,8 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
-from config import Settings
-from exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
+from app.config import Settings
+from app.exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
 
 logger = logging.getLogger("cms")
 

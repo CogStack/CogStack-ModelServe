@@ -3,14 +3,15 @@ import shutil
 import logging
 import torch
 import numpy as np
-from typing import Tuple, List, Dict, Iterable, Optional, final
+from typing import Tuple, List, Dict, Iterable, Optional, final, Any
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
-from model_services.base import AbstractModelService
-from domain import ModelCard, ModelType
-from config import Settings
-from utils import cls_deprecated, non_default_device_is_available
+from app import __version__ as api_version
+from app.model_services.base import AbstractModelService
+from app.domain import ModelCard, ModelType, Annotation
+from app.config import Settings
+from app.utils import cls_deprecated, non_default_device_is_available
 
 logger = logging.getLogger("cms")
 
@@ -50,7 +51,8 @@ class TransformersModelDeIdentification(AbstractModelService):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,
@@ -58,7 +60,9 @@ class TransformersModelDeIdentification(AbstractModelService):
                          api_version=self.api_version)
 
     @staticmethod
-    def load_model(model_file_path: str) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
+    def load_model(model_file_path: str,
+                   *args: Tuple,
+                   **kwargs: Dict[str, Any]) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)
@@ -79,23 +83,23 @@ class TransformersModelDeIdentification(AbstractModelService):
             self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
             self._model.to(self._device)
 
-    def annotate(self, text: str) -> List[Dict]:
+    def annotate(self, text: str) -> List[Annotation]:
         return self._get_annotations(text)
 
-    def batch_annotate(self, texts: List[str]) -> List[List[Dict]]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         annotation_list = []
         for text in texts:
             annotation_list.append(self._get_annotations(text))
         return annotation_list
 
-    def _get_annotations(self, text: str) -> List[Dict]:
+    def _get_annotations(self, text: str) -> List[Annotation]:
         if not text.strip():
             return []
         self._model.eval()
         device = self._config.DEVICE
         cas = self._config.CONCAT_SIMILAR_ENTITIES == "true"
         ist = self._config.INCLUDE_SPAN_TEXT == "true"
-        annotations: List[Dict] = []
+        annotations: List[Annotation] = []
 
         for dataset, offset_mappings in self._get_chunked_tokens(text):
             predictions = self._model(torch.tensor([dataset["input_ids"]]).to(device),
@@ -109,21 +113,21 @@ class TransformersModelDeIdentification(AbstractModelService):
                     t_text = self._tokenizer.hf_tokenizer.decode(input_ids[t_idx])
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
-                    annotation = {
+                    annotation = Annotation.parse_obj({
                         "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),
                         "label_id": self._id2cui[cur_cui_id],
                         "start": offset_mappings[t_idx][0],
                         "end": offset_mappings[t_idx][1],
-                    }
+                    })
                     if ist:
-                        annotation["text"] = t_text
+                        annotation.text = t_text
                     if annotations:
                         token_type = self._tokenizer.id2type.get(input_ids[t_idx])
                         if any([self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),
                                self._should_expand_with_whole(cas, annotation, annotations)]):
-                            annotations[-1]["end"] = annotation["end"]
+                            annotations[-1].end = annotation.end
                             if ist:
-                                annotations[-1]["text"] = text[annotations[-1]["start"]:annotations[-1]["end"]]
+                                annotations[-1].text = text[annotations[-1].start:annotations[-1].end]
                             del annotation
                             continue
                         elif cur_cui_id != 1:
@@ -159,10 +163,12 @@ class TransformersModelDeIdentification(AbstractModelService):
     @staticmethod
     def _should_expand_with_partial(cur_cui_id: int,
                                     cur_token_type: str,
-                                    annotation: Dict,
-                                    annotations: List[Dict]) -> bool:
-        return all([cur_cui_id == 1, cur_token_type == "sub", (annotation["start"] - annotations[-1]["end"]) in [0, 1]])
+                                    annotation: Annotation,
+                                    annotations: List[Annotation]) -> bool:
+        return all([cur_cui_id == 1, cur_token_type == "sub", (annotation.start - annotations[-1].end) in [0, 1]])
 
     @staticmethod
-    def _should_expand_with_whole(is_enabled: bool, annotation: Dict, annotations: List[Dict]) -> bool:
-        return all([is_enabled, annotation["label_id"] == annotations[-1]["label_id"], (annotation["start"] - annotations[-1]["end"]) in [0, 1]])
+    def _should_expand_with_whole(is_enabled: bool,
+                                  annotation: Annotation,
+                                  annotations: List[Annotation]) -> bool:
+        return all([is_enabled, annotation.label_id == annotations[-1].label_id, (annotation.start - annotations[-1].end) in [0, 1]])

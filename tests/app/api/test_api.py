@@ -1,6 +1,6 @@
-from api.api import get_model_server, get_stream_server
-from api.dependencies import ModelServiceDep
-from utils import get_settings
+from app.api.api import get_model_server, get_stream_server
+from app.api.dependencies import ModelServiceDep
+from app.utils import get_settings
 
 
 def test_get_model_server():

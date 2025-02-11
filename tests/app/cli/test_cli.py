@@ -1,8 +1,8 @@
 import os
 import pytest
-from unittest.mock import patch
-from cli.cli import cmd_app
 from typer.testing import CliRunner
+from unittest.mock import patch
+from app.cli.cli import cmd_app
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "model")
 

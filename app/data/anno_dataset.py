@@ -2,7 +2,7 @@ import datasets
 import json
 from pathlib import Path
 from typing import List, Iterable, Tuple, Dict
-from utils import filter_by_concept_ids
+from app.utils import filter_by_concept_ids
 
 
 class AnnotationDatasetConfig(datasets.BuilderConfig):

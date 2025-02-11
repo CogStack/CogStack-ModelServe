@@ -7,10 +7,8 @@ import zipfile
 import tarfile
 import unittest
 from safetensors.torch import save_file
-
-
 from urllib.parse import urlparse
-from utils import (
+from app.utils import (
     get_settings,
     get_code_base_uri,
     annotations_to_entities,
@@ -30,6 +28,7 @@ from utils import (
     unpack_model_data_package,
     create_model_data_package,
 )
+from app.domain import Annotation, Entity
 
 
 def test_get_code_base_uri():
@@ -39,19 +38,19 @@ def test_get_code_base_uri():
 
 
 def test_annotations_to_entities():
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 1,
         "end": 15,
-    }]
-    expected = [{
+    })]
+    expected = [Entity.parse_obj({
         "start": 1,
         "end": 15,
         "label": "Spinal stenosis",
         "kb_id": "76107001",
         "kb_url": "http://snomed.info/id/76107001",
-    }]
+    })]
     assert annotations_to_entities(annotations, "SNOMED model") == expected
 
 

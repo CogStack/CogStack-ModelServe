@@ -4,8 +4,9 @@ import pytest
 from unittest.mock import Mock
 from tests.app.conftest import MODEL_PARENT_DIR
 from medcat.cat import CAT
-from domain import ModelType
-from model_services.medcat_model_icd10 import MedCATModelIcd10
+from app import __version__
+from app.domain import ModelType
+from app.model_services.medcat_model_icd10 import MedCATModelIcd10
 
 
 def test_model_name(medcat_icd10_model):
@@ -13,7 +14,7 @@ def test_model_name(medcat_icd10_model):
 
 
 def test_api_version(medcat_icd10_model):
-    assert medcat_icd10_model.api_version == "0.0.1"
+    assert medcat_icd10_model.api_version == __version__
 
 
 def test_from_model(medcat_icd10_model):

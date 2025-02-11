@@ -11,8 +11,8 @@ from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
 from mlflow.exceptions import MlflowException
-from management.model_manager import ModelManager
-from exception import StartTrainingException
+from app.management.model_manager import ModelManager
+from app.exception import StartTrainingException
 
 logger = logging.getLogger("cms")
 urllib3_logger = logging.getLogger("urllib3")

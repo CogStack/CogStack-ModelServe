@@ -12,13 +12,13 @@ from transformers import (
     pipeline,
 )
 from transformers.pipelines import Pipeline
-from exception import ConfigurationException
-from model_services.base import AbstractModelService
-from trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
-from domain import ModelCard, ModelType
-from config import Settings
-from utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_data_package
-
+from app import __version__ as api_version
+from app.exception import ConfigurationException
+from app.model_services.base import AbstractModelService
+from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
+from app.domain import ModelCard, ModelType, Annotation
+from app.config import Settings
+from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_data_package
 
 logger = logging.getLogger("cms")
 
@@ -69,7 +69,8 @@ class HuggingFaceNerModel(AbstractModelService):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     @classmethod
     def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingFaceNerModel":
@@ -133,7 +134,7 @@ class HuggingFaceNerModel(AbstractModelService):
                          api_version=self.api_version,
                          model_card=self._model.config.to_dict())
 
-    def annotate(self, text: str) -> Dict:
+    def annotate(self, text: str) -> List[Annotation]:
         entities = self._ner_pipeline(text)
         df = pd.DataFrame(entities)
 
@@ -145,9 +146,9 @@ class HuggingFaceNerModel(AbstractModelService):
             df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
             df = df[df["accuracy"] >= self._multi_label_threshold]
         records = df.to_dict("records")
-        return records
+        return [Annotation.parse_obj(record) for record in records]
 
-    def batch_annotate(self, texts: List[str]) -> List[Dict]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for Hugging Face NER models")
 
     def train_supervised(self,

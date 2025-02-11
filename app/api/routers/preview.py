@@ -3,23 +3,25 @@ import json
 import tempfile
 import logging
 from io import BytesIO
-from typing import Union
+from typing import Union, cast
 from typing_extensions import Annotated, Dict, List
 from fastapi import APIRouter, Depends, Body, UploadFile, Request, Response, File, Form, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from spacy import displacy
 from starlette.status import HTTP_404_NOT_FOUND
 
-import api.globals as cms_globals
-from api.dependencies import validate_tracking_id
-from domain import Doc, Tags
-from model_services.base import AbstractModelService
-from processors.metrics_collector import concat_trainer_exports
-from utils import annotations_to_entities
+import app.api.globals as cms_globals
+from app.api.dependencies import validate_tracking_id
+from app.domain import Doc, Tags, Annotation, Entity
+from app.model_services.base import AbstractModelService
+from app.processors.metrics_collector import concat_trainer_exports
+from app.utils import annotations_to_entities
 
 router = APIRouter()
 logger = logging.getLogger("cms")
 
+assert cms_globals.props is not None, "Current active user dependency not injected"
+assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
 @router.post("/preview",
              tags=[Tags.Rendering.name],
@@ -30,7 +32,8 @@ async def get_rendered_entities_from_text(request: Request,
                                           text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
                                           tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
-    annotations = model_service.annotate(text)
+    annotation_dicts = model_service.annotate(text)
+    annotations = [Annotation.parse_obj(ad) for ad in annotation_dicts]
     entities = annotations_to_entities(annotations, model_service.model_name)
     logger.debug("Entities extracted for previewing %s", entities)
     ent_input = Doc(text=text, ents=entities)
@@ -62,7 +65,10 @@ def get_rendered_entities_from_trainer_export(request: Request,
                     temp_te.write(line)
                 temp_te.flush()
                 files.append(temp_te)
-            concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_project_ids=True, allow_recurring_doc_ids=True)
+            concatenated = concat_trainer_exports([file.name for file in files],
+                                                  allow_recurring_project_ids=True,
+                                                  allow_recurring_doc_ids=True)
+            concatenated = cast(Dict, concatenated)
             logger.debug("Training exports concatenated")
         finally:
             for file in files:
@@ -79,15 +85,15 @@ def get_rendered_entities_from_trainer_export(request: Request,
                 continue
             entities = []
             for annotation in document["annotations"]:
-                entities.append({
+                entities.append(Entity.parse_obj({
                     "start": annotation["start"],
                     "end": annotation["end"],
                     "label": f"{annotation['cui']} ({'correct' if annotation.get('correct', True) else 'incorrect'}{'; terminated' if annotation.get('deleted', False) and annotation.get('killed', False) else ''})",
                     "kb_id": annotation["cui"],
                     "kb_url": "#",
-                })
+                }))
             # Displacy cannot handle annotations out of appearance order so be this
-            entities = sorted(entities, key=lambda e: e["start"])
+            entities = sorted(entities, key=lambda e: e.start)
             logger.debug("Entities extracted for previewing %s", entities)
             doc = Doc(text=document["text"], ents=entities, title=f"P{project['id']}/D{document['id']}")
             htmls.append(displacy.render(doc.dict(), style="ent", manual=True))

@@ -4,7 +4,7 @@ from fastapi_users.authentication.transport.base import Transport
 from fastapi_users.authentication.strategy.base import Strategy
 from fastapi_users.authentication import BearerTransport, JWTStrategy
 from fastapi_users.authentication import AuthenticationBackend, CookieTransport
-from utils import get_settings
+from app.utils import get_settings
 
 
 @lru_cache

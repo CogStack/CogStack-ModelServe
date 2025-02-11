@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from utils import get_settings
-from api.utils import (
+from app.utils import get_settings
+from app.api.utils import (
     add_exception_handlers,
     add_rate_limiter,
     get_rate_limiter,

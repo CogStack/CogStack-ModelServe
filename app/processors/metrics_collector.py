@@ -1,12 +1,12 @@
 import json
 import hashlib
 import pandas as pd
-from typing import Tuple, Dict, List, Set, Union, Optional, TextIO
+from typing import Tuple, Dict, List, Set, Union, Optional, IO, Any
 from collections import defaultdict
 from sklearn.metrics import cohen_kappa_score
 from tqdm.autonotebook import tqdm
-from model_services.base import AbstractModelService
-from exception import AnnotationException
+from app.model_services.base import AbstractModelService
+from app.exception import AnnotationException
 
 
 ANCHOR_DELIMITER = ";"
@@ -15,7 +15,7 @@ STATE_MISSING = hashlib.sha1("MISSING".encode("utf-8")).hexdigest()
 META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8")).hexdigest()
 
 
-def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Dict],
+def sanity_check_model_with_trainer_export(trainer_export: Union[str, IO, Dict],
                                            model_service: AbstractModelService,
                                            return_df: bool = False,
                                            include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
@@ -60,10 +60,10 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
             annotations = model_service.annotate(document["text"])
             predictions[document["id"]] = []
             for annotation in annotations:
-                predictions[document["id"]].append([annotation["start"], annotation["end"], annotation["label_id"]])
-                concept_names[annotation["label_id"]] = annotation["label_name"]
-                concept_anchors[annotation["label_id"]] = concept_anchors.get(annotation["label_id"], [])
-                concept_anchors[annotation["label_id"]].append(f"P{project['id']}/D{document['id']}/S{annotation['start']}/E{ annotation['end']}")
+                predictions[document["id"]].append([annotation.start, annotation.end, annotation.label_id])
+                concept_names[annotation.label_id] = annotation.label_name
+                concept_anchors[annotation.label_id] = concept_anchors.get(annotation.label_id, [])
+                concept_anchors[annotation.label_id].append(f"P{project['id']}/D{document['id']}/S{annotation.start}/E{ annotation.end}")
 
             predicted = {tuple(x) for x in predictions[document["id"]]}
             actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
@@ -130,7 +130,7 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, TextIO, Di
 def concat_trainer_exports(data_file_paths: List[str],
                            combined_data_file_path: Optional[str] = None,
                            allow_recurring_project_ids: bool = False,
-                           allow_recurring_doc_ids: bool = True) -> Union[Dict, str]:
+                           allow_recurring_doc_ids: bool = True) -> Union[Dict[str, Any], str]:
     combined: Dict = {"projects": []}
     project_ids = []
     for path in data_file_paths:
@@ -155,7 +155,7 @@ def concat_trainer_exports(data_file_paths: List[str],
         return combined
 
 
-def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
+def get_stats_from_trainer_export(trainer_export: Union[str, IO, Dict],
                                   return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
     if isinstance(trainer_export, str):
         with open(trainer_export, "r") as file:
@@ -199,7 +199,7 @@ def get_stats_from_trainer_export(trainer_export: Union[str, TextIO, Dict],
         return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
-def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
+def get_iaa_scores_per_concept(export_file: Union[str, IO],
                                project_id: int,
                                another_project_id: int,
                                return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
@@ -259,7 +259,7 @@ def get_iaa_scores_per_concept(export_file: Union[str, TextIO],
         return per_cui_anno_iia_pct, per_cui_anno_cohens_kappa, per_cui_metaanno_iia_pct, per_cui_metaanno_cohens_kappa
 
 
-def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
+def get_iaa_scores_per_doc(export_file: Union[str, IO],
                            project_id: int,
                            another_project_id: int,
                            return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
@@ -320,7 +320,7 @@ def get_iaa_scores_per_doc(export_file: Union[str, TextIO],
         return per_doc_anno_iia_pct, per_doc_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
 
 
-def get_iaa_scores_per_span(export_file: Union[str, TextIO],
+def get_iaa_scores_per_span(export_file: Union[str, IO],
                             project_id: int,
                             another_project_id: int,
                             return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
@@ -381,7 +381,7 @@ def get_iaa_scores_per_span(export_file: Union[str, TextIO],
         return per_span_anno_iia_pct, per_span_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
 
 
-def _extract_project_pair(export_file: Union[str, TextIO],
+def _extract_project_pair(export_file: Union[str, IO],
                           project_id: int,
                           another_project_id: int) -> Tuple[Dict, Dict]:
     if isinstance(export_file, str):

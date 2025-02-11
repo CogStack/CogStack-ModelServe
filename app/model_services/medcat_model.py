@@ -5,13 +5,14 @@ import pandas as pd
 from multiprocessing import cpu_count
 from typing import Dict, List, Optional, TextIO, Tuple, Any
 from medcat.cat import CAT
-from model_services.base import AbstractModelService
-from trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
-from trainers.metacat_trainer import MetacatTrainer
-from domain import ModelCard
-from config import Settings
-from utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_data_package
-from exception import ConfigurationException
+from app import __version__ as api_version
+from app.model_services.base import AbstractModelService
+from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
+from app.trainers.metacat_trainer import MetacatTrainer
+from app.domain import ModelCard, Annotation
+from app.config import Settings
+from app.utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_data_package
+from app.exception import ConfigurationException
 
 logger = logging.getLogger("cms")
 
@@ -47,7 +48,8 @@ class MedCATModel(AbstractModelService):
 
     @property
     def api_version(self) -> str:
-        return "0.0.1"
+        # APP version is used although each model service could have its own API versioning
+        return api_version
 
     @classmethod
     def from_model(cls, model: CAT) -> "MedCATModel":
@@ -96,12 +98,12 @@ class MedCATModel(AbstractModelService):
     def info(self) -> ModelCard:
         raise NotImplementedError
 
-    def annotate(self, text: str) -> Dict:
+    def annotate(self, text: str) -> List[Annotation]:
         doc = self.model.get_entities(text,
                                       addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
-        return self.get_records_from_doc(doc)
+        return [Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)]
 
-    def batch_annotate(self, texts: List[str]) -> List[Dict]:
+    def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         batch_size_chars = 500000
 
         docs = self.model.multiprocessing_batch_char_size(
@@ -112,7 +114,7 @@ class MedCATModel(AbstractModelService):
         )
         annotations_list = []
         for _, doc in docs.items():
-            annotations_list.append(self.get_records_from_doc(doc))
+            annotations_list.append([Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)])
         return annotations_list
 
     def train_supervised(self,
@@ -157,7 +159,7 @@ class MedCATModel(AbstractModelService):
             raise ConfigurationException("The metacat trainer is not enabled")
         return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
 
-    def get_records_from_doc(self, doc: Dict) -> Dict:
+    def get_records_from_doc(self, doc: Dict) -> List[Dict]:
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:

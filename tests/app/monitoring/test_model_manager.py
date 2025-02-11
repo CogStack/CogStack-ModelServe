@@ -4,10 +4,11 @@ import pandas as pd
 from typing import Generator
 from unittest.mock import Mock, call
 from mlflow.pyfunc import PythonModelContext
-from model_services.base import AbstractModelService
-from management.model_manager import ModelManager
-from config import Settings
-from exception import ManagedModelException
+from app.model_services.base import AbstractModelService
+from app.management.model_manager import ModelManager
+from app.config import Settings
+from app.exception import ManagedModelException
+from app.domain import Annotation
 
 
 def test_retrieve_python_model_from_uri(mlflow_fixture):
@@ -100,7 +101,7 @@ def test_predict(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [{
+    model_manager._model_service.annotate.return_value = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -113,7 +114,7 @@ def test_predict(mlflow_fixture):
                 "name": "Status"
             }
         },
-    }]
+    })]
     output = model_manager.predict(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
     assert output.to_dict() == {
         "doc_name": {0: "doc_1", 1: "doc_2"},
@@ -128,7 +129,7 @@ def test_predict_stream(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [{
+    model_manager._model_service.annotate.return_value = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -141,7 +142,7 @@ def test_predict_stream(mlflow_fixture):
                 "name": "Status"
             }
         },
-    }]
+    })]
     output = model_manager.predict_stream(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
     assert isinstance(output, Generator)
     assert list(output) == [
