@@ -95,8 +95,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
-    @staticmethod
-    def run(trainer: "MedcatSupervisedTrainer", # type: ignore
+    def run(self,
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -106,34 +105,34 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
-        redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
         eval_mode = training_params["nepochs"] == 0
-        trainer._tracker_client.log_trainer_mode(not eval_mode)
+        self._tracker_client.log_trainer_mode(not eval_mode)
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
+                copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
 
-                if non_default_device_is_available(trainer._config.DEVICE):
-                    model = trainer._model_service.load_model(copied_model_pack_path,
-                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
-                    model.config.general["device"] = trainer._config.DEVICE
+                if non_default_device_is_available(self._config.DEVICE):
+                    model = self._model_service.load_model(copied_model_pack_path,
+                                                           meta_cat_config_dict={"general": {"device": self._config.DEVICE}})
+                    model.config.general["device"] = self._config.DEVICE
                 else:
-                    model = trainer._model_service.load_model(copied_model_pack_path)
-                trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
-                trainer._tracker_client.log_trainer_version(medcat_version)
+                    model = self._model_service.load_model(copied_model_pack_path)
+                self._tracker_client.log_model_config(self.get_flattened_config(model))
+                self._tracker_client.log_trainer_version(medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
-                trainer._tracker_client.log_document_size(num_of_docs)
-                training_params.update({"extra_cui_filter": trainer._get_concept_filter(cui_counts, model)})
+                self._tracker_client.log_document_size(num_of_docs)
+                training_params.update({"extra_cui_filter": self._get_concept_filter(cui_counts, model)})
                 logger.info("Performing supervised training...")
                 train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
                 train_supervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_supervised_params.items()}
                 model.config.version.description = description or model.config.version.description
 
-                with redirect_stdout(LogCaptor(trainer._glean_and_log_metrics)):    # type: ignore
+                with redirect_stdout(LogCaptor(self._glean_and_log_metrics)):    # type: ignore
                     fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(data_file.name, **train_supervised_params)
-                trainer._save_examples(examples, ["tp", "tn"])
+                self._save_examples(examples, ["tp", "tn"])
                 del examples
                 gc.collect()
                 cuis = []
@@ -163,70 +162,70 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                         "per_concept_f1": f1_val,
                     })
                     cuis.append(cui)
-                trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
-                trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-                trainer._tracker_client.log_classes(cuis)
-                trainer._sanity_check_model_and_save_results(data_file.name,
-                                                             trainer._model_service.from_model(model))
+                self._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+                self._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
+                self._tracker_client.log_classes(cuis)
+                self._sanity_check_model_and_save_results(data_file.name,
+                                                          self._model_service.from_model(model))
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model,
-                                                              trainer._retrained_models_dir,
-                                                              trainer._config.BASE_MODEL_FILE,
-                                                              description)
+                    model_pack_path = self.save_model_pack(model,
+                                                           self._retrained_models_dir,
+                                                           self._config.BASE_MODEL_FILE,
+                                                           description)
                     cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                               "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
-                    trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                    self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
                 if redeploy:
-                    trainer.deploy_model(trainer._model_service, model, skip_save_model)
+                    self.deploy_model(self._model_service, model, skip_save_model)
                 else:
                     del model
                     gc.collect()
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
-                trainer._tracker_client.end_with_success()
+                self._tracker_client.end_with_success()
             except TrainingCancelledException as e:
                 logger.exception(e)
                 logger.info("Supervised training was cancelled by the user")
                 del model
                 gc.collect()
-                trainer._tracker_client.end_with_interruption()
+                self._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
-                trainer._housekeep_file(model_pack_path)
-                trainer._housekeep_file(copied_model_pack_path)
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._housekeep_file(model_pack_path)
+                self._housekeep_file(copied_model_pack_path)
                 if cdb_config_path and os.path.exists(cdb_config_path):
                     os.remove(cdb_config_path)
         else:
             try:
                 logger.info("Evaluating the running model...")
-                trainer._tracker_client.log_model_config(trainer.get_flattened_config(trainer._model_service._model))
-                trainer._tracker_client.log_trainer_version(medcat_version)
+                self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
+                self._tracker_client.log_trainer_version(medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(
                     data_file.name)
-                trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
-                trainer._tracker_client.end_with_success()
+                self._tracker_client.log_document_size(num_of_docs)
+                self._sanity_check_model_and_save_results(data_file.name, self._model_service)
+                self._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
             except Exception as e:
                 logger.exception("Model evaluation failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
+                with self._training_lock:
+                    self._training_in_progress = False
 
     @staticmethod
     def _get_concept_filter(training_concepts: Dict, model: CAT) -> Set[str]:
@@ -321,8 +320,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         self._model_manager = ModelManager(type(model_service), model_service._config)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
-    @staticmethod
-    def run(trainer: "MedcatUnsupervisedTrainer",   # type: ignore
+    def run(self,
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
@@ -331,8 +329,8 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
-        redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
 
         if isinstance(data_file, tempfile.TemporaryDirectory):
             raw_dataset = datasets.load_from_disk(data_file.name)
@@ -342,33 +340,33 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
 
         try:
             logger.info("Loading a new model copy for training...")
-            copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-            if non_default_device_is_available(trainer._config.DEVICE):
-                model = trainer._model_service.load_model(copied_model_pack_path,
-                                                          meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
-                model.config.general["device"] = trainer._config.DEVICE
+            copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+            if non_default_device_is_available(self._config.DEVICE):
+                model = self._model_service.load_model(copied_model_pack_path,
+                                                       meta_cat_config_dict={"general": {"device": self._config.DEVICE}})
+                model.config.general["device"] = self._config.DEVICE
             else:
-                model = trainer._model_service.load_model(copied_model_pack_path)
-            trainer._tracker_client.log_model_config(trainer.get_flattened_config(model))
-            trainer._tracker_client.log_trainer_version(medcat_version)
+                model = self._model_service.load_model(copied_model_pack_path)
+            self._tracker_client.log_model_config(self.get_flattened_config(model))
+            self._tracker_client.log_trainer_version(medcat_version)
             logger.info("Performing unsupervised training...")
             step = 0
-            trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
+            self._tracker_client.send_model_stats(model.cdb.make_stats(), step)
             before_cui2count_train = dict(model.cdb.cui2count_train)
             num_of_docs = 0
             train_unsupervised_params = get_func_params_as_dict(model.train)
             train_unsupervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_unsupervised_params.items()}
 
             for batch in mini_batch(texts, batch_size=log_frequency):
-                if trainer._cancel_event.is_set():
-                    trainer._cancel_event.clear()
+                if self._cancel_event.is_set():
+                    self._cancel_event.clear()
                     raise TrainingCancelledException("Training cancelled by the user")
                 step += 1
                 model.train(batch, **train_unsupervised_params)
                 num_of_docs += len(batch)
-                trainer._tracker_client.send_model_stats(model.cdb.make_stats(), step)
+                self._tracker_client.send_model_stats(model.cdb.make_stats(), step)
 
-            trainer._tracker_client.log_document_size(num_of_docs)
+            self._tracker_client.log_document_size(num_of_docs)
             after_cui2count_train = {c: ct for c, ct in
                                      sorted(model.cdb.cui2count_train.items(), key=lambda item: item[1], reverse=True)}
             aggregated_metrics = []
@@ -381,48 +379,48 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                     "per_concept_train_count_before": before_cui2count_train.get(cui, 0),
                     "per_concept_train_count_after": train_count
                 })
-            trainer._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
+            self._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
 
             if not skip_save_model:
-                model_pack_path = trainer.save_model_pack(model,
-                                                          trainer._retrained_models_dir,
-                                                          trainer._config.BASE_MODEL_FILE,
-                                                          description)
+                model_pack_path = self.save_model_pack(model,
+                                                       self._retrained_models_dir,
+                                                       self._config.BASE_MODEL_FILE,
+                                                       description)
                 cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                           "_config.json")
                 model.cdb.config.save(cdb_config_path)
-                model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                 logger.info(f"Retrained model saved: {model_uri}")
-                trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
-                trainer.deploy_model(trainer._model_service, model, skip_save_model)
+                self.deploy_model(self._model_service, model, skip_save_model)
             else:
                 del model
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
-            trainer._tracker_client.end_with_success()
+            self._tracker_client.end_with_success()
         except TrainingCancelledException as e:
             logger.exception(e)
             logger.info("Unsupervised training was cancelled by the user")
             del model
             gc.collect()
-            trainer._tracker_client.end_with_interruption()
+            self._tracker_client.end_with_interruption()
         except Exception as e:
             logger.exception("Unsupervised training failed")
-            trainer._tracker_client.log_exceptions(e)
-            trainer._tracker_client.end_with_failure()
+            self._tracker_client.log_exceptions(e)
+            self._tracker_client.end_with_failure()
         finally:
             if isinstance(data_file, TextIO):
                 data_file.close()
             elif isinstance(data_file, tempfile.TemporaryDirectory):
                 data_file.cleanup()
-            with trainer._training_lock:
-                trainer._training_in_progress = False
-            trainer._clean_up_training_cache()
-            trainer._housekeep_file(model_pack_path)
-            trainer._housekeep_file(copied_model_pack_path)
+            with self._training_lock:
+                self._training_in_progress = False
+            self._clean_up_training_cache()
+            self._housekeep_file(model_pack_path)
+            self._housekeep_file(copied_model_pack_path)
             if cdb_config_path and os.path.exists(cdb_config_path):
                 os.remove(cdb_config_path)

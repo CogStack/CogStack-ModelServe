@@ -31,8 +31,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 params[key] = "<EMPTY>"
         return params
 
-    @staticmethod
-    def run(trainer: "MetacatTrainer",  # type: ignore
+    def run(self,
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -41,25 +40,25 @@ class MetacatTrainer(MedcatSupervisedTrainer):
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
-        redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
         eval_mode = training_params["nepochs"] == 0
-        trainer._tracker_client.log_trainer_mode(not eval_mode)
+        self._tracker_client.log_trainer_mode(not eval_mode)
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                if non_default_device_is_available(trainer._config.DEVICE):
-                    model = trainer._model_service.load_model(copied_model_pack_path,
-                                                              meta_cat_config_dict={"general": {"device": trainer._config.DEVICE}})
-                    model.config.general["device"] = trainer._config.DEVICE
+                copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+                if non_default_device_is_available(self._config.DEVICE):
+                    model = self._model_service.load_model(copied_model_pack_path,
+                                                           meta_cat_config_dict={"general": {"device": self._config.DEVICE}})
+                    model.config.general["device"] = self._config.DEVICE
                 else:
-                    model = trainer._model_service.load_model(copied_model_pack_path)
+                    model = self._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
                 model.config.version.description = description or model.config.version.description
                 for meta_cat in model._meta_cats:
-                    if trainer._cancel_event.is_set():
-                        trainer._cancel_event.clear()
+                    if self._cancel_event.is_set():
+                        self._cancel_event.clear()
                         raise TrainingCancelledException("Training was cancelled by the user")
 
                     category_name = meta_cat.config.general["category_name"]
@@ -68,8 +67,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     if training_params.get("test_size") is not None:
                         meta_cat.config.train.test_size = training_params["test_size"]
                     meta_cat.config.train.nepochs = training_params["nepochs"]
-                    trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
-                    trainer._tracker_client.log_trainer_version(medcat_version)
+                    self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
+                    self._tracker_client.log_trainer_version(medcat_version)
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
@@ -86,55 +85,55 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                             f"{category_name}_weighted_avg_f1": winner_report["report"]["weighted avg"]["f1-score"],
                             f"{category_name}_weighted_avg_support": winner_report["report"]["weighted avg"]["support"],
                         }
-                        trainer._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
+                        self._tracker_client.send_model_stats(report_stats, winner_report["epoch"])
                     except Exception as e:
                         logger.exception("Failed on training meta model: %s. This could be benign if training data has no annotations belonging to this category.", category_name)
-                        trainer._tracker_client.log_exceptions(e)
+                        self._tracker_client.log_exceptions(e)
 
                 if not is_retrained:
                     exception = TrainingFailedException("No metacat model has been retrained. Double-check the presence of metacat models and your annotations.")
                     logger.error("Error occurred while retraining the model: %s", exception, exc_info=True)
-                    trainer._tracker_client.log_exceptions(exception)
-                    trainer._tracker_client.end_with_failure()
+                    self._tracker_client.log_exceptions(exception)
+                    self._tracker_client.end_with_failure()
                     return
 
                 if not skip_save_model:
-                    model_pack_path = trainer.save_model_pack(model,
-                                                              trainer._retrained_models_dir,
-                                                              trainer._config.BASE_MODEL_FILE,
-                                                              description)
+                    model_pack_path = self.save_model_pack(model,
+                                                           self._retrained_models_dir,
+                                                           self._config.BASE_MODEL_FILE,
+                                                           description)
                     cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
                                                               "_config.json")
                     model.cdb.config.save(cdb_config_path)
-                    model_uri = trainer._tracker_client.save_model(model_pack_path, trainer._model_name, trainer._model_manager)
+                    model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
-                    trainer._tracker_client.save_model_artifact(cdb_config_path, trainer._model_name)
+                    self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
                 if redeploy:
-                    trainer.deploy_model(trainer._model_service, model, skip_save_model)
+                    self.deploy_model(self._model_service, model, skip_save_model)
                 else:
                     del model
                     gc.collect()
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
-                trainer._tracker_client.end_with_success()
+                self._tracker_client.end_with_success()
             except TrainingCancelledException as e:
                 logger.exception(e)
                 logger.info("Supervised training was cancelled by the user")
                 del model
                 gc.collect()
-                trainer._tracker_client.end_with_interruption()
+                self._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
-                trainer._housekeep_file(model_pack_path)
-                trainer._housekeep_file(copied_model_pack_path)
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._housekeep_file(model_pack_path)
+                self._housekeep_file(copied_model_pack_path)
                 if cdb_config_path and os.path.exists(cdb_config_path):
                     os.remove(cdb_config_path)
 
@@ -146,30 +145,30 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Evaluating the running model...")
                 metrics: List[Dict] = []
-                for meta_cat in trainer._model_service._model._meta_cats:
+                for meta_cat in self._model_service._model._meta_cats:
                     category_name = meta_cat.config.general["category_name"]
-                    trainer._tracker_client.log_model_config(trainer.get_flattened_config(meta_cat, category_name))
-                    trainer._tracker_client.log_trainer_version(medcat_version)
+                    self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
+                    self._tracker_client.log_trainer_version(medcat_version)
                     result = meta_cat.eval(data_file.name)
                     metrics.append({"precision": result.get("precision"), "recall": result.get("recall"), "f1": result.get("f1")})
 
                 if metrics:
-                    trainer._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
-                                                                  pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
-                                                                  trainer._model_service._model_name)
-                    trainer._tracker_client.end_with_success()
+                    self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
+                                                               pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
+                                                               self._model_service._model_name)
+                    self._tracker_client.end_with_success()
                     logger.info("Model evaluation finished")
                 else:
                     exception = TrainingFailedException("No metacat model has been evaluated. Double-check the presence of metacat models and your annotations.")
                     logger.error("Error occurred while evaluating the model: %s", exception, exc_info=True)
-                    trainer._tracker_client.log_exceptions(exception)
-                    trainer._tracker_client.end_with_failure()
+                    self._tracker_client.log_exceptions(exception)
+                    self._tracker_client.end_with_failure()
                     return
             except Exception as e:
                 logger.exception("Model evaluation failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
+                with self._training_lock:
+                    self._training_in_progress = False

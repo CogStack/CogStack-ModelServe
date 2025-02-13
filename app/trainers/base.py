@@ -120,7 +120,13 @@ class TrainerCommon(object):
                 logger.info("Starting training job: %s with experiment ID: %s", training_id, self.experiment_id)
                 self._training_in_progress = True
                 training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                                           partial(run, self, training_params, data_file, log_frequency, self.run_id, description)))
+                                                                           partial(run,
+                                                                                   training_params,
+                                                                                   data_file,
+                                                                                   log_frequency,
+                                                                                   self._run_id,
+                                                                                   description
+                                                                           )))
 
         if synchronised:
             loop.run_until_complete(training_task)
@@ -208,9 +214,8 @@ class SupervisedTrainer(ABC, TrainerCommon):
                                    description=description,
                                    synchronised=synchronised)
 
-    @staticmethod
     @abstractmethod
-    def run(trainer: "SupervisedTrainer",
+    def run(self,
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
@@ -250,9 +255,8 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
                                    description=description,
                                    synchronised=synchronised)
 
-    @staticmethod
     @abstractmethod
-    def run(trainer: "UnsupervisedTrainer",
+    def run(self,
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,

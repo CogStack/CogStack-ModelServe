@@ -60,6 +60,12 @@ The following table summarises the servable model types with their respective ou
 | transformers_deid | de-identification |  labelled with PII concepts   |
 |  huggingface_ner  |  huggingface_ner  |    customer managed labels    |
 
+### Serving retrained or fine-tuned models
+After the Training API is called and its background job completes successfully, the new model and its training
+metrics are saved in the default tracking folder at `/tmp/mlruns`, which can be re-configured via `MLFLOW_TRACKING_URI`
+in `./app/envs/.envs`. To serve the new model, locate the model's artifact, either a ZIP file or Gzipped tarball,
+and pass its path to the above `cms serve` command using the `--model-path` option.
+
 ## Run ModelServe in the container environment:
 
 ### Configuration:
@@ -100,7 +106,10 @@ export AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
 export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
 docker compose -f docker-compose-mlflow.yml up -d
 ```
-The user authentication feature is optional and turned off by default. If you wish to enable it, consult the [Management](./app/management/README.md) documentation.
+
+The user authentication feature is optional and turned off by default. If you wish to enable it, consult the [Management](./app/management/README.md)
+documentation. The newly trained model and the metrics collected during training will be stored in the `minio` bucket and
+the `mlflow` database, rather than the local file system.
 
 #### Work with the local/remote model registry:
 All models are registered in a so-called model registry, which can be run either on a local machine or on a remote HTTP server. To work with the model registry, the prerequisites include setting up the following environment variables:

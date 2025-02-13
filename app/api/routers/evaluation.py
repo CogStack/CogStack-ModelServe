@@ -111,7 +111,7 @@ def get_inter_annotator_agreement_scores(request: Request,
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Concatenate multiple trainer export files into a single file for download")
 def get_concatenated_trainer_exports(request: Request,
-                                     trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
+                                     trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be concatenated")],
                                      tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> JSONResponse:
     files = []
     for te in trainer_export:

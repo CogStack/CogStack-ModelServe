@@ -79,8 +79,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
 
-    @staticmethod
-    def run(trainer: "HuggingFaceNerUnsupervisedTrainer",   # type: ignore
+    def run(self,
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
@@ -89,20 +88,20 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         copied_model_pack_path = None
         train_dataset = None
         eval_dataset = None
-        redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        results_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "results"))
-        logs_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "logs"))
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
+        results_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "results"))
+        logs_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
         try:
             logger.info("Loading a new model copy for training...")
-            copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-            model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
+            copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+            model, tokenizer = self._model_service.load_model(copied_model_pack_path)
             copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
-            mlm_model = trainer._get_mlm_model(model, copied_model_directory)
+            mlm_model = self._get_mlm_model(model, copied_model_directory)
 
-            if non_default_device_is_available(trainer._config.DEVICE):
-                mlm_model.to(trainer._config.DEVICE)
+            if non_default_device_is_available(self._config.DEVICE):
+                mlm_model.to(self._config.DEVICE)
             test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
             if isinstance(data_file, tempfile.TemporaryDirectory):
                 raw_dataset = datasets.load_from_disk(data_file.name)
@@ -131,16 +130,16 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 "token_type_ids": datasets.Sequence(datasets.Value("int32"))
             })
             train_dataset = datasets.Dataset.from_generator(
-                trainer._tokenize_and_chunk,
+                self._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": trainer._max_length},
-                cache_dir=trainer._model_service._config.TRAINING_CACHE_DIR
+                gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                cache_dir=self._model_service._config.TRAINING_CACHE_DIR
             )
             eval_dataset = datasets.Dataset.from_generator(
-                trainer._tokenize_and_chunk,
+                self._tokenize_and_chunk,
                 features=dataset_features,
-                gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": trainer._max_length},
-                cache_dir = trainer._model_service._config.TRAINING_CACHE_DIR
+                gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                cache_dir = self._model_service._config.TRAINING_CACHE_DIR
             )
             train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
             eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
@@ -161,14 +160,14 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 save_steps=1000,
                 load_best_model_at_end=True,
                 save_total_limit=3,
-                use_cpu=trainer._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(trainer._config.DEVICE) else False,
+                use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
             )
 
             if training_params.get("lr_override") is not None:
                 training_args.learning_rate = training_params["lr_override"]
 
-            mlflow_logging_callback = MLflowLoggingCallback(trainer._tracker_client)
-            cancel_event_check_callback = CancelEventCheckCallback(trainer._cancel_event)
+            mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+            cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
             trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
             early_stopping_patience = training_params.get("early_stopping_patience", -1)
             if early_stopping_patience > 0:
@@ -183,30 +182,30 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 callbacks=trainer_callbacks,
             )
 
-            trainer._tracker_client.log_model_config(model.config.to_dict())
-            trainer._tracker_client.log_trainer_version(transformers_version)
+            self._tracker_client.log_model_config(model.config.to_dict())
+            self._tracker_client.log_trainer_version(transformers_version)
             logger.info("Performing unsupervised training...")
             hf_trainer.train()
 
             if cancel_event_check_callback.training_cancelled:
                 raise TrainingCancelledException("Training was cancelled by the user")
 
-            model = trainer._get_final_model(model, mlm_model)
+            model = self._get_final_model(model, mlm_model)
             if not skip_save_model:
-                model_pack_file_ext = get_model_data_package_extension(trainer._config.BASE_MODEL_FILE)
+                model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                 model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
-                retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
+                retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
                 model.save_pretrained(copied_model_directory,
-                                      safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                                      safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
                 create_model_data_package(copied_model_directory, retrained_model_pack_path)
-                model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
-                                                               trainer._model_name,
-                                                               trainer._model_manager)
+                model_uri = self._tracker_client.save_model(retrained_model_pack_path,
+                                                               self._model_name,
+                                                               self._model_manager)
                 logger.info(f"Retrained model saved: {model_uri}")
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
-                trainer.deploy_model(trainer._model_service, model, tokenizer)
+                self.deploy_model(self._model_service, model, tokenizer)
             else:
                 del model
                 del mlm_model
@@ -214,17 +213,17 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 gc.collect()
                 logger.info("Skipped deployment on the retrained model")
             logger.info("Unsupervised training finished")
-            trainer._tracker_client.end_with_success()
+            self._tracker_client.end_with_success()
         except TrainingCancelledException as e:
             logger.exception(e)
             logger.info("Unsupervised training was cancelled by the user")
             del model
             gc.collect()
-            trainer._tracker_client.end_with_interruption()
+            self._tracker_client.end_with_interruption()
         except Exception as e:
             logger.exception("Unsupervised training failed")
-            trainer._tracker_client.log_exceptions(e)
-            trainer._tracker_client.end_with_failure()
+            self._tracker_client.log_exceptions(e)
+            self._tracker_client.end_with_failure()
         finally:
             if isinstance(data_file, TextIO):
                 data_file.close()
@@ -234,10 +233,10 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 train_dataset.cleanup_cache_files()
             if eval_dataset is not None:
                 eval_dataset.cleanup_cache_files()
-            with trainer._training_lock:
-                trainer._training_in_progress = False
-            trainer._clean_up_training_cache()
-            trainer._housekeep_file(copied_model_pack_path)
+            with self._training_lock:
+                self._training_in_progress = False
+            self._clean_up_training_cache()
+            self._housekeep_file(copied_model_pack_path)
 
     @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
@@ -328,34 +327,33 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             paddings = [pad_token_id] * padding_length
             return target + paddings
 
-    @staticmethod
-    def run(trainer: "HuggingFaceNerSupervisedTrainer", # type: ignore
+    def run(self,
             training_params: Dict,
             data_file: TextIO,
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
         copied_model_pack_path = None
-        redeploy = trainer._config.REDEPLOY_TRAINED_MODEL == "true"
-        skip_save_model = trainer._config.SKIP_SAVE_MODEL == "true"
-        results_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "results"))
-        logs_path = os.path.abspath(os.path.join(trainer._config.TRAINING_CACHE_DIR, "logs"))
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
+        results_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "results"))
+        logs_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
         eval_mode = training_params["nepochs"] == 0
-        trainer._tracker_client.log_trainer_mode(not eval_mode)
+        self._tracker_client.log_trainer_mode(not eval_mode)
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = trainer._make_model_file_copy(trainer._model_pack_path, run_id)
-                model, tokenizer = trainer._model_service.load_model(copied_model_pack_path)
+                copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+                model, tokenizer = self._model_service.load_model(copied_model_pack_path)
                 copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
 
-                if non_default_device_is_available(trainer._config.DEVICE):
-                    model.to(trainer._config.DEVICE)
+                if non_default_device_is_available(self._config.DEVICE):
+                    model.to(self._config.DEVICE)
 
-                filtered_training_data, filtered_concepts = trainer._filter_training_data_and_concepts(data_file)
+                filtered_training_data, filtered_concepts = self._filter_training_data_and_concepts(data_file)
                 logger.debug(f"Filtered concepts: {filtered_concepts}")
-                model = trainer._update_model_with_concepts(model, filtered_concepts)
+                model = self._update_model_with_concepts(model, filtered_concepts)
 
 
                 test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
@@ -379,27 +377,27 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     "attention_mask": datasets.Sequence(datasets.Value("int32")),
                 })
                 train_dataset = datasets.Dataset.from_generator(
-                    trainer._tokenize_and_chunk,
+                    self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
-                    cache_dir=trainer._config.TRAINING_CACHE_DIR
+                    gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
+                    cache_dir=self._config.TRAINING_CACHE_DIR
                 )
                 eval_dataset = datasets.Dataset.from_generator(
-                    trainer._tokenize_and_chunk,
+                    self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": trainer._max_length, "model": model},
-                    cache_dir = trainer._config.TRAINING_CACHE_DIR
+                    gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
+                    cache_dir = self._config.TRAINING_CACHE_DIR
                 )
                 train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
 
-                data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=tokenizer.pad_token_id)
-                training_args = trainer._get_training_args(results_path, logs_path, training_params, log_frequency)
+                data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=tokenizer.pad_token_id)
+                training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency)
                 if training_params.get("lr_override") is not None:
                     training_args.learning_rate = training_params["lr_override"]
 
-                mlflow_logging_callback = MLflowLoggingCallback(trainer._tracker_client)
-                cancel_event_check_callback = CancelEventCheckCallback(trainer._cancel_event)
+                mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
                 trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
                 early_stopping_patience = training_params.get("early_stopping_patience", -1)
                 if early_stopping_patience > 0:
@@ -411,12 +409,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     data_collator=data_collator,
                     train_dataset=train_dataset,
                     eval_dataset=eval_dataset,
-                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=model.config.id2label, tracker_client=trainer._tracker_client, model_name=trainer._model_name),
+                    compute_metrics=partial(self._compute_token_level_metrics, id2label=model.config.id2label, tracker_client=self._tracker_client, model_name=self._model_name),
                     callbacks=trainer_callbacks,
                 )
 
-                trainer._tracker_client.log_model_config(model.config.to_dict())
-                trainer._tracker_client.log_trainer_version(transformers_version)
+                self._tracker_client.log_model_config(model.config.to_dict())
+                self._tracker_client.log_trainer_version(transformers_version)
 
                 logger.info("Performing supervised training...")
                 hf_trainer.train()
@@ -425,54 +423,54 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     raise TrainingCancelledException("Training was cancelled by the user")
 
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
-                trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
-                trainer._tracker_client.log_classes_and_names(model.config.id2label)
-                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service.from_model(model, tokenizer))
+                self._tracker_client.log_document_size(num_of_docs)
+                self._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
+                self._tracker_client.log_classes_and_names(model.config.id2label)
+                self._sanity_check_model_and_save_results(data_file.name, self._model_service.from_model(model, tokenizer))
 
                 if not skip_save_model:
-                    model_pack_file_ext = get_model_data_package_extension(trainer._config.BASE_MODEL_FILE)
+                    model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
-                    retrained_model_pack_path = os.path.join(trainer._retrained_models_dir, model_pack_file_name)
+                    retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
                     model.save_pretrained(copied_model_directory,
-                                          safe_serialization=(trainer._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                                          safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
                     create_model_data_package(copied_model_directory, retrained_model_pack_path)
-                    model_uri = trainer._tracker_client.save_model(retrained_model_pack_path,
-                                                                   trainer._model_name,
-                                                                   trainer._model_manager)
+                    model_uri = self._tracker_client.save_model(retrained_model_pack_path,
+                                                                   self._model_name,
+                                                                   self._model_manager)
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:
                     logger.info("Skipped saving on the retrained model")
                 if redeploy:
-                    trainer.deploy_model(trainer._model_service, model, tokenizer)
+                    self.deploy_model(self._model_service, model, tokenizer)
                 else:
                     del model
                     del tokenizer
                     gc.collect()
                     logger.info("Skipped deployment on the retrained model")
                 logger.info("Supervised training finished")
-                trainer._tracker_client.end_with_success()
+                self._tracker_client.end_with_success()
             except TrainingCancelledException as e:
                 logger.exception(e)
                 logger.info("Supervised training was cancelled")
                 del model
                 gc.collect()
-                trainer._tracker_client.end_with_interruption()
+                self._tracker_client.end_with_interruption()
             except Exception as e:
                 logger.exception("Supervised training failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
-                trainer._clean_up_training_cache()
-                trainer._housekeep_file(copied_model_pack_path)
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._clean_up_training_cache()
+                self._housekeep_file(copied_model_pack_path)
         else:
             try:
                 logger.info("Evaluating the running model...")
-                trainer._tracker_client.log_model_config(trainer._model_service._model.config.to_dict())
-                trainer._tracker_client.log_trainer_version(transformers_version)
+                self._tracker_client.log_model_config(self._model_service._model.config.to_dict())
+                self._tracker_client.log_trainer_version(transformers_version)
                 with open(data_file.name, "r") as f:
                     eval_data = json.load(f)
                 eval_documents = [document for project in eval_data["projects"] for document in project["documents"]]
@@ -482,39 +480,39 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     "attention_mask": datasets.Sequence(datasets.Value("int32")),
                 })
                 eval_dataset = datasets.Dataset.from_generator(
-                    trainer._tokenize_and_chunk,
+                    self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": eval_documents, "tokenizer": trainer._model_service.tokenizer, "max_length": trainer._max_length, "model": trainer._model_service._model},
-                    cache_dir=trainer._config.TRAINING_CACHE_DIR
+                    gen_kwargs={"documents": eval_documents, "tokenizer": self._model_service.tokenizer, "max_length": self._max_length, "model": self._model_service._model},
+                    cache_dir=self._config.TRAINING_CACHE_DIR
                 )
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
-                data_collator = trainer._LocalDataCollator(max_length=trainer._max_length, pad_token_id=trainer._model_service.tokenizer.pad_token_id)
-                training_args = trainer._get_training_args(results_path, logs_path, training_params, log_frequency)
+                data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=self._model_service.tokenizer.pad_token_id)
+                training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency)
                 hf_trainer = Trainer(
-                    model=trainer._model_service.model,
+                    model=self._model_service.model,
                     args=training_args,
                     data_collator=data_collator,
                     train_dataset=None,
                     eval_dataset=None,
-                    compute_metrics=partial(trainer._compute_token_level_metrics, id2label=trainer._model_service.model.config.id2label, tracker_client=trainer._tracker_client, model_name=trainer._model_name),
+                    compute_metrics=partial(self._compute_token_level_metrics, id2label=self._model_service.model.config.id2label, tracker_client=self._tracker_client, model_name=self._model_name),
                     tokenizer=None,
                 )
                 eval_metrics = hf_trainer.evaluate(eval_dataset)
                 logger.debug("Evaluation metrics: %s", eval_metrics)
-                trainer._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
+                self._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
-                trainer._tracker_client.log_document_size(num_of_docs)
-                trainer._sanity_check_model_and_save_results(data_file.name, trainer._model_service)
-                trainer._tracker_client.end_with_success()
+                self._tracker_client.log_document_size(num_of_docs)
+                self._sanity_check_model_and_save_results(data_file.name, self._model_service)
+                self._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
             except Exception as e:
                 logger.exception("Model evaluation failed")
-                trainer._tracker_client.log_exceptions(e)
-                trainer._tracker_client.end_with_failure()
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             finally:
                 data_file.close()
-                with trainer._training_lock:
-                    trainer._training_in_progress = False
+                with self._training_lock:
+                    self._training_in_progress = False
 
     @staticmethod
     def _filter_training_data_and_concepts(data_file: TextIO) -> Tuple[Dict, List]:

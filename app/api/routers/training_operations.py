@@ -105,6 +105,6 @@ async def cancel_training(request: Request,
     training_cancelled = model_service.cancel_training()
     if not training_cancelled:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST,
-                            content={"message": "Cannot find in-progress training or no trainers are enabled"})
+                            content={"message": "Cannot find in-progress training or no trainers are enabled for the running model."})
     return JSONResponse(status_code=HTTP_202_ACCEPTED,
                         content={"message": "The in-progress training will be stopped momentarily."})
