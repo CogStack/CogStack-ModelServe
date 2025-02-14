@@ -378,6 +378,24 @@ def test_evaluate_with_trainer_export(model_service, client):
     assert "evaluation_id" in response.json()
     assert response.json().get("evaluation_id") == TRACKING_ID
 
+def test_train_eval_metrics(model_service, client):
+    tracker_client = Mock()
+    tracker_client.get_metrics_by_job_id.return_value = [{
+        "precision": [0.9973285610540512],
+        "recall": [0.9896606632947247],
+        "f1": [0.9934285636532457],
+    }]
+    model_service.get_tracker_client.return_value = tracker_client
+    with open(TRAINER_EXPORT_PATH, "rb") as f:
+        response = client.get("/train_eval_metrics?train_eval_id=e3f303a9-3296-4a69-99e6-10de4e911453")
+
+    model_service.get_tracker_client.assert_called()
+    tracker_client.get_metrics_by_job_id.assert_called_with("e3f303a9-3296-4a69-99e6-10de4e911453")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["precision"] == [0.9973285610540512]
+    assert response.json()[0]["recall"] == [0.9896606632947247]
+    assert response.json()[0]["f1"] == [0.9934285636532457]
 
 def test_cancel_training(model_service, client):
     response = client.post("/cancel_training")

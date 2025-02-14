@@ -6,7 +6,7 @@ import json
 import logging
 import datasets
 import pandas as pd
-from typing import Dict, Tuple, List, Optional, Union, final
+from typing import Dict, Tuple, List, Optional, Union, final, Any
 from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
@@ -220,7 +220,7 @@ class TrackerClient(object):
             return [dict(run.info) for run in runs]
         except MlflowException as e:
             logger.exception(e)
-            logger.warning("Failed to retrieve the information about run '%s'", job_id)
+            logger.warning("Failed to retrieve the information about job '%s'", job_id)
         return []
 
 
@@ -260,6 +260,27 @@ class TrackerClient(object):
         mlflow.set_tag("training.output.model_uri", artifact_uri)
 
         return artifact_uri
+
+    def get_metrics_by_job_id(self, job_id: str) -> List[Dict[str, Any]]:
+        try:
+            runs = mlflow.search_runs(filter_string=f"tags.mlflow.runName = '{job_id}'",
+                                      search_all_experiments=True,
+                                      output_format="list")
+            if len(runs) == 0:
+                logger.debug("Cannot find any runs with job ID '%s'", job_id)
+                return []
+
+            metrics = []
+            for run in runs:
+                metrics_history = {}
+                for metric in run.data.metrics.keys():
+                    metrics_history[metric] = [m.value for m in self.mlflow_client.get_metric_history(run_id=run.info.run_id, key=metric)]
+                metrics.append(metrics_history)
+            return metrics
+        except MlflowException as e:
+            logger.exception(e)
+            logger.warning("Failed to retrieve the information about job '%s'", job_id)
+        return []
 
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:

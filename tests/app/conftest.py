@@ -18,6 +18,8 @@ def mlflow_fixture(mocker):
     pyfunc_model = Mock()
     active_run.info = MagicMock()
     active_run.info.run_id = "run_id"
+    active_run.data = MagicMock()
+    active_run.data.metrics = {"precision": 0.9973285610540512, "recall": 0.9896606632947247, "f1": 0.9934285636532457}
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.get_experiment_by_name", return_value=None)

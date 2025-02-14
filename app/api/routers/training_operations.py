@@ -108,3 +108,19 @@ async def cancel_training(request: Request,
                             content={"message": "Cannot find in-progress training or no trainers are enabled for the running model."})
     return JSONResponse(status_code=HTTP_202_ACCEPTED,
                         content={"message": "The in-progress training will be stopped momentarily."})
+
+
+@router.get("/train_eval_metrics",
+            response_class=JSONResponse,
+            tags=[Tags.Training.name],
+            dependencies=[Depends(cms_globals.props.current_active_user)],
+            description="Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)")
+async def train_eval_metrics(request: Request,
+                             train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
+                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    tracker_client = model_service.get_tracker_client()
+    if tracker_client is None:
+        return JSONResponse(status_code=HTTP_503_SERVICE_UNAVAILABLE,
+                            content={"message": "The running model does not have any available trainers enabled"})
+    metrics = tracker_client.get_metrics_by_job_id(train_eval_id)
+    return JSONResponse(status_code=HTTP_200_OK if len(metrics) != 0 else HTTP_404_NOT_FOUND, content=metrics)

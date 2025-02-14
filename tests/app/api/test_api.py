@@ -41,6 +41,7 @@ def test_get_model_server():
     assert "/train_unsupervised_with_hf_hub_dataset" in paths
     assert "/train_metacat" in paths
     assert "/train_eval_info" in paths
+    assert "/train_eval_metrics" in paths
     assert "/cancel_training" in paths
     assert "/evaluate" in paths
     assert "/sanity-check" in paths

@@ -284,11 +284,40 @@ def test_get_experiment_name():
 
 
 def test_get_info_by_job_id(mlflow_fixture):
+    mlflow_client = Mock()
+    mlflow_client.get_metric_history.side_effect = [
+        [
+            mlflow.entities.Metric("precision", 0.9973285610540512, 0, 0),
+            mlflow.entities.Metric("precision", 0.9973285610540512, 1, 1),
+        ],
+        [
+            mlflow.entities.Metric("recall", 0.9896606632947247, 0, 0),
+            mlflow.entities.Metric("recall", 0.9896606632947247, 1, 1)
+        ],
+        [
+            mlflow.entities.Metric("f1", 0.9934285636532457, 0, 0),
+            mlflow.entities.Metric("f1", 0.9934285636532457, 1, 1)],
+    ]
     tracker_client = TrackerClient("")
+    tracker_client.mlflow_client = mlflow_client
 
-    job_info = tracker_client.get_info_by_job_id("job_id")
+    metrics = tracker_client.get_metrics_by_job_id("job_id")
 
     mlflow.search_runs.assert_called_once_with(filter_string="tags.mlflow.runName = 'job_id'",
                                                search_all_experiments=True,
                                                output_format="list")
-    assert len(job_info) == 1
+    assert len(mlflow_client.get_metric_history.call_args_list) == 3
+    assert mlflow_client.get_metric_history.call_args_list[0] == call(run_id="run_id", key="precision")
+    assert mlflow_client.get_metric_history.call_args_list[1] == call(run_id="run_id", key="recall")
+    assert mlflow_client.get_metric_history.call_args_list[2] == call(run_id="run_id", key="f1")
+    assert metrics == [{
+        "precision": [0.9973285610540512, 0.9973285610540512],
+        "recall": [0.9896606632947247, 0.9896606632947247],
+        "f1": [0.9934285636532457, 0.9934285636532457],
+    }]
+
+
+def test_get_metrics_by_job_id(mlflow_fixture):
+    tracker_client = TrackerClient("")
+
+    job_info = tracker_client.get_info_by_job_id("d59577a40b2d4aa296033d331de29931")
