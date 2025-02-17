@@ -62,9 +62,15 @@ The following table summarises the servable model types with their respective ou
 
 ### Serving retrained or fine-tuned models
 After the Training API is called and its background job completes successfully, the new model and its training
-metrics are saved in the default tracking folder at `/tmp/mlruns`, which can be re-configured via `MLFLOW_TRACKING_URI`
-in `./app/envs/.envs`. To serve the new model, locate the model's artifact, either a ZIP file or Gzipped tarball,
-and pass its path to the above `cms serve` command using the `--model-path` option.
+metrics are saved in the default tracking folder at `/tmp/mlruns` (can be re-configured via `MLFLOW_TRACKING_URI`
+in `./app/envs/.envs`). To view the training metrics and artifacts, navigate to http://localhost:5000 after starting
+the MLflow UI:
+```commandline
+mlflow ui --backend-store-uri /tmp/mlruns
+```
+
+To serve the new model, locate its artifact under the "Artifacts" tab, select and download it (either a ZIP file or
+Gzipped tarball), and pass the file path to the above `cms serve` command using the `--model-path` option.
 
 ## Run ModelServe in the container environment:
 
