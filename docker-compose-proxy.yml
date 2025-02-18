@@ -26,8 +26,8 @@ services:
     ports:
       - 28180:28180 # medcat-snomed
       - 28181:28181 # medcat-icd10
-      - 28182:28182 # de-identification
-      - 28183:28183 # medcat-deid
+#      - 28182:28182 # de-identification (deprecated)
+      - 28183:28183 # medcat-deid (anoncat)
       - 28184:28184 # medcat-umls
       - 28185:28185 # huggingface-ner
       - 28199:28199 # minio

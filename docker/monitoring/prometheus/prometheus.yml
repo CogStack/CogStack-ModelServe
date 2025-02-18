@@ -31,12 +31,6 @@ scrape_configs:
     - targets:
       - "medcat-icd10:8000"
 
-  - job_name: "cms_de-identification"
-    scrape_interval: 15s
-    static_configs:
-    - targets:
-      - "de-identification:8000"
-
   - job_name: "cms_medcat-deid"
     scrape_interval: 15s
     static_configs:

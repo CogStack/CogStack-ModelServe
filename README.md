@@ -16,7 +16,6 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [ICD-10 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_icd10_model_apis.html)
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
-- [De-ID Transformers Model](https://cogstack.github.io/CogStack-ModelServe/docs/transformers_deid_model_apis.html)
 - [Hugging Face NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
@@ -57,7 +56,6 @@ The following table summarises the servable model types with their respective ou
 |   medcat_icd10    |   medcat-icd10    | labelled with ICD-10 concepts |
 |    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
 |    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
-| transformers_deid | de-identification |  labelled with PII concepts   |
 |  huggingface_ner  |  huggingface_ner  |    customer managed labels    |
 
 ### Serving retrained or fine-tuned models
@@ -86,8 +84,10 @@ export CMS_GID=$(id -g $USER)
 docker compose -f docker-compose.yml up -d <model-service>
 ```
 Then the API docs will be accessible at localhost on the mapped port specified in `docker-compose.yml`. The container runs
-as a `cms` non-root user configured during the image build. Ensure the model package file is owned by the currently
-logged-in user to avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
+as a `cms` non-root user configured during the image build so ensure the volume mapping sources including the model package
+file and the `.env` configuration file are readable by the `cms` user. If you prefer to build the image yourself instead
+of using pre-built ones hosted on Docker Hub, ensure the model package file is owned by the currently logged-in user to
+avoid permission-related errors. If the file ownership is altered, you will need to rebuild the image.
 
 Note that the CMS containers do not download remotely-hosted models during the launch process. Thus, after verifying
 the authenticity of the model you are going to run, ensure the model package file will be correctly mounted
