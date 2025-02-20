@@ -66,6 +66,8 @@ The following table summarises the servable model types with their respective ou
 
 The core functionality is provided by services defined in `docker-compose.yml`.
 Additional features generally require running services in extra compose files.
+Most additional services (as well as the core services) require specific environment variables to be set before running.
+See the relevant sections below for details.
 
 | Feature        | Category  |  Additional compose file    |     Feature description                                      |
 |:--------------:|:---------:|:---------------------------:|:------------------------------------------------------------:|
