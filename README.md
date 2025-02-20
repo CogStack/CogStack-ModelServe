@@ -62,6 +62,21 @@ The following table summarises the servable model types with their respective ou
 
 ## Run ModelServe in the container environment:
 
+### Component / feature summary
+
+The core functionality is provided by services defined in `docker-compose.yml`.
+Additional features generally require running services in extra compose files.
+
+| Feature        | Category  |  Additional compose file    |     Feature description                                      |
+|:--------------:|:---------:|:---------------------------:|:------------------------------------------------------------:|
+| Serving        |  Core     |                N/A          | Enables serving the model for inference                      |
+| Evaluating     |  Core     |                N/A          | Enables evaluating model performance                         |
+| Training       | Auxiliary | `docker-compose-mlflow.yml` | Enables model training and lifecycle tracking through MLFlow |
+| Monitoring     | Auxiliary | `docker-compose-mon.yml`    | Enables monitoring the HTTP API usage                        |
+| Logging        | Auxiliary | `docker-compose-log.yml`    | Enable centralised logging and log analysis                  |
+| Proxying       | Auxiliary | `docker-compose-proxy.yml`  | Reverse proxy service                                        |
+| Authentication | Auxiliary | `docker-compose-auth.yml`   | Enable user authentication                                   |
+
 ### Configuration:
 Default configuration properties can be found and customised in `./docker/<MODEL-TYPE>/.envs`
 
