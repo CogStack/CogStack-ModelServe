@@ -88,6 +88,8 @@ To serve NLP models through a container, run the following commands:
 export MODEL_PACKAGE_FULL_PATH=<PATH/TO/MODEL_PACKAGE.zip>
 export CMS_UID=$(id -u $USER)
 export CMS_GID=$(id -g $USER)
+# NOTE: use if you wish to save models locally (i.e run without the mlflow component)
+# export export MLFLOW_TRACKING_URI="file:///tmp/mlruns/"
 docker compose -f docker-compose.yml up -d <model-service>
 ```
 Then the API docs will be accessible at localhost on the mapped port specified in `docker-compose.yml`. The container runs
