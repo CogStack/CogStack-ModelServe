@@ -73,7 +73,7 @@ See the relevant sections below for details.
 |:--------------:|:---------:|:---------------------------:|:------------------------------------------------------------:|
 | Serving        |  Core     |                N/A          | Enables serving the model for inference                      |
 | Evaluating     |  Core     |                N/A          | Enables evaluating model performance                         |
-| Training       | Auxiliary | `docker-compose-mlflow.yml` | Enables model training and lifecycle tracking through MLFlow |
+| Training       |  Core     |                N/A          | Enables model training and lifecycle tracking through MLFlow |
 | Monitoring     | Auxiliary | `docker-compose-mon.yml`    | Enables monitoring the HTTP API usage                        |
 | Logging        | Auxiliary | `docker-compose-log.yml`    | Enable centralised logging and log analysis                  |
 | Proxying       | Auxiliary | `docker-compose-proxy.yml`  | Reverse proxy service                                        |
