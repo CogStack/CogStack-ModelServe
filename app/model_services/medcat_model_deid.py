@@ -6,7 +6,7 @@ from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
-from app import __version__ as api_version
+from app import __version__ as app_version
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
@@ -36,7 +36,7 @@ class MedCATModelDeIdentification(MedCATModel):
     @property
     def api_version(self) -> str:
         # APP version is used although each model service could have its own API versioning
-        return api_version
+        return app_version
 
     def info(self) -> ModelCard:
         model_card = self.model.get_model_card(as_dict=True)

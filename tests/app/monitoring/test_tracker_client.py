@@ -6,6 +6,7 @@ import pandas as pd
 from unittest.mock import Mock, call
 from app.management.tracker_client import TrackerClient
 from app.data import doc_dataset
+from app.domain import TrainerBackend
 from tests.app.helper import StringContains
 
 
@@ -237,9 +238,12 @@ def test_log_classes_and_names(mlflow_fixture):
 def test_log_trainer_version(mlflow_fixture):
     tracker_client = TrackerClient("")
 
-    tracker_client.log_trainer_version("1.2.3")
+    tracker_client.log_trainer_version(TrainerBackend.MEDCAT, "1.2.3")
 
-    mlflow.set_tag.assert_called_once_with("training.trainer.version", "1.2.3")
+    mlflow.set_tags.assert_called_once_with({
+        "training.trainer.backend": TrainerBackend.MEDCAT.value,
+        "training.trainer.version": "1.2.3",
+    })
 
 
 def test_log_trainer_mode(mlflow_fixture):
@@ -283,7 +287,20 @@ def test_get_experiment_name():
     assert TrackerClient.get_experiment_name("SNOMED model", "unsupervised") == "SNOMED_model_unsupervised"
 
 
+
 def test_get_info_by_job_id(mlflow_fixture):
+    tracker_client = TrackerClient("")
+
+    job_info = tracker_client.get_info_by_job_id("job_id")
+
+    mlflow.search_runs.assert_called_once_with(filter_string="tags.mlflow.runName = 'job_id'",
+                                               search_all_experiments=True,
+                                               output_format="list")
+    assert len(job_info) == 1
+    assert job_info[0]["tags"] == {"tag": "tag"}
+
+
+def test_get_metrics_by_job_id(mlflow_fixture):
     mlflow_client = Mock()
     mlflow_client.get_metric_history.side_effect = [
         [
@@ -315,9 +332,3 @@ def test_get_info_by_job_id(mlflow_fixture):
         "recall": [0.9896606632947247, 0.9896606632947247],
         "f1": [0.9934285636532457, 0.9934285636532457],
     }]
-
-
-def test_get_metrics_by_job_id(mlflow_fixture):
-    tracker_client = TrackerClient("")
-
-    job_info = tracker_client.get_info_by_job_id("d59577a40b2d4aa296033d331de29931")

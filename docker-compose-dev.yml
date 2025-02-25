@@ -9,6 +9,8 @@ services:
     extends:
       file: ./docker-compose.yml
       service: medcat-snomed
+    labels:
+      - org.cogstack.model-serve.dev=true
     build:
       context: ./
       dockerfile: ./docker/medcat-snomed/Dockerfile
@@ -46,6 +48,8 @@ services:
     extends:
       file: ./docker-compose.yml
       service: medcat-icd10
+    labels:
+      - org.cogstack.model-serve.dev=true
     build:
         context: ./
         dockerfile: ./docker/medcat-icd10/Dockerfile
@@ -83,6 +87,8 @@ services:
     extends:
       file: ./docker-compose.yml
       service: medcat-deid
+    labels:
+      - org.cogstack.model-serve.dev=true
     build:
       context: ./
       dockerfile: ./docker/medcat-deid/Dockerfile
@@ -120,6 +126,8 @@ services:
     extends:
       file: ./docker-compose.yml
       service: medcat-umls
+    labels:
+      - org.cogstack.model-serve.dev=true
     build:
       context: ./
       dockerfile: ./docker/medcat-umls/Dockerfile
@@ -157,6 +165,8 @@ services:
     extends:
       file: ./docker-compose.yml
       service: huggingface-ner
+    labels:
+      - org.cogstack.model-serve.dev=true
     build:
       context: ./
       dockerfile: ./docker/huggingface-ner/Dockerfile

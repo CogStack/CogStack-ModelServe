@@ -7,7 +7,7 @@ from typing import Tuple, List, Dict, Iterable, Optional, final, Any
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
 from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
-from app import __version__ as api_version
+from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.domain import ModelCard, ModelType, Annotation
 from app.config import Settings
@@ -52,7 +52,7 @@ class TransformersModelDeIdentification(AbstractModelService):
     @property
     def api_version(self) -> str:
         # APP version is used although each model service could have its own API versioning
-        return api_version
+        return app_version
 
     def info(self) -> ModelCard:
         return ModelCard(model_description=self.model_name,

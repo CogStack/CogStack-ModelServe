@@ -22,7 +22,7 @@ from app.utils import (
     get_model_data_package_extension,
     create_model_data_package,
 )
-from app.domain import DatasetSplit
+from app.domain import DatasetSplit, TrainerBackend
 from app.exception import TrainingCancelledException
 if TYPE_CHECKING:
     from app.model_services.medcat_model import MedCATModel
@@ -121,7 +121,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 else:
                     model = self._model_service.load_model(copied_model_pack_path)
                 self._tracker_client.log_model_config(self.get_flattened_config(model))
-                self._tracker_client.log_trainer_version(medcat_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 self._tracker_client.log_document_size(num_of_docs)
                 training_params.update({"extra_cui_filter": self._get_concept_filter(cui_counts, model)})
@@ -211,7 +211,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             try:
                 logger.info("Evaluating the running model...")
                 self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
-                self._tracker_client.log_trainer_version(medcat_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(
                     data_file.name)
                 self._tracker_client.log_document_size(num_of_docs)
@@ -348,7 +348,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             else:
                 model = self._model_service.load_model(copied_model_pack_path)
             self._tracker_client.log_model_config(self.get_flattened_config(model))
-            self._tracker_client.log_trainer_version(medcat_version)
+            self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, medcat_version)
             logger.info("Performing unsupervised training...")
             step = 0
             self._tracker_client.send_model_stats(model.cdb.make_stats(), step)

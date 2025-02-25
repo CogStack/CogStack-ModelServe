@@ -13,6 +13,7 @@ from mlflow.tracking import MlflowClient
 from mlflow.exceptions import MlflowException
 from app.management.model_manager import ModelManager
 from app.exception import StartTrainingException
+from app.domain import TrainerBackend
 
 logger = logging.getLogger("cms")
 urllib3_logger = logging.getLogger("urllib3")
@@ -150,8 +151,11 @@ class TrackerClient(object):
         mlflow.set_tag("training.entity.class2names", str(class2names)[:5000])
 
     @staticmethod
-    def log_trainer_version(trainer_version: str) -> None:
-        mlflow.set_tag("training.trainer.version", trainer_version)
+    def log_trainer_version(trainer_backend: TrainerBackend, trainer_version: str) -> None:
+        mlflow.set_tags({
+            "training.trainer.version": trainer_version,
+            "training.trainer.backend": trainer_backend.value,
+        })
 
     @staticmethod
     def log_trainer_mode(training: bool = True) -> None:
@@ -217,12 +221,12 @@ class TrackerClient(object):
             if len(runs) == 0:
                 logger.debug("Cannot find any runs with job ID '%s'", job_id)
                 return []
-            return [dict(run.info) for run in runs]
+
+            return [{**dict(run.info), "tags": run.data.tags} for run in runs]
         except MlflowException as e:
             logger.exception(e)
             logger.warning("Failed to retrieve the information about job '%s'", job_id)
         return []
-
 
     def send_batched_model_stats(self, aggregated_metrics: List[Dict], run_id: str, batch_size: int = 1000) -> None:
         if batch_size <= 0:

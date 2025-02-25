@@ -12,7 +12,7 @@ from transformers import (
     pipeline,
 )
 from transformers.pipelines import Pipeline
-from app import __version__ as api_version
+from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
@@ -70,7 +70,7 @@ class HuggingFaceNerModel(AbstractModelService):
     @property
     def api_version(self) -> str:
         # APP version is used although each model service could have its own API versioning
-        return api_version
+        return app_version
 
     @classmethod
     def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingFaceNerModel":

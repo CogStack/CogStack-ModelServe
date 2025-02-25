@@ -5,7 +5,7 @@ import pandas as pd
 from multiprocessing import cpu_count
 from typing import Dict, List, Optional, TextIO, Tuple, Any
 from medcat.cat import CAT
-from app import __version__ as api_version
+from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
 from app.trainers.metacat_trainer import MetacatTrainer
@@ -49,7 +49,7 @@ class MedCATModel(AbstractModelService):
     @property
     def api_version(self) -> str:
         # APP version is used although each model service could have its own API versioning
-        return api_version
+        return app_version
 
     @classmethod
     def from_model(cls, model: CAT) -> "MedCATModel":

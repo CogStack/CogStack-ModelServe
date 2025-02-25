@@ -16,6 +16,7 @@ from transformers import pipeline
 from medcat import __version__ as medcat_version
 from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
+from app.domain import TrainerBackend
 from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
 from app.management import tracker_client
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer
@@ -104,7 +105,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 for key, val in ner_config.items():
                     ner_config[key] = "<EMPTY>" if val == "" else val
                 self._tracker_client.log_model_config(ner_config)
-                self._tracker_client.log_trainer_version(medcat_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
 
                 eval_results: pd.DataFrame = None
                 examples = None
@@ -237,7 +238,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Evaluating the running model...")
                 self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
-                self._tracker_client.log_trainer_version(medcat_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                 ner = self._model_service._model._addl_ner[0]
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)

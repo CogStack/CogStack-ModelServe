@@ -87,6 +87,11 @@ class ArchiveFormat(Enum):
     TAR_GZ = "gztar"
 
 
+class TrainerBackend(Enum):
+    MEDCAT = "MedCAT"
+    TRANSFORMERS = "Transformers"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")

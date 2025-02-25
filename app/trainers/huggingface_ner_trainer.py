@@ -41,7 +41,7 @@ from app.utils import (
     get_model_data_package_extension,
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device
+from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend
 from app.exception import AnnotationException, TrainingCancelledException
 if TYPE_CHECKING:
     from app.model_services.huggingface_ner_model import HuggingFaceNerModel
@@ -183,7 +183,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
             )
 
             self._tracker_client.log_model_config(model.config.to_dict())
-            self._tracker_client.log_trainer_version(transformers_version)
+            self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
             logger.info("Performing unsupervised training...")
             hf_trainer.train()
 
@@ -414,7 +414,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 )
 
                 self._tracker_client.log_model_config(model.config.to_dict())
-                self._tracker_client.log_trainer_version(transformers_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
 
                 logger.info("Performing supervised training...")
                 hf_trainer.train()
@@ -470,7 +470,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             try:
                 logger.info("Evaluating the running model...")
                 self._tracker_client.log_model_config(self._model_service._model.config.to_dict())
-                self._tracker_client.log_trainer_version(transformers_version)
+                self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
                 with open(data_file.name, "r") as f:
                     eval_data = json.load(f)
                 eval_documents = [document for project in eval_data["projects"] for document in project["documents"]]

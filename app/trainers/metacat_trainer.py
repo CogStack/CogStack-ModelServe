@@ -7,6 +7,7 @@ from typing import Dict, TextIO, Optional, List
 import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.meta_cat import MetaCAT
+from app.domain import TrainerBackend
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer
 from app.exception import TrainingFailedException, TrainingCancelledException
 from app.utils import non_default_device_is_available, get_model_data_package_extension
@@ -68,7 +69,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         meta_cat.config.train.test_size = training_params["test_size"]
                     meta_cat.config.train.nepochs = training_params["nepochs"]
                     self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
-                    self._tracker_client.log_trainer_version(medcat_version)
+                    self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
                     try:
@@ -148,7 +149,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 for meta_cat in self._model_service._model._meta_cats:
                     category_name = meta_cat.config.general["category_name"]
                     self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
-                    self._tracker_client.log_trainer_version(medcat_version)
+                    self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                     result = meta_cat.eval(data_file.name)
                     metrics.append({"precision": result.get("precision"), "recall": result.get("recall"), "f1": result.get("f1")})
 

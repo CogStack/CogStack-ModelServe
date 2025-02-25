@@ -118,14 +118,14 @@ documentation. The newly trained model and the metrics collected during training
 the `mlflow` database, rather than the local file system.
 
 #### Work with the local/remote model registry:
-All models are registered in a so-called model registry, which can be run either on a local machine or on a remote HTTP server. To work with the model registry, the prerequisites include setting up the following environment variables:
+All models are registered in a so-called model registry, which can be hosted either on a local machine or on a remote HTTP server. To work with the model registry, the prerequisites include setting up the following environment variables:
 ```commandline
 export AWS_ACCESS_KEY_ID=<AWS_ACCESS_KEY_ID>
 export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY>
 export MLFLOW_TRACKING_URI=<MLFLOW_TRACKING_URI>
 ```
 
-After that, you can run ModelServe with a registered model. For example, with `minio` as the model storage backend,
+After that, you can run model serving with a registered model. For example, with `minio` as the model storage backend,
 ```commandline
 cms serve --model-type medcat_icd10 --mlflow-model-uri s3://cms-model-bucket/EXPERIMENT_ID/RUN_ID/artifacts/REGISTERED_MODEL_NAME --host 0.0.0.0 --port 8000
 ```

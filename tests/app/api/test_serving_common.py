@@ -347,7 +347,7 @@ def test_train_metacat(model_service, client):
 
 def test_train_info(model_service, client):
     tracker_client = Mock()
-    tracker_client.get_info_by_job_id.return_value = [{"run_id": "run_id", "status": "status"}]
+    tracker_client.get_info_by_job_id.return_value = [{"run_id": "run_id", "status": "status", "tags": {"tag": "tag"}}]
     model_service.get_tracker_client.return_value = tracker_client
     with open(TRAINER_EXPORT_PATH, "rb") as f:
         response = client.get("/train_eval_info?train_eval_id=e3f303a9-3296-4a69-99e6-10de4e911453")
@@ -358,6 +358,7 @@ def test_train_info(model_service, client):
     assert len(response.json()) == 1
     assert response.json()[0]["run_id"] == "run_id"
     assert response.json()[0]["status"] == "status"
+    assert response.json()[0]["tags"] == {"tag": "tag"}
 
 
 def test_evaluate_with_trainer_export(model_service, client):

@@ -8,6 +8,9 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=medcat_snomed
+      - org.cogstack.model-name=SNOMED MedCAT model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    container_name: cms_medcat-snomed
     restart: always
     networks:
       - cms
@@ -26,7 +29,7 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
       - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
-      - GELF_INPUT_URI=http://graylog:12201
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
       - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
       - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
       - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -52,6 +55,9 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=medcat_icd10
+      - org.cogstack.model-name=ICD-10 MedCAT model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    container_name: cms_medcat-icd10
     restart: always
     networks:
       - cms
@@ -70,7 +76,7 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
       - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
-      - GELF_INPUT_URI=http://graylog:12201
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
       - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
       - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
       - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -96,6 +102,9 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=medcat_deid
+      - org.cogstack.model-name=De-Identification MedCAT model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    container_name: cms_medcat-deid
     restart: always
     networks:
       - cms
@@ -114,7 +123,7 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
       - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
-      - GELF_INPUT_URI=http://graylog:12201
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
       - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
       - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
       - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -140,6 +149,9 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=medcat_umls
+      - org.cogstack.model-name=UMLS MedCAT model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    container_name: cms_medcat-umls
     restart: always
     networks:
       - cms
@@ -158,7 +170,7 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
       - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
-      - GELF_INPUT_URI=http://graylog:12201
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
       - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
       - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
       - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
@@ -184,6 +196,9 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=huggingface_ner
+      - org.cogstack.model-name=Hugging Face NER model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    container_name: cms_huggingface-ner
     restart: always
     networks:
       - cms
@@ -202,7 +217,7 @@ services:
       - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
       - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
       - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
-      - GELF_INPUT_URI=http://graylog:12201
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
       - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
       - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
       - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
