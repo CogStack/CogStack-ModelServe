@@ -3,9 +3,13 @@
 Cogstack ModelServe (CMS) is a model-serving and model-governance system created for a range of CogStack NLP tasks. Targeting language models with NER and entity linking capabilities, CMS provides a one-stop shop for serving and fine-tuning models, training lifecycle management, as well as monitoring and end-to-end observability.
 
 ## Install Dependencies
-A virtual environment is highly recommended prior to installation. To install the dependencies, run the following command:
+A virtual environment is highly recommended prior to installation. To install the dependencies, run:
 ```commandline
-pip install -e .
+pip install .
+```
+Alternatively, if you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, run:
+```commandline
+uv sync
 ```
 
 ## APIs

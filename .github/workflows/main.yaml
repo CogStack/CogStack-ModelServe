@@ -13,23 +13,23 @@ jobs:
     strategy:
       matrix:
         python-version: [ '3.8', '3.9', '3.10', '3.11' ]
-      max-parallel: 2
+      max-parallel: 4
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Install uv and set Python to ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          uv sync --all-extras --dev
       - name: Check types
         run: |
-          mypy app
+          uv run mypy app
       - name: Lint
-        uses: astral-sh/ruff-action@v1
+        run: |
+          uv run ruff check
       - name: Test
         run: |
-          pytest --cov --cov-report=html:coverage_reports #--random-order 
+          uv run pytest --cov --cov-report=html:coverage_reports #--random-order
