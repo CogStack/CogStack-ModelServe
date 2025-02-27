@@ -61,7 +61,8 @@ services:
       fi
       "
     depends_on:
-      - minio
+      minio:
+        condition: "service_healthy"
 
   mlflow-ui:
     image: cogstacksystems/cogstack-mlflow-ui:dev
