@@ -55,8 +55,8 @@ services:
       - MINIO_PASSWORD=$AWS_SECRET_ACCESS_KEY
     entrypoint: >
       /bin/sh -c "
-      /usr/bin/mc config host add cms_minio http://minio:9000 $${MINIO_USERNAME} $${MINIO_PASSWORD};
-      if ! /usr/bin/mc ls cms_minio/cms-model-bucket 2>/dev/null; then
+      /usr/bin/mc config host add cms_minio http://minio:9000 $${MINIO_USERNAME} $${MINIO_PASSWORD}
+      && if ! /usr/bin/mc ls cms_minio/cms-model-bucket 2>/dev/null; then
         /usr/bin/mc mb cms_minio/cms-model-bucket;
       fi
       "
