@@ -1,3 +1,4 @@
+import os
 import tempfile
 import uuid
 import json
@@ -61,7 +62,7 @@ async def train_metacat(request: Request,
                                                         training_id,
                                                         ",".join(file_names),
                                                         raw_data_files=files,
-                                                        synchronised=False,
+                                                        synchronised=(os.environ.get("CMS_CI", "false") == "true"),
                                                         description=description)
     finally:
         for file in files:

@@ -1,3 +1,4 @@
+import os
 import json
 import tempfile
 import uuid
@@ -72,7 +73,7 @@ async def train_unsupervised(request: Request,
                                                              training_id,
                                                              ",".join(file_names),
                                                              raw_data_files=files,
-                                                             synchronised=False,
+                                                             synchronised=(os.environ.get("CMS_CI", "false") == "true"),
                                                              lr_override=lr_override,
                                                              test_size=test_size,
                                                              description=description)
@@ -138,7 +139,7 @@ async def train_unsupervised_with_hf_dataset(request: Request,
                                                          training_id,
                                                          input_file_name,
                                                          raw_data_files=None,
-                                                         synchronised=False,
+                                                         synchronised=(os.environ.get("CMS_CI", "false") == "true"),
                                                          lr_override=lr_override,
                                                          test_size=test_size,
                                                          description=description)

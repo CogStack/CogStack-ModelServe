@@ -7,7 +7,7 @@ import tempfile
 import datasets
 
 from abc import ABC, abstractmethod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, CancelledError
 from functools import partial
 from typing import TextIO, Callable, Dict, Tuple, Optional, Any, List, Union, final
 from app.config import Settings
@@ -30,7 +30,7 @@ class TrainerCommon(object):
         self._experiment_id = None
         self._run_id = None
         self._tracker_client = TrackerClient(self._config.MLFLOW_TRACKING_URI)
-        self._executor: Optional[ThreadPoolExecutor] = ThreadPoolExecutor(max_workers=1)
+        self._executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=1)
         self._cancel_event = threading.Event()
 
     @property
@@ -119,19 +119,33 @@ class TrainerCommon(object):
 
                 logger.info("Starting training job: %s with experiment ID: %s", training_id, self.experiment_id)
                 self._training_in_progress = True
-                training_task = asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                                           partial(run,
-                                                                                   training_params,
-                                                                                   data_file,
-                                                                                   log_frequency,
-                                                                                   self._run_id,
-                                                                                   description
-                                                                           )))
 
-        if synchronised:
-            loop.run_until_complete(training_task)
-
-        return True, self.experiment_id, self.run_id
+        if not synchronised:
+            asyncio.ensure_future(loop.run_in_executor(self._executor,
+                                                       partial(run,
+                                                               training_params,
+                                                               data_file,
+                                                               log_frequency,
+                                                               self.run_id,
+                                                               description)))
+            return True
+        else:
+            training_task = self._executor.submit(partial(run,
+                                                          training_params,
+                                                          data_file,
+                                                          log_frequency,
+                                                          self.run_id,
+                                                          description))
+            try:
+                training_task.result()
+                logger.info("Training task completed with training ID: %s", training_id)
+                return True
+            except CancelledError:
+                logger.error("Training task cancelled with training ID: %s", training_id)
+                return False
+            except Exception as e:
+                logger.error("Training task failed with training ID: %s and exception %s", training_id, e)
+                return False
 
     @final
     def stop_training(self) -> bool:

@@ -1,3 +1,4 @@
+import os
 import tempfile
 import uuid
 import json
@@ -65,7 +66,7 @@ async def train_supervised(request: Request,
                                                            ",".join(file_names),
                                                            raw_data_files=files,
                                                            description=description,
-                                                           synchronised=False,
+                                                           synchronised=(os.environ.get("CMS_CI", "false") == "true"),
                                                            lr_override=lr_override,
                                                            test_size=test_size,
                                                            early_stopping_patience=early_stopping_patience)
