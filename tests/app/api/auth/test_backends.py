@@ -1,4 +1,4 @@
-from api.auth.backends import get_backends
+from app.api.auth.backends import get_backends
 
 
 def test_get_backends():

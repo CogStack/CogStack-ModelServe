@@ -1,4 +1,4 @@
-from api.auth.schemas import UserRead, UserCreate, UserUpdate
+from app.api.auth.schemas import UserRead, UserCreate, UserUpdate
 from fastapi_users import schemas
 
 

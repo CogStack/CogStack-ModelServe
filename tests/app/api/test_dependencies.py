@@ -1,3 +1,6 @@
+import pytest
+from fastapi import HTTPException
+
 from app.api.dependencies import ModelServiceDep, validate_tracking_id
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel

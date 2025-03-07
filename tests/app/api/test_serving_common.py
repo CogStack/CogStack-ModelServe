@@ -43,7 +43,7 @@ def client(model_service):
 
 
 def test_process_invalid_jsonl(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -56,7 +56,7 @@ def test_process_invalid_jsonl(model_service, client):
                 "name": "Status"
             }
         },
-    }]
+    })]
     model_service.annotate.return_value = annotations
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
@@ -71,7 +71,7 @@ def test_process_invalid_jsonl(model_service, client):
 
 
 def test_process_unknown_jsonl_properties(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -84,7 +84,7 @@ def test_process_unknown_jsonl_properties(model_service, client):
                 "name": "Status"
             }
         },
-    }]
+    })]
     model_service.annotate.return_value = annotations
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
@@ -99,7 +99,7 @@ def test_process_unknown_jsonl_properties(model_service, client):
 
 
 def test_redact_with_white_list(model_service, client):
-    annotations = [{
+    annotations = [Annotation.parse_obj({
         "label_name": "Spinal stenosis",
         "label_id": "76107001",
         "start": 0,
@@ -112,7 +112,7 @@ def test_redact_with_white_list(model_service, client):
                 "name": "Status"
             }
         },
-    }]
+    })]
 
     concepts_to_keep = ["76107001"]
     url = f"/redact?concepts_to_keep={','.join(concepts_to_keep)}"

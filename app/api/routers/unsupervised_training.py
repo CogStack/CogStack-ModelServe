@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 import app.api.globals as cms_globals
-from api.dependencies import validate_tracking_id
+from app.api.dependencies import validate_tracking_id
 from app.domain import Tags, ModelType
 from app.model_services.base import AbstractModelService
 from app.utils import get_settings, unpack_model_data_package

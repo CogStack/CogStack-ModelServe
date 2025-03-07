@@ -27,8 +27,8 @@ class TrainerCommon(object):
         self._model_name = model_name
         self._training_lock = threading.Lock()
         self._training_in_progress = False
-        self._experiment_id = None
-        self._run_id = None
+        self._experiment_id: Optional[str] = None
+        self._run_id: Optional[str] = None
         self._tracker_client = TrackerClient(self._config.MLFLOW_TRACKING_URI)
         self._executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=1)
         self._cancel_event = threading.Event()
@@ -80,6 +80,7 @@ class TrainerCommon(object):
                     log_frequency=log_frequency,
                     description=description,
                 )
+                print(self._experiment_id, self._run_id)
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     if raw_data_files is not None:
                         for odf in raw_data_files:
@@ -128,7 +129,7 @@ class TrainerCommon(object):
                                                                log_frequency,
                                                                self.run_id,
                                                                description)))
-            return True
+            return True, self.experiment_id, self.run_id
         else:
             training_task = self._executor.submit(partial(run,
                                                           training_params,
@@ -139,13 +140,13 @@ class TrainerCommon(object):
             try:
                 training_task.result()
                 logger.info("Training task completed with training ID: %s", training_id)
-                return True
+                return True, self.experiment_id, self.run_id
             except CancelledError:
                 logger.error("Training task cancelled with training ID: %s", training_id)
-                return False
+                return False, self.experiment_id, self.run_id
             except Exception as e:
                 logger.error("Training task failed with training ID: %s and exception %s", training_id, e)
-                return False
+                return False, self.experiment_id, self.run_id
 
     @final
     def stop_training(self) -> bool:

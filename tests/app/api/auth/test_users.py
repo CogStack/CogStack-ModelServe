@@ -1,6 +1,6 @@
 from fastapi_users.authentication.backend import AuthenticationBackend
 from fastapi_users import FastAPIUsers
-from api.auth.users import Props
+from app.api.auth.users import Props
 
 
 def test_props():

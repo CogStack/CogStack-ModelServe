@@ -2,10 +2,10 @@ import os
 import mlflow
 from unittest.mock import create_autospec, patch, Mock
 from transformers import TrainingArguments, TrainerState, TrainerControl
-from config import Settings
-from model_services.medcat_model_deid import MedCATModelDeIdentification
-from trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
-from trainers.medcat_deid_trainer import MetricsCallback, LabelCountCallback
+from app.config import Settings
+from app.model_services.medcat_model_deid import MedCATModelDeIdentification
+from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
+from app.trainers.medcat_deid_trainer import MetricsCallback, LabelCountCallback
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
 model_service = create_autospec(MedCATModelDeIdentification,

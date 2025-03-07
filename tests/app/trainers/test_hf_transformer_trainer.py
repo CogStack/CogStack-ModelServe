@@ -1,8 +1,8 @@
 import os
 from unittest.mock import create_autospec, patch, Mock
-from config import Settings
-from model_services.huggingface_ner_model import HuggingFaceNerModel
-from trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
+from app.config import Settings
+from app.model_services.huggingface_ner_model import HuggingFaceNerModel
+from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
 
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")

@@ -13,7 +13,7 @@ current_frame = inspect.currentframe()
 if current_frame is None:  # noqa
     raise Exception("Cannot detect the parent directory!")  # noqa
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(inspect.getfile(current_frame))))  # noqa
-sys.path.insert(0, parent_dir)  # noqa
+sys.path.insert(0, os.path.join(parent_dir, ".."))  # noqa
 warnings.filterwarnings("ignore")
 warnings.simplefilter("ignore")
 
@@ -32,6 +32,7 @@ from urllib.parse import urlparse  # noqa
 from fastapi.routing import APIRoute  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
+from app import __version__  # noqa
 from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
 from app.registry import model_service_registry  # noqa
 from app.api.api import get_model_server, get_stream_server # noqa
@@ -474,13 +475,13 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
 @cmd_app.callback()
 # ruff: noqa
 def show_banner() -> None:
-    banner = """
+    banner = f"""
        _____             _____ _             _       __  __           _      _  _____
       / ____|           / ____| |           | |     |  \/  |         | |    | |/ ____|
      | |     ___   __ _| (___ | |_ __ _  ___| | __  | \  / | ___   __| | ___| | (___   ___ _ ____   _____
      | |    / _ \ / _` |\___ \| __/ _` |/ __| |/ /  | |\/| |/ _ \ / _` |/ _ \ |\___ \ / _ \ '__\ \ / / _ \\
      | |___| (_) | (_| |____) | || (_| | (__|   <   | |  | | (_) | (_| |  __/ |____) |  __/ |   \ V /  __/
-      \_____\___/ \__, |_____/ \__\__,_|\___|_|\_\  |_|  |_|\___/ \__,_|\___|_|_____/ \___|_|    \_/ \___|
+      \_____\___/ \__, |_____/ \__\__,_|\___|_|\_\  |_|  |_|\___/ \__,_|\___|_|_____/ \___|_|    \_/ \___|  (v{__version__})
                    __/ |
                   |___/
     """

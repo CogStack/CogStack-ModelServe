@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
 import app.api.globals as cms_globals
-from api.dependencies import validate_tracking_id
+from app.api.dependencies import validate_tracking_id
 from app.domain import Tags
 from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import concat_trainer_exports

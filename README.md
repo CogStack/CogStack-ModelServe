@@ -5,7 +5,7 @@ Cogstack ModelServe (CMS) is a model-serving and model-governance system created
 ## Install Dependencies
 A virtual environment is highly recommended prior to installation. To install the dependencies, run:
 ```commandline
-pip install .
+pip install -e .
 ```
 Alternatively, if you have [uv](https://docs.astral.sh/uv/getting-started/installation/) installed, run:
 ```commandline
@@ -186,7 +186,7 @@ token-based authentication and hook it up with the database by following this [I
 You can send your texts to the CMS stream endpoint and receive NLP results as a stream. To that end,
 start CMS as a streamable service by running:
 ```commandline
-python app/cli/cli.py serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+cms serve --streamable --model-type <model-type> --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
 ```
 Currently, [JSON Lines](https://jsonlines.org/) is supported for formatting request and response bodies. For example, the following request:
 ```commandline
