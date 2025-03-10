@@ -112,6 +112,7 @@ class MedCATModel(AbstractModelService):
             nproc=max(int(cpu_count() / 2), 1),
             addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"]
         )
+        docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append([Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)])

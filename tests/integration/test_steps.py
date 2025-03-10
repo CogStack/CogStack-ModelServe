@@ -147,17 +147,22 @@ def check_response_bulk(context):
     assert context["response"].headers["Content-Type"] == "application/json"
     bulk_results = context["response"].json()
     assert isinstance(bulk_results, list)
-    assert len(bulk_results) == 2
+    assert len(bulk_results) == 3
     assert bulk_results[0]["text"] == "Spinal stenosis"
     assert bulk_results[0]["annotations"][0]["start"] == 0
     assert bulk_results[0]["annotations"][0]["end"] == 15
     assert bulk_results[0]["annotations"][0]["label_name"].lower() == "spinal stenosis"
     assert isinstance(bulk_results[0]["annotations"][0]["label_id"], str)
-    assert bulk_results[1]["text"] == "Spinal stenosis"
+    assert bulk_results[1]["text"] == "Intracerebral hemorrhage"
     assert bulk_results[1]["annotations"][0]["start"] == 0
-    assert bulk_results[1]["annotations"][0]["end"] == 15
-    assert bulk_results[1]["annotations"][0]["label_name"].lower() == "spinal stenosis"
+    assert bulk_results[1]["annotations"][0]["end"] == 24
+    assert bulk_results[1]["annotations"][0]["label_name"].lower() == "cerebral hemorrhage"
     assert isinstance(bulk_results[1]["annotations"][0]["label_id"], str)
+    assert bulk_results[2]["text"] == "Cerebellum"
+    assert bulk_results[2]["annotations"][0]["start"] == 0
+    assert bulk_results[2]["annotations"][0]["end"] == 10
+    assert bulk_results[2]["annotations"][0]["label_name"].lower() == "cerebellum"
+    assert isinstance(bulk_results[2]["annotations"][0]["label_id"], str)
     context["response"].close()
 
 @then(parsers.parse("the response should contain text {redaction}"))
@@ -174,10 +179,16 @@ def check_response_previewed(context):
 
 @when(data_table("I send a POST request with the following trainer export", fixture="request", orient="dict"))
 def send_post_training_request_file(context, request):
-    trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", request[0]["file_name"])
-    with open(trainer_export_path, "rb") as f:
-        context["response"] = requests.post(f"{context['base_url']}{request[0]['endpoint']}",
-                                            files=[("trainer_export", f)])
+    trainer_export_names = request[0]["file_name"].split(",")
+
+    files = []
+    for trainer_export_name in trainer_export_names:
+        trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", trainer_export_name)
+        file = open(trainer_export_path, "rb")
+        files.append(("trainer_export", file))
+
+    context["response"] = requests.post(f"{context['base_url']}{request[0]['endpoint']}", files=files)
+    [file.close() for _, file in files]
 
 @when(data_table("I send a POST request with the following training data", fixture="request", orient="dict"))
 def send_post_training_request_file(context, request):
@@ -243,6 +254,38 @@ def check_response_training_id(context):
     assert "encryptions" in response_json
     assert "label" in response_json["encryptions"][0]
     assert "encryption" in response_json["encryptions"][0]
+    context["response"].close()
+
+@then("the response should contain evaluation metrics per concept")
+def check_response_sanity_check(context):
+    assert context["response"].status_code == 200
+    assert context["response"].headers["Content-Type"] == "text/csv; charset=utf-8"
+    response_lines = context["response"].content.decode("utf-8").splitlines()
+    assert len(response_lines) > 1
+    assert "concept,name,precision,recall,f1" == response_lines[0]
+    context["response"].close()
+
+@then("the response should contain IAA scores")
+def check_response_iaa(context):
+    assert context["response"].status_code == 200
+    assert context["response"].headers["Content-Type"] == "text/csv; charset=utf-8"
+    response_lines = context["response"].content.decode("utf-8").splitlines()
+    assert "iaa_percentage,cohens_kappa,iaa_percentage_meta,cohens_kappa_meta" in response_lines[0]
+    context["response"].close()
+
+@then("the response should contain a concatenated trainer export")
+def check_response_concatenated_trainer_export(context):
+    assert context["response"].status_code == 200
+    assert context["response"].headers["Content-Type"] == "application/json; charset=utf-8"
+    assert len(context["response"].text) == 36918
+
+@then("the response should contain annotation stats")
+def check_response_annotation_stats(context):
+    assert context["response"].status_code == 200
+    assert context["response"].headers["Content-Type"] == "text/csv; charset=utf-8"
+    response_lines = context["response"].content.decode("utf-8").splitlines()
+    assert len(response_lines) > 1
+    assert "concept,anno_count,anno_unique_counts,anno_ignorance_counts" == response_lines[0]
     context["response"].close()
 
 @when(data_table("I send an async POST request with the following jsonlines content", fixture="request", orient="dict"))
