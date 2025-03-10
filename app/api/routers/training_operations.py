@@ -45,7 +45,7 @@ async def train_eval_info(request: Request,
 
 
 @router.post("/evaluate",
-             tags=[Tags.Evaluating.name],
+             tags=[Tags.Training.name],
              response_class=JSONResponse,
              dependencies=[Depends(cms_globals.props.current_active_user)],
              description="Evaluate the model being served with a trainer export")
