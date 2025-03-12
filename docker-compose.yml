@@ -10,7 +10,6 @@ services:
       - org.cogstack.model-serve=medcat_snomed
       - org.cogstack.model-name=SNOMED MedCAT model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
-    container_name: cms_medcat-snomed
     restart: always
     networks:
       - cms
@@ -57,7 +56,6 @@ services:
       - org.cogstack.model-serve=medcat_icd10
       - org.cogstack.model-name=ICD-10 MedCAT model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
-    container_name: cms_medcat-icd10
     restart: always
     networks:
       - cms
@@ -104,7 +102,6 @@ services:
       - org.cogstack.model-serve=medcat_deid
       - org.cogstack.model-name=De-Identification MedCAT model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
-    container_name: cms_medcat-deid
     restart: always
     networks:
       - cms
@@ -151,7 +148,6 @@ services:
       - org.cogstack.model-serve=medcat_umls
       - org.cogstack.model-name=UMLS MedCAT model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
-    container_name: cms_medcat-umls
     restart: always
     networks:
       - cms
@@ -198,7 +194,6 @@ services:
       - org.cogstack.model-serve=huggingface_ner
       - org.cogstack.model-name=Hugging Face NER model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
-    container_name: cms_huggingface-ner
     restart: always
     networks:
       - cms
