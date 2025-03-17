@@ -76,6 +76,18 @@ async def get_model_card(request: Request,
 def get_entities_from_text(request: Request,
                            text: Annotated[str, Body(description="The plain text to be sent to the model for NER", media_type="text/plain")],
                            model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> TextWithAnnotations:
+    """
+    Extracts NER entities from a single piece of plain text.
+
+    Args:
+        request (Request): The request object.
+        text (str): The plain text input to be processed.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        TextWithAnnotations: An object containing the original text and a list of corresponding NER entities.
+    """
+
     annotations = model_service.annotate(text)
     _send_annotation_num_metric(len(annotations), PATH_PROCESS)
 
@@ -94,6 +106,19 @@ def get_entities_from_text(request: Request,
 @limiter.limit(config.PROCESS_RATE_LIMIT)
 def get_entities_from_jsonlines_text(request: Request,
                                      json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
+    """
+    Extracts NER entities from texts in the JSON Lines format.
+
+    Each line in the request body is a JSON object containing at least the "text" key and an optional "name" key.
+
+    Args:
+        request (Request): The request object.
+        json_lines (str): The JSON Lines formatted text containing the texts to be processed.
+
+    Returns:
+        Response: A streaming response containing the NER entities in JSON Lines format. Or a JSON response with an error message if the JSON Lines are invalid.
+    """
+
     assert cms_globals.model_manager_dep is not None, "Model manager dependency not injected"
     model_manager = cms_globals.model_manager_dep()
     stream: Iterator[Dict[str, Any]] = itertools.chain()
@@ -107,7 +132,7 @@ def get_entities_from_jsonlines_text(request: Request,
     except json.JSONDecodeError:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": "Invalid JSON Lines."})
     except ValidationError:
-        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid JSON properties found. The schema should be {TextStreamItem.schema_json()}"})
+        return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid properties found. The schema should be {TextStreamItem.schema_json()}"})
 
 
 @router.post(PATH_PROCESS_BULK,
@@ -120,6 +145,20 @@ def get_entities_from_jsonlines_text(request: Request,
 def get_entities_from_multiple_texts(request: Request,
                                      texts: Annotated[List[str], Body(description="A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> List[TextWithAnnotations]:
+    """
+    Extracts NER entities from multiple plain texts.
+
+    The request body is a list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]").
+
+    Args:
+        request (Request): The request object.
+        texts (List[str]): A list of plain texts to be processed.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        List[TextWithAnnotations]: A list of texts with their corresponding NER entities.
+    """
+
     annotations_list = model_service.batch_annotate(texts)
     body: List[TextWithAnnotations] = []
     annotation_sum = 0
@@ -145,6 +184,21 @@ def extract_entities_from_multi_text_file(request: Request,
                                           multi_text_file: Annotated[UploadFile, File(description="A file containing a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
                                           tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+    """
+    Extracts NER entities from an uploaded file containing a list of plain texts.
+
+    The file contains a list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]").
+
+    Args:
+        request (Request): The request object.
+        multi_text_file (UploadFile): The uploaded file containing a list of plain texts.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        StreamingResponse: A JSON file containing the original texts and the corresponding NER entities.
+    """
+
     with tempfile.NamedTemporaryFile() as data_file:
         for line in multi_text_file.file:
             data_file.write(line)
@@ -177,7 +231,7 @@ def extract_entities_from_multi_text_file(request: Request,
         json_file = BytesIO(output.encode())
         tracking_id = tracking_id or str(uuid.uuid4())
         response = StreamingResponse(json_file, media_type="application/json")
-        response.headers["Content-Disposition"] = f'attachment ; filename="concatenated_{tracking_id}.json"'
+        response.headers["Content-Disposition"] = f'attachment ; filename="entities_{tracking_id}.json"'
         return response
 
 
@@ -193,6 +247,22 @@ def get_redacted_text(request: Request,
                       mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
                       hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> PlainTextResponse:
+    """
+    Extracts NER entities from a single piece of plain text and redacts them based on the provided strategy.
+
+    Args:
+        request (Request): The request object.
+        text (str): The plain text to be processed.
+        concepts_to_keep (List[str], optional): A list of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]. Defaults to an empty list.
+        warn_on_no_redaction (bool, optional): Return warning when no entities were detected for redaction to prevent potential info leaking. Defaults to False.
+        mask (str, optional): The custom symbols used for masking detected spans. If not provided, the label name is used.
+        hash (bool, optional): Whether or not to hash detected spans. Defaults to False.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        PlainTextResponse: A plain text response containing the redacted text.
+    """
+
     annotations = model_service.annotate(text)
     _send_annotation_num_metric(len(annotations), PATH_REDACT)
 
@@ -230,6 +300,19 @@ def get_redacted_text_with_encryption(request: Request,
                                       text_with_public_key: Annotated[TextWithPublicKey, Body()],
                                       warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
                                       model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Redacts and encrypts NER entities extracted from a single piece of plain text.
+
+    Args:
+        request (Request): The request object.
+        text_with_public_key (TextWithPublicKey): The input text along with the public key for encryption.
+        warn_on_no_redaction (Union[bool, None]): If True, returns a warning if no entities were detected for redaction.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing the redacted text and the encryptions.
+    """
+
     annotations = model_service.annotate(text_with_public_key.text)
     _send_annotation_num_metric(len(annotations), PATH_REDACT_WITH_ENCRYPTION)
 

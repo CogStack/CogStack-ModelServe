@@ -10,7 +10,7 @@ from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 
 
 def test_model_name(huggingface_ner_model):
-    assert huggingface_ner_model.model_name == "Hugging Face NER model"
+    assert huggingface_ner_model.model_name == "HuggingFace NER model"
 
 
 def test_api_version(huggingface_ner_model):

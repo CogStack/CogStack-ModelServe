@@ -29,7 +29,7 @@ def model_service():
 
 @pytest.fixture(scope="function")
 def client(model_service):
-    app = get_model_server(msd_overwritten=lambda: model_service)
+    app = get_model_server(config, msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     client = TestClient(app)
     yield client

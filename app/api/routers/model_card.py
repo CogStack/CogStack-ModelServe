@@ -20,4 +20,15 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
             description="Get information about the model being served")
 async def get_model_card(request: Request,
                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> ModelCard:
+    """
+    Retrieves information about the model being served.
+
+    Args:
+        request (Request): The request object.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        ModelCard: A model card containing information about the model being served.
+    """
+
     return model_service.info()

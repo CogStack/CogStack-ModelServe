@@ -36,6 +36,18 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
 async def train_eval_info(request: Request,
                           train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Retrieves the information of a training or evaluation job by its ID.
+
+    Args:
+        request (Request): The request object.
+        train_eval_id (str): The ID of the training or evaluation job.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing the job information.
+    """
+
     tracker_client = model_service.get_tracker_client()
     if tracker_client is None:
         return JSONResponse(status_code=HTTP_503_SERVICE_UNAVAILABLE,
@@ -53,6 +65,19 @@ async def get_evaluation_with_trainer_export(request: Request,
                                              trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                                              tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Evaluates the running model with one or more trainer export files.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        SONResponse: A JSON response containing training response with the evaluation ID.
+    """
+
     files = []
     file_names = []
     for te in trainer_export:
@@ -102,6 +127,17 @@ async def get_evaluation_with_trainer_export(request: Request,
              description="Cancel the in-progress training job (this is experimental and may not work as expected)")
 async def cancel_training(request: Request,
                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Cancels the in-progress training job.
+
+    Args:
+        request (Request): The request object.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response indicating whether the cancellation was accepted or not.
+    """
+
     training_cancelled = model_service.cancel_training()
     if not training_cancelled:
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST,
@@ -118,6 +154,18 @@ async def cancel_training(request: Request,
 async def train_eval_metrics(request: Request,
                              train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Retrieves the metrics of a training or evaluation job by its ID.
+
+    Parameters:
+        request (Request): The request object.
+        train_eval_id (str): The training or evaluation ID.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing the training or evaluation metrics.
+    """
+
     tracker_client = model_service.get_tracker_client()
     if tracker_client is None:
         return JSONResponse(status_code=HTTP_503_SERVICE_UNAVAILABLE,

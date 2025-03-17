@@ -38,6 +38,19 @@ def get_sanity_check_with_trainer_export(request: Request,
                                          trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                                          tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+    """
+    Performs a sanity check on the running model using the provided trainer export files.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        StreamingResponse: A CSV file containing the sanity check results.
+    """
+
     files = []
     file_names = []
     for te in trainer_export:
@@ -75,6 +88,24 @@ def get_inter_annotator_agreement_scores(request: Request,
                                          annotator_b_project_id: Annotated[int, Query(description="The project ID from another annotator")],
                                          scope: Annotated[str, Query(enum=[s.value for s in Scope], description="The scope for which the score will be calculated, e.g., per_concept, per_document or per_span")],
                                          tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
+    """
+    Calculates Inter-Annotator Agreement (IAA) scores between projects done by two annotators.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded.
+        annotator_a_project_id (int): The project ID from the first annotator.
+        annotator_b_project_id (int): The project ID from the second annotator.
+        scope (str): The scope for which the IAA score will be calculated (per_concept, per_document, per_span).
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+
+    Returns:
+        StreamingResponse: A CSV file containing the IAA scores.
+
+    Raises:
+        AnnotationException: If the scope is not one of per_concept, per_document and per_span.
+    """
+
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -113,6 +144,18 @@ def get_inter_annotator_agreement_scores(request: Request,
 def get_concatenated_trainer_exports(request: Request,
                                      trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be concatenated")],
                                      tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> JSONResponse:
+    """
+    Concatenates multiple trainer export files into a single file.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be concatenated.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+
+    Returns:
+        JSONResponse: A JSON file containing the combined trainer exports.
+    """
+
     files = []
     for te in trainer_export:
         temp_te = tempfile.NamedTemporaryFile()
@@ -137,6 +180,18 @@ def get_concatenated_trainer_exports(request: Request,
 def get_annotation_stats(request: Request,
                          trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                          tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
+    """
+    Gets annotation statistics from the provided trainer export files.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+
+    Returns:
+        StreamingResponse: A CSV file containing the annotation statistics.
+    """
+
     files = []
     file_names = []
     for te in trainer_export:

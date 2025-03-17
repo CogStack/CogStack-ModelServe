@@ -1,3 +1,7 @@
+"""
+This module sets up the auth route for each authentication backend.
+"""
+
 import logging
 import app.api.globals as cms_globals
 from fastapi import APIRouter

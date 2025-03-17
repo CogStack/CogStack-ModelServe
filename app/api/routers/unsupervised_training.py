@@ -34,13 +34,32 @@ async def train_unsupervised(request: Request,
                              epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                              lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
-                             log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
+                             log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
                              description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
                              tracking_id: Union[str, None] = Depends(validate_tracking_id),
                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
-    Upload one or more plain text files and trigger the unsupervised training
+    Triggers unsupervised training on the running model using one or more files, each containing a list of plain texts.
+
+    Args:
+        request (Request): The request object.
+        training_data (List[UploadFile]): A list of files uploaded, each containing a list of plain texts in the format of [\"text_1\", \"text_2\", ..., \"text_n\"].
+        epochs (int): The number of training epochs to perform. Defaults to 1.
+        lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.
+        test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.
+        log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.
+        description (str, optional): A description of the training or change logs. Defaults to empty.
+        tracking_id (str, optional): n optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing training response with the training ID.
+
+    Raises:
+        ClientException: If there is an issue with the file provided for training.
+        ConfigurationException: If the running model does not support unsupervised training.
     """
+
     data_file = tempfile.NamedTemporaryFile(mode="r+")
     files = []
     file_names = []
@@ -98,13 +117,36 @@ async def train_unsupervised_with_hf_dataset(request: Request,
                                              epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
                                              lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
                                              test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits", ge=0.0)] = 0.2,
-                                             log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1000,
+                                             log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
                                              description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
                                              tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                              model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
     """
-    Trigger the unsupervised training with a dataset from Hugging Face Hub
+    Triggers unsupervised training on the running model using a dataset from the Hugging Face Hub.
+
+    Args:
+        request (Request): The request object.
+        hf_dataset_repo_id (str, optional): The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided.
+        hf_dataset_config (str, optional): The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided.
+        hf_dataset_package (UploadFile, optional): A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'.
+        trust_remote_code (bool): Whether to trust the remote code of the dataset. Defaults to False.
+        text_column_name (str): The name of the text column in the dataset. Defaults to "text".
+        epochs (int): The number of training epochs to perform. Defaults tos 1.
+        lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.
+        test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.
+        log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.
+        description (str, optional): A description of the training or change logs. Defaults to empty.
+        tracking_id (str, optional): n optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing training response with the training ID.
+s
+    Raises:
+        ClientException: If 'hf_dataset_repo_id' and 'hf_dataset_package' are both None, or if the dataset does not contain the specified text column.
+        ConfigurationException: If the running model does not support unsupervised training.
     """
+
     if hf_dataset_repo_id is None and hf_dataset_package is None:
         raise ClientException("Either 'hf_dataset_repo_id' or 'hf_dataset_package' must be provided")
 

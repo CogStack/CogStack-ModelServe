@@ -12,7 +12,7 @@ def test_get_model_server():
     config.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep("medcat_snomed", config)
-    app = get_model_server(model_service_dep)
+    app = get_model_server(config, model_service_dep)
     info = app.openapi()["info"]
     tags = app.openapi_tags
     paths = [route.path for route in app.routes]
@@ -59,7 +59,7 @@ def test_get_stream_server():
     config.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep("medcat_snomed", config)
-    app = get_stream_server(model_service_dep)
+    app = get_stream_server(config, model_service_dep)
     info = app.openapi()["info"]
     tags = app.openapi_tags
     paths = [route.path for route in app.routes]

@@ -167,7 +167,7 @@ services:
       context: ./
       dockerfile: ./docker/huggingface-ner/Dockerfile
       args:
-        - CMS_MODEL_NAME=Hugging Face NER model
+        - CMS_MODEL_NAME=HuggingFace NER model
         - CMS_UID=${CMS_UID:-1000}
         - CMS_GID=${CMS_GID:-1000}
         - HTTP_PROXY=$HTTP_PROXY

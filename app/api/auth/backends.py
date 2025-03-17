@@ -9,6 +9,13 @@ from app.utils import get_settings
 
 @lru_cache
 def get_backends() -> List[AuthenticationBackend]:
+    """
+    Retrieves a list of authentication backends used when CMS APIs are invoked.
+
+    Returns:
+        List[AuthenticationBackend]: A list of authentication backends.
+    """
+
     return [
         AuthenticationBackend(name="jwt", transport=_get_bearer_transport(), get_strategy=_get_strategy),
         AuthenticationBackend(name="cookie", transport=_get_cookie_transport(), get_strategy=_get_strategy),

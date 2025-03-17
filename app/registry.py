@@ -7,11 +7,11 @@ from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 
 model_service_registry = {
-    ModelType.MEDCAT_SNOMED.value: MedCATModelSnomed,
-    ModelType.MEDCAT_UMLS.value: MedCATModelUmls,
-    ModelType.MEDCAT_ICD10.value: MedCATModelIcd10,
-    ModelType.MEDCAT_DEID.value: MedCATModelDeIdentification,
-    ModelType.ANONCAT.value: MedCATModelDeIdentification,
-    ModelType.TRANSFORMERS_DEID.value: TransformersModelDeIdentification,
-    ModelType.HUGGINGFACE_NER.value: HuggingFaceNerModel,
+    ModelType.MEDCAT_SNOMED: MedCATModelSnomed,
+    ModelType.MEDCAT_UMLS: MedCATModelUmls,
+    ModelType.MEDCAT_ICD10: MedCATModelIcd10,
+    ModelType.MEDCAT_DEID: MedCATModelDeIdentification,
+    ModelType.ANONCAT: MedCATModelDeIdentification,
+    ModelType.TRANSFORMERS_DEID: TransformersModelDeIdentification,
+    ModelType.HUGGINGFACE_NER: HuggingFaceNerModel,
 }

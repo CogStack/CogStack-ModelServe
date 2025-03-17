@@ -20,7 +20,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [ICD-10 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_icd10_model_apis.html)
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
-- [Hugging Face NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
+- [HuggingFace NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
 You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
@@ -33,7 +33,7 @@ cms train --help
 ## Download models:
 
 CMS runs the NLP model packaged in a ZIP file or a Gzipped tarball. To download pretrained GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org)
-if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing Hugging Face NER models, you can
+if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing HuggingFace NER models, you can
 package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP or Gzipped tarball by running:
 ```commandline
 cms package hf-model --hf-repo-id USERNAME_OR_ORG/REPO_NAME --output-model-package ./model    # will be saved to ./model.zip

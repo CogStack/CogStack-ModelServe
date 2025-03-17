@@ -35,7 +35,7 @@ def model_service():
 
 @pytest.fixture(scope="function")
 def client(model_service):
-    app = get_model_server(msd_overwritten=lambda: model_service)
+    app = get_model_server(config, msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     client = TestClient(app)
     yield client
@@ -95,7 +95,7 @@ def test_process_unknown_jsonl_properties(model_service, client):
                            headers={"Content-Type": "application/x-ndjson"})
 
     assert response.status_code == 400
-    assert "Invalid JSON properties found." in response.json()["message"]
+    assert "Invalid properties found." in response.json()["message"]
 
 
 def test_redact_with_white_list(model_service, client):

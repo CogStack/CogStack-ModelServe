@@ -41,7 +41,7 @@ def test_register_nodel():
 def test_generate_api_doc_per_model_help():
     result = runner.invoke(cmd_app, ["export-model-apis", "--help"])
     assert result.exit_code == 0
-    assert "This generates model-specific API docs for enabled endpoints" in result.output
+    assert "This generates a model-specific API document for enabled endpoints" in result.output
 
 
 def test_generate_api_doc_per_model():
@@ -77,7 +77,7 @@ def test_package_hf_dataset_help():
 def test_generate_api_doc_help():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--help"])
     assert result.exit_code == 0
-    assert "This generates a single API doc for all endpoints" in result.output
+    assert "This generates an API document for all endpoints defined in CMS" in result.output
 
 
 def test_generate_api_doc():

@@ -192,7 +192,7 @@ services:
     image: cogstacksystems/cogstack-modelserve:dev
     labels:
       - org.cogstack.model-serve=huggingface_ner
-      - org.cogstack.model-name=Hugging Face NER model
+      - org.cogstack.model-name=HuggingFace NER model
       - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
     restart: always
     networks:
@@ -204,7 +204,7 @@ services:
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
       - CMS_MODEL_TYPE=huggingface_ner
-      - CMS_MODEL_NAME=Hugging Face NER model
+      - CMS_MODEL_NAME=HuggingFace NER model
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}

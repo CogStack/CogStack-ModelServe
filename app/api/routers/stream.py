@@ -36,6 +36,17 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
 @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)
 async def get_entities_stream_from_jsonlines_stream(request: Request,
                                                     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> Response:
+    """
+    Extracts NER entities from a stream of texts in the JSON Lines format and returns them as a JSON Lines stream.
+
+    Args:
+        request (Request): The request object.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        Response: A streaming response containing the original texts and extracted entities in the JSON Lines format.
+    """
+
     annotation_stream = _annotation_async_gen(request, model_service)
     return _LocalStreamingResponse(annotation_stream, media_type="application/x-ndjson; charset=utf-8")
 
@@ -45,6 +56,23 @@ async def get_entities_stream_from_jsonlines_stream(request: Request,
 async def get_inline_annotations_from_websocket(websocket: WebSocket,
                                                 user_manager: CmsUserManager = Depends(get_user_manager),
                                                 model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
+    """
+    Handles WebSocket connections for receiving text and returning extracted NER entities.
+
+    This endpoint establishes a WebSocket connection to receive text data from the client,
+    processes the text to extract NER entities using the provided model service, and sends
+    the extracted entities back to the client. The connection will be closed if no messages are
+    received within the specified idle timeout duration.
+
+    Args:
+        websocket (WebSocket): The WebSocket connection object.
+        user_manager (CmsUserManager): The user manager dependency for handling user authentication.
+        model_service (AbstractModelService): The model service dependency.
+
+    Raises:
+        WebSocketException: If the authentication cookie is not found or the user is not active.
+    """
+
     monitor_idle_task = None
     try:
         if get_settings().AUTH_USER_ENABLED == "true":

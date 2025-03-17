@@ -19,6 +19,7 @@ from app.api.auth.db import make_sure_db_and_tables
 from app.api.auth.users import Props
 from app.api.dependencies import ModelServiceDep
 from app.api.utils import add_exception_handlers, add_rate_limiter
+from app.config import Settings
 from app.domain import Tags, TagsStreamable
 from app.management.tracker_client import TrackerClient
 from app.utils import get_settings
@@ -28,9 +29,19 @@ logging.getLogger("asyncio").setLevel(logging.ERROR)
 logger = logging.getLogger("cms")
 
 
-def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+def get_model_server(config: Settings, msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    """
+    Initialises a FastAPI app instance configured for the CMS model service.
+
+    Args:
+        config: The CMS configuration.
+        msd_overwritten (Optional[ModelServiceDep]): An optional model service dependency to overwrite the default one.
+
+    Returns:
+        FastAPI: A FastAPI app instance.
+    """
+
     app = _get_app(msd_overwritten)
-    config = get_settings()
     logger.debug("Configuration loaded: %s", config)
     add_rate_limiter(app, config)
     logger.debug("Rate limiter added")
@@ -68,9 +79,19 @@ def get_model_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastA
     return app
 
 
-def get_stream_server(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+def get_stream_server(config: Settings, msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    """
+    Initialises a FastAPI instance configured for a stream server.
+
+    Args:
+        config: The CMS configuration.
+        msd_overwritten (Optional[ModelServiceDep]): An optional model service dependency to overwrite the default one.
+
+    Returns:
+        FastAPI: A FastAPI app instance.
+    """
+
     app = _get_app(msd_overwritten, streamable=True)
-    config = get_settings()
     add_rate_limiter(app, config, streamable=True)
 
     app = _load_health_check_router(app)

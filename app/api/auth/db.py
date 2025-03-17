@@ -8,10 +8,18 @@ from app.utils import get_settings
 
 
 class Base(DeclarativeBase):
+    """
+    Base class for SQLAlchemy ORM models.
+    """
+
     pass
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
+    """
+    User model class for representing users in the authentication database.
+    """
+
     pass
 
 
@@ -25,9 +33,24 @@ async def _get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def make_sure_db_and_tables() -> None:
+    """
+    Ensures the authentication database and tables are created.
+    """
+
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_user_db(session: AsyncSession = Depends(_get_async_session)) -> AsyncGenerator[SQLAlchemyUserDatabase, None]:
+    """
+    Retrieves a user database instance.
+
+    Args:
+        session (AsyncSession): An asynchronous session instance to interact with the authentication database.
+
+    Yields:
+        SQLAlchemyUserDatabase: A database instance initialised with the given session and the User model.
+    """
+
+    # TODO: fix this type checking error
     yield SQLAlchemyUserDatabase(session, User)

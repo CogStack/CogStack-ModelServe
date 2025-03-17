@@ -10,6 +10,7 @@ class AnnotationDatasetConfig(datasets.BuilderConfig):
 
 
 class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
+    """A builder class for creating annotation datasets from flattened trainer export files."""
 
     BUILDER_CONFIGS = [
         AnnotationDatasetConfig(
@@ -43,6 +44,28 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
         return generate_examples(filepaths)
 
 def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
+    """
+    Generates examples from a list of trainer export files.
+
+    This function reads annotation data from trainer export files and yields
+    each annotated document as a tuple containing a unique doc ID and a dictionary
+    with keys 'project', 'name', 'text', 'starts', 'ends', and 'labels'.
+
+    Args:
+        filepaths (List[Path]): A list of trainer export files.
+
+    Yields:
+        Iterable[Tuple[str, Dict]]: An iterable of tuples where each tuple contains:
+            - A unique doc ID.
+            - A dictionary with the following keys:
+                - "project": The name of the annotation project.
+                - "name": The name of the document.
+                - "text": The text of the document.
+                - "starts": A comma-separated string of start indices of annotations.
+                - "ends": A comma-separated string of end indices of annotations.
+                - "labels": A comma-separated string of concept IDs (CUIs) for the annotations.
+    """
+
     id_ = 1
     for filepath in filepaths:
         with open(str(filepath), "r") as f:

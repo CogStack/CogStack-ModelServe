@@ -28,7 +28,7 @@ def model_service():
 
 @pytest.fixture(scope="function")
 def app(model_service):
-    app = get_stream_server(msd_overwritten=lambda: model_service)
+    app = get_stream_server(config, msd_overwritten=lambda: model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     yield app
     app.dependency_overrides.clear()

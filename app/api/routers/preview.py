@@ -32,6 +32,19 @@ async def get_rendered_entities_from_text(request: Request,
                                           text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
                                           tracking_id: Union[str, None] = Depends(validate_tracking_id),
                                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+    """
+    Extracts NER entities from a piece of text and returns the entities in HTML for preview.
+
+    Args:
+        request (Request): The request object.
+        text (str): The plain text input to be processed.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+    - StreamingResponse: A streaming response containing the HTML representation of the extracted entities.
+    """
+
     annotation_dicts = model_service.annotate(text)
     annotations = [Annotation.parse_obj(ad) for ad in annotation_dicts]
     entities = annotations_to_entities(annotations, model_service.model_name)
@@ -55,6 +68,22 @@ def get_rendered_entities_from_trainer_export(request: Request,
                                               project_id: Annotated[Union[int, None], Query(description="The target project ID, and if not provided, all projects will be included")] = None,
                                               document_id: Annotated[Union[int, None], Query(description="The target document ID, and if not provided, all documents of the target project(s) will be included")] = None,
                                               tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> Response:
+    """
+    Returns the entities in HTML for preview based on the provided trainer export files or raw JSON string.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded. Defaults to an empty list.
+        trainer_export_str (str): The trainer export raw JSON string. Defaults to {\"projects\": []}.
+        project_id (Union[int, None]): The target project ID. If not provided, all projects will be included.
+        document_id (Union[int, None]): The target document ID. If not provided, all documents of the target project(s) will be included.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+
+    Returns:
+        StreamingResponse: A streaming response containing the HTML representation of the extracted entities.
+        JSONResponse: A JSON response with a 404 status code if no matching documents are found for preview.
+    """
+
     data: Dict = {"projects": []}
     if trainer_export is not None:
         files = []

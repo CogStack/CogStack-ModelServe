@@ -31,10 +31,26 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
 async def train_metacat(request: Request,
                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
                         epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
-                        log_frequency: Annotated[int, Query(description="The number of processed documents after which training metrics will be logged", ge=1)] = 1,
+                        log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1,
                         description: Annotated[Union[str, None], Form(description="The description on the training or change logs")] = None,
                         tracking_id: Union[str, None] = Depends(validate_tracking_id),
                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+    """
+    Triggers the Metacat training by uploading one or more trainer export files.
+
+    Args:
+        request (Request): The request object.
+        trainer_export (List[UploadFile]): A list of trainer export files to be uploaded for training.
+        epochs (int, optional): The number of training epochs. Defaults to 1.
+        log_frequency (int, optional): The number of processed documents or epochs after which training metrics will be logged. Defaults to 1.
+        description (Union[str, None], optional): An optional description on the training or change logs.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response containing training response with the training ID.
+    """
+
     files = []
     file_names = []
     for te in trainer_export:

@@ -41,7 +41,7 @@ class HuggingFaceNerModel(AbstractModelService):
         self._ner_pipeline: Pipeline = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
         self._multi_label_threshold = 0.5
-        self.model_name = model_name or "Hugging Face NER model"
+        self.model_name = model_name or "HuggingFace NER model"
 
     @property
     def model(self) -> PreTrainedModel:
@@ -149,7 +149,7 @@ class HuggingFaceNerModel(AbstractModelService):
         return [Annotation.parse_obj(record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
-        raise NotImplementedError("Batch annotation is not yet implemented for Hugging Face NER models")
+        raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace NER models")
 
     def train_supervised(self,
                          data_file: TextIO,

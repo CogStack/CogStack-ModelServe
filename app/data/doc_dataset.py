@@ -9,6 +9,7 @@ class TextDatasetConfig(datasets.BuilderConfig):
 
 
 class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
+    """A builder class for creating text datasets from files containing text lists."""
 
     BUILDER_CONFIGS = [
         TextDatasetConfig(
@@ -39,6 +40,22 @@ class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
 
 
 def generate_examples(filepaths: List[Path]) -> Iterable[Tuple[str, Dict]]:
+    """
+    Generates examples from the files each containing a list of texts.
+
+    This method reads JSON files containing text lists and yields each record as a tuple
+    of a unique text ID and a dictionary with 'name' and 'text' attributes.
+
+    Args:
+        filepaths (List[Path]): A list of paths to the JSON files containing text lists.
+
+    Yields:
+        Tuple[str, Dict]: A tuple where the first element is a string representing the unique text ID
+        and the second element is a dictionary with the following keys:
+            - "name" (str): A string representing the text name, which is the same as the text ID.
+            - "text" (str): A string containing the free text.
+    """
+
     id_ = 1
     for filepath in filepaths:
         with open(str(filepath), "r") as f:
