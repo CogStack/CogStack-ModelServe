@@ -19,6 +19,14 @@ from app.utils import func_deprecated
 
 @final
 class ModelManager(PythonModel):
+    """
+    A model manager class that manages the model service and provides interfaces to log,
+    save, and predict on models with the CMS model flavour.
+
+    Attributes:
+        input_schema (Schema): The schema defining the expected input for the model.
+        output_schema (Schema): The schema defining the expected output from the model.
+    """
 
     input_schema = Schema([
         ColSpec(DataType.string, "name", optional=True),
@@ -38,6 +46,13 @@ class ModelManager(PythonModel):
     ])
 
     def __init__(self, model_service_type: Type, config: Settings) -> None:
+        """
+        Initialises a model manager with a specific type of model service and its configuration.
+
+        Args:
+            model_service_type (Type): The type of the model service to be managed.
+            config (Settings): Configuration for the model service.
+        """
         self._model_service_type = model_service_type
         self._config = config
         self._model_service: Optional[AbstractModelService] = None
@@ -47,19 +62,33 @@ class ModelManager(PythonModel):
 
     @property
     def model_service(self) -> Optional[AbstractModelService]:
+        """Getter for the model service."""
         return self._model_service
 
     @model_service.setter
     def model_service(self, model_service: AbstractModelService) -> None:
+        """Setter for the model service."""
         self._model_service = model_service
 
     @property
     def model_signature(self) -> ModelSignature:
+        """Getter for the model signature."""
         return self._model_signature
 
     @staticmethod
     def retrieve_python_model_from_uri(mlflow_model_uri: str,
                                        config: Settings) -> PythonModel:
+        """
+        Retrieves the PythonModel instance from the specified MLflow model URI.
+
+        Args:
+            mlflow_model_uri (str): The URI of the MLflow model.
+            config (Settings): The configuration for the model service.
+
+        Returns:
+            PythonModel: The retrieved PythonModel instance.
+        """
+
         mlflow.set_tracking_uri(config.MLFLOW_TRACKING_URI)
         pyfunc_model = mlflow.pyfunc.load_model(model_uri=mlflow_model_uri)
         # In case the load_model overwrote the tracking URI
@@ -70,6 +99,18 @@ class ModelManager(PythonModel):
     def retrieve_model_service_from_uri(mlflow_model_uri: str,
                                         config: Settings,
                                         downloaded_model_path: Optional[str] = None) -> AbstractModelService:
+        """
+        Retrieves the model service from the specified MLflow model URI.
+
+        Args:
+            mlflow_model_uri (str): The URI of the MLflow model.
+            config (Settings): The configuration for the model service.
+            downloaded_model_path (Optional[str]): The local path to optionally save the downloaded model package.
+
+        Returns:
+            AbstractModelService: The model service retrieved from the URI.
+        """
+
         model_manager = ModelManager.retrieve_python_model_from_uri(mlflow_model_uri, config)
         model_service = model_manager.model_service
         config.BASE_MODEL_FULL_PATH = mlflow_model_uri
@@ -80,6 +121,20 @@ class ModelManager(PythonModel):
 
     @staticmethod
     def download_model_package(model_artifact_uri: str, dst_file_path: str) -> Optional[str]:
+        """
+        Downloads the model package from the specified model artifact URI and save it to the destination file path.
+
+        Args:
+            model_artifact_uri (str): The URI of the model artifact.
+            dst_file_path (str): The local file path where the model package will be saved.
+
+        Returns:
+            Optional[str]: The destination file path if the model package is found and successfully downloaded, otherwise None.
+
+        Raises:
+            ManagedModelException: If the model package cannot be found inside the downloaded artifacts.
+        """
+
         # This assumes the model package is the sole zip or tar.gz file in the artifacts directory
         with tempfile.TemporaryDirectory() as dir_downloaded:
             mlflow.artifacts.download_artifacts(artifact_uri=model_artifact_uri, dst_path=dir_downloaded)
@@ -100,6 +155,18 @@ class ModelManager(PythonModel):
                   model_name: str,
                   model_path: str,
                   registered_model_name: Optional[str] = None) -> ModelInfo:
+        """
+        Logs the model with the specified name and local path to MLflow.
+
+        Args:
+            model_name (str): The name of the model to be logged.
+            model_path (str): The artifact path to the model.
+            registered_model_name (Optional[str]): The name of the registered model in MLflow.
+
+        Returns:
+            ModelInfo: The information instance of the logged model.
+        """
+
         return mlflow.pyfunc.log_model(
             artifact_path=model_name,
             python_model=self,
@@ -111,6 +178,14 @@ class ModelManager(PythonModel):
         )
 
     def save_model(self, local_dir: str, model_path: str) -> None:
+        """
+        Save the model with the specified path into a local directory.
+
+        Args:
+            local_dir (str): The local directory where the model will be saved.
+            model_path (str): The artifact path to the model.
+        """
+
         mlflow.pyfunc.save_model(
             path=local_dir,
             python_model=self,
@@ -121,6 +196,13 @@ class ModelManager(PythonModel):
         )
 
     def load_context(self, context: PythonModelContext) -> None:
+        """
+        Load artifacts from the context and initialise the model service.
+
+        Args:
+            context (PythonModelContext): The context containing the model artifacts.
+        """
+
         artifact_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         model_service = self._model_service_type(self._config,
                                                  model_parent_dir=os.path.join(artifact_root, os.path.split(context.artifacts["model_path"])[0]),
@@ -132,6 +214,18 @@ class ModelManager(PythonModel):
                 context: PythonModelContext,
                 model_input: DataFrame,
                 params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+        """
+        Predicts using the model service for the provided input data.
+
+        Args:
+            context (PythonModelContext): The context containing the model artifacts.
+            model_input (DataFrame): The input data for prediction.
+            params (Optional[Dict[str, Any]]): Additional parameters for prediction (not used in this implementation).
+
+        Returns:
+            pd.DataFrame: The inference results as a DataFrame instance.
+        """
+
         output = []
         for idx, row in model_input.iterrows():
             annotations = self._model_service.annotate(row["text"])  # type: ignore
@@ -149,6 +243,18 @@ class ModelManager(PythonModel):
                        context: PythonModelContext,
                        model_input: DataFrame,
                        params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
+        """
+        Predicts using the model service for the provided input data and yields results one by one.
+
+        Args:
+            context (PythonModelContext): The context containing the model artifacts.
+            model_input (DataFrame): The input data for prediction.
+            params (Optional[Dict[str, Any]]): Additional parameters for prediction (not used in this implementation).
+
+        Returns:
+            Iterator[Dict[str, Any]]: The iterator over the inference results as dictionaries.
+        """
+
         for idx, row in model_input.iterrows():
             annotations = self._model_service.annotate(row["text"])  # type: ignore
             output = []
