@@ -16,9 +16,26 @@ logger = logging.getLogger("cms")
 
 
 class MetacatTrainer(MedcatSupervisedTrainer):
+    """
+    An supervised trainer class for MetaCAT models (will be deprecated).
+
+    Args:
+        model_service (MetaCAT): An instance of the MetaCAT service.
+    """
 
     @staticmethod
     def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:
+        """
+        Flattens the configuration of a MetaCAT model into a dictionary with string values.
+
+        Args:
+            model (MetaCAT): The MetaCAT model instance whose configuration is to be flattened.
+            prefix (Optional[str]): An optional prefix to prepend to each configuration key.
+
+        Returns:
+            Dict: A dictionary containing the flattened configuration. If a value is an empty string, it is replaced with "<EMPTY>".
+        """
+
         params = {}
         prefix = "" if prefix is None else f"{prefix}."
         for key, val in model.config.general.__dict__.items():
@@ -38,6 +55,17 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the supervised training loop for MetaCAT models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (TextIO): The file-like object containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded, currently not used.
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None

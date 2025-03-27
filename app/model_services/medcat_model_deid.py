@@ -19,6 +19,7 @@ logger = logging.getLogger("cms")
 
 @final
 class MedCATModelDeIdentification(MedCATModel):
+    """A model service for MedCAT De-Identification (AnonCAT) models."""
 
     CHUNK_SIZE = 500
     LEFT_CONTEXT_WORDS = 5
@@ -29,16 +30,36 @@ class MedCATModelDeIdentification(MedCATModel):
                  enable_trainer: Optional[bool] = None,
                  model_name: Optional[str] = None,
                  base_model_file: Optional[str] = None) -> None:
+        """
+        Initialises the MedCAT De-Identification (AnonCAT) model service with specified configurations.
+
+        Args:
+            config (Settings): The configuration for the model service.
+            model_parent_dir (Optional[str]): The directory where the model package is stored. Defaults to None.
+            enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
+            model_name (Optional[str]): The name of the model. Defaults to None.
+            base_model_file (Optional[str]): The model package file name. Defaults to None.
+        """
+
         super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
         self.model_name = model_name or "De-Identification MedCAT model"
         self._lock = threading.RLock()
 
     @property
     def api_version(self) -> str:
+        """Getter for the API version of the model service."""
+
         # APP version is used although each model service could have its own API versioning
         return app_version
 
     def info(self) -> ModelCard:
+        """
+        Retrieves information about the MedCAT De-Identification (AnonCAT) model.
+
+        Returns:
+            ModelCard: A card containing information about the MedCAT De-Identification (AnonCAT) model.
+        """
+
         model_card = self.model.get_model_card(as_dict=True)
         model_card["Basic CDB Stats"]["Average training examples per concept"] = 0
         return ModelCard(model_description=self.model_name,
@@ -47,6 +68,16 @@ class MedCATModelDeIdentification(MedCATModel):
                          model_card=model_card)
 
     def annotate(self, text: str) -> List[Annotation]:
+        """
+        Annotates the given text with extracted PII entities.
+
+        Args:
+            text (str): The input text to be annotated.
+
+        Returns:
+            List[Annotation]: A list of annotations containing the extracted PII entities.
+        """
+
         doc = self.model.get_entities(text)
         if doc["entities"]:
             for _, entity in doc["entities"].items():
@@ -56,6 +87,16 @@ class MedCATModelDeIdentification(MedCATModel):
         return [Annotation.parse_obj(record) for record in records]
 
     def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
+        """
+        Annotates the given text with PII entities using custom chunking.
+
+        Args:
+            text (str): The input text to be annotated.
+
+        Returns:
+            List[Annotation]: A list of annotation containing the extracted PII entities.
+        """
+
         tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
         leading_ws_len = len(text) - len(text.lstrip())
         text = text.lstrip()
@@ -111,12 +152,24 @@ class MedCATModelDeIdentification(MedCATModel):
         return [Annotation.parse_obj(record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
+        """
+        Annotates texts in batches and returns a list of lists of annotations.
+
+        Args:
+            texts (List[str]): The list of texts to be annotated.
+
+        Returns:
+            List[List[Annotation]]: A list where each element is a list of annotations containing the extracted PII entities.
+        """
+
         annotation_list = []
         for text in texts:
             annotation_list.append(self.annotate(text))
         return annotation_list
 
     def init_model(self) -> None:
+        """Initializes the MedCAT De-Identification (AnonCAT) model based on the configuration."""
+
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
@@ -152,6 +205,26 @@ class MedCATModelDeIdentification(MedCATModel):
                          description: Optional[str] = None,
                          synchronised: bool = False,
                          **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates supervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing the trainer export data.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of epochs after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the supervised trainer is not enabled.
+        """
         if self._supervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)

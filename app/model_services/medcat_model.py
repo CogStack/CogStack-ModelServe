@@ -18,6 +18,7 @@ logger = logging.getLogger("cms")
 
 
 class MedCATModel(AbstractModelService):
+    """A model service for MedCAT models."""
 
     def __init__(self,
                  config: Settings,
@@ -25,6 +26,16 @@ class MedCATModel(AbstractModelService):
                  enable_trainer: Optional[bool] = None,
                  model_name: Optional[str] = None,
                  base_model_file: Optional[str] = None) -> None:
+        """
+        Initialises the MedCAT model service with specified configurations.
+
+        Args:
+            config (Settings): The configuration for the model service.
+            model_parent_dir (Optional[str]): The directory where the model package is stored. Defaults to None.
+            enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
+            model_name (Optional[str]): The name of the model. Defaults to None.
+            base_model_file (Optional[str]): The model package file name. Defaults to None.
+        """
         super().__init__(config)
         self._model: CAT = None
         self._config = config
@@ -36,29 +47,61 @@ class MedCATModel(AbstractModelService):
 
     @property
     def model(self) -> CAT:
+        """Getter for the MedCAT model."""
+
         return self._model
 
     @model.setter
     def model(self, model: CAT) -> None:
+        """Setter for the MedCAT model."""
+
         self._model = model
 
     @model.deleter
     def model(self) -> None:
+        """Deleter for the MedCAT model."""
+
         del self._model
 
     @property
     def api_version(self) -> str:
+        """Getter for the API version of the model service."""
+
         # APP version is used although each model service could have its own API versioning
         return app_version
 
     @classmethod
     def from_model(cls, model: CAT) -> "MedCATModel":
+        """
+        Creates a model service from a MedCAT model instance.
+
+        Args:
+            model (CAT): A MedCAT model instance.
+
+        Returns:
+            MedCATModel: A MedCAT model service.
+        """
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         return model_service
 
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> CAT:
+        """
+        Loads a MedCAT model from a model package file.
+
+        Args:
+            model_file_path (str): The path to the model package file.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            CAT: The loaded MedCAT model instance.
+
+        Raises:
+            ConfigurationException: If the model package archive format is not supported.
+        """
+
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
         if unpack_model_data_package(model_file_path, model_path):
             cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), *args, **kwargs)
@@ -67,20 +110,9 @@ class MedCATModel(AbstractModelService):
         else:
             raise ConfigurationException("Model package archive format is not supported")
 
-
-    @staticmethod
-    def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
-        meta_annotations = []
-        for i, r in df.iterrows():
-            meta_dict = {}
-            for k, v in r.meta_anns.items():
-                meta_dict[k] = v["value"]
-            meta_annotations.append(meta_dict)
-
-        df["new_meta_anns"] = meta_annotations
-        return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
-
     def init_model(self) -> None:
+        """Initializes the MedCAT model based on the configuration."""
+
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
@@ -96,14 +128,44 @@ class MedCATModel(AbstractModelService):
                 self._metacat_trainer = MetacatTrainer(self)
 
     def info(self) -> ModelCard:
+        """
+        Retrieves information about the model and should be implemented by subclasses.
+
+        Returns:
+            ModelCard: A card containing information about the model.
+
+        Raises:
+            NotImplementedError: If the method is not implemented by the subclass.
+        """
+
         raise NotImplementedError
 
     def annotate(self, text: str) -> List[Annotation]:
+        """
+        Annotates the given text with extracted named entities.
+
+        Args:
+            text (str): The input text to be annotated.
+
+        Returns:
+            List[Annotation]: A list of annotations containing the extracted named entities.
+        """
+
         doc = self.model.get_entities(text,
                                       addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
         return [Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
+        """
+        Annotates texts in batches and returns a list of lists of annotations.
+
+        Args:
+            texts (List[str]): The list of texts to be annotated.
+
+        Returns:
+            List[List[Annotation]]: A list where each element is a list of annotations containing the extracted named entities.
+        """
+
         batch_size_chars = 500000
 
         docs = self.model.multiprocessing_batch_char_size(
@@ -128,6 +190,27 @@ class MedCATModel(AbstractModelService):
                          description: Optional[str] = None,
                          synchronised: bool = False,
                          **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates supervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing the trainer export data.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of processed documents after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the supervised trainer is not enabled.
+        """
+
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
@@ -142,6 +225,27 @@ class MedCATModel(AbstractModelService):
                            description: Optional[str] = None,
                            synchronised: bool = False,
                            **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates unsupervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing a JSON list of texts.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of processed documents after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]:  A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the unsupervised trainer is not enabled.
+        """
+
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
         return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
@@ -156,11 +260,42 @@ class MedCATModel(AbstractModelService):
                       description: Optional[str] = None,
                       synchronised: bool = False,
                       **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates metacat training on the model.
+
+        Args:
+            data_file (TextIO): The file containing a JSON list of texts.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of processed documents after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]:  A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the metacat trainer is not enabled.
+        """
+
         if self._metacat_trainer is None:
             raise ConfigurationException("The metacat trainer is not enabled")
         return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
 
     def get_records_from_doc(self, doc: Dict) -> List[Dict]:
+        """
+        Extracts and formats entity records from a document dictionary.
+
+        Args:
+            doc (Dict): The document dictionary containing extracted named entities.
+
+        Returns:
+            List[Dict]: A list of formatted entity records.
+        """
+
         df = pd.DataFrame(doc["entities"].values())
 
         if df.empty:
@@ -176,6 +311,19 @@ class MedCATModel(AbstractModelService):
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
+
+    @staticmethod
+    def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:
+        meta_annotations = []
+        for i, r in df.iterrows():
+            meta_dict = {}
+            for k, v in r.meta_anns.items():
+                meta_dict[k] = v["value"]
+            meta_annotations.append(meta_dict)
+
+        df["new_meta_anns"] = meta_annotations
+        return pd.concat([df.drop(["new_meta_anns"], axis=1), df["new_meta_anns"].apply(pd.Series)], axis=1)
+
 
     def _set_tuis_filtering(self) -> None:
         # this patching may not be needed after the base 1.4.x model is fixed in the future

@@ -65,6 +65,12 @@ class _HuggingFaceNerTrainerCommon(object):
 
 @final
 class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrainerCommon):
+    """
+    A supervised trainer class for HuggingFace NER models.
+
+    Args:
+    model_service (HuggingFaceNerModel): An instance of the HuggingFace NER model service.
+    """
 
     def __init__(self, model_service: "HuggingFaceNerModel") -> None:
         UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
@@ -78,13 +84,23 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         self._max_length = model_service.model.config.max_position_embeddings
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
-
     def run(self,
             training_params: Dict,
             data_file: Union[TextIO, tempfile.TemporaryDirectory],
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the supervised training loop for HuggingFace NER models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (Union[TextIO, tempfile.TemporaryDirectory]): The file-like object or temporary directory containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         copied_model_pack_path = None
         train_dataset = None
         eval_dataset = None
@@ -288,6 +304,12 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 
 @final
 class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerCommon):
+    """
+    An unsupervised trainer class for HuggingFace NER models.
+
+    Args:
+        model_service (HuggingFaceNerModel): An instance of the HuggingFace NER model service.
+    """
 
     MIN_EXAMPLE_COUNT_FOR_TRAINABLE_CONCEPT = 5
     MAX_CONCEPTS_TO_TRACK = 20
@@ -333,6 +355,17 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the unsupervised training loop for HuggingFace NER models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (Union[TextIO, tempfile.TemporaryDirectory]): The file-like object or temporary directory containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         copied_model_pack_path = None
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
@@ -708,6 +741,13 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
 
 @final
 class MLflowLoggingCallback(TrainerCallback):
+    """
+    A callback class for logging training metrics to MLflow.
+
+    Args:
+        tracker_client (TrackerClient): An instance of TrackerClient used for logging.
+    """
+
     def __init__(self, tracker_client: TrackerClient) -> None:
         self.tracker_client = tracker_client
         self.epoch = 0
@@ -718,6 +758,17 @@ class MLflowLoggingCallback(TrainerCallback):
                control: TrainerControl,
                logs: Dict[str, float],
                **kwargs: Dict[str, Any]) -> None:
+        """
+        Logs metrics at the end of each epoch.
+
+        Args:
+            args (TrainingArguments): The arguments used for training.
+            state (TrainerState): The current state of the Trainer.
+            control (TrainerControl): The current control of the Trainer.
+            logs (Dict[str, float]): A dictionary containing the metrics to log.
+            **kwargs (Dict[str, Any]): Additional keyword arguments.
+        """
+
         if logs is not None:
             self.tracker_client.send_hf_metrics_logs(logs, self.epoch)
         self.epoch += 1
@@ -725,6 +776,13 @@ class MLflowLoggingCallback(TrainerCallback):
 
 @final
 class CancelEventCheckCallback(TrainerCallback):
+    """
+    A callback class for checking a cancellation event during training.
+
+    Args:
+        cancel_event (threading.Event): A threading event that signals whether training should be cancelled.
+    """
+
     def __init__(self, cancel_event: threading.Event) -> None:
         self.cancel_event = cancel_event
         self.training_cancelled = False
@@ -734,6 +792,16 @@ class CancelEventCheckCallback(TrainerCallback):
                     state: TrainerState,
                     control: TrainerControl,
                     **kwargs: Dict[str, Any]) -> None:
+        """
+        Checks if the training should be cancelled at the end of each training step.
+
+        Args:
+            args (TrainingArguments): The arguments used for training.
+            state (TrainerState): The current state of the Trainer.
+            control (TrainerControl): The current control of the Trainer.
+            **kwargs (Dict[str, Any]): Additional keyword arguments.
+        """
+
         if self.cancel_event.is_set():
             control.should_training_stop = True
             self.cancel_event.clear()

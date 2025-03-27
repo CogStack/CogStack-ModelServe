@@ -7,6 +7,7 @@ from app.domain import ModelCard, ModelType
 
 @final
 class MedCATModelUmls(MedCATModel):
+    """A model service for MedCAT UMLS models."""
 
     def __init__(self,
                  config: Settings,
@@ -14,15 +15,35 @@ class MedCATModelUmls(MedCATModel):
                  enable_trainer: Optional[bool] = None,
                  model_name: Optional[str] = None,
                  base_model_file: Optional[str] = None) -> None:
+        """
+        Initialises the MedCAT UMLS model service with specified configurations.
+
+        Args:
+            config (Settings): The configuration for the model service.
+            model_parent_dir (Optional[str]): The directory where the model package is stored. Defaults to None.
+            enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
+            model_name (Optional[str]): The name of the model. Defaults to None.
+            base_model_file (Optional[str]): The model package file name. Defaults to None.
+        """
+
         super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
         self.model_name = model_name or "UMLS MedCAT model"
 
     @property
     def api_version(self) -> str:
+        """Getter for the API version of the model service."""
+
         # APP version is used although each model service could have its own API versioning
         return app_version
 
     def info(self) -> ModelCard:
+        """
+        Retrieves information about the MedCAT UMLS model.
+
+        Returns:
+            ModelCard: A card containing information about the MedCAT UMLS model.
+        """
+
         return ModelCard(model_description=self.model_name,
                          model_type=ModelType.MEDCAT_UMLS,
                          api_version=self.api_version,

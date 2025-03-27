@@ -27,6 +27,12 @@ logger = logging.getLogger("cms")
 
 
 class MetricsCallback(TrainerCallback):
+    """
+    A callback class for logging metrics to Mlflow during training.
+
+    Args:
+        trainer (Trainer): The Hugging FaceTrainer object to which this callback is attached.
+    """
 
     def __init__(self, trainer: Trainer) -> None:
         self._trainer = trainer
@@ -38,6 +44,16 @@ class MetricsCallback(TrainerCallback):
                     state: TrainerState,
                     control: TrainerControl,
                     **kwargs: Dict[str, Any]) -> None:
+        """
+        Logs metrics at the end of a multiple of step interval.
+
+        Args:
+            args (TrainingArguments): The arguments used for training.
+            state (TrainerState): The current state of the Trainer.
+            control (TrainerControl): The control object for the Trainer.
+            **kwargs: Additional keyword arguments.
+        """
+
         if self._step == 0:
             self._step += 1
             return
@@ -48,6 +64,12 @@ class MetricsCallback(TrainerCallback):
 
 
 class LabelCountCallback(TrainerCallback):
+    """
+    A callback class for logging label counts to Mlflow during training.
+
+    Args:
+        trainer (Trainer): The Trainer object to which this callback is attached.
+    """
 
     def __init__(self, trainer: Trainer) -> None:
         self._trainer = trainer
@@ -74,6 +96,7 @@ class LabelCountCallback(TrainerCallback):
 
 @final
 class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
+    """A supervised trainer class for MedCAT de-identification (AnonCAT) models."""
 
     def run(self,
             training_params: Dict,
@@ -81,6 +104,17 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the supervised training loop for MedCAT de-identification (AnonCAT) models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (TextIO): The file-like object containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None

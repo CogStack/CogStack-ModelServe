@@ -24,6 +24,7 @@ logger = logging.getLogger("cms")
 
 
 class HuggingFaceNerModel(AbstractModelService):
+    """A model service for Hugging Face NER models."""
 
     def __init__(self,
                  config: Settings,
@@ -31,6 +32,17 @@ class HuggingFaceNerModel(AbstractModelService):
                  enable_trainer: Optional[bool] = None,
                  model_name: Optional[str] = None,
                  base_model_file: Optional[str] = None) -> None:
+        """
+        Initialises the HuggingFace NER model service with specified configurations.
+
+        Args:
+            config (Settings): The configuration for the model service.
+            model_parent_dir (Optional[str]): The directory where the model package is stored. Defaults to None.
+            enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
+            model_name (Optional[str]): The name of the model. Defaults to None.
+            base_model_file (Optional[str]): The model package file name. Defaults to None.
+        """
+
         super().__init__(config)
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
@@ -45,35 +57,60 @@ class HuggingFaceNerModel(AbstractModelService):
 
     @property
     def model(self) -> PreTrainedModel:
+        """Getter for the HuggingFace pre-trained model."""
+
         return self._model
 
     @model.setter
     def model(self, model: PreTrainedModel) -> None:
+        """Setter for the HuggingFace pre-trained model."""
+
         self._model = model
 
     @model.deleter
     def model(self) -> None:
+        """Deleter for the HuggingFace pre-trained model."""
+
         del self._model
 
     @property
     def tokenizer(self) -> PreTrainedTokenizerBase:
+        """Getter for the HuggingFace tokenizer."""
+
         return self._tokenizer
 
     @tokenizer.setter
     def tokenizer(self, tokenizer: PreTrainedTokenizerBase) -> None:
+        """Setter for the HuggingFace tokenizer."""
+
         self._tokenizer = tokenizer
 
     @tokenizer.deleter
     def tokenizer(self) -> None:
+        """Deleter for the HuggingFace tokenizer."""
+
         del self._tokenizer
 
     @property
     def api_version(self) -> str:
+        """Getter for the API version of the model service."""
+
         # APP version is used although each model service could have its own API versioning
         return app_version
 
     @classmethod
     def from_model(cls, model: PreTrainedModel, tokenizer: PreTrainedTokenizerBase) -> "HuggingFaceNerModel":
+        """
+        Creates a model service from a provided HuggingFace pre-trained model and its tokenizer.
+
+        Args:
+            model (PreTrainedModel): The HuggingFace pre-trained model.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer for the HuggingFace pre-trained model.
+
+        Returns:
+            HuggingFaceNerModel: A HuggingFace NER model service.
+        """
+
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
@@ -91,6 +128,21 @@ class HuggingFaceNerModel(AbstractModelService):
 
     @staticmethod
     def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+        """
+        Loads a pre-trained model and its tokenizer from a model package file.
+
+        Args:
+            model_file_path (str): The path to the model package file.
+            *args (Tuple): Additional positional arguments.
+            **kwargs (Dict[str, Any]): Additional keyword arguments.
+
+        Returns:
+            Tuple[PreTrainedModel, PreTrainedTokenizerBase]: A tuple containing the HuggingFace pre-trained model and its tokenizer.
+
+        Raises:
+            ConfigurationException: If the model package is not valid or not supported.
+        """
+
         model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
         if unpack_model_data_package(model_file_path, model_path):
             try:
@@ -107,6 +159,8 @@ class HuggingFaceNerModel(AbstractModelService):
             raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
     def init_model(self) -> None:
+        """Initialises the HuggingFace model, its tokenizer and a NER pipeline based on the configuration."""
+
         if all([hasattr(self, "_model"),
                 hasattr(self, "_tokenizer"),
                 isinstance(self._model, PreTrainedModel),
@@ -129,12 +183,28 @@ class HuggingFaceNerModel(AbstractModelService):
                 self._unsupervised_trainer = HuggingFaceNerUnsupervisedTrainer(self)
 
     def info(self) -> ModelCard:
+        """
+        Retrieves a ModelCard containing information about the model.
+
+        Returns:
+            ModelCard: Information about the model.
+        """
         return ModelCard(model_description=self.model_name,
                          model_type=ModelType.HUGGINGFACE_NER,
                          api_version=self.api_version,
                          model_card=self._model.config.to_dict())
 
     def annotate(self, text: str) -> List[Annotation]:
+        """
+        Annotates the given text with extracted named entities.
+
+        Args:
+            text (str): The input text to be annotated.
+
+        Returns:
+            List[Annotation]: A list of annotations containing the extracted named entities.
+        """
+
         entities = self._ner_pipeline(text)
         df = pd.DataFrame(entities)
 
@@ -161,9 +231,37 @@ class HuggingFaceNerModel(AbstractModelService):
                          description: Optional[str] = None,
                          synchronised: bool = False,
                          **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates supervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing the trainer export data.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of epochs after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the supervised trainer is not enabled.
+        """
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+        return self._supervised_trainer.train(data_file,
+                                              epochs,
+                                              log_frequency,
+                                              training_id,
+                                              input_file_name,
+                                              raw_data_files,
+                                              description,
+                                              synchronised,
+                                              **hyperparams)
 
     def train_unsupervised(self,
                            data_file: TextIO,
@@ -175,6 +273,26 @@ class HuggingFaceNerModel(AbstractModelService):
                            description: Optional[str] = None,
                            synchronised: bool = False,
                            **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Initiates unsupervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing a JSON list of texts.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of epochs after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]:  A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the unsupervised trainer is not enabled.
+        """
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
         return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)

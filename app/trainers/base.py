@@ -21,8 +21,17 @@ logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 
 class TrainerCommon(object):
+    """A base class for common training functionalities across all trainers."""
 
     def __init__(self, config: Settings, model_name: str) -> None:
+        """
+        Initialises the common trainer class.
+
+        Args:
+            config (Settings): Configuration for the trainer.
+            model_name (str): The name of the model to be trained.
+        """
+
         self._config = config
         self._model_name = model_name
         self._training_lock = threading.Lock()
@@ -35,22 +44,27 @@ class TrainerCommon(object):
 
     @property
     def model_name(self) -> str:
+        """Getter for the model name."""
         return self._model_name
 
     @model_name.setter
     def model_name(self, model_name: str) -> None:
+        """Setter for the model name."""
         self._model_name = model_name
 
     @property
     def experiment_id(self) -> str:
+        """Getter for the experiment ID."""
         return self._experiment_id or ""
 
     @property
     def run_id(self) -> str:
+        """Getter for the run ID."""
         return self._run_id or ""
 
     @property
     def tracker_client(self) -> TrackerClient:
+        """Getter for the tracker client."""
         return self._tracker_client
 
     @final
@@ -65,6 +79,26 @@ class TrainerCommon(object):
                        raw_data_files: Optional[List[TextIO]] = None,
                        description: Optional[str] = None,
                        synchronised: bool = False) -> Tuple[bool, str, str]:
+        """
+        Starts the training process.
+
+        Args:
+            run (Callable): The main training function to be executed.
+            training_type (str): The type of training (e.g., supervised, unsupervised).
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (Union[TextIO, tempfile.TemporaryDirectory]): The file-like object or directory containing the training data.
+            log_frequency: The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            training_id: A unique identifier for the training job.
+            input_file_name: The name of the input file to be logged.
+            raw_data_files: The optional list of raw data files to be saved as artifacts.
+            description: The optional description of the training or change logs.
+            synchronised: If True, this method will wait for the training to complete before returning.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple containing a boolean indicating if the training was started successfully,
+                 the experiment ID, and the run ID.
+        """
+
         with self._training_lock:
             if self._training_in_progress:
                 return False, self.experiment_id, self.run_id
@@ -80,7 +114,6 @@ class TrainerCommon(object):
                     log_frequency=log_frequency,
                     description=description,
                 )
-                print(self._experiment_id, self._run_id)
                 if self._config.SKIP_SAVE_TRAINING_DATASET == "false":
                     if raw_data_files is not None:
                         for odf in raw_data_files:
@@ -150,12 +183,17 @@ class TrainerCommon(object):
 
     @final
     def stop_training(self) -> bool:
+        """
+        Marks the current training process as cancelled.
+
+        Returns:
+            bool: True if the training is in progress and marked as cancelled successfully, False otherwise.
+        """
         with self._training_lock:
             if self._training_in_progress:
                 self._cancel_event.set()
                 return True
             return False
-
 
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
@@ -198,8 +236,16 @@ class TrainerCommon(object):
 
 
 class SupervisedTrainer(ABC, TrainerCommon):
+    """A base class for supervised training."""
 
     def __init__(self, config: Settings, model_name: str) -> None:
+        """
+        Initialises the supervised trainer class.
+
+        Args:
+            config (Settings): Configuration for the supervised trainer.
+            model_name (str): The name of the model to be trained.
+        """
         super().__init__(config, model_name)
 
     def train(self,
@@ -212,6 +258,25 @@ class SupervisedTrainer(ABC, TrainerCommon):
               description: Optional[str] = None,
               synchronised: bool = False,
               **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Starts the supervised training process.
+
+        Args:
+            data_file (TextIO): The file-like object containing the training data.
+            epochs: The number of training epochs.
+            log_frequency: The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            training_id: A unique identifier for the training job.
+            input_file_name:  The name of the input file to be logged.
+            raw_data_files: The optional list of raw data files to be saved as artifacts.
+            description: The optional description of the training or change logs.
+            synchronised: If True, this method will wait for the training to complete before returning.
+            hyperparams: Additional hyperparameters for the training process.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple containing a boolean indicating if the training was started successfully,
+            the experiment ID, and the run ID.
+        """
+
         training_type = TrainingType.SUPERVISED.value
         training_params = {
             "data_path": data_file.name,
@@ -236,12 +301,32 @@ class SupervisedTrainer(ABC, TrainerCommon):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        The main training function to be implemented by a specific supervised trainer.
+
+        Args:
+            training_params: A dictionary containing parameters for the training.
+            data_file: The file-like object containing the training data.
+            log_frequency: The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id: The run ID of the training job.
+            description: The optional description of the training or change logs.
+        """
+
         raise NotImplementedError
 
 
 class UnsupervisedTrainer(ABC, TrainerCommon):
+    """A base class for unsupervised training."""
 
     def __init__(self, config: Settings, model_name: str) -> None:
+        """
+        Initialises the unsupervised trainer class.
+
+        Args:
+            config (Settings): Configuration for the unsupervised trainer.
+            model_name (str): The name of the model to be trained.
+        """
+
         super().__init__(config, model_name)
 
     def train(self,
@@ -254,6 +339,25 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
               description: Optional[str] = None,
               synchronised: bool = False,
               **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+        """
+        Starts the unsupervised training process.
+
+        Args:
+            data_file (TextIO): The file-like object containing the training data.
+            epochs: The number of training epochs.
+            log_frequency: The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            training_id: A unique identifier for the training job.
+            input_file_name:  The name of the input file to be logged.
+            raw_data_files: The optional list of raw data files to be saved as artifacts.
+            description: The optional description of the training or change logs.
+            synchronised: If True, this method will wait for the training to complete before returning.
+            hyperparams: Additional hyperparameters for the training process.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple containing a boolean indicating if the training was started successfully,
+            the experiment ID, and the run ID.
+        """
+
         training_type = TrainingType.UNSUPERVISED.value
         training_params = {
             "nepochs": epochs,
@@ -277,4 +381,15 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        The main training function to be implemented by a specific unsupervised trainer.
+
+        Args:
+            training_params: A dictionary containing parameters for the training.
+            data_file: The file-like object containing the training data.
+            log_frequency: The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id: The run ID of the training job.
+            description: The optional description of the training or change logs.
+        """
+
         raise NotImplementedError

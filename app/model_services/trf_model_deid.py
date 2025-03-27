@@ -19,6 +19,11 @@ logger = logging.getLogger("cms")
 @cls_deprecated("TransformersModelDeIdentification has been deprecated. Use MedCATModelDeIdentification instead.")
 @final
 class TransformersModelDeIdentification(AbstractModelService):
+    """
+    DEPRECATED: This class is deprecated and will be removed in a future version.
+
+    Consider using `MedCATModelDeIdentification` instead.
+    """
 
     def __init__(self,
                  config: Settings,

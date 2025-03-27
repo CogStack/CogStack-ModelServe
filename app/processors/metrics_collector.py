@@ -25,6 +25,19 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, IO, Dict],
                                            model_service: AbstractModelService,
                                            return_df: bool = False,
                                            include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
+    """
+    Performs a sanity check on the model's performance against a trainer export.
+
+    Args:
+        trainer_export (Union[str, IO, Dict]): The trainer export data, which can be a file path, a file-like object, or a dictionary.
+        model_service (AbstractModelService): An instance of the model service used for prediction.
+        return_df (bool): If True, returns a pandas DataFrame with metrics. Defaults to False.
+        include_anchors (bool): If True, includes anchor information in the output. Defaults to False.
+
+    Returns:
+        Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]: A pandas DataFrame or a tuple with collected metrics,
+    """
+
     if isinstance(trainer_export, str):
         with open(trainer_export, "r") as file:
             data = json.load(file)
@@ -137,6 +150,22 @@ def concat_trainer_exports(data_file_paths: List[str],
                            combined_data_file_path: Optional[str] = None,
                            allow_recurring_project_ids: bool = False,
                            allow_recurring_doc_ids: bool = True) -> Union[Dict[str, Any], str]:
+    """
+    Concatenates multiple trainer export files into a single combined file.
+
+    Args:
+        data_file_paths (List[str]): List of paths to files containing trainer export data.
+        combined_data_file_path (Optional[str]): The file path where the combined data will be saved. If None, the combined data will be returned as a dictionary.
+        allow_recurring_project_ids (bool): If set to False, raises an exception if multiple projects are found sharing the same ID.
+        allow_recurring_doc_ids (bool): If set to False, raises an exception if multiple documents are found sharing the same ID.
+
+    Returns:
+        Union[Dict[str, Any], str]: The path to the combined data file if `combined_data_file_path` is provided, or the combined data as a dictionary otherwise.
+
+    Raises:
+        AnnotationException: If multiple projects or documents share the same ID, and either is not allowed.
+    """
+
     combined: Dict = {"projects": []}
     project_ids = []
     for path in data_file_paths:
@@ -163,6 +192,19 @@ def concat_trainer_exports(data_file_paths: List[str],
 
 def get_stats_from_trainer_export(trainer_export: Union[str, IO, Dict],
                                   return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
+    """
+    Collects statistics from a trainer export.
+
+    Args:
+        trainer_export (Union[str, IO, Dict]): The trainer export data, which can be a file path, a file-like object, or a dictionary.
+        return_df (bool): If set to True, returns the statistics as a pandas DataFrame.
+
+    Returns:
+        Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]: A pandas DataFrame if `return_df` is True,
+        otherwise returns a tuple containing counts of annotations per concept, counts of unique annotations per concept, cunts of ignored
+        annotations per concept, and the total number of documents.
+    """
+
     if isinstance(trainer_export, str):
         with open(trainer_export, "r") as file:
             data = json.load(file)
@@ -205,11 +247,26 @@ def get_stats_from_trainer_export(trainer_export: Union[str, IO, Dict],
         return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
-def get_iaa_scores_per_concept(export_file: Union[str, IO],
+def get_iaa_scores_per_concept(trainer_export: Union[str, IO],
                                project_id: int,
                                another_project_id: int,
                                return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
-    project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
+    """
+    Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per concept between two projects.
+
+    Args:
+        trainer_export (Union[str, IO]): The trainer export data, which can be a file path or a file-like object.
+        project_id (int): The ID of the first project.
+        another_project_id (int): The ID of the second project.
+        return_df (bool): If set to True, returns the IAA scores as a pandas DataFrame.
+
+    Returns:
+        Union[pd.DataFrame, Tuple[Dict, Dict]]: A pandas DataFrame if `return_df` is True, otherwise returns a tuple containing
+        the percentage of IAA for annotations per concept, the Cohen's Kappa score for annotations per concept, the percentage of IAA
+        for meta-annotations per concept, and the Cohen's Kappa score for meta-annotations per concept.
+    """
+
+    project_a, project_b = _extract_project_pair(trainer_export, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
 
     state_keys = {"validated", "correct", "deleted", "alternative", "killed", "manually_created"}
@@ -269,6 +326,21 @@ def get_iaa_scores_per_doc(export_file: Union[str, IO],
                            project_id: int,
                            another_project_id: int,
                            return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+    """
+    Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per document between two projects.
+
+    Args:
+        export_file (Union[str, IO]): The trainer export data, which can be a file path or a file-like object.
+        project_id (int): The ID of the first project.
+        another_project_id (int): The ID of the second project.
+        return_df (bool): If set to True, returns the IAA scores as a pandas DataFrame.
+
+    Returns:
+        Union[pd.DataFrame, Tuple[Dict, Dict]]: A pandas DataFrame if `return_df` is True, otherwise returns a tuple containing
+        the percentage of IAA for annotations per document, the Cohen's Kappa score for annotations per document, the percentage
+        of IAA for meta-annotations per document, and the Cohen's Kappa score for meta-annotations per document.
+    """
+
     project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
     state_keys = {"validated", "correct", "deleted", "alternative", "killed", "manually_created", "cui"}
@@ -326,11 +398,26 @@ def get_iaa_scores_per_doc(export_file: Union[str, IO],
         return per_doc_anno_iia_pct, per_doc_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
 
 
-def get_iaa_scores_per_span(export_file: Union[str, IO],
+def get_iaa_scores_per_span(trainer_export: Union[str, IO],
                             project_id: int,
                             another_project_id: int,
                             return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
-    project_a, project_b = _extract_project_pair(export_file, project_id, another_project_id)
+    """
+    Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per span between two projects.
+
+    Args:
+        trainer_export (Union[str, IO]): The trainer export data, which can be a file path or a file-like object.
+        project_id (int): The ID of the first project.
+        another_project_id (int): The ID of the second project.
+        return_df (bool): If set to True, returns the IAA scores as a pandas DataFrame.
+
+    Returns:
+        Union[pd.DataFrame, Tuple[Dict, Dict]]: A pandas DataFrame if `return_df` is True, otherwise returns a tuple containing
+        the percentage of IAA for annotations per span, the Cohen's Kappa score for annotations per span, the percentage of IAA
+        for meta-annotations per span, and theCohen's Kappa score for meta-annotations per span.
+    """
+
+    project_a, project_b = _extract_project_pair(trainer_export, project_id, another_project_id)
     filtered_projects = _filter_common_docs([project_a, project_b])
     state_keys = {"validated", "correct", "deleted", "alternative", "killed", "manually_created", "cui"}
 

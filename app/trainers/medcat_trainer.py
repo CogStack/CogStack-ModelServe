@@ -83,6 +83,13 @@ class _MedcatTrainerCommon(object):
 
 
 class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
+    """
+    An supervised trainer class for MedCAT clinical-coding models.
+
+    Args:
+        model_service (MedCATModel): An instance of the MedCAT service.
+    """
+
     _model_pack_path: str
     _model_parent_dir: str
 
@@ -101,6 +108,17 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the supervised training loop for MedCAT clinical-coding models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (TextIO): The file-like object containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         training_params.update({"print_stats": log_frequency})
         model_pack_path = None
         cdb_config_path = None
@@ -310,6 +328,12 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
 @final
 class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
+    """
+    An unsupervised trainer class for MedCAT clinical-coding models.
+
+    Args:
+        model_service (MedCATModel): An instance of the MedCAT service.
+    """
 
     def __init__(self, model_service: "MedCATModel") -> None:
         UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
@@ -326,6 +350,17 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             log_frequency: int,
             run_id: str,
             description: Optional[str] = None) -> None:
+        """
+        Runs the unsupervised training loop for MedCAT clinical-coding models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (Union[TextIO, tempfile.TemporaryDirectory]): The file-like object or temporary directory containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded (e.g, the number of processed documents or finished epochs).
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training or change logs.
+        """
+
         model_pack_path = None
         cdb_config_path = None
         copied_model_pack_path = None
