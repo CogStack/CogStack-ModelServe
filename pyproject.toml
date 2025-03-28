@@ -54,7 +54,7 @@ classifiers=[
 Homepage = "https://github.com/CogStack/CogStack-ModelServe"
 Documentation = "https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest~=7.1.2",
     "pytest-mock~=3.7.0",
@@ -69,6 +69,12 @@ dev = [
     "locust<2.32.0",
     "typer-cli~=0.15.1",
     "types-toml==0.10.8.20240310",
+]
+docs = [
+    "sphinx~=7.1.2",
+    "sphinx-autoapi~=3.5.0",
+    "sphinx-autodoc-typehints~=2.0.1",
+    "sphinx-rtd-theme~=3.0.2",
 ]
 
 [tool.setuptools]
