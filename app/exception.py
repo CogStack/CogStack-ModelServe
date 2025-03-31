@@ -24,3 +24,7 @@ class ManagedModelException(Exception):
 
 class ClientException(Exception):
     """An exception raised due to generic client errors"""
+
+
+class DatasetException(Exception):
+    """ An exception raised due to dataset errors"""

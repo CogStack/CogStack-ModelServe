@@ -77,6 +77,30 @@ docs = [
     "sphinx-rtd-theme~=3.0.2",
 ]
 
+# For pip versions not supporting PEP 735
+[project.optional-dependencies]
+dev = [
+    "pytest~=7.1.2",
+    "pytest-mock~=3.7.0",
+    "pytest-timeout~=2.1.0",
+    "pytest-random-order~=1.1.0",
+    "pytest-asyncio~=0.23.7",
+    "pytest-cov~=4.1.0",
+    "pytest-bdd~=7.2.0",
+    "httpx~=0.24.1",
+    "mypy==1.8.0",
+    "ruff==0.6.9",
+    "locust<2.32.0",
+    "typer-cli~=0.15.1",
+    "types-toml==0.10.8.20240310",
+]
+docs = [
+    "sphinx~=7.1.2",
+    "sphinx-autoapi~=3.5.0",
+    "sphinx-autodoc-typehints~=2.0.1",
+    "sphinx-rtd-theme~=3.0.2",
+]
+
 [tool.setuptools]
 packages = ["app"]
 

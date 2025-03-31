@@ -53,7 +53,7 @@ jobs:
           if [[ `git status --porcelain --untracked-files=no` ]]; then
             git commit -m "update api docs"
           else
-            echo "No API doc changes detected and publishing skipped."
+            echo "No OpenAPI doc changes detected and publishing skipped."
             exit 0
           fi
       - name: Update OpenAPI docs

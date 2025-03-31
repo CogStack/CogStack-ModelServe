@@ -18,16 +18,17 @@ def test_start_new(mlflow_fixture):
 
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
-    mlflow.set_tags.assert_called()
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", tags={
+        "mlflow.note.content": "",
+        "mlflow.runName": "run_name",
+        "mlflow.source.name": "local",
+        "training.base_model.origin": "base_model_origin",
+        "training.input_data.filename": "input_file_name",
+        "training.is.tracked": "True",
+        "training.metrics.log_frequency": "10"})
     mlflow.log_params.assert_called_once_with({"param": "param"})
     assert experiment_id == "experiment_id"
     assert run_id == "run_id"
-    assert mlflow.set_tags.call_args.args[0]["mlflow.runName"] == "run_name"
-    assert mlflow.set_tags.call_args.args[0]["training.base_model.origin"] == "base_model_origin"
-    assert mlflow.set_tags.call_args.args[0]["training.input_data.filename"] == "input_file_name"
-    assert mlflow.set_tags.call_args.args[0]["training.is.tracked"] == "True"
-    assert mlflow.set_tags.call_args.args[0]["training.metrics.log_frequency"] == 10
 
 
 def test_end_with_success(mlflow_fixture):

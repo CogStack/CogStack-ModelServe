@@ -1,5 +1,6 @@
 import os
 import logging
+import math
 import torch
 import gc
 import json
@@ -12,6 +13,7 @@ import pandas as pd
 from functools import partial
 from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union, cast, TYPE_CHECKING
 from torch import nn
+from tqdm import tqdm
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from scipy.special import softmax
 from transformers import __version__ as transformers_version
@@ -42,7 +44,7 @@ from app.utils import (
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend
-from app.exception import AnnotationException, TrainingCancelledException
+from app.exception import AnnotationException, TrainingCancelledException, DatasetException
 if TYPE_CHECKING:
     from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 
@@ -109,150 +111,301 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         results_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "results"))
         logs_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
-        try:
-            logger.info("Loading a new model copy for training...")
-            copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
-            model, tokenizer = self._model_service.load_model(copied_model_pack_path)
-            copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
-            mlm_model = self._get_mlm_model(model, copied_model_directory)
 
-            if non_default_device_is_available(self._config.DEVICE):
-                mlm_model.to(self._config.DEVICE)
-            test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
-            if isinstance(data_file, tempfile.TemporaryDirectory):
-                raw_dataset = datasets.load_from_disk(data_file.name)
-                if DatasetSplit.VALIDATION.value in raw_dataset.keys():
-                    train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
-                    eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
-                elif DatasetSplit.TEST.value in raw_dataset.keys():
-                    train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
-                    eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+        eval_mode = training_params["nepochs"] == 0
+        self._tracker_client.log_trainer_mode(not eval_mode)
+        if not eval_mode:
+            try:
+                logger.info("Loading a new model copy for training...")
+                copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+                model, tokenizer = self._model_service.load_model(copied_model_pack_path)
+                copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
+                mlm_model = self._get_mlm_model(model, copied_model_directory)
+
+                if non_default_device_is_available(self._config.DEVICE):
+                    mlm_model.to(self._config.DEVICE)
+                test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
+                if isinstance(data_file, tempfile.TemporaryDirectory):
+                    raw_dataset = datasets.load_from_disk(data_file.name)
+                    if DatasetSplit.VALIDATION.value in raw_dataset.keys():
+                        train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
+                    elif DatasetSplit.TEST.value in raw_dataset.keys():
+                        train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+                    else:
+                        lines = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        random.shuffle(lines)
+                        train_texts = [line.strip() for line in lines[:int(len(lines) * (1 - test_size))]]
+                        eval_texts = [line.strip() for line in lines[int(len(lines) * (1 - test_size)):]]
                 else:
-                    lines = raw_dataset[DatasetSplit.TRAIN.value]["text"]
-                    random.shuffle(lines)
-                    train_texts = [line.strip() for line in lines[:int(len(lines) * (1 - test_size))]]
-                    eval_texts = [line.strip() for line in lines[int(len(lines) * (1 - test_size)):]]
-            else:
-                with open(data_file.name, "r") as f:
-                    lines = json.load(f)
-                    random.shuffle(lines)
-                    train_texts = [line.strip() for line in lines[:int(len(lines) * (1-test_size))]]
-                    eval_texts = [line.strip() for line in lines[int(len(lines) * (1-test_size)):]]
+                    with open(data_file.name, "r") as f:
+                        lines = json.load(f)
+                        random.shuffle(lines)
+                        train_texts = [line.strip() for line in lines[:int(len(lines) * (1-test_size))]]
+                        eval_texts = [line.strip() for line in lines[int(len(lines) * (1-test_size)):]]
 
-            dataset_features = datasets.Features({
-                "input_ids": datasets.Sequence(datasets.Value("int32")),
-                "attention_mask": datasets.Sequence(datasets.Value("int32")),
-                "special_tokens_mask": datasets.Sequence(datasets.Value("int32")),
-                "token_type_ids": datasets.Sequence(datasets.Value("int32"))
-            })
-            train_dataset = datasets.Dataset.from_generator(
-                self._tokenize_and_chunk,
-                features=dataset_features,
-                gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": self._max_length},
-                cache_dir=self._model_service._config.TRAINING_CACHE_DIR
-            )
-            eval_dataset = datasets.Dataset.from_generator(
-                self._tokenize_and_chunk,
-                features=dataset_features,
-                gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": self._max_length},
-                cache_dir = self._model_service._config.TRAINING_CACHE_DIR
-            )
-            train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
-            eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
+                dataset_features = datasets.Features({
+                    "input_ids": datasets.Sequence(datasets.Value("int32")),
+                    "attention_mask": datasets.Sequence(datasets.Value("int32")),
+                    "special_tokens_mask": datasets.Sequence(datasets.Value("int32")),
+                    "token_type_ids": datasets.Sequence(datasets.Value("int32"))
+                })
+                train_dataset = datasets.Dataset.from_generator(
+                    self._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR
+                )
+                eval_dataset = datasets.Dataset.from_generator(
+                    self._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                    cache_dir = self._model_service._config.TRAINING_CACHE_DIR
+                )
+                train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
+                eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
 
-            data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.2)
+                data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.2)
 
-            training_args = TrainingArguments(
-                output_dir=results_path,
-                logging_dir=logs_path,
-                eval_strategy="epoch",
-                save_strategy="epoch",
-                overwrite_output_dir=True,
-                num_train_epochs=training_params["nepochs"],
-                per_device_train_batch_size=8,
-                per_device_eval_batch_size=8,
-                gradient_accumulation_steps=2,
-                logging_steps=log_frequency,
-                save_steps=1000,
-                load_best_model_at_end=True,
-                save_total_limit=3,
-                use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
-            )
+                training_args = TrainingArguments(
+                    output_dir=results_path,
+                    logging_dir=logs_path,
+                    eval_strategy="epoch",
+                    save_strategy="epoch",
+                    overwrite_output_dir=True,
+                    num_train_epochs=training_params["nepochs"],
+                    per_device_train_batch_size=8,
+                    per_device_eval_batch_size=8,
+                    gradient_accumulation_steps=2,
+                    logging_steps=log_frequency,
+                    save_steps=1000,
+                    load_best_model_at_end=True,
+                    save_total_limit=3,
+                    use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
+                )
 
-            if training_params.get("lr_override") is not None:
-                training_args.learning_rate = training_params["lr_override"]
+                if training_params.get("lr_override") is not None:
+                    training_args.learning_rate = training_params["lr_override"]
 
-            mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
-            cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
-            trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
-            early_stopping_patience = training_params.get("early_stopping_patience", -1)
-            if early_stopping_patience > 0:
-                trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
+                mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
+                trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
+                early_stopping_patience = training_params.get("early_stopping_patience", -1)
+                if early_stopping_patience > 0:
+                    trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
 
-            hf_trainer = Trainer(
-                model=mlm_model,
-                args=training_args,
-                data_collator=data_collator,
-                train_dataset=train_dataset,
-                eval_dataset=eval_dataset,
-                callbacks=trainer_callbacks,
-            )
+                hf_trainer = Trainer(
+                    model=mlm_model,
+                    args=training_args,
+                    data_collator=data_collator,
+                    train_dataset=train_dataset,
+                    eval_dataset=eval_dataset,
+                    callbacks=trainer_callbacks,
+                )
 
-            self._tracker_client.log_model_config(model.config.to_dict())
-            self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
-            logger.info("Performing unsupervised training...")
-            hf_trainer.train()
+                self._tracker_client.log_model_config(model.config.to_dict())
+                self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
+                logger.info("Performing unsupervised training...")
+                hf_trainer.train()
 
-            if cancel_event_check_callback.training_cancelled:
-                raise TrainingCancelledException("Training was cancelled by the user")
+                if cancel_event_check_callback.training_cancelled:
+                    raise TrainingCancelledException("Training was cancelled by the user")
 
-            model = self._get_final_model(model, mlm_model)
-            if not skip_save_model:
-                model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
-                model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
-                retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
-                model.save_pretrained(copied_model_directory,
-                                      safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
-                create_model_data_package(copied_model_directory, retrained_model_pack_path)
-                model_uri = self._tracker_client.save_model(retrained_model_pack_path,
-                                                               self._model_name,
-                                                               self._model_manager)
-                logger.info(f"Retrained model saved: {model_uri}")
-            else:
-                logger.info("Skipped saving on the retrained model")
-            if redeploy:
-                self.deploy_model(self._model_service, model, tokenizer)
-            else:
+                model = self._get_final_model(model, mlm_model)
+                if not skip_save_model:
+                    model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
+                    model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
+                    retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
+                    model.save_pretrained(copied_model_directory,
+                                          safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                    create_model_data_package(copied_model_directory, retrained_model_pack_path)
+                    model_uri = self._tracker_client.save_model(retrained_model_pack_path,
+                                                                   self._model_name,
+                                                                   self._model_manager)
+                    logger.info(f"Retrained model saved: {model_uri}")
+                else:
+                    logger.info("Skipped saving on the retrained model")
+                if redeploy:
+                    self.deploy_model(self._model_service, model, tokenizer)
+                else:
+                    del model
+                    del mlm_model
+                    del tokenizer
+                    gc.collect()
+                    logger.info("Skipped deployment on the retrained model")
+                logger.info("Unsupervised training finished")
+                self._tracker_client.end_with_success()
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Unsupervised training was cancelled by the user")
                 del model
-                del mlm_model
-                del tokenizer
-                gc.collect()
-                logger.info("Skipped deployment on the retrained model")
-            logger.info("Unsupervised training finished")
-            self._tracker_client.end_with_success()
-        except TrainingCancelledException as e:
-            logger.exception(e)
-            logger.info("Unsupervised training was cancelled by the user")
-            del model
-            gc.collect()
-            self._tracker_client.end_with_interruption()
-        except Exception as e:
-            logger.exception("Unsupervised training failed")
-            self._tracker_client.log_exceptions(e)
-            self._tracker_client.end_with_failure()
-        finally:
-            if isinstance(data_file, TextIO):
-                data_file.close()
-            elif isinstance(data_file, tempfile.TemporaryDirectory):
-                data_file.cleanup()
-            if train_dataset is not None:
-                train_dataset.cleanup_cache_files()
-            if eval_dataset is not None:
-                eval_dataset.cleanup_cache_files()
-            with self._training_lock:
-                self._training_in_progress = False
-            self._clean_up_training_cache()
-            self._housekeep_file(copied_model_pack_path)
+                self._tracker_client.end_with_interruption()
+            except Exception as e:
+                logger.exception("Unsupervised training failed")
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            finally:
+                if isinstance(data_file, TextIO):
+                    data_file.close()
+                elif isinstance(data_file, tempfile.TemporaryDirectory):
+                    data_file.cleanup()
+                if train_dataset is not None:
+                    train_dataset.cleanup_cache_files()
+                if eval_dataset is not None:
+                    eval_dataset.cleanup_cache_files()
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._clean_up_training_cache()
+                self._housekeep_file(copied_model_pack_path)
+        else:
+            try:
+                logger.info("Evaluating the running model...")
+                self._tracker_client.log_model_config(self._model_service._model.config.to_dict())
+                self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
+
+                mlm_model = self._get_mlm_model(self._model_service._model, os.path.splitext(self._model_pack_path)[0])
+
+                if non_default_device_is_available(self._config.DEVICE):
+                    mlm_model.to(self._config.DEVICE)
+
+                if isinstance(data_file, tempfile.TemporaryDirectory):
+                    raw_dataset = datasets.load_from_disk(data_file.name)
+                    if DatasetSplit.TEST.value in raw_dataset.keys():
+                        eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+                    elif DatasetSplit.VALIDATION.value in raw_dataset.keys():
+                        eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
+                    else:
+                        raise DatasetException("No test or validation split found in the input dataset file")
+
+                else:
+                    with open(data_file.name, "r") as f:
+                        eval_texts = [line.strip() for line in json.load(f)]
+
+                dataset_features = datasets.Features({
+                    "input_ids": datasets.Sequence(datasets.Value("int32")),
+                    "attention_mask": datasets.Sequence(datasets.Value("int32")),
+                    "special_tokens_mask": datasets.Sequence(datasets.Value("int32")),
+                    "token_type_ids": datasets.Sequence(datasets.Value("int32"))
+                })
+                eval_dataset = datasets.Dataset.from_generator(
+                    self._tokenize_and_chunk,
+                    features=dataset_features,
+                    gen_kwargs={"texts": eval_texts, "tokenizer": self._model_service._tokenizer, "max_length": self._max_length},
+                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR
+                )
+                eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
+                dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=1)
+                device = torch.device(self._config.DEVICE) if non_default_device_is_available(self._config.DEVICE) else torch.device("cpu")
+
+                self._model_service._model.eval()
+
+                window_size = 256
+                stride = 128
+                batch_size = 32
+
+                def _create_iterative_masking(input_id: List[int], mask_token: int, pad_token_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
+                    _input_id = torch.tensor(input_id)
+                    attention_mask = torch.ones_like(_input_id)
+                    attention_mask[_input_id == pad_token_id] = 0
+
+                    n = _input_id.shape[0]
+                    n_pad = _input_id[_input_id == pad_token_id].shape[0]
+
+                    masked_sequence = _input_id.repeat(n - n_pad, 1)
+                    attention_mask = attention_mask.repeat(n - n_pad, 1)
+
+                    if mask_token != -999:
+                        masked_sequence.fill_diagonal_(mask_token)
+
+                    return masked_sequence, attention_mask
+
+                all_input_ids = []
+                all_attention_masks = []
+                all_labels = []
+                for batch in dataloader:
+                    batch_input_ids = batch["input_ids"].tolist()
+                    all_input_ids_ = []
+                    all_attention_masks_ = []
+
+                    for input_ids in batch_input_ids:
+                        input_ids = torch.tensor(input_ids, dtype=torch.long).unsqueeze(0)  # Ensure 2D shape
+                        n = input_ids.size(-1)  # 512
+                        n_windows = (n - 1) // stride + 1  # 4
+
+                        input_ids_out = torch.full((n_windows, window_size),
+                                                   self._model_service._tokenizer.pad_token_id,
+                                                   dtype=torch.long)
+                        attention_mask_out = torch.zeros((n_windows, window_size), dtype=torch.long)
+
+                        for i, start in enumerate(range(0, n, stride)):
+                            end = min(start + window_size, n)
+                            length = end - start
+                            input_ids_out[i, :length] = input_ids[0, start:end]
+                            attention_mask_out[i, :length] = 1  # Mask only valid tokens
+
+                        all_input_ids_.append(input_ids_out)
+                        all_attention_masks_.append(attention_mask_out)
+
+                    for input_id in all_input_ids_:
+                        ls_rows_input_id: List[torch.Tensor] = []
+                        ls_rows_attention_mask: List[torch.Tensor] = []
+                        ls_labels: List[torch.Tensor] = []
+                        for row in input_id:
+                            input_id_out, attention_mask_out = _create_iterative_masking(row,
+                                                                                         mask_token=self._model_service._tokenizer.mask_token_id,
+                                                                                         pad_token_id=self._model_service._tokenizer.pad_token_id)
+                            labels, _ = _create_iterative_masking(row,
+                                                                  mask_token=-999,
+                                                                  pad_token_id=self._model_service._tokenizer.pad_token_id)
+                            ls_rows_input_id.extend(input_id_out)
+                            ls_rows_attention_mask.extend(attention_mask_out)
+                            ls_labels.extend(labels)
+
+                        all_input_ids.append(torch.stack(ls_rows_input_id))
+                        all_attention_masks.append(torch.stack(ls_rows_attention_mask))
+                        all_labels.append(torch.stack(ls_labels))
+
+                tensor_ids = torch.cat(all_input_ids, dim=0)
+                tensor_attention_mask = torch.cat(all_attention_masks, dim=0)
+                tensor_labels = torch.cat(all_labels, dim=0)
+
+                n = tensor_ids.shape[0]
+                losses = []
+                for i in tqdm(range(0, n, batch_size)):
+                    batch_input_ids = tensor_ids[i:i + batch_size].to(device)
+                    batch_attention_mask = tensor_attention_mask[i:i + batch_size].to(device)
+                    batch_tensor_labels = tensor_labels[i:i + batch_size].to(device)
+
+                    with torch.no_grad():
+                        output = mlm_model(batch_input_ids,
+                                           attention_mask=batch_attention_mask,
+                                           labels=batch_tensor_labels)
+                        losses.append(output.loss)
+                        per_batch_metrics = {
+                            "loss": losses[-1].item(),
+                            "perplexity_mean": torch.exp(torch.stack(losses).mean()).item(),
+                            "perplexity_median": torch.exp(torch.stack(losses).median()).item(),
+                        }
+                        # TODO: make the metrics pushing less frequent
+                        logger.debug("Evaluation metrics: %s", per_batch_metrics)
+                        print(per_batch_metrics)
+                        self._tracker_client.send_model_stats(per_batch_metrics, i)
+
+                self._tracker_client.end_with_success()
+                logger.info("Model evaluation finished")
+            except Exception as e:
+                logger.exception("Model evaluation failed")
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            finally:
+                if isinstance(data_file, TextIO):
+                    data_file.close()
+                elif isinstance(data_file, tempfile.TemporaryDirectory):
+                    data_file.cleanup()
+                with self._training_lock:
+                    self._training_in_progress = False
+
 
     @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
@@ -770,6 +923,8 @@ class MLflowLoggingCallback(TrainerCallback):
         """
 
         if logs is not None:
+            if logs.get("eval_loss", None) is not None:
+                logs["perplexity"] = math.exp(logs["eval_loss"])
             self.tracker_client.send_hf_metrics_logs(logs, self.epoch)
         self.epoch += 1
 

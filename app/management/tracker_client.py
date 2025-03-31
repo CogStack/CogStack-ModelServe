@@ -67,20 +67,18 @@ class TrackerClient(object):
         experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         try:
-            active_run = mlflow.start_run(experiment_id=experiment_id)
+            active_run = mlflow.start_run(experiment_id=experiment_id, tags={
+                MLFLOW_SOURCE_NAME: socket.gethostname(),
+                "mlflow.runName": run_name,
+                "mlflow.note.content": description or "",
+                "training.input_data.filename": input_file_name,
+                "training.base_model.origin": base_model_original,
+                "training.is.tracked": "True",
+                "training.metrics.log_frequency": str(log_frequency),
+            })
         except Exception:
             logger.exception("Cannot start a new training")
             raise StartTrainingException("Cannot start a new training")
-        mlflow.set_tags({
-            MLFLOW_SOURCE_NAME: socket.gethostname(),
-            "mlflow.runName": run_name,
-            "mlflow.note.content": description or "",
-            "training.mlflow.run_id": active_run.info.run_id,
-            "training.input_data.filename": input_file_name,
-            "training.base_model.origin": base_model_original,
-            "training.is.tracked": "True",
-            "training.metrics.log_frequency": log_frequency,
-        })
         mlflow.log_params(training_params)
         return experiment_id, active_run.info.run_id
 
@@ -529,4 +527,9 @@ class TrackerClient(object):
     @staticmethod
     def _get_experiment_id(experiment_name: str) -> str:
         experiment = mlflow.get_experiment_by_name(experiment_name)
-        return mlflow.create_experiment(name=experiment_name) if experiment is None else experiment.experiment_id
+        if experiment is None:
+            experiment_id = mlflow.create_experiment(name=experiment_name)
+        else:
+            experiment_id = experiment.experiment_id
+            mlflow.set_experiment(None, experiment_id)
+        return experiment_id

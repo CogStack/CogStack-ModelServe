@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 import gc
+import math
 import mlflow
 import tempfile
 import inspect
@@ -18,80 +19,12 @@ from medcat.ner.transformers_ner import TransformersNER
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
 from app.domain import TrainerBackend
 from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
-from app.management import tracker_client
+from app.management.tracker_client import TrackerClient
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer
 from app.processors.metrics_collector import get_stats_from_trainer_export
 from app.exception import TrainingCancelledException
 
 logger = logging.getLogger("cms")
-
-
-class MetricsCallback(TrainerCallback):
-    """
-    A callback class for logging metrics to Mlflow during training.
-
-    Args:
-        trainer (Trainer): The Hugging FaceTrainer object to which this callback is attached.
-    """
-
-    def __init__(self, trainer: Trainer) -> None:
-        self._trainer = trainer
-        self._step = 0
-        self._interval = get_settings().TRAINING_METRICS_LOGGING_INTERVAL
-
-    def on_step_end(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl,
-                    **kwargs: Dict[str, Any]) -> None:
-        """
-        Logs metrics at the end of a multiple of step interval.
-
-        Args:
-            args (TrainingArguments): The arguments used for training.
-            state (TrainerState): The current state of the Trainer.
-            control (TrainerControl): The control object for the Trainer.
-            **kwargs: Additional keyword arguments.
-        """
-
-        if self._step == 0:
-            self._step += 1
-            return
-        if self._step % self._interval == 0 and state.log_history:
-            metrics = state.log_history[-1]
-            mlflow.log_metrics(metrics, step=self._step)
-        self._step += 1
-
-
-class LabelCountCallback(TrainerCallback):
-    """
-    A callback class for logging label counts to Mlflow during training.
-
-    Args:
-        trainer (Trainer): The Trainer object to which this callback is attached.
-    """
-
-    def __init__(self, trainer: Trainer) -> None:
-        self._trainer = trainer
-        self._label_counts: Dict = defaultdict(int)
-        self._interval = get_settings().TRAINING_METRICS_LOGGING_INTERVAL
-
-    def on_step_end(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl,
-                    model: Optional[PreTrainedModel] = None,
-                    **kwargs: Dict[str, Any]) -> None:
-        step = state.global_step
-        train_dataset = self._trainer.train_dataset
-        batch_ids = train_dataset[step]["labels"]
-        for id_ in batch_ids:
-            self._label_counts[f"count_{model.config.id2label[id_]}"] += 1  # type: ignore
-        self._label_counts.pop("count_O", None)
-        self._label_counts.pop("count_X", None)
-
-        if step % self._interval == 0:
-            mlflow.log_metrics(self._label_counts, step=step)
 
 
 @final
@@ -159,6 +92,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 ner.config.general.description = description or ner.config.general.description
                 dataset = None
 
+                MetricsCallback.step = 0
+                MetricsCallback.tracker_client = self._tracker_client
                 for training in range(training_params["nepochs"]):
 
                     if dataset is not None:
@@ -169,7 +104,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                     eval_results, examples, dataset = ner.train(data_file.name,
                                                                 ignore_extra_labels=True,
                                                                 dataset=dataset,
-                                                                # trainer_callbacks=[MetricsCallback, LabelCountCallback]
+                                                                trainer_callbacks=[MetricsCallback],
                                                                 )
                     if (training + 1) % log_frequency == 0:
                         for _, row in eval_results.iterrows():
@@ -313,7 +248,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
     @staticmethod
     def _save_metrics_plot(metrics: List[Dict],
                            concepts: List[str],
-                           tracker_client: tracker_client.TrackerClient,
+                           tracker_client: TrackerClient,
                            model_name: str) -> None:
         try:
             plot = radar_plot(data=metrics, model_names=concepts)
@@ -339,3 +274,84 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             if device_name != "default":
                 logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", device_name)
         return ner
+
+
+class MetricsCallback(TrainerCallback):
+    """
+    A callback class for logging metrics to Mlflow during training.
+
+    Args:
+        trainer (Trainer): The Hugging FaceTrainer object to which this callback is attached.
+    """
+
+    step: int = 0
+    tracker_client: Optional[TrackerClient] = None
+
+    def __init__(self, trainer: Trainer) -> None:
+        self._trainer = trainer
+
+    def on_log(self,
+               args: TrainingArguments,
+               state: TrainerState,
+               control: TrainerControl,
+               logs: Dict[str, float],
+               **kwargs: Dict[str, Any]) -> None:
+        """
+        Logs metrics at the end of each epoch.
+
+        Args:
+            args (TrainingArguments): The arguments used for training.
+            state (TrainerState): The current state of the Trainer.
+            control (TrainerControl): The control object for the Trainer.
+            logs (Dict[str, float]): A dictionary containing the metrics to log.
+            **kwargs: Additional keyword arguments.
+        """
+
+        if logs is not None:
+            if logs.get("eval_loss", None) is not None:
+                logs["perplexity"] = math.exp(logs["eval_loss"])
+            if self.tracker_client is not None:
+                self.tracker_client.send_hf_metrics_logs(logs, step=MetricsCallback.step)
+        MetricsCallback.step += 1
+
+
+class LabelCountCallback(TrainerCallback):
+    """
+    A callback class for logging label counts to Mlflow during training.
+
+    Args:
+        trainer (Trainer): The Trainer object to which this callback is attached.
+    """
+
+    def __init__(self, trainer: Trainer) -> None:
+        self._trainer = trainer
+        self._label_counts: Dict = defaultdict(int)
+        self._interval = get_settings().TRAINING_METRICS_LOGGING_INTERVAL
+
+    def on_step_end(self,
+                    args: TrainingArguments,
+                    state: TrainerState,
+                    control: TrainerControl,
+                    model: Optional[PreTrainedModel] = None,
+                    **kwargs: Dict[str, Any]) -> None:
+        """
+        Logs metrics at the end of a multiple of step interval.
+
+        Args:
+            args (TrainingArguments): The arguments used for training.
+            state (TrainerState): The current state of the Trainer.
+            control (TrainerControl): The control object for the Trainer.
+            model: Optional[PreTrainedModel]: The model being trained.
+            **kwargs: Additional keyword arguments.
+        """
+
+        step = state.global_step
+        train_dataset = self._trainer.train_dataset
+        batch_ids = train_dataset[step]["labels"]
+        for id_ in batch_ids:
+            self._label_counts[f"count_{model.config.id2label[id_]}"] += 1  # type: ignore
+        self._label_counts.pop("count_O", None)
+        self._label_counts.pop("count_X", None)
+
+        if step % self._interval == 0:
+            mlflow.log_metrics(self._label_counts, step=step)
