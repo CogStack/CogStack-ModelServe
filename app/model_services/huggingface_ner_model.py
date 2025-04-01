@@ -18,7 +18,13 @@ from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation
 from app.config import Settings
-from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, unpack_model_data_package
+from app.utils import (
+    get_settings,
+    non_default_device_is_available,
+    get_hf_pipeline_device_id,
+    unpack_model_data_package,
+    ensure_tensor_contiguity,
+)
 
 logger = logging.getLogger("cms")
 
@@ -147,6 +153,7 @@ class HuggingFaceNerModel(AbstractModelService):
         if unpack_model_data_package(model_file_path, model_path):
             try:
                 model = AutoModelForTokenClassification.from_pretrained(model_path)
+                ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(model_path,
                                                           model_max_length=model.config.max_position_embeddings,
                                                           add_special_tokens=False, do_lower_case=False)

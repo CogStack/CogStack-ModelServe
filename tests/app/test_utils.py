@@ -6,7 +6,9 @@ import shutil
 import zipfile
 import tarfile
 import unittest
+from unittest.mock import MagicMock
 from safetensors.torch import save_file
+from transformers import PreTrainedModel
 from urllib.parse import urlparse
 from app.utils import (
     get_settings,
@@ -27,6 +29,7 @@ from app.utils import (
     get_model_data_package_extension,
     unpack_model_data_package,
     create_model_data_package,
+    ensure_tensor_contiguity,
 )
 from app.domain import Annotation, Entity
 
@@ -239,6 +242,23 @@ def test_get_model_data_package_extension():
     assert get_model_data_package_extension("model.tar.gz") == ".tar.gz"
     assert get_model_data_package_extension("model") == ""
     assert get_model_data_package_extension("") == ""
+
+
+def test_ensure_tensor_contiguity():
+    mock_model = MagicMock(spec=PreTrainedModel)
+    param1 = torch.randn(5, 5)[:, ::2]
+    param2 = torch.randn(3, 6)[:, ::2]
+    mock_model.parameters.return_value = [
+        MagicMock(data=param1),
+        MagicMock(data=param2),
+    ]
+    assert not param1.is_contiguous()
+    assert not param2.is_contiguous()
+
+    ensure_tensor_contiguity(mock_model)
+
+    for param in mock_model.parameters():
+        assert param.data.is_contiguous() == True
 
 
 class TestUnpackModelPackage(unittest.TestCase):

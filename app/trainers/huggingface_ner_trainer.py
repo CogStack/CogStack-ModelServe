@@ -41,6 +41,7 @@ from app.utils import (
     non_default_device_is_available,
     create_model_data_package,
     get_model_data_package_extension,
+    ensure_tensor_contiguity,
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend
@@ -410,6 +411,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
     @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
         mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
+        ensure_tensor_contiguity(mlm_model)
         backbone_found = False
         for backbone in HfTransformerBackbone:
             if hasattr(model, backbone.value):

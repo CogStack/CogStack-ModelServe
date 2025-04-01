@@ -9,8 +9,9 @@ description = "A model serving and governance system for CogStack NLP solutions"
 requires-python = ">=3.8,<3.12"
 dynamic = ["version"]
 dependencies = [
-    "medcat~=1.12.1",
-    "transformers<4.42.0",
+    "medcat~=1.14.1; python_version >= '3.9'",
+    "medcat~=1.13.1; python_version < '3.9'",
+    "transformers~=4.43.0",
     "torch<2.5.0",  # To support lagacy py38
     "datasets>=2.21.0",
     "blis<1.0.0",

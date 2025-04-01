@@ -658,7 +658,8 @@ dependencies = [
     { name = "graypy" },
     { name = "huggingface-hub" },
     { name = "ijson" },
-    { name = "medcat" },
+    { name = "medcat", version = "1.13.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "medcat", version = "1.14.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "mlflow" },
     { name = "peft" },
     { name = "prometheus-fastapi-instrumentator" },
@@ -674,6 +675,29 @@ dependencies = [
     { name = "typer" },
     { name = "uvicorn" },
     { name = "websockets" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "locust" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-bdd" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "pytest-random-order" },
+    { name = "pytest-timeout" },
+    { name = "ruff" },
+    { name = "typer-cli" },
+    { name = "types-toml" },
+]
+docs = [
+    { name = "sphinx" },
+    { name = "sphinx-autoapi" },
+    { name = "sphinx-autodoc-typehints" },
+    { name = "sphinx-rtd-theme" },
 ]
 
 [package.dev-dependencies]
@@ -711,25 +735,44 @@ requires-dist = [
     { name = "fastapi-users", specifier = "~=11.0.0" },
     { name = "fastapi-users-db-sqlalchemy", specifier = "~=5.0.0" },
     { name = "graypy", specifier = "~=2.1.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = "~=0.24.1" },
     { name = "huggingface-hub", specifier = "~=0.27.1" },
     { name = "ijson", specifier = "~=3.1.4" },
-    { name = "medcat", specifier = "~=1.12.1" },
+    { name = "locust", marker = "extra == 'dev'", specifier = "<2.32.0" },
+    { name = "medcat", marker = "python_full_version < '3.9'", specifier = "~=1.13.1" },
+    { name = "medcat", marker = "python_full_version >= '3.9'", specifier = "~=1.14.1" },
     { name = "mlflow", specifier = "~=2.16.2" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = "==1.8.0" },
     { name = "peft", specifier = "<0.14.0" },
     { name = "prometheus-fastapi-instrumentator", specifier = "~=5.11.2" },
     { name = "psycopg2-binary", specifier = "~=2.9.4" },
     { name = "pynvml", specifier = "~=11.5.3" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "~=7.1.2" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "~=0.23.7" },
+    { name = "pytest-bdd", marker = "extra == 'dev'", specifier = "~=7.2.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = "~=4.1.0" },
+    { name = "pytest-mock", marker = "extra == 'dev'", specifier = "~=3.7.0" },
+    { name = "pytest-random-order", marker = "extra == 'dev'", specifier = "~=1.1.0" },
+    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = "~=2.1.0" },
     { name = "python-dotenv", specifier = "~=0.20.0" },
     { name = "python-multipart", specifier = "~=0.0.5" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.6.9" },
     { name = "sentencepiece", specifier = "~=0.2.0" },
     { name = "slowapi", specifier = "~=0.1.7" },
+    { name = "sphinx", marker = "extra == 'docs'", specifier = "~=7.1.2" },
+    { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = "~=3.5.0" },
+    { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = "~=2.0.1" },
+    { name = "sphinx-rtd-theme", marker = "extra == 'docs'", specifier = "~=3.0.2" },
     { name = "toml", specifier = "~=0.10.2" },
     { name = "torch", specifier = "<2.5.0" },
-    { name = "transformers", specifier = "<4.42.0" },
+    { name = "transformers", specifier = "~=4.43.0" },
     { name = "typer", specifier = "~=0.15.1" },
+    { name = "typer-cli", marker = "extra == 'dev'", specifier = "~=0.15.1" },
+    { name = "types-toml", marker = "extra == 'dev'", specifier = "==0.10.8.20240310" },
     { name = "uvicorn", specifier = "~=0.29.0" },
     { name = "websockets", specifier = "~=12.0" },
 ]
+provides-extras = ["dev", "docs"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2296,36 +2339,82 @@ wheels = [
 
 [[package]]
 name = "medcat"
-version = "1.12.2"
+version = "1.13.2"
 source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "accelerate" },
-    { name = "aiofiles" },
-    { name = "blis" },
-    { name = "click" },
-    { name = "datasets" },
-    { name = "dill" },
-    { name = "gensim" },
-    { name = "humanfriendly" },
-    { name = "ipywidgets" },
-    { name = "jsonpickle" },
-    { name = "multiprocess" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "peft" },
-    { name = "psutil" },
-    { name = "pydantic" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "spacy" },
-    { name = "torch" },
-    { name = "tqdm" },
-    { name = "transformers" },
-    { name = "xxhash" },
+resolution-markers = [
+    "python_full_version < '3.9' and sys_platform != 'win32'",
+    "python_full_version < '3.9' and sys_platform == 'win32'",
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/97/d4d29414acf11595503e4611e2fc0b14484abef273e900d91cbb4677bd3d/medcat-1.12.2.tar.gz", hash = "sha256:637b327f590939b8d7b914cb4fe02d3c79534e320b6f8c3e89520c3efb78d364", size = 10933997 }
+dependencies = [
+    { name = "accelerate", marker = "python_full_version < '3.9'" },
+    { name = "aiofiles", marker = "python_full_version < '3.9'" },
+    { name = "blis", marker = "python_full_version < '3.9'" },
+    { name = "click", marker = "python_full_version < '3.9'" },
+    { name = "datasets", marker = "python_full_version < '3.9'" },
+    { name = "dill", marker = "python_full_version < '3.9'" },
+    { name = "gensim", marker = "python_full_version < '3.9'" },
+    { name = "humanfriendly", marker = "python_full_version < '3.9'" },
+    { name = "ipywidgets", marker = "python_full_version < '3.9'" },
+    { name = "jsonpickle", marker = "python_full_version < '3.9'" },
+    { name = "multiprocess", marker = "python_full_version < '3.9'" },
+    { name = "numpy", marker = "python_full_version < '3.9'" },
+    { name = "pandas", marker = "python_full_version < '3.9'" },
+    { name = "peft", marker = "python_full_version < '3.9'" },
+    { name = "psutil", marker = "python_full_version < '3.9'" },
+    { name = "pydantic", marker = "python_full_version < '3.9'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.9'" },
+    { name = "scipy", marker = "python_full_version < '3.9'" },
+    { name = "spacy", marker = "python_full_version < '3.9'" },
+    { name = "torch", marker = "python_full_version < '3.9'" },
+    { name = "tqdm", marker = "python_full_version < '3.9'" },
+    { name = "transformers", marker = "python_full_version < '3.9'" },
+    { name = "xxhash", marker = "python_full_version < '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/13/a93aa0a9d5bbd535108bb16e82346f2583e806d7a474a86107b22a39f6cf/medcat-1.13.2.tar.gz", hash = "sha256:a7bff1a75c5dae88df5917b9e535d23a0893f9882b3550ce2739543af1457f1e", size = 10944968 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/50/9128e56dd8fcf5dcb9e2284227819e5fd0d2d180ab39dd0d83e84074c568/medcat-1.12.2-py3-none-any.whl", hash = "sha256:66c829a8390d474952efb7ac96a6e30e4be814e71197a07ae8c1c075615e48c6", size = 235607 },
+    { url = "https://files.pythonhosted.org/packages/4c/8c/c1158e664921842e17ce5fed67e7dfb9b30fdfe97482a3c3c0ef4de8d726/medcat-1.13.2-py3-none-any.whl", hash = "sha256:b6883040be6ba56af1c522c7e6efa719ec1feb5e1904b93484d8cee36b0e7050", size = 240950 },
+]
+
+[[package]]
+name = "medcat"
+version = "1.14.2"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version == '3.9.*' and sys_platform != 'win32'",
+    "python_full_version == '3.10.*' and sys_platform != 'win32'",
+    "python_full_version >= '3.11' and sys_platform != 'win32'",
+    "python_full_version == '3.9.*' and sys_platform == 'win32'",
+    "python_full_version == '3.10.*' and sys_platform == 'win32'",
+    "python_full_version >= '3.11' and sys_platform == 'win32'",
+]
+dependencies = [
+    { name = "accelerate", marker = "python_full_version >= '3.9'" },
+    { name = "aiofiles", marker = "python_full_version >= '3.9'" },
+    { name = "blis", marker = "python_full_version >= '3.9'" },
+    { name = "click", marker = "python_full_version >= '3.9'" },
+    { name = "datasets", marker = "python_full_version >= '3.9'" },
+    { name = "dill", marker = "python_full_version >= '3.9'" },
+    { name = "gensim", marker = "python_full_version >= '3.9'" },
+    { name = "humanfriendly", marker = "python_full_version >= '3.9'" },
+    { name = "ipywidgets", marker = "python_full_version >= '3.9'" },
+    { name = "jsonpickle", marker = "python_full_version >= '3.9'" },
+    { name = "multiprocess", marker = "python_full_version >= '3.9'" },
+    { name = "numpy", marker = "python_full_version >= '3.9'" },
+    { name = "pandas", marker = "python_full_version >= '3.9'" },
+    { name = "peft", marker = "python_full_version >= '3.9'" },
+    { name = "psutil", marker = "python_full_version >= '3.9'" },
+    { name = "pydantic", marker = "python_full_version >= '3.9'" },
+    { name = "scikit-learn", marker = "python_full_version >= '3.9'" },
+    { name = "scipy", marker = "python_full_version >= '3.9'" },
+    { name = "spacy", marker = "python_full_version >= '3.9'" },
+    { name = "torch", marker = "python_full_version >= '3.9'" },
+    { name = "tqdm", marker = "python_full_version >= '3.9'" },
+    { name = "transformers", marker = "python_full_version >= '3.9'" },
+    { name = "xxhash", marker = "python_full_version >= '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0a/13/343fd74202e4168b294ad65704054b65fa32ee25c7bfab154c300b58525b/medcat-1.14.2.tar.gz", hash = "sha256:245d5776638c4add4382b58f3a64bad50148d2c0fe74d4370ee1e3b1390243a0", size = 10947446 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3e/f4/629a8ac8884ce548b6cf01a87020907b62a6e434c77e9baf8965ca1f517c/medcat-1.14.2-py3-none-any.whl", hash = "sha256:58f79c538a3ee1c3bd2de76599d9ad0753e549b0c32b5b485017a6c6d96a0f01", size = 241127 },
 ]
 
 [[package]]
@@ -4599,7 +4688,7 @@ wheels = [
 
 [[package]]
 name = "transformers"
-version = "4.41.2"
+version = "4.43.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "filelock" },
@@ -4613,9 +4702,9 @@ dependencies = [
     { name = "tokenizers" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/50/c9/b8acdf584f19558e29f46d36b5ed80954c2d3831811f129a5a6e84c4537b/transformers-4.41.2.tar.gz", hash = "sha256:80a4db216533d573e9cc7388646c31ed9480918feb7c55eb211249cb23567f87", size = 7841904 }
+sdist = { url = "https://files.pythonhosted.org/packages/09/57/9934679377d3c105621dc7659048a216569ff3ef6632422c120e7ad40dc9/transformers-4.43.4.tar.gz", hash = "sha256:b62288990a65ed9bfb79191e04dbb76c9376834ae6e0dd911320a2ced63324fe", size = 8059671 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/b7/98f821d70102e2d38483bbb7013a689d2d646daa4495377bc910374ad727/transformers-4.41.2-py3-none-any.whl", hash = "sha256:05555d20e43f808de1ef211ab64803cdb513170cef70d29a888b589caebefc67", size = 9092643 },
+    { url = "https://files.pythonhosted.org/packages/34/71/af30c8afcdbee5d4ee4b89e366bd7c20ab8b07e7b5acb30e025b81e0ba65/transformers-4.43.4-py3-none-any.whl", hash = "sha256:d2202ed201e0c44f80de8d753a19f6164187754630bc1f915661b9511d61c773", size = 9412465 },
 ]
 
 [[package]]

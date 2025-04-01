@@ -1,4 +1,5 @@
-medcat~=1.12.1
+medcat~=1.14.1
+transformers~=4.43.0
 blis<1.0.0
 fastapi~=0.102.0
 uvicorn~=0.29.0

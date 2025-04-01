@@ -15,6 +15,7 @@ import pandas as pd
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
+from transformers import PreTrainedModel
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Any, Union, Type
@@ -575,6 +576,18 @@ def get_model_data_package_extension(file_path: str, default_ext: str = "") -> s
     else:
         default_ext = file_ext + default_ext
         return get_model_data_package_extension(file_name, default_ext)
+
+
+def ensure_tensor_contiguity(model: PreTrainedModel) -> None:
+    """
+    Ensures that the tensors in the Hugging Face model are contiguous.
+
+    Args:
+        model (PreTrainedModel): The model to ensure the tensors are contiguous.
+    """
+
+    for param in model.parameters():
+        param.data = param.data.contiguous()
 
 
 TYPE_ID_TO_NAME_PATCH = {
