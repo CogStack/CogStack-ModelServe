@@ -168,6 +168,19 @@
                 "summary": "Extract Entities From Multi Text File",
                 "description": "Upload a file containing a list of plain text and extract the NER entities in JSON",
                 "operationId": "extract_entities_from_multi_text_file",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -390,16 +403,39 @@
                         "in": "query"
                     },
                     {
-                        "description": "The number of processed documents after which training metrics will be logged",
+                        "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Early Stopping Patience",
+                            "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                            "default": -1
+                        },
+                        "name": "early_stopping_patience",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The number of processed documents or epochs after which training metrics will be logged",
                         "required": false,
                         "schema": {
                             "type": "integer",
                             "minimum": 1.0,
                             "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
                             "default": 1
                         },
                         "name": "log_frequency",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -441,7 +477,7 @@
                     "Training"
                 ],
                 "summary": "Train Unsupervised",
-                "description": "Upload one or more plain text files and trigger the unsupervised training",
+                "description": "Triggers unsupervised training on the running model using one or more files, each containing a list of plain texts.\n\nArgs:\n    request (Request): The request object.\n    training_data (List[UploadFile]): A list of files uploaded, each containing a list of plain texts in the format of [\"text_1\", \"text_2\", ..., \"text_n\"].\n    epochs (int): The number of training epochs to perform. Defaults to 1.\n    lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.\n    test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.\n    log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.\n    description (str, optional): A description of the training or change logs. Defaults to empty.\n    tracking_id (str, optional): n optional tracking ID of the requested task.\n    model_service (AbstractModelService): The model service dependency.\n\nReturns:\n    JSONResponse: A JSON response containing training response with the training ID.\n\nRaises:\n    ClientException: If there is an issue with the file provided for training.\n    ConfigurationException: If the running model does not support unsupervised training.",
                 "operationId": "train_unsupervised",
                 "parameters": [
                     {
@@ -483,27 +519,27 @@
                         "in": "query"
                     },
                     {
-                        "description": "The number of processed documents after which training metrics will be logged",
+                        "description": "The number of processed documents or epochs after which training metrics will be logged",
                         "required": false,
                         "schema": {
                             "type": "integer",
                             "minimum": 1.0,
                             "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
                             "default": 1000
                         },
                         "name": "log_frequency",
                         "in": "query"
                     },
                     {
-                        "description": "The description of the training or change logs",
+                        "description": "The tracking ID of the requested task",
                         "required": false,
                         "schema": {
                             "type": "string",
-                            "title": "Description",
-                            "description": "The description of the training or change logs"
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
                         },
-                        "name": "description",
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -545,7 +581,7 @@
                     "Training"
                 ],
                 "summary": "Train Unsupervised With Hf Dataset",
-                "description": "Trigger the unsupervised training with a dataset from Hugging Face Hub",
+                "description": "Triggers unsupervised training on the running model using a dataset from the Hugging Face Hub.\n\n    Args:\n        request (Request): The request object.\n        hf_dataset_repo_id (str, optional): The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided.\n        hf_dataset_config (str, optional): The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided.\n        hf_dataset_package (UploadFile, optional): A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'.\n        trust_remote_code (bool): Whether to trust the remote code of the dataset. Defaults to False.\n        text_column_name (str): The name of the text column in the dataset. Defaults to \"text\".\n        epochs (int): The number of training epochs to perform. Defaults tos 1.\n        lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.\n        test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.\n        log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.\n        description (str, optional): A description of the training or change logs. Defaults to empty.\n        tracking_id (str, optional): n optional tracking ID of the requested task.\n        model_service (AbstractModelService): The model service dependency.\n\n    Returns:\n        JSONResponse: A JSON response containing training response with the training ID.\ns\n    Raises:\n        ClientException: If 'hf_dataset_repo_id' and 'hf_dataset_package' are both None, or if the dataset does not contain the specified text column.\n        ConfigurationException: If the running model does not support unsupervised training.",
                 "operationId": "train_unsupervised_with_hf_dataset",
                 "parameters": [
                     {
@@ -633,13 +669,13 @@
                         "in": "query"
                     },
                     {
-                        "description": "The number of processed documents after which training metrics will be logged",
+                        "description": "The number of processed documents or epochs after which training metrics will be logged",
                         "required": false,
                         "schema": {
                             "type": "integer",
                             "minimum": 1.0,
                             "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
                             "default": 1000
                         },
                         "name": "log_frequency",
@@ -654,6 +690,17 @@
                             "description": "The description of the training or change logs"
                         },
                         "name": "description",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -711,27 +758,27 @@
                         "in": "query"
                     },
                     {
-                        "description": "The number of processed documents after which training metrics will be logged",
+                        "description": "The number of processed documents or epochs after which training metrics will be logged",
                         "required": false,
                         "schema": {
                             "type": "integer",
                             "minimum": 1.0,
                             "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
                             "default": 1
                         },
                         "name": "log_frequency",
                         "in": "query"
                     },
                     {
-                        "description": "The description on the training or change logs",
+                        "description": "The tracking ID of the requested task",
                         "required": false,
                         "schema": {
                             "type": "string",
-                            "title": "Description",
-                            "description": "The description on the training or change logs"
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
                         },
-                        "name": "description",
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -767,14 +814,70 @@
                 }
             }
         },
+        "/train_eval_info": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Info",
+                "description": "Get the training or evaluation job information by its ID",
+                "operationId": "train_eval_info",
+                "parameters": [
+                    {
+                        "description": "The training or evaluation ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Train Eval Id",
+                            "description": "The training or evaluation ID"
+                        },
+                        "name": "train_eval_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/evaluate": {
             "post": {
                 "tags": [
-                    "Evaluating"
+                    "Training"
                 ],
                 "summary": "Get Evaluation With Trainer Export",
                 "description": "Evaluate the model being served with a trainer export",
                 "operationId": "get_evaluation_with_trainer_export",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -807,6 +910,69 @@
                 }
             }
         },
+        "/cancel_training": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Cancel Training",
+                "description": "Cancel the in-progress training job (this is experimental and may not work as expected)",
+                "operationId": "cancel_training",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/train_eval_metrics": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Metrics",
+                "description": "Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)",
+                "operationId": "train_eval_metrics",
+                "parameters": [
+                    {
+                        "description": "The training or evaluation ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Train Eval Id",
+                            "description": "The training or evaluation ID"
+                        },
+                        "name": "train_eval_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sanity-check": {
             "post": {
                 "tags": [
@@ -815,6 +981,19 @@
                 "summary": "Get Sanity Check With Trainer Export",
                 "description": "Sanity check the model being served with a trainer export",
                 "operationId": "get_sanity_check_with_trainer_export",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -888,6 +1067,17 @@
                         },
                         "name": "scope",
                         "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
                     }
                 ],
                 "requestBody": {
@@ -925,6 +1115,19 @@
                 "summary": "Get Concatenated Trainer Exports",
                 "description": "Concatenate multiple trainer export files into a single file for download",
                 "operationId": "get_concatenated_trainer_exports",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -965,6 +1168,19 @@
                 "summary": "Get Annotation Stats",
                 "description": "Get annotation stats of trainer export files",
                 "operationId": "get_annotation_stats",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -1000,6 +1216,19 @@
                 "summary": "Get Rendered Entities From Text",
                 "description": "Extract the NER entities in HTML for preview",
                 "operationId": "get_rendered_entities_from_text",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "text/plain": {
@@ -1058,6 +1287,17 @@
                             "description": "The target document ID, and if not provided, all documents of the target project(s) will be included"
                         },
                         "name": "document_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -1200,7 +1440,7 @@
                         },
                         "type": "array",
                         "title": "Trainer Export",
-                        "description": "A list of trainer export files to be uploaded"
+                        "description": "A list of trainer export files to be concatenated"
                     }
                 },
                 "type": "object",
@@ -1295,6 +1535,11 @@
                         "type": "array",
                         "title": "Trainer Export",
                         "description": "One or more trainer export files to be uploaded"
+                    },
+                    "description": {
+                        "type": "string",
+                        "title": "Description",
+                        "description": "The description on the training or change logs"
                     }
                 },
                 "type": "object",
@@ -1336,6 +1581,11 @@
                         "type": "array",
                         "title": "Training Data",
                         "description": "One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]"
+                    },
+                    "description": {
+                        "type": "string",
+                        "title": "Description",
+                        "description": "The description of the training or change logs"
                     }
                 },
                 "type": "object",
@@ -1350,7 +1600,7 @@
                         "type": "string",
                         "format": "binary",
                         "title": "Hf Dataset Package",
-                        "description": "A ZIP file containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'"
+                        "description": "A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'"
                     }
                 },
                 "type": "object",

@@ -168,6 +168,19 @@
                 "summary": "Extract Entities From Multi Text File",
                 "description": "Upload a file containing a list of plain text and extract the NER entities in JSON",
                 "operationId": "extract_entities_from_multi_text_file",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -390,16 +403,39 @@
                         "in": "query"
                     },
                     {
-                        "description": "The number of processed documents after which training metrics will be logged",
+                        "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "title": "Early Stopping Patience",
+                            "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                            "default": -1
+                        },
+                        "name": "early_stopping_patience",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The number of processed documents or epochs after which training metrics will be logged",
                         "required": false,
                         "schema": {
                             "type": "integer",
                             "minimum": 1.0,
                             "title": "Log Frequency",
-                            "description": "The number of processed documents after which training metrics will be logged",
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
                             "default": 1
                         },
                         "name": "log_frequency",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -435,14 +471,70 @@
                 }
             }
         },
+        "/train_eval_info": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Info",
+                "description": "Get the training or evaluation job information by its ID",
+                "operationId": "train_eval_info",
+                "parameters": [
+                    {
+                        "description": "The training or evaluation ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Train Eval Id",
+                            "description": "The training or evaluation ID"
+                        },
+                        "name": "train_eval_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/evaluate": {
             "post": {
                 "tags": [
-                    "Evaluating"
+                    "Training"
                 ],
                 "summary": "Get Evaluation With Trainer Export",
                 "description": "Evaluate the model being served with a trainer export",
                 "operationId": "get_evaluation_with_trainer_export",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -475,6 +567,69 @@
                 }
             }
         },
+        "/cancel_training": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Cancel Training",
+                "description": "Cancel the in-progress training job (this is experimental and may not work as expected)",
+                "operationId": "cancel_training",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/train_eval_metrics": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Metrics",
+                "description": "Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)",
+                "operationId": "train_eval_metrics",
+                "parameters": [
+                    {
+                        "description": "The training or evaluation ID",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Train Eval Id",
+                            "description": "The training or evaluation ID"
+                        },
+                        "name": "train_eval_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sanity-check": {
             "post": {
                 "tags": [
@@ -483,6 +638,19 @@
                 "summary": "Get Sanity Check With Trainer Export",
                 "description": "Sanity check the model being served with a trainer export",
                 "operationId": "get_sanity_check_with_trainer_export",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -556,6 +724,17 @@
                         },
                         "name": "scope",
                         "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
                     }
                 ],
                 "requestBody": {
@@ -593,6 +772,19 @@
                 "summary": "Get Concatenated Trainer Exports",
                 "description": "Concatenate multiple trainer export files into a single file for download",
                 "operationId": "get_concatenated_trainer_exports",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -633,6 +825,19 @@
                 "summary": "Get Annotation Stats",
                 "description": "Get annotation stats of trainer export files",
                 "operationId": "get_annotation_stats",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "multipart/form-data": {
@@ -668,6 +873,19 @@
                 "summary": "Get Rendered Entities From Text",
                 "description": "Extract the NER entities in HTML for preview",
                 "operationId": "get_rendered_entities_from_text",
+                "parameters": [
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
+                        "in": "query"
+                    }
+                ],
                 "requestBody": {
                     "content": {
                         "text/plain": {
@@ -726,6 +944,17 @@
                             "description": "The target document ID, and if not provided, all documents of the target project(s) will be included"
                         },
                         "name": "document_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "The tracking ID of the requested task",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "Tracking Id",
+                            "description": "The tracking ID of the requested task"
+                        },
+                        "name": "tracking_id",
                         "in": "query"
                     }
                 ],
@@ -868,7 +1097,7 @@
                         },
                         "type": "array",
                         "title": "Trainer Export",
-                        "description": "A list of trainer export files to be uploaded"
+                        "description": "A list of trainer export files to be concatenated"
                     }
                 },
                 "type": "object",
