@@ -69,7 +69,6 @@ class MedCATModelDeIdentification(MedCATModel):
             model_type=ModelType.ANONCAT,
             api_version=self.api_version,
             model_card=model_card,
-            labels=self.model.cdb.cui2preferred_name,
         )
 
     def annotate(self, text: str) -> List[Annotation]:
