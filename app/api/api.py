@@ -115,15 +115,18 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
         "description": tag.value
     } for tag in (Tags if not streamable else TagsStreamable)]
     config = get_settings()
-    app = FastAPI(title="CogStack ModelServe",
-                  summary="A model serving and governance system for CogStack NLP solutions",
-                  docs_url=None,
-                  redoc_url=None,
-                  debug=(config.DEBUG == "true"),
-                  openapi_tags=tags_metadata)
+    app = FastAPI(
+        title="CogStack ModelServe",
+        summary="A model serving and governance system for CogStack NLP solutions",
+        docs_url=None,
+        redoc_url=None,
+        debug=(config.DEBUG == "true"),
+        openapi_tags=tags_metadata,
+    )
     add_exception_handlers(app)
     instrumentator = Instrumentator(
-        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]).instrument(app)
+        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]
+    ).instrument(app)
 
     if msd_overwritten is not None:
         cms_globals.model_service_dep = msd_overwritten

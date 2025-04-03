@@ -7,11 +7,13 @@ from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervi
 
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
-model_service = create_autospec(MedCATModel,
-                                _config=Settings(),
-                                _model_parent_dir=model_parent_dir,
-                                _enable_trainer=True,
-                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"))
+model_service = create_autospec(
+    MedCATModel,
+    _config=Settings(),
+    _model_parent_dir=model_parent_dir,
+    _enable_trainer=True,
+    _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
+)
 supervised_trainer = MedcatSupervisedTrainer(model_service)
 supervised_trainer.model_name = "supervised_trainer"
 unsupervised_trainer = MedcatUnsupervisedTrainer(model_service)
@@ -39,10 +41,12 @@ def test_deploy_model():
 def test_save_model_pack():
     model = Mock()
     model.create_model_pack.return_value = "model_pack_name"
-    supervised_trainer.save_model_pack(model,
-                                       "retrained_models_dir",
-                                       "model.zip",
-                                       "model description")
+    supervised_trainer.save_model_pack(
+        model,
+        "retrained_models_dir",
+        "model.zip",
+        "model description",
+    )
     model.create_model_pack.called_once_with("retrained_models_dir", "model")
     assert model.config.version.description == "model description"
 

@@ -23,15 +23,19 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.post("/preview",
-             tags=[Tags.Rendering.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities in HTML for preview")
-async def get_rendered_entities_from_text(request: Request,
-                                          text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
-                                          tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+@router.post(
+    "/preview",
+    tags=[Tags.Rendering.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract the NER entities in HTML for preview",
+)
+async def get_rendered_entities_from_text(
+    request: Request,
+    text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> StreamingResponse:
     """
     Extracts NER entities from a piece of text and returns the entities in HTML for preview.
 
@@ -57,17 +61,21 @@ async def get_rendered_entities_from_text(request: Request,
     return response
 
 
-@router.post("/preview_trainer_export",
-             tags=[Tags.Rendering.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Get existing entities in HTML from a trainer export for preview")
-def get_rendered_entities_from_trainer_export(request: Request,
-                                              trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")] = [],
-                                              trainer_export_str: Annotated[str, Form(description="The trainer export raw JSON string")] = "{\"projects\": []}",
-                                              project_id: Annotated[Union[int, None], Query(description="The target project ID, and if not provided, all projects will be included")] = None,
-                                              document_id: Annotated[Union[int, None], Query(description="The target document ID, and if not provided, all documents of the target project(s) will be included")] = None,
-                                              tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> Response:
+@router.post(
+    "/preview_trainer_export",
+    tags=[Tags.Rendering.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get existing entities in HTML from a trainer export for preview",
+)
+def get_rendered_entities_from_trainer_export(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")] = [],
+    trainer_export_str: Annotated[str, Form(description="The trainer export raw JSON string")] = "{\"projects\": []}",
+    project_id: Annotated[Union[int, None], Query(description="The target project ID, and if not provided, all projects will be included")] = None,
+    document_id: Annotated[Union[int, None], Query(description="The target document ID, and if not provided, all documents of the target project(s) will be included")] = None,
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+) -> Response:
     """
     Returns the entities in HTML for preview based on the provided trainer export files or raw JSON string.
 

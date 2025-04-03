@@ -29,15 +29,19 @@ router = APIRouter()
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.post("/sanity-check",
-             tags=[Tags.Evaluating.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Sanity check the model being served with a trainer export")
-def get_sanity_check_with_trainer_export(request: Request,
-                                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                         tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+@router.post(
+    "/sanity-check",
+    tags=[Tags.Evaluating.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Sanity check the model being served with a trainer export",
+)
+def get_sanity_check_with_trainer_export(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> StreamingResponse:
     """
     Performs a sanity check on the running model using the provided trainer export files.
 
@@ -77,17 +81,21 @@ def get_sanity_check_with_trainer_export(request: Request,
     return response
 
 
-@router.post("/iaa-scores",
-             tags=[Tags.Evaluating.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Calculate inter annotator agreement scores between two projects")
-def get_inter_annotator_agreement_scores(request: Request,
-                                         trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
-                                         annotator_a_project_id: Annotated[int, Query(description="The project ID from one annotator")],
-                                         annotator_b_project_id: Annotated[int, Query(description="The project ID from another annotator")],
-                                         scope: Annotated[str, Query(enum=[s.value for s in Scope], description="The scope for which the score will be calculated, e.g., per_concept, per_document or per_span")],
-                                         tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
+@router.post(
+    "/iaa-scores",
+    tags=[Tags.Evaluating.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Calculate inter annotator agreement scores between two projects",
+)
+def get_inter_annotator_agreement_scores(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be uploaded")],
+    annotator_a_project_id: Annotated[int, Query(description="The project ID from one annotator")],
+    annotator_b_project_id: Annotated[int, Query(description="The project ID from another annotator")],
+    scope: Annotated[str, Query(enum=[s.value for s in Scope], description="The scope for which the score will be calculated, e.g., per_concept, per_document or per_span")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+) -> StreamingResponse:
     """
     Calculates Inter-Annotator Agreement (IAA) scores between projects done by two annotators.
 
@@ -136,14 +144,18 @@ def get_inter_annotator_agreement_scores(request: Request,
         return response
 
 
-@router.post("/concat_trainer_exports",
-             tags=[Tags.Evaluating.name],
-             response_class=JSONResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Concatenate multiple trainer export files into a single file for download")
-def get_concatenated_trainer_exports(request: Request,
-                                     trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be concatenated")],
-                                     tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> JSONResponse:
+@router.post(
+    "/concat_trainer_exports",
+    tags=[Tags.Evaluating.name],
+    response_class=JSONResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Concatenate multiple trainer export files into a single file for download",
+)
+def get_concatenated_trainer_exports(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="A list of trainer export files to be concatenated")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+) -> JSONResponse:
     """
     Concatenates multiple trainer export files into a single file.
 
@@ -172,14 +184,18 @@ def get_concatenated_trainer_exports(request: Request,
     return response
 
 
-@router.post("/annotation-stats",
-             tags=[Tags.Evaluating.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Get annotation stats of trainer export files")
-def get_annotation_stats(request: Request,
-                         trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                         tracking_id: Union[str, None] = Depends(validate_tracking_id)) -> StreamingResponse:
+@router.post(
+    "/annotation-stats",
+    tags=[Tags.Evaluating.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get annotation stats of trainer export files",
+)
+def get_annotation_stats(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+) -> StreamingResponse:
     """
     Gets annotation statistics from the provided trainer export files.
 

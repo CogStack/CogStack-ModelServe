@@ -21,10 +21,12 @@ else:
     META_STATE_MISSING = hashlib.sha1("{}".encode("utf-8")).hexdigest()
 
 
-def sanity_check_model_with_trainer_export(trainer_export: Union[str, IO, Dict],
-                                           model_service: AbstractModelService,
-                                           return_df: bool = False,
-                                           include_anchors: bool = False) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
+def sanity_check_model_with_trainer_export(
+    trainer_export: Union[str, IO, Dict],
+    model_service: AbstractModelService,
+    return_df: bool = False,
+    include_anchors: bool = False,
+) -> Union[pd.DataFrame, Tuple[float, float, float, Dict, Dict, Dict, Dict, Optional[Dict]]]:
     """
     Performs a sanity check on the model's performance against a trainer export.
 
@@ -146,10 +148,12 @@ def sanity_check_model_with_trainer_export(trainer_export: Union[str, IO, Dict],
         return precision, recall, f1, per_cui_prec, per_cui_rec, per_cui_f1, per_cui_name, per_cui_anchors if include_anchors else None
 
 
-def concat_trainer_exports(data_file_paths: List[str],
-                           combined_data_file_path: Optional[str] = None,
-                           allow_recurring_project_ids: bool = False,
-                           allow_recurring_doc_ids: bool = True) -> Union[Dict[str, Any], str]:
+def concat_trainer_exports(
+    data_file_paths: List[str],
+    combined_data_file_path: Optional[str] = None,
+    allow_recurring_project_ids: bool = False,
+    allow_recurring_doc_ids: bool = True,
+) -> Union[Dict[str, Any], str]:
     """
     Concatenates multiple trainer export files into a single combined file.
 
@@ -190,8 +194,10 @@ def concat_trainer_exports(data_file_paths: List[str],
         return combined
 
 
-def get_stats_from_trainer_export(trainer_export: Union[str, IO, Dict],
-                                  return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
+def get_stats_from_trainer_export(
+    trainer_export: Union[str, IO, Dict],
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict[str, int], Dict[str, int], Dict[str, int], int]]:
     """
     Collects statistics from a trainer export.
 
@@ -247,10 +253,12 @@ def get_stats_from_trainer_export(trainer_export: Union[str, IO, Dict],
         return cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs
 
 
-def get_iaa_scores_per_concept(trainer_export: Union[str, IO],
-                               project_id: int,
-                               another_project_id: int,
-                               return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_concept(
+    trainer_export: Union[str, IO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     """
     Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per concept between two projects.
 
@@ -322,10 +330,12 @@ def get_iaa_scores_per_concept(trainer_export: Union[str, IO],
         return per_cui_anno_iia_pct, per_cui_anno_cohens_kappa, per_cui_metaanno_iia_pct, per_cui_metaanno_cohens_kappa
 
 
-def get_iaa_scores_per_doc(export_file: Union[str, IO],
-                           project_id: int,
-                           another_project_id: int,
-                           return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_doc(
+    export_file: Union[str, IO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     """
     Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per document between two projects.
 
@@ -398,10 +408,12 @@ def get_iaa_scores_per_doc(export_file: Union[str, IO],
         return per_doc_anno_iia_pct, per_doc_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
 
 
-def get_iaa_scores_per_span(trainer_export: Union[str, IO],
-                            project_id: int,
-                            another_project_id: int,
-                            return_df: bool = False) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
+def get_iaa_scores_per_span(
+    trainer_export: Union[str, IO],
+    project_id: int,
+    another_project_id: int,
+    return_df: bool = False,
+) -> Union[pd.DataFrame, Tuple[Dict, Dict]]:
     """
     Calculates Inter-Annotator Agreement (IAA) scores for annotations and meta-annotations per span between two projects.
 
@@ -474,9 +486,11 @@ def get_iaa_scores_per_span(trainer_export: Union[str, IO],
         return per_span_anno_iia_pct, per_span_anno_cohens_kappa, per_doc_metaanno_iia_pct, per_doc_metaanno_cohens_kappa
 
 
-def _extract_project_pair(export_file: Union[str, IO],
-                          project_id: int,
-                          another_project_id: int) -> Tuple[Dict, Dict]:
+def _extract_project_pair(
+    export_file: Union[str, IO],
+    project_id: int,
+    another_project_id: int,
+) -> Tuple[Dict, Dict]:
     if isinstance(export_file, str):
         with open(export_file, "r") as file:
             data = json.load(file)

@@ -27,7 +27,7 @@ class TextDatasetBuilder(datasets.GeneratorBasedBuilder):
                     "name": datasets.Value("string"),
                     "text": datasets.Value("string"),
                 }
-            )
+            ),
         )
 
     def _split_generators(self, _: datasets.DownloadManager) -> List[datasets.SplitGenerator]:

@@ -23,22 +23,28 @@ def test_from_model(medcat_deid_model):
     assert new_model_service.model == medcat_deid_model.model
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_init_model(medcat_deid_model):
     medcat_deid_model.init_model()
     assert medcat_deid_model.model is not None
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_load_model(medcat_deid_model):
     cat = MedCATModelDeIdentification.load_model(os.path.join(MODEL_PARENT_DIR, "deid_model.zip"))
     assert type(cat) is CAT
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_info(medcat_deid_model):
     medcat_deid_model.init_model()
     model_card = medcat_deid_model.info()
@@ -47,8 +53,10 @@ def test_info(medcat_deid_model):
     assert model_card.model_type == ModelType.ANONCAT
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(medcat_deid_model):
     medcat_deid_model.init_model()
     annotations = medcat_deid_model.annotate(
@@ -92,8 +100,10 @@ def test_annotate(medcat_deid_model):
     assert annotations[1]["categories"] == ["PII"]
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate_with_local_chunking(medcat_deid_model):
     medcat_deid_model.init_model()
     annotations = medcat_deid_model.annotate_with_local_chunking(
@@ -137,8 +147,10 @@ def test_annotate_with_local_chunking(medcat_deid_model):
     assert annotations[1]["categories"] == ["PII"]
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_batch_annotate(medcat_deid_model):
     medcat_deid_model.init_model()
     annotation_list = medcat_deid_model.batch_annotate(["This is a post code NW1 2DA", "This is a post code NW1 2DA"])
@@ -151,8 +163,10 @@ def test_batch_annotate(medcat_deid_model):
     assert annotation_list[1][0]["accuracy"] > 0
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_train_supervised(medcat_deid_model):
     medcat_deid_model.init_model()
     medcat_deid_model._config.REDEPLOY_TRAINED_MODEL = "false"

@@ -62,9 +62,11 @@ def test_process_invalid_jsonl(model_service, client):
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
-    response = client.post("/process_jsonl",
-                           data="invalid json lines",
-                           headers={"Content-Type": "application/x-ndjson"})
+    response = client.post(
+        "/process_jsonl",
+        data="invalid json lines",
+        headers={"Content-Type": "application/x-ndjson"},
+    )
 
     assert response.status_code == 400
     assert response.json() == {"message": "Invalid JSON Lines."}
@@ -90,9 +92,11 @@ def test_process_unknown_jsonl_properties(model_service, client):
     model_manager.model_service = model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
-    response = client.post("/process_jsonl",
-                           data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
-                           headers={"Content-Type": "application/x-ndjson"})
+    response = client.post(
+        "/process_jsonl",
+        data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+        headers={"Content-Type": "application/x-ndjson"},
+    )
 
     assert response.status_code == 400
     assert "Invalid properties found." in response.json()["message"]
@@ -120,9 +124,11 @@ def test_redact_with_white_list(model_service, client):
     model_service.annotate.return_value = annotations
 
 
-    response = client.post(url,
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
+    response = client.post(
+        url,
+        data="Spinal stenosis",
+        headers={"Content-Type": "text/plain"},
+    )
     
     assert response.text == "Spinal stenosis"
 
@@ -131,9 +137,11 @@ def test_warning_on_no_redaction(model_service, client):
     annotations = []
     model_service.annotate.return_value = annotations
 
-    response = client.post("/redact?warn_on_no_redaction=true",
-                           data="Spinal stenosis",
-                           headers={"Content-Type": "text/plain"})
+    response = client.post(
+        "/redact?warn_on_no_redaction=true",
+        data="Spinal stenosis",
+        headers={"Content-Type": "text/plain"},
+    )
 
     assert response.text == "WARNING: No entities were detected for redaction."
 
@@ -159,9 +167,11 @@ def test_redact_with_encryption(model_service, client):
     }
     model_service.annotate.return_value = annotations
 
-    response = client.post("/redact_with_encryption",
-                           json=body,
-                           headers={"Content-Type": "application/json"})
+    response = client.post(
+        "/redact_with_encryption",
+        json=body,
+        headers={"Content-Type": "application/json"},
+    )
 
     assert response.json()["redacted_text"] == "[REDACTED_0]"
     assert len(response.json()["encryptions"]) == 1
@@ -178,9 +188,11 @@ def test_warning_on_no_encrypted_redaction(model_service, client):
     }
     model_service.annotate.return_value = annotations
 
-    response = client.post("/redact_with_encryption?warn_on_no_redaction=true",
-                           json=body,
-                           headers={"Content-Type": "application/json"})
+    response = client.post(
+        "/redact_with_encryption?warn_on_no_redaction=true",
+        json=body,
+        headers={"Content-Type": "application/json"},
+    )
 
     assert response.json()["message"] == "WARNING: No entities were detected for redaction."
 
@@ -188,10 +200,13 @@ def test_warning_on_no_encrypted_redaction(model_service, client):
 def test_preview_trainer_export(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/preview_trainer_export", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/preview_trainer_export",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -200,10 +215,13 @@ def test_preview_trainer_export(client):
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post(f"/preview_trainer_export?tracking_id={TRACKING_ID}", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                f"/preview_trainer_export?tracking_id={TRACKING_ID}",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -214,7 +232,11 @@ def test_preview_trainer_export(client):
 def test_preview_trainer_export_str(client):
     with open(TRAINER_EXPORT_PATH, "r") as f:
         trainer_export_str = f.read()
-        response = client.post("/preview_trainer_export", data={"trainer_export_str": trainer_export_str}, headers={"Content-Type": "application/x-www-form-urlencoded"})
+        response = client.post(
+            "/preview_trainer_export",
+            data={"trainer_export_str": trainer_export_str},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -223,7 +245,10 @@ def test_preview_trainer_export_str(client):
 
 def test_preview_trainer_export_with_project_id(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/preview_trainer_export?project_id=14", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(
+            "/preview_trainer_export?project_id=14",
+            files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")},
+        )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -232,7 +257,10 @@ def test_preview_trainer_export_with_project_id(client):
 
 def test_preview_trainer_export_with_document_id(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/preview_trainer_export?document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(
+            "/preview_trainer_export?document_id=3205",
+            files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")},
+        )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -241,7 +269,10 @@ def test_preview_trainer_export_with_document_id(client):
 
 def test_preview_trainer_export_with_project_and_document_ids(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/preview_trainer_export?project_id=14&document_id=3205", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(
+            "/preview_trainer_export?project_id=14&document_id=3205",
+            files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")},
+        )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"
@@ -251,7 +282,10 @@ def test_preview_trainer_export_with_project_and_document_ids(client):
 @pytest.mark.parametrize("pid,did", [(14, 1), (1, 3205)])
 def test_preview_trainer_export_on_missing_project_or_document(pid, did, client):
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post(f"/preview_trainer_export?project_id={pid}&document_id={did}", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(
+            f"/preview_trainer_export?project_id={pid}&document_id={did}",
+            files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")},
+        )
 
     assert response.status_code == 404
     assert response.json() == {"message": "Cannot find any matching documents to preview"}
@@ -260,7 +294,10 @@ def test_preview_trainer_export_on_missing_project_or_document(pid, did, client)
 def test_train_supervised(model_service, client):
     model_service.train_supervised.return_value = (True, "experiment_id", "run_id")
     with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.post("/train_supervised?epochs=1&lr_override=0.01&test_size=0.2&early_stopping_patience=-1&log_frequency=1", files=[("trainer_export", f)])
+        response = client.post(
+            "/train_supervised?epochs=1&lr_override=0.01&test_size=0.2&early_stopping_patience=-1&log_frequency=1",
+            files=[("trainer_export", f)],
+        )
 
     model_service.train_supervised.assert_called()
     assert response.status_code == 202
@@ -282,7 +319,10 @@ def test_train_unsupervised(model_service, client):
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
     with tempfile.TemporaryFile("r+b") as f:
         f.write(str.encode("[\"Spinal stenosis\"]"))
-        response = client.post("/train_unsupervised?epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1", files=[("training_data", f)])
+        response = client.post(
+            "/train_unsupervised?epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1",
+            files=[("training_data", f)],
+        )
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -387,8 +427,8 @@ def test_train_eval_metrics(model_service, client):
         "f1": [0.9934285636532457],
     }]
     model_service.get_tracker_client.return_value = tracker_client
-    with open(TRAINER_EXPORT_PATH, "rb") as f:
-        response = client.get("/train_eval_metrics?train_eval_id=e3f303a9-3296-4a69-99e6-10de4e911453")
+
+    response = client.get("/train_eval_metrics?train_eval_id=e3f303a9-3296-4a69-99e6-10de4e911453")
 
     model_service.get_tracker_client.assert_called()
     tracker_client.get_metrics_by_job_id.assert_called_with("e3f303a9-3296-4a69-99e6-10de4e911453")
@@ -426,10 +466,13 @@ def test_sanity_check_with_trainer_export(client):
 def test_inter_annotator_agreement_scores_per_concept(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -438,10 +481,13 @@ def test_inter_annotator_agreement_scores_per_concept(client):
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post(f"/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept&tracking_id={TRACKING_ID}", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                f"/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_concept&tracking_id={TRACKING_ID}",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -452,7 +498,10 @@ def test_inter_annotator_agreement_scores_per_concept(client):
 @pytest.mark.parametrize("pid_a,pid_b,error_message", [(0, 2, "Cannot find the project with ID: 0"), (1, 3, "Cannot find the project with ID: 3")])
 def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message, client):
     with open(TRAINER_EXPORT_MULTI_PROJS_PATH, "rb") as f:
-        response = client.post(f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept", files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")})
+        response = client.post(
+            f"/iaa-scores?annotator_a_project_id={pid_a}&annotator_b_project_id={pid_b}&scope=per_concept",
+            files={"trainer_export": ("trainer_export.json", f, "multipart/form-data")},
+        )
 
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
@@ -462,10 +511,13 @@ def test_project_not_found_on_getting_iaa_scores(pid_a, pid_b, error_message, cl
 def test_unknown_scope_on_getting_iaa_scores(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=unknown", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=unknown",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 400
     assert response.headers["content-type"] == "application/json"
@@ -475,10 +527,13 @@ def test_unknown_scope_on_getting_iaa_scores(client):
 def test_inter_annotator_agreement_scores_per_doc(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_document",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -488,10 +543,13 @@ def test_inter_annotator_agreement_scores_per_doc(client):
 def test_inter_annotator_agreement_scores_per_span(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/iaa-scores?annotator_a_project_id=14&annotator_b_project_id=15&scope=per_span",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -501,10 +559,13 @@ def test_inter_annotator_agreement_scores_per_span(client):
 def test_concat_trainer_exports(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/concat_trainer_exports", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/concat_trainer_exports",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
@@ -513,10 +574,13 @@ def test_concat_trainer_exports(client):
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post(f"/concat_trainer_exports?tracking_id={TRACKING_ID}", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                f"/concat_trainer_exports?tracking_id={TRACKING_ID}",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/json; charset=utf-8"
@@ -527,10 +591,13 @@ def test_concat_trainer_exports(client):
 def test_get_annotation_stats(client):
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post("/annotation-stats", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                "/annotation-stats",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
@@ -539,10 +606,13 @@ def test_get_annotation_stats(client):
     # test with provided tracking ID
     with open(TRAINER_EXPORT_PATH, "rb") as f1:
         with open(ANOTHER_TRAINER_EXPORT_PATH, "rb") as f2:
-            response = client.post(f"/annotation-stats?tracking_id={TRACKING_ID}", files=[
-                ("trainer_export", f1),
-                ("trainer_export", f2),
-            ])
+            response = client.post(
+                f"/annotation-stats?tracking_id={TRACKING_ID}",
+                files=[
+                    ("trainer_export", f1),
+                    ("trainer_export", f2),
+                ],
+            )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"

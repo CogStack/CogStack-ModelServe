@@ -22,7 +22,6 @@ from app.domain import (
     TextWithAnnotations,
     TextWithPublicKey,
     TextStreamItem,
-    ModelCard,
     Tags,
 )
 from app.model_services.base import AbstractModelService
@@ -38,7 +37,6 @@ from app.management.prometheus_metrics import (
 )
 from app.processors.data_batcher import mini_batch
 
-PATH_INFO = "/info"
 PATH_PROCESS = "/process"
 PATH_PROCESS_JSON_LINES = "/process_jsonl"
 PATH_PROCESS_BULK = "/process_bulk"
@@ -55,27 +53,21 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.get(PATH_INFO,
-            response_model=ModelCard,
-            tags=[Tags.Metadata.name],
-            dependencies=[Depends(cms_globals.props.current_active_user)],
-            description="Get information about the model being served")
-async def get_model_card(request: Request,
-                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> ModelCard:
-    return model_service.info()
-
-
-@router.post(PATH_PROCESS,
-             response_model=TextWithAnnotations,
-             response_model_exclude_none=True,
-             response_class=JSONResponse,
-             tags=[Tags.Annotations.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from a single piece of plain text")
+@router.post(
+    PATH_PROCESS,
+    response_model=TextWithAnnotations,
+    response_model_exclude_none=True,
+    response_class=JSONResponse,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract the NER entities from a single piece of plain text",
+)
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_entities_from_text(request: Request,
-                           text: Annotated[str, Body(description="The plain text to be sent to the model for NER", media_type="text/plain")],
-                           model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> TextWithAnnotations:
+def get_entities_from_text(
+    request: Request,
+    text: Annotated[str, Body(description="The plain text to be sent to the model for NER", media_type="text/plain")],
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> TextWithAnnotations:
     """
     Extracts NER entities from a single piece of plain text.
 
@@ -98,14 +90,18 @@ def get_entities_from_text(request: Request,
     return TextWithAnnotations(text=text, annotations=annotations)
 
 
-@router.post(PATH_PROCESS_JSON_LINES,
-             response_class=StreamingResponse,
-             tags=[Tags.Annotations.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from texts in the JSON Lines format")
+@router.post(
+    PATH_PROCESS_JSON_LINES,
+    response_class=StreamingResponse,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract the NER entities from texts in the JSON Lines format",
+)
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_entities_from_jsonlines_text(request: Request,
-                                     json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")]) -> Response:
+def get_entities_from_jsonlines_text(
+    request: Request,
+    json_lines: Annotated[str, Body(description="The texts in the jsonlines format and each line contains {\"text\": \"<TEXT>\"[, \"name\": \"<NAME>\"]}", media_type="application/x-ndjson")],
+) -> Response:
     """
     Extracts NER entities from texts in the JSON Lines format.
 
@@ -135,16 +131,20 @@ def get_entities_from_jsonlines_text(request: Request,
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": f"Invalid properties found. The schema should be {TextStreamItem.schema_json()}"})
 
 
-@router.post(PATH_PROCESS_BULK,
-             response_model=List[TextWithAnnotations],
-             response_model_exclude_none=True,
-             tags=[Tags.Annotations.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from multiple plain texts")
+@router.post(
+    PATH_PROCESS_BULK,
+    response_model=List[TextWithAnnotations],
+    response_model_exclude_none=True,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract the NER entities from multiple plain texts",
+)
 @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)
-def get_entities_from_multiple_texts(request: Request,
-                                     texts: Annotated[List[str], Body(description="A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
-                                     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> List[TextWithAnnotations]:
+def get_entities_from_multiple_texts(
+    request: Request,
+    texts: Annotated[List[str], Body(description="A list of plain texts to be sent to the model for NER, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> List[TextWithAnnotations]:
     """
     Extracts NER entities from multiple plain texts.
 
@@ -175,15 +175,19 @@ def get_entities_from_multiple_texts(request: Request,
     return body
 
 
-@router.post(PATH_PROCESS_BULK_FILE,
-             tags=[Tags.Annotations.name],
-             response_class=StreamingResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Upload a file containing a list of plain text and extract the NER entities in JSON")
-def extract_entities_from_multi_text_file(request: Request,
-                                          multi_text_file: Annotated[UploadFile, File(description="A file containing a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
-                                          tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> StreamingResponse:
+@router.post(
+    PATH_PROCESS_BULK_FILE,
+    tags=[Tags.Annotations.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Upload a file containing a list of plain text and extract the NER entities in JSON",
+)
+def extract_entities_from_multi_text_file(
+    request: Request,
+    multi_text_file: Annotated[UploadFile, File(description="A file containing a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> StreamingResponse:
     """
     Extracts NER entities from an uploaded file containing a list of plain texts.
 
@@ -235,18 +239,22 @@ def extract_entities_from_multi_text_file(request: Request,
         return response
 
 
-@router.post(PATH_REDACT,
-             tags=[Tags.Redaction.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract and redact NER entities from a single piece of plain text")
+@router.post(
+    PATH_REDACT,
+    tags=[Tags.Redaction.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract and redact NER entities from a single piece of plain text",
+)
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_redacted_text(request: Request,
-                      text: Annotated[str, Body(description="The plain text to be sent to the model for NER and redaction", media_type="text/plain")],
-                      concepts_to_keep: Annotated[List[str], Query(description="List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]")] = [],
-                      warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
-                      mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
-                      hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
-                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> PlainTextResponse:
+def get_redacted_text(
+    request: Request,
+    text: Annotated[str, Body(description="The plain text to be sent to the model for NER and redaction", media_type="text/plain")],
+    concepts_to_keep: Annotated[List[str], Query(description="List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]")] = [],
+    warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
+    mask: Annotated[Union[str, None], Query(description="The custom symbols used for masking detected spans")] = None,
+    hash: Annotated[Union[bool, None], Query(description="Whether or not to hash detected spans")] = False,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> PlainTextResponse:
     """
     Extracts NER entities from a single piece of plain text and redacts them based on the provided strategy.
 
@@ -291,15 +299,19 @@ def get_redacted_text(request: Request,
         return PlainTextResponse(content=redacted_text, status_code=200)
 
 
-@router.post(PATH_REDACT_WITH_ENCRYPTION,
-             tags=[Tags.Redaction.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Redact and encrypt NER entities from a single piece of plain text")
+@router.post(
+    PATH_REDACT_WITH_ENCRYPTION,
+    tags=[Tags.Redaction.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Redact and encrypt NER entities from a single piece of plain text",
+)
 @limiter.limit(config.PROCESS_RATE_LIMIT)
-def get_redacted_text_with_encryption(request: Request,
-                                      text_with_public_key: Annotated[TextWithPublicKey, Body()],
-                                      warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
-                                      model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+def get_redacted_text_with_encryption(
+    request: Request,
+    text_with_public_key: Annotated[TextWithPublicKey, Body()],
+    warn_on_no_redaction: Annotated[Union[bool, None], Query(description="Return warning when no entities were detected for redaction to prevent potential info leaking")] = False,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Redacts and encrypts NER entities extracted from a single piece of plain text.
 

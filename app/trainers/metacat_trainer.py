@@ -49,12 +49,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 params[key] = "<EMPTY>"
         return params
 
-    def run(self,
-            training_params: Dict,
-            data_file: TextIO,
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        self,
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         """
         Runs the supervised training loop for MetaCAT models.
 
@@ -78,8 +80,10 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
                 if non_default_device_is_available(self._config.DEVICE):
-                    model = self._model_service.load_model(copied_model_pack_path,
-                                                           meta_cat_config_dict={"general": {"device": self._config.DEVICE}})
+                    model = self._model_service.load_model(
+                        copied_model_pack_path,
+                        meta_cat_config_dict={"general": {"device": self._config.DEVICE}},
+                    )
                     model.config.general["device"] = self._config.DEVICE
                 else:
                     model = self._model_service.load_model(copied_model_pack_path)
@@ -102,7 +106,10 @@ class MetacatTrainer(MedcatSupervisedTrainer):
 
                     try:
                         mp_ext = get_model_data_package_extension(copied_model_pack_path)
-                        winner_report = meta_cat.train_from_json(data_file.name, os.path.join(copied_model_pack_path.replace(mp_ext, ""), f"meta_{category_name}"))
+                        winner_report = meta_cat.train_from_json(
+                            data_file.name,
+                            os.path.join(copied_model_pack_path.replace(mp_ext, ""),f"meta_{category_name}"),
+                        )
                         is_retrained = True
                         report_stats = {
                             f"{category_name}_macro_avg_precision": winner_report["report"]["macro avg"]["precision"],
@@ -127,12 +134,16 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     return
 
                 if not skip_save_model:
-                    model_pack_path = self.save_model_pack(model,
-                                                           self._retrained_models_dir,
-                                                           self._config.BASE_MODEL_FILE,
-                                                           description)
-                    cdb_config_path = model_pack_path.replace(get_model_data_package_extension(model_pack_path),
-                                                              "_config.json")
+                    model_pack_path = self.save_model_pack(
+                        model,
+                        self._retrained_models_dir,
+                        self._config.BASE_MODEL_FILE,
+                        description,
+                    )
+                    cdb_config_path = model_pack_path.replace(
+                        get_model_data_package_extension(model_pack_path),
+                        "_config.json",
+                    )
                     model.cdb.config.save(cdb_config_path)
                     model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
@@ -182,9 +193,11 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     metrics.append({"precision": result.get("precision"), "recall": result.get("recall"), "f1": result.get("f1")})
 
                 if metrics:
-                    self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
-                                                               pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
-                                                               self._model_service._model_name)
+                    self._tracker_client.save_dataframe_as_csv(
+                        "sanity_check_result.csv",
+                        pd.DataFrame(metrics, columns=["category", "precision", "recall", "f1"]),
+                        self._model_service._model_name,
+                    )
                     self._tracker_client.end_with_success()
                     logger.info("Model evaluation finished")
                 else:

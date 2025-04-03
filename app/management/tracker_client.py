@@ -40,14 +40,16 @@ class TrackerClient(object):
             raise NotImplementedError(f"Tracking backend {backend} is not supported.")
 
     @staticmethod
-    def start_tracking(model_name: str,
-                       input_file_name: str,
-                       base_model_original: str,
-                       training_type: str,
-                       training_params: Dict,
-                       run_name: str,
-                       log_frequency: int,
-                       description: Optional[str] = None) -> Tuple[str, str]:
+    def start_tracking(
+        model_name: str,
+        input_file_name: str,
+        base_model_original: str,
+        training_type: str,
+        training_params: Dict,
+        run_name: str,
+        log_frequency: int,
+        description: Optional[str] = None,
+    ) -> Tuple[str, str]:
         """
         Starts tracking a new training or evaluation job.
 
@@ -67,15 +69,18 @@ class TrackerClient(object):
         experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
         try:
-            active_run = mlflow.start_run(experiment_id=experiment_id, tags={
-                MLFLOW_SOURCE_NAME: socket.gethostname(),
-                "mlflow.runName": run_name,
-                "mlflow.note.content": description or "",
-                "training.input_data.filename": input_file_name,
-                "training.base_model.origin": base_model_original,
-                "training.is.tracked": "True",
-                "training.metrics.log_frequency": str(log_frequency),
-            })
+            active_run = mlflow.start_run(
+                experiment_id=experiment_id,
+                tags={
+                    MLFLOW_SOURCE_NAME: socket.gethostname(),
+                    "mlflow.runName": run_name,
+                    "mlflow.note.content": description or "",
+                    "training.input_data.filename": input_file_name,
+                    "training.base_model.origin": base_model_original,
+                    "training.is.tracked": "True",
+                    "training.metrics.log_frequency": str(log_frequency),
+                },
+            )
         except Exception:
             logger.exception("Cannot start a new training")
             raise StartTrainingException("Cannot start a new training")
@@ -124,9 +129,11 @@ class TrackerClient(object):
         mlflow.log_metrics(logs, step)
 
     @staticmethod
-    def save_model_local(local_dir: str,
-                         filepath: str,
-                         model_manager: ModelManager) -> None:
+    def save_model_local(
+        local_dir: str,
+        filepath: str,
+        model_manager: ModelManager,
+    ) -> None:
         """
         Saves a model locally using the model manager.
 
@@ -139,8 +146,7 @@ class TrackerClient(object):
         model_manager.save_model(local_dir, filepath)
 
     @staticmethod
-    def save_model_artifact(filepath: str,
-                            model_name: str) -> None:
+    def save_model_artifact(filepath: str, model_name: str) -> None:
         """
         Saves a model artifact to the tracking backend.
 
@@ -153,8 +159,7 @@ class TrackerClient(object):
         mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts"))
 
     @staticmethod
-    def save_raw_artifact(filepath: str,
-                          model_name: str) -> None:
+    def save_raw_artifact(filepath: str, model_name: str) -> None:
         """
         Saves a raw artifact to the tracking backend.
 
@@ -167,8 +172,7 @@ class TrackerClient(object):
         mlflow.log_artifact(filepath, artifact_path=os.path.join(model_name, "artifacts", "raw"))
 
     @staticmethod
-    def save_processed_artifact(filepath: str,
-                                model_name: str) -> None:
+    def save_processed_artifact(filepath: str, model_name: str) -> None:
         """
         Saves a processed artifact to the tracking backend.
 
@@ -341,14 +345,16 @@ class TrackerClient(object):
         mlflow.log_params(config)
 
     @staticmethod
-    def save_pretrained_model(model_name: str,
-                              model_path: str,
-                              model_manager: ModelManager,
-                              training_type: Optional[str] = "",
-                              run_name: Optional[str] = "",
-                              model_config: Optional[Dict] = None,
-                              model_metrics: Optional[List[Dict]] = None,
-                              model_tags: Optional[Dict] = None, ) -> None:
+    def save_pretrained_model(
+        model_name: str,
+        model_path: str,
+        model_manager: ModelManager,
+        training_type: Optional[str] = "",
+        run_name: Optional[str] = "",
+        model_config: Optional[Dict] = None,
+        model_metrics: Optional[List[Dict]] = None,
+        model_tags: Optional[Dict] = None,
+    ) -> None:
         """
         Saves a pretrained model to the tracking backend and associated metadata.
 
@@ -421,9 +427,11 @@ class TrackerClient(object):
         """
 
         try:
-            runs = mlflow.search_runs(filter_string=f"tags.mlflow.runName = '{job_id}'",
-                                      search_all_experiments=True,
-                                      output_format="list")
+            runs = mlflow.search_runs(
+                filter_string=f"tags.mlflow.runName = '{job_id}'",
+                search_all_experiments=True,
+                output_format="list",
+            )
             if len(runs) == 0:
                 logger.debug("Cannot find any runs with job ID '%s'", job_id)
                 return []
@@ -456,11 +464,13 @@ class TrackerClient(object):
         if batch:
             self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
 
-    def save_model(self,
-                   filepath: str,
-                   model_name: str,
-                   model_manager: ModelManager,
-                   validation_status: str = "pending") -> str:
+    def save_model(
+        self,
+        filepath: str,
+        model_name: str,
+        model_manager: ModelManager,
+        validation_status: str = "pending",
+    ) -> str:
         """
         Saves a model and its information to the tracking backend.
 
@@ -481,10 +491,12 @@ class TrackerClient(object):
         if not mlflow.get_tracking_uri().startswith("file:/"):
             model_manager.log_model(model_name, filepath, model_name)
             versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
-            self.mlflow_client.set_model_version_tag(name=model_name,
-                                                     version=versions[0].version,
-                                                     key="validation_status",
-                                                     value=validation_status)
+            self.mlflow_client.set_model_version_tag(
+                name=model_name,
+                version=versions[0].version,
+                key="validation_status",
+                value=validation_status,
+            )
         else:
             model_manager.log_model(model_name, filepath)
 
@@ -505,9 +517,11 @@ class TrackerClient(object):
         """
 
         try:
-            runs = mlflow.search_runs(filter_string=f"tags.mlflow.runName = '{job_id}'",
-                                      search_all_experiments=True,
-                                      output_format="list")
+            runs = mlflow.search_runs(
+                filter_string=f"tags.mlflow.runName = '{job_id}'",
+                search_all_experiments=True,
+                output_format="list",
+            )
             if len(runs) == 0:
                 logger.debug("Cannot find any runs with job ID '%s'", job_id)
                 return []

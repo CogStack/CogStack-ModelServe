@@ -25,11 +25,13 @@ class TransformersModelDeIdentification(AbstractModelService):
     Consider using `MedCATModelDeIdentification` instead.
     """
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
         super().__init__(config)
         self._config = config
         model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
@@ -60,14 +62,18 @@ class TransformersModelDeIdentification(AbstractModelService):
         return app_version
 
     def info(self) -> ModelCard:
-        return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.TRANSFORMERS_DEID,
-                         api_version=self.api_version)
+        return ModelCard(
+            model_description=self.model_name,
+            model_type=ModelType.TRANSFORMERS_DEID,
+            api_version=self.api_version,
+        )
 
     @staticmethod
-    def load_model(model_file_path: str,
-                   *args: Tuple,
-                   **kwargs: Dict[str, Any]) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
+    def load_model(
+        model_file_path: str,
+        *args: Tuple,
+        **kwargs: Dict[str, Any],
+    ) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)
@@ -107,8 +113,10 @@ class TransformersModelDeIdentification(AbstractModelService):
         annotations: List[Annotation] = []
 
         for dataset, offset_mappings in self._get_chunked_tokens(text):
-            predictions = self._model(torch.tensor([dataset["input_ids"]]).to(device),
-                                      torch.tensor([dataset["attention_mask"]]).to(device))
+            predictions = self._model(
+                torch.tensor([dataset["input_ids"]]).to(device),
+                torch.tensor([dataset["attention_mask"]]).to(device),
+            )
             predictions = softmax(predictions.logits.detach().numpy()[0], axis=-1)
             predictions = np.argmax(predictions, axis=-1)
 
@@ -128,8 +136,10 @@ class TransformersModelDeIdentification(AbstractModelService):
                         annotation.text = t_text
                     if annotations:
                         token_type = self._tokenizer.id2type.get(input_ids[t_idx])
-                        if any([self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),
-                               self._should_expand_with_whole(cas, annotation, annotations)]):
+                        if any([
+                            self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),
+                            self._should_expand_with_whole(cas, annotation, annotations),
+                        ]):
                             annotations[-1].end = annotation.end
                             if ist:
                                 annotations[-1].text = text[annotations[-1].start:annotations[-1].end]
@@ -166,14 +176,18 @@ class TransformersModelDeIdentification(AbstractModelService):
             yield dataset, offset_mappings
 
     @staticmethod
-    def _should_expand_with_partial(cur_cui_id: int,
-                                    cur_token_type: str,
-                                    annotation: Annotation,
-                                    annotations: List[Annotation]) -> bool:
+    def _should_expand_with_partial(
+        cur_cui_id: int,
+        cur_token_type: str,
+        annotation: Annotation,
+        annotations: List[Annotation],
+    ) -> bool:
         return all([cur_cui_id == 1, cur_token_type == "sub", (annotation.start - annotations[-1].end) in [0, 1]])
 
     @staticmethod
-    def _should_expand_with_whole(is_enabled: bool,
-                                  annotation: Annotation,
-                                  annotations: List[Annotation]) -> bool:
+    def _should_expand_with_whole(
+        is_enabled: bool,
+        annotation: Annotation,
+        annotations: List[Annotation],
+    ) -> bool:
         return all([is_enabled, annotation.label_id == annotations[-1].label_id, (annotation.start - annotations[-1].end) in [0, 1]])

@@ -188,14 +188,16 @@ def test_save_pretrained_model(mlflow_fixture):
     tracker_client = TrackerClient("")
     model_manager = Mock()
 
-    tracker_client.save_pretrained_model("model_name",
-                                         "model_path",
-                                         model_manager,
-                                         "training_type",
-                                         "run_name",
-                                         {"param": "value"},
-                                         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
-                                         {"tag_name": "tag_value"})
+    tracker_client.save_pretrained_model(
+        "model_name",
+        "model_path",
+        model_manager,
+        "training_type",
+        "run_name",
+        {"param": "value"},
+        [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
+        {"tag_name": "tag_value"},
+    )
 
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.start_run.assert_called_once_with(experiment_id="experiment_id")
@@ -302,9 +304,11 @@ def test_get_info_by_job_id(mlflow_fixture):
 
     job_info = tracker_client.get_info_by_job_id("job_id")
 
-    mlflow.search_runs.assert_called_once_with(filter_string="tags.mlflow.runName = 'job_id'",
-                                               search_all_experiments=True,
-                                               output_format="list")
+    mlflow.search_runs.assert_called_once_with(
+        filter_string="tags.mlflow.runName = 'job_id'",
+        search_all_experiments=True,
+        output_format="list",
+    )
     assert len(job_info) == 1
     assert job_info[0]["tags"] == {"tag": "tag"}
 
@@ -318,20 +322,23 @@ def test_get_metrics_by_job_id(mlflow_fixture):
         ],
         [
             mlflow.entities.Metric("recall", 0.9896606632947247, 0, 0),
-            mlflow.entities.Metric("recall", 0.9896606632947247, 1, 1)
+            mlflow.entities.Metric("recall", 0.9896606632947247, 1, 1),
         ],
         [
             mlflow.entities.Metric("f1", 0.9934285636532457, 0, 0),
-            mlflow.entities.Metric("f1", 0.9934285636532457, 1, 1)],
+            mlflow.entities.Metric("f1", 0.9934285636532457, 1, 1),
+        ],
     ]
     tracker_client = TrackerClient("")
     tracker_client.mlflow_client = mlflow_client
 
     metrics = tracker_client.get_metrics_by_job_id("job_id")
 
-    mlflow.search_runs.assert_called_once_with(filter_string="tags.mlflow.runName = 'job_id'",
-                                               search_all_experiments=True,
-                                               output_format="list")
+    mlflow.search_runs.assert_called_once_with(
+        filter_string="tags.mlflow.runName = 'job_id'",
+        search_all_experiments=True,
+        output_format="list",
+    )
     assert len(mlflow_client.get_metric_history.call_args_list) == 3
     assert mlflow_client.get_metric_history.call_args_list[0] == call(run_id="run_id", key="precision")
     assert mlflow_client.get_metric_history.call_args_list[1] == call(run_id="run_id", key="recall")

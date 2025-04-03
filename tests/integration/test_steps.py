@@ -105,23 +105,29 @@ def check_status_code(context, body, status_code):
 
 @when(data_table("I send a POST request with the following content", fixture="request", orient="dict"))
 def send_post_request(context, request):
-    context["response"] = requests.post(f"{context['base_url']}{request[0]['endpoint']}",
-                                        data=request[0]["data"],
-                                        headers={"Content-Type": request[0]["content_type"]})
+    context["response"] = requests.post(
+        f"{context['base_url']}{request[0]['endpoint']}",
+        data=request[0]["data"],
+        headers={"Content-Type": request[0]["content_type"]},
+    )
 
 @when(data_table("I send a POST request with the following jsonlines content", fixture="request", orient="dict"))
 def send_post_request(context, request):
-    context["response"] = requests.post(f"{context['base_url']}{request[0]['endpoint']}",
-                                        data=request[0]["data"].replace("\\n", "\n"),
-                                        headers={"Content-Type": request[0]["content_type"]})
+    context["response"] = requests.post(
+        f"{context['base_url']}{request[0]['endpoint']}",
+        data=request[0]["data"].replace("\\n", "\n"),
+        headers={"Content-Type": request[0]["content_type"]},
+    )
 
 @when(data_table("I send a POST request with the following content where data as a file", fixture="request", orient="dict"))
 def send_post_request_file(context, request):
     with tempfile.NamedTemporaryFile(mode="w+") as f:
         f.write(request[0]["data"])
         f.seek(0)
-        context["response"] = requests.post(f"{context['base_url']}{request[0]['endpoint']}",
-                                            files=[("multi_text_file", f)])
+        context["response"] = requests.post(
+            f"{context['base_url']}{request[0]['endpoint']}",
+            files=[("multi_text_file", f)],
+        )
 
 @then("the response should contain json lines")
 def check_response_jsonl(context):
@@ -292,9 +298,11 @@ def check_response_annotation_stats(context):
 @async_to_sync
 async def send_async_post_request(context_stream, request):
     async with httpx.AsyncClient(base_url=context_stream["base_url"]) as ac:
-        context_stream["response"] = await ac.post(f"{context_stream['base_url']}{request[0]['endpoint']}",
-                                                   data=request[0]["data"].replace("\\n", "\n").encode("utf-8"),
-                                                   headers={"Content-Type": request[0]["content_type"]})
+        context_stream["response"] = await ac.post(
+            f"{context_stream['base_url']}{request[0]['endpoint']}",
+            data=request[0]["data"].replace("\\n", "\n").encode("utf-8"),
+            headers={"Content-Type": request[0]["content_type"]},
+        )
 
 @then("the response should contain annotation stream")
 @async_to_sync

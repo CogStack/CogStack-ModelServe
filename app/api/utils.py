@@ -59,7 +59,10 @@ def add_exception_handlers(app: FastAPI) -> None:
             JSONResponse: A JSON response with a 429 status code and an error message.
         """
         logger.exception(exception)
-        return JSONResponse(status_code=HTTP_429_TOO_MANY_REQUESTS, content={"message": "Too many requests. Please wait and try your request again."})
+        return JSONResponse(
+            status_code=HTTP_429_TOO_MANY_REQUESTS,
+            content={"message": "Too many requests. Please wait and try your request again."},
+        )
 
     @app.exception_handler(StartTrainingException)
     async def start_training_exception_handler(_: Request, exception: StartTrainingException) -> JSONResponse:
@@ -182,7 +185,10 @@ def get_rate_limiter(config: Settings, auth_user_enabled: Optional[bool] = None)
         return limiter_key
 
     auth_user_enabled = config.AUTH_USER_ENABLED == "true" if auth_user_enabled is None else auth_user_enabled
-    return Limiter(key_func=_get_user_auth, strategy="moving-window") if auth_user_enabled else Limiter(key_func=get_remote_address, strategy="moving-window")
+    if auth_user_enabled:
+        return Limiter(key_func=_get_user_auth, strategy="moving-window")
+    else:
+        return Limiter(key_func=get_remote_address, strategy="moving-window")
 
 
 def adjust_rate_limit_str(rate_limit: str) -> str:
@@ -215,8 +221,10 @@ def encrypt(raw: str, public_key_pem: str) -> str:
     """
 
     public_key = serialization.load_pem_public_key(public_key_pem.encode(), backend=default_backend)
-    encrypted = public_key.encrypt(raw.encode(),  # type: ignore
-                                   padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    encrypted = public_key.encrypt(    # type: ignore
+        raw.encode(),
+        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
+    )
     return base64.b64encode(encrypted).decode()
 
 
@@ -233,6 +241,8 @@ def decrypt(b64_encoded: str, private_key_pem: str) -> str:
     """
 
     private_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
-    decrypted = private_key.decrypt(base64.b64decode(b64_encoded),  # type: ignore
-                                    padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    decrypted = private_key.decrypt(    # type: ignore
+        base64.b64decode(b64_encoded),
+        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
+    )
     return decrypted.decode()

@@ -24,12 +24,14 @@ class MedCATModelDeIdentification(MedCATModel):
     CHUNK_SIZE = 500
     LEFT_CONTEXT_WORDS = 5
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        enable_trainer: Optional[bool] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
         """
         Initialises the MedCAT De-Identification (AnonCAT) model service with specified configurations.
 
@@ -62,10 +64,12 @@ class MedCATModelDeIdentification(MedCATModel):
 
         model_card = self.model.get_model_card(as_dict=True)
         model_card["Basic CDB Stats"]["Average training examples per concept"] = 0
-        return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.ANONCAT,
-                         api_version=self.api_version,
-                         model_card=model_card)
+        return ModelCard(
+            model_description=self.model_name,
+            model_type=ModelType.ANONCAT,
+            api_version=self.api_version,
+            model_card=model_card,
+        )
 
     def annotate(self, text: str) -> List[Annotation]:
         """
@@ -180,12 +184,14 @@ class MedCATModelDeIdentification(MedCATModel):
             if non_default_device_is_available(self._config.DEVICE):
                 self._model.config.general["device"] = self._config.DEVICE
                 self._model._addl_ner[0].model.to(torch.device(self._config.DEVICE))
-                self._model._addl_ner[0].ner_pipe = pipeline(model=self._model._addl_ner[0].model,
-                                                             framework="pt",
-                                                             task="ner",
-                                                             tokenizer=self._model._addl_ner[0].tokenizer.hf_tokenizer,
-                                                             device=get_hf_pipeline_device_id(self._config.DEVICE),
-                                                             aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY)
+                self._model._addl_ner[0].ner_pipe = pipeline(
+                    model=self._model._addl_ner[0].model,
+                    framework="pt",
+                    task="ner",
+                    tokenizer=self._model._addl_ner[0].tokenizer.hf_tokenizer,
+                    device=get_hf_pipeline_device_id(self._config.DEVICE),
+                    aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
+                )
             else:
                 if self._config.DEVICE != "default":
                     logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", self._config.DEVICE)
@@ -195,16 +201,18 @@ class MedCATModelDeIdentification(MedCATModel):
             if self._enable_trainer:
                 self._supervised_trainer = MedcatDeIdentificationSupervisedTrainer(self)
 
-    def train_supervised(self,
-                         data_file: TextIO,
-                         epochs: int,
-                         log_frequency: int,
-                         training_id: str,
-                         input_file_name: str,
-                         raw_data_files: Optional[List[TextIO]] = None,
-                         description: Optional[str] = None,
-                         synchronised: bool = False,
-                         **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_supervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates supervised training on the model.
 
@@ -225,6 +233,7 @@ class MedCATModelDeIdentification(MedCATModel):
         Raises:
             ConfigurationException: If the supervised trainer is not enabled.
         """
+
         if self._supervised_trainer is None:
             raise ConfigurationException("Trainers are not enabled")
         return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)

@@ -6,11 +6,13 @@ from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrain
 
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
-model_service = create_autospec(HuggingFaceNerModel,
-                                _config=Settings(),
-                                _model_parent_dir=model_parent_dir,
-                                _enable_trainer=True,
-                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"))
+model_service = create_autospec(
+    HuggingFaceNerModel,
+    _config=Settings(),
+    _model_parent_dir=model_parent_dir,
+    _enable_trainer=True,
+    _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
+)
 unsupervised_trainer = HuggingFaceNerUnsupervisedTrainer(model_service)
 unsupervised_trainer.model_name = "unsupervised_trainer"
 supervised_trainer = HuggingFaceNerSupervisedTrainer(model_service)

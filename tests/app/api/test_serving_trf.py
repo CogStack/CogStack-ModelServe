@@ -66,9 +66,11 @@ def test_process(model_service, client):
     })]
     model_service.annotate.return_value = annotations
 
-    response = client.post("/process",
-                           data="NW1 2BU",
-                           headers={"Content-Type": "text/plain"})
+    response = client.post(
+        "/process",
+        data="NW1 2BU",
+        headers={"Content-Type": "text/plain"},
+    )
 
     assert response.json() == {
         "text": "NW1 2BU",
@@ -132,9 +134,11 @@ def test_preview(model_service, client):
     model_service.annotate.return_value = annotations
     model_service.model_name = "De-Identification Model"
 
-    response = client.post("/preview",
-                           data="NW1 2BU",
-                           headers={"Content-Type": "text/plain"})
+    response = client.post(
+        "/preview",
+        data="NW1 2BU",
+        headers={"Content-Type": "text/plain"},
+    )
 
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "application/octet-stream"

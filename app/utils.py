@@ -33,6 +33,7 @@ def get_settings() -> Settings:
     """
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+    os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
     return Settings()
 
 
@@ -73,13 +74,15 @@ def annotations_to_entities(annotations: List[Annotation], model_name: str) -> L
     entities = []
     code_base_uri = get_code_base_uri(model_name)
     for _, annotation in enumerate(annotations):
-        entities.append(Entity(
-            start=annotation.start,
-            end=annotation.end,
-            label=annotation.label_name,
-            kb_id=annotation.label_id,
-            kb_url=f"{code_base_uri}/{annotation.label_id}" if code_base_uri is not None else "#"
-        ))
+        entities.append(
+            Entity(
+                start=annotation.start,
+                end=annotation.end,
+                label=annotation.label_name,
+                kb_id=annotation.label_id,
+                kb_url=f"{code_base_uri}/{annotation.label_id}" if code_base_uri is not None else "#",
+            )
+        )
     return entities
 
 
@@ -134,14 +137,16 @@ def json_normalize_trainer_export(trainer_export: Dict) -> pd.DataFrame:
         pd.DataFrame: A DataFrame with normalised data from the trainer export.
     """
 
-    return pd.json_normalize(trainer_export,
-                             record_path=["projects", "documents", "annotations"],
-                             meta=[
-                                 ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
-                                 ["projects", "documents", "id"], ["projects", "documents", "name"],
-                                 ["projects", "documents", "text"], ["projects", "documents", "last_modified"]
-                             ],
-                             sep=".")
+    return pd.json_normalize(
+        trainer_export,
+        record_path=["projects", "documents", "annotations"],
+        meta=[
+            ["projects", "name"], ["projects", "id"], ["projects", "cuis"], ["projects", "tuis"],
+            ["projects", "documents", "id"], ["projects", "documents", "name"],
+            ["projects", "documents", "text"], ["projects", "documents", "last_modified"],
+        ],
+        sep=".",
+    )
 
 
 def json_normalize_medcat_entities(medcat_entities: Dict) -> pd.DataFrame:
@@ -191,9 +196,11 @@ def json_denormalize(df: pd.DataFrame, sep: str = ".") -> List[Dict]:
     return result
 
 
-def filter_by_concept_ids(trainer_export: Dict[str, Any],
-                          model_type: Optional[ModelType] = None,
-                          extra_excluded: Optional[List[str]] = None) -> Dict[str, Any]:
+def filter_by_concept_ids(
+    trainer_export: Dict[str, Any],
+    model_type: Optional[ModelType] = None,
+    extra_excluded: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """
     Filters annotations in the trainer export based on concept IDs and model type provided.
 
@@ -267,12 +274,14 @@ def replace_spans_of_concept(trainer_export: Dict[str, Any], concept_id: str, tr
     return copied
 
 
-def breakdown_annotations(trainer_export: Dict[str, Any],
-                          target_concept_ids: List[str],
-                          primary_delimiter: str,
-                          secondary_delimiter: Optional[str] = None,
-                          *,
-                          include_delimiter: bool = True) -> Dict[str, Any]:
+def breakdown_annotations(
+    trainer_export: Dict[str, Any],
+    target_concept_ids: List[str],
+    primary_delimiter: str,
+    secondary_delimiter: Optional[str] = None,
+    *,
+    include_delimiter: bool = True,
+) -> Dict[str, Any]:
     """
     Breaks down annotations in the trainer export based on specified delimiters.
 
@@ -328,7 +337,12 @@ def breakdown_annotations(trainer_export: Dict[str, Any],
     return copied
 
 
-def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[List]], *, case_sensitive: bool = True) -> Dict:
+def augment_annotations(
+    trainer_export: Dict,
+    cui_regexes_lists: Dict[str, List[List]],
+    *,
+    case_sensitive: bool = True,
+) -> Dict:
     """
     Augments annotations in the trainer export based on the provided concept regex patterns.
 
@@ -387,8 +401,10 @@ def augment_annotations(trainer_export: Dict, cui_regexes_lists: Dict[str, List[
     return copied
 
 
-def safetensors_to_pytorch(safetensors_file_path: Union[str, os.PathLike],
-                           pytorch_file_path: Union[str, os.PathLike]) -> None:
+def safetensors_to_pytorch(
+    safetensors_file_path: Union[str, os.PathLike],
+    pytorch_file_path: Union[str, os.PathLike],
+) -> None:
     """
     Converts a safetensors file to a PyTorch file.
 
@@ -476,7 +492,7 @@ def non_default_device_is_available(device: str) -> bool:
     return any([
         device.startswith(Device.GPU.value) and torch.cuda.is_available(),
         device.startswith(Device.MPS.value) and torch.backends.mps.is_available(),
-        device.startswith(Device.CPU.value)
+        device.startswith(Device.CPU.value),
     ])
 
 

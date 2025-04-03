@@ -56,9 +56,11 @@ class ModelManager(PythonModel):
         self._model_service_type = model_service_type
         self._config = config
         self._model_service: Optional[AbstractModelService] = None
-        self._model_signature = ModelSignature(inputs=ModelManager.input_schema,
-                                               outputs=ModelManager.output_schema,
-                                               params=None)
+        self._model_signature = ModelSignature(
+            inputs=ModelManager.input_schema,
+            outputs=ModelManager.output_schema,
+            params=None,
+        )
 
     @property
     def model_service(self) -> Optional[AbstractModelService]:
@@ -76,8 +78,7 @@ class ModelManager(PythonModel):
         return self._model_signature
 
     @staticmethod
-    def retrieve_python_model_from_uri(mlflow_model_uri: str,
-                                       config: Settings) -> PythonModel:
+    def retrieve_python_model_from_uri(mlflow_model_uri: str, config: Settings) -> PythonModel:
         """
         Retrieves the PythonModel instance from the specified MLflow model URI.
 
@@ -96,9 +97,11 @@ class ModelManager(PythonModel):
         return pyfunc_model._model_impl.python_model
 
     @staticmethod
-    def retrieve_model_service_from_uri(mlflow_model_uri: str,
-                                        config: Settings,
-                                        downloaded_model_path: Optional[str] = None) -> AbstractModelService:
+    def retrieve_model_service_from_uri(
+        mlflow_model_uri: str,
+        config: Settings,
+        downloaded_model_path: Optional[str] = None,
+    ) -> AbstractModelService:
         """
         Retrieves the model service from the specified MLflow model URI.
 
@@ -151,10 +154,12 @@ class ModelManager(PythonModel):
                     f"Cannot find the model package file inside artifacts downloaded from {model_artifact_uri}"
                 )
 
-    def log_model(self,
-                  model_name: str,
-                  model_path: str,
-                  registered_model_name: Optional[str] = None) -> ModelInfo:
+    def log_model(
+        self,
+        model_name: str,
+        model_path: str,
+        registered_model_name: Optional[str] = None,
+    ) -> ModelInfo:
         """
         Logs the model with the specified name and local path to MLflow.
 
@@ -204,16 +209,20 @@ class ModelManager(PythonModel):
         """
 
         artifact_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        model_service = self._model_service_type(self._config,
-                                                 model_parent_dir=os.path.join(artifact_root, os.path.split(context.artifacts["model_path"])[0]),
-                                                 base_model_file=os.path.split(context.artifacts["model_path"])[1])
+        model_service = self._model_service_type(
+            self._config,
+            model_parent_dir=os.path.join(artifact_root, os.path.split(context.artifacts["model_path"])[0]),
+            base_model_file=os.path.split(context.artifacts["model_path"])[1],
+        )
         model_service.init_model()
         self._model_service = model_service
 
-    def predict(self,
-                context: PythonModelContext,
-                model_input: DataFrame,
-                params: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    def predict(
+        self,
+        context: PythonModelContext,
+        model_input: DataFrame,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> pd.DataFrame:
         """
         Predicts using the model service for the provided input data.
 
@@ -239,10 +248,12 @@ class ModelManager(PythonModel):
         df = df.iloc[:, df.columns.isin(ModelManager.output_schema.input_names())]
         return df
 
-    def predict_stream(self,
-                       context: PythonModelContext,
-                       model_input: DataFrame,
-                       params: Optional[Dict[str, Any]] = None) -> Iterator[Dict[str, Any]]:
+    def predict_stream(
+       self,
+       context: PythonModelContext,
+       model_input: DataFrame,
+       params: Optional[Dict[str, Any]] = None,
+    ) -> Iterator[Dict[str, Any]]:
         """
         Predicts using the model service for the provided input data and yields results one by one.
 

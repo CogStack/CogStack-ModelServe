@@ -32,7 +32,7 @@ class AnnotationDatasetBuilder(datasets.GeneratorBasedBuilder):
                     "ends": datasets.Value("string"),   # Mlflow ColSpec schema does not support HF Dataset Sequence
                     "labels": datasets.Value("string"), # Mlflow ColSpec schema does not support HF Dataset Sequence
                 }
-            )
+            ),
         )
 
     def _split_generators(self, _: datasets.DownloadManager) -> List[datasets.SplitGenerator]:

@@ -49,15 +49,17 @@ cmd_app.add_typer(package_app, name="package")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
-def serve_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                model_path: str = typer.Option("", help="The file path to the model package"),
-                mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
-                host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
-                port: str = typer.Option("8000", help="The port of the server"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
-                device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
-                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def serve_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    model_path: str = typer.Option("", help="The file path to the model package"),
+    mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
+    host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
+    port: str = typer.Option("8000", help="The port of the server"),
+    model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+    streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
+    device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     """
     Starts model serving endpoints.
 
@@ -128,18 +130,20 @@ def serve_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
 
 @cmd_app.command("train", help="This pretrains or fine-tunes various CogStack NLP models")
-def train_model(model_type: ModelType = typer.Option(..., help="The type of the model to train"),
-                base_model_path: str = typer.Option("", help="The file path to the base model package to be trained on"),
-                mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to train", metavar="models:/MODEL_NAME/ENV"),
-                training_type: TrainingType = typer.Option(..., help="The type of training"),
-                data_file_path: str = typer.Option(..., help="The path to the training asset file"),
-                epochs: int = typer.Option(1, help="The number of training epochs"),
-                log_frequency: int = typer.Option(1, help="The number of processed documents or epochs after which training metrics will be logged"),
-                hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
-                description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
-                model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-                device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
-                debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def train_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to train"),
+    base_model_path: str = typer.Option("", help="The file path to the base model package to be trained on"),
+    mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to train", metavar="models:/MODEL_NAME/ENV"),
+    training_type: TrainingType = typer.Option(..., help="The type of training"),
+    data_file_path: str = typer.Option(..., help="The path to the training asset file"),
+    epochs: int = typer.Option(1, help="The number of training epochs"),
+    log_frequency: int = typer.Option(1, help="The number of processed documents or epochs after which training metrics will be logged"),
+    hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
+    description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
+    model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+    device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     """
     Executes model retraining or fine-tuning.
 
@@ -204,14 +208,16 @@ def train_model(model_type: ModelType = typer.Option(..., help="The type of the 
 
 
 @cmd_app.command("register", help="This pushes a pretrained NLP model to the CogStack ModelServe registry")
-def register_model(model_type: ModelType = typer.Option(..., help="The type of the model to register"),
-                   model_path: str = typer.Option(..., help="The file path to the model package"),
-                   model_name: str = typer.Option(..., help="The string representation of the registered model"),
-                   training_type: Optional[TrainingType] = typer.Option(None, help="The type of training the model went through"),
-                   model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
-                   model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
-                   model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
-                   debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def register_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to register"),
+    model_path: str = typer.Option(..., help="The file path to the model package"),
+    model_name: str = typer.Option(..., help="The string representation of the registered model"),
+    training_type: Optional[TrainingType] = typer.Option(None, help="The type of training the model went through"),
+    model_config: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
+    model_metrics: Optional[str] = typer.Option(None, help="The string representation of a JSON array"),
+    model_tags: Optional[str] = typer.Option(None, help="The string representation of a JSON object"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     """
     Registers a pretrained model with the model registry.
 
@@ -244,22 +250,26 @@ def register_model(model_type: ModelType = typer.Option(..., help="The type of t
     t_type = training_type if training_type is not None else ""
 
     run_name = str(uuid.uuid4())
-    tracker_client.save_pretrained_model(model_name=model_name,
-                                         model_path=model_path,
-                                         model_manager=ModelManager(model_service_type, config),
-                                         training_type=t_type,
-                                         run_name=run_name,
-                                         model_config=m_config,
-                                         model_metrics=m_metrics,
-                                         model_tags=m_tags)
+    tracker_client.save_pretrained_model(
+        model_name=model_name,
+        model_path=model_path,
+        model_manager=ModelManager(model_service_type, config),
+        training_type=t_type,
+        run_name=run_name,
+        model_config=m_config,
+        model_metrics=m_metrics,
+        model_tags=m_tags,
+    )
     typer.echo(f"Pushed {model_path} as a new model version ({run_name})")
 
 
 @stream_app.command("json-lines", help="This gets NER entities as a JSON Lines stream")
-def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
-                             base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
-                             timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
-                             debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def stream_jsonl_annotations(
+    jsonl_file_path: str = typer.Option(..., help="The path to the JSON Lines file"),
+    base_url: str = typer.Option("http://127.0.0.1:8000", help="The CMS base url"),
+    timeout_in_secs: int = typer.Option(0, help="The max time to wait before disconnection"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     """
     Streams NER entities extracted from a JSON Lines file.
 
@@ -278,10 +288,12 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
             try:
                 async with aiohttp.ClientSession() as session:
                     timeout = aiohttp.ClientTimeout(total=timeout_in_secs)
-                    async with session.post(f"{base_url}/stream/process",
-                                            data=file.read().encode("utf-8"),
-                                            headers=headers,
-                                            timeout=timeout) as response:
+                    async with session.post(
+                        f"{base_url}/stream/process",
+                        data=file.read().encode("utf-8"),
+                        headers=headers,
+                        timeout=timeout,
+                    ) as response:
                         response.raise_for_status()
                         async for line in response.content:
                             typer.echo(line.decode("utf-8"), nl=False)
@@ -294,8 +306,10 @@ def stream_jsonl_annotations(jsonl_file_path: str = typer.Option(..., help="The 
 
 
 @stream_app.command("chat", help="This gets NER entities by chatting with the model")
-def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url"),
-                                  debug: Optional[bool] = typer.Option(None, help="Run in the debug mode")) -> None:
+def chat_to_get_jsonl_annotations(
+    base_url: str = typer.Option("ws://127.0.0.1:8000", help="The CMS base url"),
+    debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
+) -> None:
     """
     Streams NER entities extracted from a text input by the user in the interactive mode.
 
@@ -346,14 +360,16 @@ def chat_to_get_jsonl_annotations(base_url: str = typer.Option("ws://127.0.0.1:8
 
 
 @cmd_app.command("export-model-apis", help="This generates a model-specific API document for enabled endpoints")
-def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-                               add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
-                               add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
-                               add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
-                               add_user_authentication: bool = typer.Option(False, help="Add user authentication APIs to the doc"),
-                               exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
-                               exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
-                               model_name: Optional[str] = typer.Option(None, help="The string representation of the model name")) -> None:
+def generate_api_doc_per_model(
+    model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
+    add_training_apis: bool = typer.Option(False, help="Add training APIs to the doc"),
+    add_evaluation_apis: bool = typer.Option(False, help="Add evaluation APIs to the doc"),
+    add_previews_apis: bool = typer.Option(False, help="Add preview APIs to the doc"),
+    add_user_authentication: bool = typer.Option(False, help="Add user authentication APIs to the doc"),
+    exclude_unsupervised_training: bool = typer.Option(False, help="Exclude the unsupervised training API"),
+    exclude_metacat_training: bool = typer.Option(False, help="Exclude the metacat training API"),
+    model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
+) -> None:
     """
     Generates a model-specific API document for enabled endpoints.
 
@@ -393,12 +409,14 @@ def generate_api_doc_per_model(model_type: ModelType = typer.Option(..., help="T
 
 
 @package_app.command("hf-model", help="This packages a remotely hosted or locally cached Hugging Face model into a model package")
-def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of the model to download from Hugging Face Hub, e.g., 'google-bert/bert-base-cased'"),
-                  hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
-                  cached_model_dir: str = typer.Option("", help="The path to the cached model directory, will only be used if --hf-repo-id is not provided"),
-                  output_model_package: str = typer.Option("", help="The path where the model package will be saved, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
-                  archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
-                  remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved")) -> None:
+def package_model(
+    hf_repo_id: str = typer.Option("",  help="The repository ID of the model to download from Hugging Face Hub, e.g., 'google-bert/bert-base-cased'"),
+    hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
+    cached_model_dir: str = typer.Option("", help="The path to the cached model directory, will only be used if --hf-repo-id is not provided"),
+    output_model_package: str = typer.Option("", help="The path where the model package will be saved, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
+    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
+    remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
+) -> None:
     """
     Packages and saves a Hugging Face model into a specified archive format.
 
@@ -443,13 +461,15 @@ def package_model(hf_repo_id: str = typer.Option("",  help="The repository ID of
 
 
 @package_app.command("hf-dataset", help="This packages a remotely hosted or locally cached Hugging Face dataset into a dataset package")
-def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository ID of the dataset to download from Hugging Face Hub, e.g., 'stanfordnlp/imdb'"),
-                    hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
-                    cached_dataset_dir: str = typer.Option("", help="The path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
-                    output_dataset_package: str = typer.Option("", help="The path where the dataset package will be saved, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
-                    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the dataset package, e.g., 'zip' or 'gztar'"),
-                    remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
-                    trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset")) -> None:
+def package_dataset(
+    hf_dataset_id: str = typer.Option("", help="The repository ID of the dataset to download from Hugging Face Hub, e.g., 'stanfordnlp/imdb'"),
+    hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
+    cached_dataset_dir: str = typer.Option("", help="The path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
+    output_dataset_package: str = typer.Option("", help="The path where the dataset package will be saved, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
+    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the dataset package, e.g., 'zip' or 'gztar'"),
+    remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
+    trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset"),
+) -> None:
     """
     Packages a dataset from Hugging Face Hub or a local cached directory into a specified archive format.
 
@@ -483,8 +503,12 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
             if hf_dataset_revision == "":
                 dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, trust_remote_code=trust_remote_code)
             else:
-                dataset = load_dataset(path=hf_dataset_id, cache_dir=cache_dir, revision=hf_dataset_revision,
-                                       trust_remote_code=trust_remote_code)
+                dataset = load_dataset(
+                    path=hf_dataset_id,
+                    cache_dir=cache_dir,
+                    revision=hf_dataset_revision,
+                    trust_remote_code=trust_remote_code,
+                )
 
             dataset.save_to_disk(cached_dataset_path)
             shutil.make_archive(dataset_package_archive, archive_format.value, cached_dataset_path)
@@ -499,16 +523,18 @@ def package_dataset(hf_dataset_id: str = typer.Option("", help="The repository I
 
 
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
-def build_image(dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
-                context_dir: str = typer.Option(..., help="The directory containing the set of files accessible to the build"),
-                model_name: str = typer.Option("CMS model", help="The string representation of the model name"),
-                user_id: int = typer.Option(1000, help="The ID for the non-root user"),
-                group_id: int = typer.Option(1000, help="The group ID for the non-root user"),
-                http_proxy: str = typer.Option("", help="The string representation of the HTTP proxy"),
-                https_proxy: str = typer.Option("", help="The string representation of the HTTPS proxy"),
-                no_proxy: str = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
-                version_tag: str = typer.Option("latest", help="The version tag of the built image"),
-                backend: BuildBackend = typer.Option(BuildBackend.DOCKER.value, help="The backend used for building the image")) -> None:
+def build_image(
+    dockerfile_path: str = typer.Option(..., help="The path to the Dockerfile"),
+    context_dir: str = typer.Option(..., help="The directory containing the set of files accessible to the build"),
+    model_name: str = typer.Option("CMS model", help="The string representation of the model name"),
+    user_id: int = typer.Option(1000, help="The ID for the non-root user"),
+    group_id: int = typer.Option(1000, help="The group ID for the non-root user"),
+    http_proxy: str = typer.Option("", help="The string representation of the HTTP proxy"),
+    https_proxy: str = typer.Option("", help="The string representation of the HTTPS proxy"),
+    no_proxy: str = typer.Option("localhost,127.0.0.1", help="The string representation of addresses by-passing proxies"),
+    version_tag: str = typer.Option("latest", help="The version tag of the built image"),
+    backend: BuildBackend = typer.Option(BuildBackend.DOCKER.value, help="The backend used for building the image"),
+) -> None:
     """
     Builds an OCI-compliant container image for CMS using the specified backend.
 
@@ -539,13 +565,15 @@ def build_image(dockerfile_path: str = typer.Option(..., help="The path to the D
         '--build-arg', f'NO_PROXY={no_proxy}',
         context_dir,
     ]
-    with subprocess.Popen(cmd,
-                          shell=False,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
-                          close_fds=True,
-                          universal_newlines=True,
-                          bufsize=1) as process:
+    with subprocess.Popen(
+        cmd,
+        shell=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        close_fds=True,
+        universal_newlines=True,
+        bufsize=1,
+    ) as process:
         assert process is not None
         try:
             while True:
@@ -621,9 +649,11 @@ def show_banner() -> None:
     typer.echo(banner)
 
 
-def _get_logger(debug: Optional[bool] = None,
-                model_type: Optional[ModelType] = None,
-                model_name: Optional[str] = None) -> logging.Logger:
+def _get_logger(
+    debug: Optional[bool] = None,
+    model_type: Optional[ModelType] = None,
+    model_name: Optional[str] = None,
+) -> logging.Logger:
     if debug is not None:
         get_settings().DEBUG = "true" if debug else "false"
     if get_settings().DEBUG != "true":

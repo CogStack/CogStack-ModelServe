@@ -68,17 +68,19 @@ class TrainerCommon(object):
         return self._tracker_client
 
     @final
-    def start_training(self,
-                       run: Callable,
-                       training_type: str,
-                       training_params: Dict,
-                       data_file: Union[TextIO, tempfile.TemporaryDirectory],
-                       log_frequency: int,
-                       training_id: str,
-                       input_file_name: str,
-                       raw_data_files: Optional[List[TextIO]] = None,
-                       description: Optional[str] = None,
-                       synchronised: bool = False) -> Tuple[bool, str, str]:
+    def start_training(
+        self,
+        run: Callable,
+        training_type: str,
+        training_params: Dict,
+        data_file: Union[TextIO, tempfile.TemporaryDirectory],
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+    ) -> Tuple[bool, str, str]:
         """
         Starts the training process.
 
@@ -128,22 +130,26 @@ class TrainerCommon(object):
                         self._tracker_client.save_train_dataset(dataset)
                     elif training_type == TrainingType.UNSUPERVISED.value:
                         try:
-                            dataset = datasets.load_dataset(doc_dataset.__file__,
-                                                            data_files={"documents": data_file.name},
-                                                            split="train",
-                                                            cache_dir=self._config.TRAINING_CACHE_DIR,
-                                                            trust_remote_code=True)
+                            dataset = datasets.load_dataset(
+                                doc_dataset.__file__,
+                                data_files={"documents": data_file.name},
+                                split="train",
+                                cache_dir=self._config.TRAINING_CACHE_DIR,
+                                trust_remote_code=True,
+                            )
                             self._tracker_client.save_train_dataset(dataset)
                         finally:
                             if dataset is not None:
                                 dataset.cleanup_cache_files()
                     elif training_type == TrainingType.SUPERVISED.value:
                         try:
-                            dataset = datasets.load_dataset(anno_dataset.__file__,
-                                                            data_files={"annotations": data_file.name},
-                                                            split="train",
-                                                            cache_dir=self._config.TRAINING_CACHE_DIR,
-                                                            trust_remote_code=True)
+                            dataset = datasets.load_dataset(
+                                anno_dataset.__file__,
+                                data_files={"annotations": data_file.name},
+                                split="train",
+                                cache_dir=self._config.TRAINING_CACHE_DIR,
+                                trust_remote_code=True,
+                            )
                             self._tracker_client.save_train_dataset(dataset)
                         finally:
                             if dataset is not None:
@@ -155,21 +161,31 @@ class TrainerCommon(object):
                 self._training_in_progress = True
 
         if not synchronised:
-            asyncio.ensure_future(loop.run_in_executor(self._executor,
-                                                       partial(run,
-                                                               training_params,
-                                                               data_file,
-                                                               log_frequency,
-                                                               self.run_id,
-                                                               description)))
+            asyncio.ensure_future(
+                loop.run_in_executor(
+                    self._executor,
+                    partial(
+                        run,
+                        training_params,
+                        data_file,
+                        log_frequency,
+                        self.run_id,
+                        description,
+                    ),
+                )
+            )
             return True, self.experiment_id, self.run_id
         else:
-            training_task = self._executor.submit(partial(run,
-                                                          training_params,
-                                                          data_file,
-                                                          log_frequency,
-                                                          self.run_id,
-                                                          description))
+            training_task = self._executor.submit(
+                partial(
+                    run,
+                    training_params,
+                    data_file,
+                    log_frequency,
+                    self.run_id,
+                    description,
+                )
+            )
             try:
                 training_task.result()
                 logger.info("Training task completed with training ID: %s", training_id)
@@ -198,8 +214,10 @@ class TrainerCommon(object):
     @staticmethod
     def _make_model_file_copy(model_file_path: str, run_id: str) -> str:
         model_pack_file_ext = get_model_data_package_extension(model_file_path)
-        copied_model_pack_path = model_file_path.replace(model_pack_file_ext,
-                                                         f"_copied_{run_id}{model_pack_file_ext}")
+        copied_model_pack_path = model_file_path.replace(
+            model_pack_file_ext,
+            f"_copied_{run_id}{model_pack_file_ext}",
+        )
         shutil.copy2(model_file_path, copied_model_pack_path)
         if os.path.exists(copied_model_pack_path.replace(model_pack_file_ext, "")):
             shutil.rmtree(copied_model_pack_path.replace(model_pack_file_ext, ""))
@@ -248,16 +266,18 @@ class SupervisedTrainer(ABC, TrainerCommon):
         """
         super().__init__(config, model_name)
 
-    def train(self,
-              data_file: TextIO,
-              epochs: int,
-              log_frequency: int,
-              training_id: str,
-              input_file_name: str,
-              raw_data_files: Optional[List[TextIO]] = None,
-              description: Optional[str] = None,
-              synchronised: bool = False,
-              **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Starts the supervised training process.
 
@@ -283,24 +303,28 @@ class SupervisedTrainer(ABC, TrainerCommon):
             "nepochs": epochs,
             **hyperparams,
         }
-        return self.start_training(run=self.run,
-                                   training_type=training_type,
-                                   training_params=training_params,
-                                   data_file=data_file,
-                                   log_frequency=log_frequency,
-                                   training_id=training_id,
-                                   input_file_name=input_file_name,
-                                   raw_data_files=raw_data_files,
-                                   description=description,
-                                   synchronised=synchronised)
+        return self.start_training(
+            run=self.run,
+            training_type=training_type,
+            training_params=training_params,
+            data_file=data_file,
+            log_frequency=log_frequency,
+            training_id=training_id,
+            input_file_name=input_file_name,
+            raw_data_files=raw_data_files,
+            description=description,
+            synchronised=synchronised,
+        )
 
     @abstractmethod
-    def run(self,
-            training_params: Dict,
-            data_file: TextIO,
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        self,
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         """
         The main training function to be implemented by a specific supervised trainer.
 
@@ -329,16 +353,18 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
 
         super().__init__(config, model_name)
 
-    def train(self,
-              data_file: TextIO,
-              epochs: int,
-              log_frequency: int,
-              training_id: str,
-              input_file_name: str,
-              raw_data_files: Optional[List[TextIO]] = None,
-              description: Optional[str] = None,
-              synchronised: bool = False,
-              **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Starts the unsupervised training process.
 
@@ -363,24 +389,28 @@ class UnsupervisedTrainer(ABC, TrainerCommon):
             "nepochs": epochs,
             **hyperparams,
         }
-        return self.start_training(run=self.run,
-                                   training_type=training_type,
-                                   training_params=training_params,
-                                   data_file=data_file,
-                                   log_frequency=log_frequency,
-                                   training_id=training_id,
-                                   input_file_name=input_file_name,
-                                   raw_data_files=raw_data_files,
-                                   description=description,
-                                   synchronised=synchronised)
+        return self.start_training(
+            run=self.run,
+            training_type=training_type,
+            training_params=training_params,
+            data_file=data_file,
+            log_frequency=log_frequency,
+            training_id=training_id,
+            input_file_name=input_file_name,
+            raw_data_files=raw_data_files,
+            description=description,
+            synchronised=synchronised,
+        )
 
     @abstractmethod
-    def run(self,
-            training_params: Dict,
-            data_file: TextIO,
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        self,
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         """
         The main training function to be implemented by a specific unsupervised trainer.
 

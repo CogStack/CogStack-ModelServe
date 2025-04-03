@@ -13,13 +13,17 @@ limiter = get_rate_limiter(config)
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.get("/info",
-            response_model=ModelCard,
-            tags=[Tags.Metadata.name],
-            dependencies=[Depends(cms_globals.props.current_active_user)],
-            description="Get information about the model being served")
-async def get_model_card(request: Request,
-                         model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> ModelCard:
+@router.get(
+    "/info",
+    response_model=ModelCard,
+    tags=[Tags.Metadata.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get information about the model being served",
+)
+async def get_model_card(
+    request: Request,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> ModelCard:
     """
     Retrieves information about the model being served.
 

@@ -22,19 +22,23 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.post("/train_metacat",
-             status_code=HTTP_202_ACCEPTED,
-             response_class=JSONResponse,
-             tags=[Tags.Training.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Upload one or more trainer export files and trigger the metacat training")
-async def train_metacat(request: Request,
-                        trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                        epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
-                        log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1,
-                        description: Annotated[Union[str, None], Form(description="The description on the training or change logs")] = None,
-                        tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                        model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.post(
+    "/train_metacat",
+    status_code=HTTP_202_ACCEPTED,
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Upload one or more trainer export files and trigger the metacat training",
+)
+async def train_metacat(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+    epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+    log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1,
+    description: Annotated[Union[str, None], Form(description="The description on the training or change logs")] = None,
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Triggers the Metacat training by uploading one or more trainer export files.
 
@@ -72,14 +76,16 @@ async def train_metacat(request: Request,
     data_file.seek(0)
     training_id = tracking_id or str(uuid.uuid4())
     try:
-        training_response = model_service.train_metacat(data_file,
-                                                        epochs,
-                                                        log_frequency,
-                                                        training_id,
-                                                        ",".join(file_names),
-                                                        raw_data_files=files,
-                                                        synchronised=(os.environ.get("CMS_CI", "false") == "true"),
-                                                        description=description)
+        training_response = model_service.train_metacat(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            ",".join(file_names),
+            raw_data_files=files,
+            synchronised=(os.environ.get("CMS_CI", "false") == "true"),
+            description=description,
+        )
     finally:
         for file in files:
             file.close()

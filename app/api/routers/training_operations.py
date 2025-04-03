@@ -28,14 +28,18 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.get("/train_eval_info",
-            response_class=JSONResponse,
-            tags=[Tags.Training.name],
-            dependencies=[Depends(cms_globals.props.current_active_user)],
-            description="Get the training or evaluation job information by its ID")
-async def train_eval_info(request: Request,
-                          train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
-                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.get(
+    "/train_eval_info",
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get the training or evaluation job information by its ID",
+)
+async def train_eval_info(
+    request: Request,
+    train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Retrieves the information of a training or evaluation job by its ID.
 
@@ -56,15 +60,19 @@ async def train_eval_info(request: Request,
     return JSONResponse(status_code=HTTP_200_OK if len(infos) != 0 else HTTP_404_NOT_FOUND, content=infos)
 
 
-@router.post("/evaluate",
-             tags=[Tags.Training.name],
-             response_class=JSONResponse,
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Evaluate the model being served with a trainer export")
-async def get_evaluation_with_trainer_export(request: Request,
-                                             trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
-                                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.post(
+    "/evaluate",
+    tags=[Tags.Training.name],
+    response_class=JSONResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Evaluate the model being served with a trainer export",
+)
+async def get_evaluation_with_trainer_export(
+    request: Request,
+    trainer_export: Annotated[List[UploadFile], File(description="One or more trainer export files to be uploaded")],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Evaluates the running model with one or more trainer export files.
 
@@ -120,13 +128,17 @@ async def get_evaluation_with_trainer_export(request: Request,
         )
 
 
-@router.post("/cancel_training",
-             response_class=JSONResponse,
-             tags=[Tags.Training.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Cancel the in-progress training job (this is experimental and may not work as expected)")
-async def cancel_training(request: Request,
-                          model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.post(
+    "/cancel_training",
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Cancel the in-progress training job (this is experimental and may not work as expected)",
+)
+async def cancel_training(
+    request: Request,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Cancels the in-progress training job.
 
@@ -140,20 +152,28 @@ async def cancel_training(request: Request,
 
     training_cancelled = model_service.cancel_training()
     if not training_cancelled:
-        return JSONResponse(status_code=HTTP_400_BAD_REQUEST,
-                            content={"message": "Cannot find in-progress training or no trainers are enabled for the running model."})
-    return JSONResponse(status_code=HTTP_202_ACCEPTED,
-                        content={"message": "The in-progress training will be stopped momentarily."})
+        return JSONResponse(
+            status_code=HTTP_400_BAD_REQUEST,
+            content={"message": "Cannot find in-progress training or no trainers are enabled for the running model."},
+        )
+    return JSONResponse(
+        status_code=HTTP_202_ACCEPTED,
+        content={"message": "The in-progress training will be stopped momentarily."},
+    )
 
 
-@router.get("/train_eval_metrics",
-            response_class=JSONResponse,
-            tags=[Tags.Training.name],
-            dependencies=[Depends(cms_globals.props.current_active_user)],
-            description="Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)")
-async def train_eval_metrics(request: Request,
-                             train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
-                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.get(
+    "/train_eval_metrics",
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)",
+)
+async def train_eval_metrics(
+    request: Request,
+    train_eval_id: Annotated[str, Query(description="The training or evaluation ID")],
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Retrieves the metrics of a training or evaluation job by its ID.
 
@@ -168,7 +188,9 @@ async def train_eval_metrics(request: Request,
 
     tracker_client = model_service.get_tracker_client()
     if tracker_client is None:
-        return JSONResponse(status_code=HTTP_503_SERVICE_UNAVAILABLE,
-                            content={"message": "The running model does not have any available trainers enabled"})
+        return JSONResponse(
+            status_code=HTTP_503_SERVICE_UNAVAILABLE,
+            content={"message": "The running model does not have any available trainers enabled"},
+        )
     metrics = tracker_client.get_metrics_by_job_id(train_eval_id)
     return JSONResponse(status_code=HTTP_200_OK if len(metrics) != 0 else HTTP_404_NOT_FOUND, content=metrics)

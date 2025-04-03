@@ -15,12 +15,14 @@ class MedCATModelIcd10(MedCATModel):
 
     ICD10_KEY = "icd10"
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        enable_trainer: Optional[bool] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
         """
         Initialises the MedCAT ICD-10 model service with specified configurations.
 
@@ -31,7 +33,13 @@ class MedCATModelIcd10(MedCATModel):
             model_name (Optional[str]): The name of the model. Defaults to None.
             base_model_file (Optional[str]): The model package file name. Defaults to None.
         """
-        super().__init__(config, model_parent_dir=model_parent_dir, enable_trainer=enable_trainer, model_name=model_name, base_model_file=base_model_file)
+        super().__init__(
+            config,
+            model_parent_dir=model_parent_dir,
+            enable_trainer=enable_trainer,
+            model_name=model_name,
+            base_model_file=base_model_file,
+        )
         self.model_name = model_name or "ICD-10 MedCAT model"
 
     @property
@@ -49,10 +57,12 @@ class MedCATModelIcd10(MedCATModel):
             ModelCard: A card containing information about the MedCAT ICD-10 model.
         """
 
-        return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.MEDCAT_ICD10,
-                         api_version=self.api_version,
-                         model_card=self.model.get_model_card(as_dict=True))
+        return ModelCard(
+            model_description=self.model_name,
+            model_type=ModelType.MEDCAT_ICD10,
+            api_version=self.api_version,
+            model_card=self.model.get_model_card(as_dict=True),
+        )
 
     def get_records_from_doc(self, doc: Dict) -> List[Dict]:
         """

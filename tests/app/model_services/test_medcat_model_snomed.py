@@ -43,8 +43,10 @@ def test_get_records_from_doc(medcat_snomed_model):
     assert records[0]["meta_anns"] == {}
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_init_model(medcat_snomed_model):
     medcat_snomed_model.init_model()
     target_tuis = medcat_snomed_model._config.TYPE_UNIQUE_ID_WHITELIST.split(",")
@@ -53,8 +55,10 @@ def test_init_model(medcat_snomed_model):
     assert medcat_snomed_model.model.cdb.config.linking.filters.get("cuis") == target_cuis
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_init_model_with_no_tui_filter(medcat_snomed_model):
     original = MedCATModelSnomed.load_model(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip"))
     medcat_snomed_model._whitelisted_tuis = set([""])
@@ -63,15 +67,19 @@ def test_init_model_with_no_tui_filter(medcat_snomed_model):
     assert medcat_snomed_model.model.cdb.config.linking.filters.get("cuis") == original.cdb.config.linking.filters.get("cuis")
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_load_model(medcat_snomed_model):
     cat = MedCATModelSnomed.load_model(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip"))
     assert type(cat) is CAT
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_info(medcat_snomed_model):
     medcat_snomed_model.init_model()
     model_card = medcat_snomed_model.info()
@@ -80,8 +88,10 @@ def test_info(medcat_snomed_model):
     assert model_card.model_type == ModelType.MEDCAT_SNOMED
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(medcat_snomed_model):
     medcat_snomed_model.init_model()
     annotations = medcat_snomed_model.annotate("Spinal stenosis")
@@ -92,8 +102,10 @@ def test_annotate(medcat_snomed_model):
     assert annotations[0]["accuracy"] > 0
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_train_supervised(medcat_snomed_model):
     medcat_snomed_model.init_model()
     medcat_snomed_model._config.REDEPLOY_TRAINED_MODEL = "false"
@@ -104,8 +116,10 @@ def test_train_supervised(medcat_snomed_model):
     medcat_snomed_model._supervised_trainer.train.assert_called()
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_train_unsupervised(medcat_snomed_model):
     medcat_snomed_model.init_model()
     medcat_snomed_model._config.REDEPLOY_TRAINED_MODEL = "false"

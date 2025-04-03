@@ -55,9 +55,11 @@ logger = logging.getLogger("cms")
 class _HuggingFaceNerTrainerCommon(object):
 
     @staticmethod
-    def deploy_model(model_service: "HuggingFaceNerModel",
-                     model: PreTrainedModel,
-                     tokenizer: PreTrainedTokenizerBase) -> None:
+    def deploy_model(
+        model_service: "HuggingFaceNerModel",
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizerBase,
+    ) -> None:
         del model_service.model
         del model_service.tokenizer
         gc.collect()
@@ -80,19 +82,23 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         self._model_service = model_service
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
-        self._retrained_models_dir = os.path.join(model_service._model_parent_dir,
-                                                  "retrained",
-                                                  self._model_name.replace(" ", "_"))
+        self._retrained_models_dir = os.path.join(
+            model_service._model_parent_dir,
+            "retrained",
+            self._model_name.replace(" ", "_"),
+        )
         self._model_manager = ModelManager(type(model_service), model_service._config)
         self._max_length = model_service.model.config.max_position_embeddings
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
-    def run(self,
-            training_params: Dict,
-            data_file: Union[TextIO, tempfile.TemporaryDirectory],
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        self,
+        training_params: Dict,
+        data_file: Union[TextIO, tempfile.TemporaryDirectory],
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         """
         Runs the supervised training loop for HuggingFace NER models.
 
@@ -150,19 +156,19 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     "input_ids": datasets.Sequence(datasets.Value("int32")),
                     "attention_mask": datasets.Sequence(datasets.Value("int32")),
                     "special_tokens_mask": datasets.Sequence(datasets.Value("int32")),
-                    "token_type_ids": datasets.Sequence(datasets.Value("int32"))
+                    "token_type_ids": datasets.Sequence(datasets.Value("int32")),
                 })
                 train_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": self._max_length},
-                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR
+                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": self._max_length},
-                    cache_dir = self._model_service._config.TRAINING_CACHE_DIR
+                    cache_dir = self._model_service._config.TRAINING_CACHE_DIR,
                 )
                 train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
                 eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
@@ -218,12 +224,16 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
-                    model.save_pretrained(copied_model_directory,
-                                          safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                    model.save_pretrained(
+                        copied_model_directory,
+                        safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
+                    )
                     create_model_data_package(copied_model_directory, retrained_model_pack_path)
-                    model_uri = self._tracker_client.save_model(retrained_model_pack_path,
-                                                                   self._model_name,
-                                                                   self._model_manager)
+                    model_uri = self._tracker_client.save_model(
+                        retrained_model_pack_path,
+                        self._model_name,
+                        self._model_manager,
+                    )
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:
                     logger.info("Skipped saving on the retrained model")
@@ -287,13 +297,13 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     "input_ids": datasets.Sequence(datasets.Value("int32")),
                     "attention_mask": datasets.Sequence(datasets.Value("int32")),
                     "special_tokens_mask": datasets.Sequence(datasets.Value("int32")),
-                    "token_type_ids": datasets.Sequence(datasets.Value("int32"))
+                    "token_type_ids": datasets.Sequence(datasets.Value("int32")),
                 })
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"texts": eval_texts, "tokenizer": self._model_service._tokenizer, "max_length": self._max_length},
-                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR
+                    cache_dir=self._model_service._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
                 dataloader = torch.utils.data.DataLoader(eval_dataset, batch_size=1)
@@ -334,9 +344,11 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                         n = input_ids.size(-1)  # 512
                         n_windows = (n - 1) // stride + 1  # 4
 
-                        input_ids_out = torch.full((n_windows, window_size),
-                                                   self._model_service._tokenizer.pad_token_id,
-                                                   dtype=torch.long)
+                        input_ids_out = torch.full(
+                            (n_windows, window_size),
+                            self._model_service._tokenizer.pad_token_id,
+                            dtype=torch.long,
+                        )
                         attention_mask_out = torch.zeros((n_windows, window_size), dtype=torch.long)
 
                         for i, start in enumerate(range(0, n, stride)):
@@ -353,12 +365,16 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                         ls_rows_attention_mask: List[torch.Tensor] = []
                         ls_labels: List[torch.Tensor] = []
                         for row in input_id:
-                            input_id_out, attention_mask_out = _create_iterative_masking(row,
-                                                                                         mask_token=self._model_service._tokenizer.mask_token_id,
-                                                                                         pad_token_id=self._model_service._tokenizer.pad_token_id)
-                            labels, _ = _create_iterative_masking(row,
-                                                                  mask_token=-999,
-                                                                  pad_token_id=self._model_service._tokenizer.pad_token_id)
+                            input_id_out, attention_mask_out = _create_iterative_masking(
+                                row,
+                                mask_token=self._model_service._tokenizer.mask_token_id,
+                                pad_token_id=self._model_service._tokenizer.pad_token_id,
+                            )
+                            labels, _ = _create_iterative_masking(
+                                row,
+                                mask_token=-999,
+                                pad_token_id=self._model_service._tokenizer.pad_token_id,
+                            )
                             ls_rows_input_id.extend(input_id_out)
                             ls_rows_attention_mask.extend(attention_mask_out)
                             ls_labels.extend(labels)
@@ -379,18 +395,18 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     batch_tensor_labels = tensor_labels[i:i + batch_size].to(device)
 
                     with torch.no_grad():
-                        output = mlm_model(batch_input_ids,
-                                           attention_mask=batch_attention_mask,
-                                           labels=batch_tensor_labels)
+                        output = mlm_model(
+                            batch_input_ids,
+                            attention_mask=batch_attention_mask,
+                            labels=batch_tensor_labels,
+                        )
                         losses.append(output.loss)
                         per_batch_metrics = {
                             "loss": losses[-1].item(),
                             "perplexity_mean": torch.exp(torch.stack(losses).mean()).item(),
                             "perplexity_median": torch.exp(torch.stack(losses).median()).item(),
                         }
-                        # TODO: make the metrics pushing less frequent
                         logger.debug("Evaluation metrics: %s", per_batch_metrics)
-                        print(per_batch_metrics)
                         self._tracker_client.send_model_stats(per_batch_metrics, i)
 
                 self._tracker_client.end_with_success()
@@ -435,7 +451,11 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         return model
 
     @staticmethod
-    def _tokenize_and_chunk(texts: Iterable[str], tokenizer: PreTrainedTokenizerBase, max_length: int) -> Iterable[Dict[str, Any]]:
+    def _tokenize_and_chunk(
+        texts: Iterable[str],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+    ) -> Iterable[Dict[str, Any]]:
         for text in texts:
             encoded = tokenizer(text, truncation=False, return_special_tokens_mask=True)
 
@@ -504,12 +524,14 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             paddings = [pad_token_id] * padding_length
             return target + paddings
 
-    def run(self,
-            training_params: Dict,
-            data_file: TextIO,
-            log_frequency: int,
-            run_id: str,
-            description: Optional[str] = None) -> None:
+    def run(
+        self,
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
         """
         Runs the unsupervised training loop for HuggingFace NER models.
 
@@ -568,13 +590,13 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
-                    cache_dir=self._config.TRAINING_CACHE_DIR
+                    cache_dir=self._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
-                    cache_dir = self._config.TRAINING_CACHE_DIR
+                    cache_dir = self._config.TRAINING_CACHE_DIR,
                 )
                 train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
@@ -620,12 +642,16 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
-                    model.save_pretrained(copied_model_directory,
-                                          safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                    model.save_pretrained(
+                        copied_model_directory,
+                        safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
+                    )
                     create_model_data_package(copied_model_directory, retrained_model_pack_path)
-                    model_uri = self._tracker_client.save_model(retrained_model_pack_path,
-                                                                   self._model_name,
-                                                                   self._model_manager)
+                    model_uri = self._tracker_client.save_model(
+                        retrained_model_pack_path,
+                        self._model_name,
+                        self._model_manager,
+                    )
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:
                     logger.info("Skipped saving on the retrained model")
@@ -671,7 +697,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     self._tokenize_and_chunk,
                     features=dataset_features,
                     gen_kwargs={"documents": eval_documents, "tokenizer": self._model_service.tokenizer, "max_length": self._max_length, "model": self._model_service._model},
-                    cache_dir=self._config.TRAINING_CACHE_DIR
+                    cache_dir=self._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=self._model_service.tokenizer.pad_token_id)
@@ -735,7 +761,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         return model
 
     @staticmethod
-    def _tokenize_and_chunk(documents: List[Dict], tokenizer: PreTrainedTokenizerBase, max_length: int, model: PreTrainedModel) -> Iterable[Dict[str, Any]]:
+    def _tokenize_and_chunk(
+        documents: List[Dict],
+        tokenizer: PreTrainedTokenizerBase,
+        max_length: int,
+        model: PreTrainedModel,
+    ) -> Iterable[Dict[str, Any]]:
         for document in documents:
             encoded = tokenizer(document["text"], truncation=False, return_offsets_mapping=True)
             document["annotations"] = sorted(document["annotations"], key=lambda annotation: annotation["start"])
@@ -759,7 +790,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 }
 
     @staticmethod
-    def _compute_token_level_metrics(eval_pred: EvalPrediction, id2label: Dict[int, str], tracker_client: TrackerClient, model_name: str) -> Dict[str, Any]:
+    def _compute_token_level_metrics(
+        eval_pred: EvalPrediction,
+        id2label: Dict[int, str],
+        tracker_client: TrackerClient,
+        model_name: str,
+    ) -> Dict[str, Any]:
         predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
         label_ids = eval_pred.label_ids
         non_padding_indices = np.where(label_ids != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
@@ -804,10 +840,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         return metrics
 
     @staticmethod
-    def _save_metrics_plot(metrics: List[Dict],
-                           concepts: List[str],
-                           tracker_client: TrackerClient,
-                           model_name: str) -> None:
+    def _save_metrics_plot(
+        metrics: List[Dict],
+        concepts: List[str],
+        tracker_client: TrackerClient,
+        model_name: str,
+    ) -> None:
         try:
             plot = radar_plot(data=metrics, model_names=concepts)
             with tempfile.TemporaryDirectory() as d:
@@ -819,7 +857,13 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             logger.error("Error occurred while plotting the metrics")
             logger.exception(e)
 
-    def _get_training_args(self, results_path: str, logs_path: str, training_params: Dict, log_frequency: int) -> TrainingArguments:
+    def _get_training_args(
+        self,
+        results_path: str,
+        logs_path: str,
+        training_params: Dict,
+        log_frequency: int,
+    ) -> TrainingArguments:
         scaling_factor = 2
         cpu_count = os.cpu_count() or 1
         effective_batch_size = cpu_count * scaling_factor
@@ -852,11 +896,13 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
         )
 
-    def _save_trained_concepts(self,
-                               training_concepts: Dict,
-                               training_unique_concepts: Dict,
-                               training_ignorance_counts: Dict,
-                               model: PreTrainedModel) -> None:
+    def _save_trained_concepts(
+        self,
+        training_concepts: Dict,
+        training_unique_concepts: Dict,
+        training_ignorance_counts: Dict,
+        model: PreTrainedModel,
+    ) -> None:
         if len(training_concepts.keys()) != 0:
             unknown_concepts = set(training_concepts.keys()) - set(model.config.label2id.keys())
             unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
@@ -865,9 +911,11 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 "unknown_concept_pct": unknown_concept_pct,
             }, 0)
             if unknown_concepts:
-                self._tracker_client.save_dataframe_as_csv("unknown_concepts.csv",
-                                                           pd.DataFrame({"concept": list(unknown_concepts)}),
-                                                           self._model_name)
+                self._tracker_client.save_dataframe_as_csv(
+                    "unknown_concepts.csv",
+                    pd.DataFrame({"concept": list(unknown_concepts)}),
+                    self._model_name,
+                )
             annotation_count = []
             annotation_unique_count = []
             annotation_ignorance_count = []
@@ -876,22 +924,28 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 annotation_count.append(training_concepts[c])
                 annotation_unique_count.append(training_unique_concepts[c])
                 annotation_ignorance_count.append(training_ignorance_counts[c])
-            self._tracker_client.save_dataframe_as_csv("trained_concepts.csv",
-                                                       pd.DataFrame({
-                                                           "concept": concepts,
-                                                           "anno_count": annotation_count,
-                                                           "anno_unique_count": annotation_unique_count,
-                                                           "anno_ignorance_count": annotation_ignorance_count,
-                                                       }),
-                                                       self._model_name)
+            self._tracker_client.save_dataframe_as_csv(
+                "trained_concepts.csv",
+                pd.DataFrame({
+                    "concept": concepts,
+                    "anno_count": annotation_count,
+                    "anno_unique_count": annotation_unique_count,
+                    "anno_ignorance_count": annotation_ignorance_count,
+                }),
+                self._model_name,
+            )
 
     def _sanity_check_model_and_save_results(self, data_file_path: str, model_service: "HuggingFaceNerModel") -> None:
-        self._tracker_client.save_dataframe_as_csv("sanity_check_result.csv",
-                                                   sanity_check_model_with_trainer_export(data_file_path,
-                                                                                          model_service,
-                                                                                          return_df=True,
-                                                                                          include_anchors=True),
-                                                   self._model_name)
+        self._tracker_client.save_dataframe_as_csv(
+            "sanity_check_result.csv",
+            sanity_check_model_with_trainer_export(
+                data_file_path,
+                model_service,
+                return_df=True,
+                include_anchors=True,
+            ),
+            self._model_name,
+        )
 
 
 @final
@@ -907,12 +961,14 @@ class MLflowLoggingCallback(TrainerCallback):
         self.tracker_client = tracker_client
         self.epoch = 0
 
-    def on_log(self,
-               args: TrainingArguments,
-               state: TrainerState,
-               control: TrainerControl,
-               logs: Dict[str, float],
-               **kwargs: Dict[str, Any]) -> None:
+    def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        logs: Dict[str, float],
+        **kwargs: Dict[str, Any],
+    ) -> None:
         """
         Logs metrics at the end of each epoch.
 
@@ -944,11 +1000,13 @@ class CancelEventCheckCallback(TrainerCallback):
         self.cancel_event = cancel_event
         self.training_cancelled = False
 
-    def on_step_end(self,
-                    args: TrainingArguments,
-                    state: TrainerState,
-                    control: TrainerControl,
-                    **kwargs: Dict[str, Any]) -> None:
+    def on_step_end(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        **kwargs: Dict[str, Any],
+    ) -> None:
         """
         Checks if the training should be cancelled at the end of each training step.
 

@@ -32,12 +32,14 @@ logger = logging.getLogger("cms")
 class HuggingFaceNerModel(AbstractModelService):
     """A model service for Hugging Face NER models."""
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        enable_trainer: Optional[bool] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
         """
         Initialises the HuggingFace NER model service with specified configurations.
 
@@ -120,12 +122,14 @@ class HuggingFaceNerModel(AbstractModelService):
         model_service = cls(get_settings(), enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
-        _pipeline = partial(pipeline,
-                            task="ner",
-                            model=model_service.model,
-                            tokenizer=model_service.tokenizer,
-                            stride=10,
-                            aggregation_strategy=get_settings().HF_PIPELINE_AGGREGATION_STRATEGY)
+        _pipeline = partial(
+            pipeline,
+            task="ner",
+            model=model_service.model,
+            tokenizer=model_service.tokenizer,
+            stride=10,
+            aggregation_strategy=get_settings().HF_PIPELINE_AGGREGATION_STRATEGY,
+        )
         if non_default_device_is_available(get_settings().DEVICE):
             model_service._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
         else:
@@ -154,9 +158,12 @@ class HuggingFaceNerModel(AbstractModelService):
             try:
                 model = AutoModelForTokenClassification.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
-                tokenizer = AutoTokenizer.from_pretrained(model_path,
-                                                          model_max_length=model.config.max_position_embeddings,
-                                                          add_special_tokens=False, do_lower_case=False)
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_path,
+                    model_max_length=model.config.max_position_embeddings,
+                    add_special_tokens=False,
+                    do_lower_case=False,
+                )
                 logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
                 return model, tokenizer
             except ValueError as e:
@@ -168,19 +175,23 @@ class HuggingFaceNerModel(AbstractModelService):
     def init_model(self) -> None:
         """Initialises the HuggingFace model, its tokenizer and a NER pipeline based on the configuration."""
 
-        if all([hasattr(self, "_model"),
-                hasattr(self, "_tokenizer"),
-                isinstance(self._model, PreTrainedModel),
-                isinstance(self._tokenizer, PreTrainedTokenizerBase)]):
+        if all([
+            hasattr(self, "_model"),
+            hasattr(self, "_tokenizer"),
+            isinstance(self._model, PreTrainedModel),
+            isinstance(self._tokenizer, PreTrainedTokenizerBase),
+        ]):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model, self._tokenizer = self.load_model(self._model_pack_path)
-            _pipeline = partial(pipeline,
-                                task="ner",
-                                model=self._model,
-                                tokenizer=self._tokenizer,
-                                stride=10,
-                                aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY)
+            _pipeline = partial(
+                pipeline,
+                task="ner",
+                model=self._model,
+                tokenizer=self._tokenizer,
+                stride=10,
+                aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
+            )
             if non_default_device_is_available(get_settings().DEVICE):
                 self._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
             else:
@@ -196,10 +207,12 @@ class HuggingFaceNerModel(AbstractModelService):
         Returns:
             ModelCard: Information about the model.
         """
-        return ModelCard(model_description=self.model_name,
-                         model_type=ModelType.HUGGINGFACE_NER,
-                         api_version=self.api_version,
-                         model_card=self._model.config.to_dict())
+        return ModelCard(
+            model_description=self.model_name,
+            model_type=ModelType.HUGGINGFACE_NER,
+            api_version=self.api_version,
+            model_card=self._model.config.to_dict(),
+        )
 
     def annotate(self, text: str) -> List[Annotation]:
         """
@@ -228,16 +241,18 @@ class HuggingFaceNerModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace NER models")
 
-    def train_supervised(self,
-                         data_file: TextIO,
-                         epochs: int,
-                         log_frequency: int,
-                         training_id: str,
-                         input_file_name: str,
-                         raw_data_files: Optional[List[TextIO]] = None,
-                         description: Optional[str] = None,
-                         synchronised: bool = False,
-                         **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_supervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates supervised training on the model.
 
@@ -260,26 +275,30 @@ class HuggingFaceNerModel(AbstractModelService):
         """
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(data_file,
-                                              epochs,
-                                              log_frequency,
-                                              training_id,
-                                              input_file_name,
-                                              raw_data_files,
-                                              description,
-                                              synchronised,
-                                              **hyperparams)
+        return self._supervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )
 
-    def train_unsupervised(self,
-                           data_file: TextIO,
-                           epochs: int,
-                           log_frequency: int,
-                           training_id: str,
-                           input_file_name: str,
-                           raw_data_files: Optional[List[TextIO]] = None,
-                           description: Optional[str] = None,
-                           synchronised: bool = False,
-                           **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_unsupervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates unsupervised training on the model.
 
@@ -302,4 +321,14 @@ class HuggingFaceNerModel(AbstractModelService):
         """
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
-        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+        return self._unsupervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )

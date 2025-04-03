@@ -29,13 +29,17 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.post(PATH_STREAM_PROCESS,
-             tags=[Tags.Annotations.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)],
-             description="Extract the NER entities from a stream of texts in the JSON Lines format")
+@router.post(
+    PATH_STREAM_PROCESS,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Extract the NER entities from a stream of texts in the JSON Lines format",
+)
 @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)
-async def get_entities_stream_from_jsonlines_stream(request: Request,
-                                                    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> Response:
+async def get_entities_stream_from_jsonlines_stream(
+    request: Request,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> Response:
     """
     Extracts NER entities from a stream of texts in the JSON Lines format and returns them as a JSON Lines stream.
 
@@ -53,9 +57,11 @@ async def get_entities_stream_from_jsonlines_stream(request: Request,
 
 @router.websocket(PATH_WS_PROCESS)
 # @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
-async def get_inline_annotations_from_websocket(websocket: WebSocket,
-                                                user_manager: CmsUserManager = Depends(get_user_manager),
-                                                model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> None:
+async def get_inline_annotations_from_websocket(
+    websocket: WebSocket,
+    user_manager: CmsUserManager = Depends(get_user_manager),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> None:
     """
     Handles WebSocket connections for receiving text and returning extracted NER entities.
 
@@ -125,12 +131,14 @@ async def get_inline_annotations_from_websocket(websocket: WebSocket,
 
 class _LocalStreamingResponse(Response):
 
-    def __init__(self,
-                 content: Any,
-                 status_code: int = 200,
-                 headers: Optional[Mapping[str, str]] = None,
-                 media_type: Optional[str] = None,
-                 background: Optional[BackgroundTask] = None) -> None:
+    def __init__(
+        self,
+        content: Any,
+        status_code: int = 200,
+        headers: Optional[Mapping[str, str]] = None,
+        media_type: Optional[str] = None,
+        background: Optional[BackgroundTask] = None,
+    ) -> None:
         self.content = content
         self.status_code = status_code
         self.media_type = self.media_type if media_type is None else media_type

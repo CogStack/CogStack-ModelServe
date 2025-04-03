@@ -20,12 +20,14 @@ logger = logging.getLogger("cms")
 class MedCATModel(AbstractModelService):
     """A model service for MedCAT models."""
 
-    def __init__(self,
-                 config: Settings,
-                 model_parent_dir: Optional[str] = None,
-                 enable_trainer: Optional[bool] = None,
-                 model_name: Optional[str] = None,
-                 base_model_file: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        config: Settings,
+        model_parent_dir: Optional[str] = None,
+        enable_trainer: Optional[bool] = None,
+        model_name: Optional[str] = None,
+        base_model_file: Optional[str] = None,
+    ) -> None:
         """
         Initialises the MedCAT model service with specified configurations.
 
@@ -117,7 +119,10 @@ class MedCATModel(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             if non_default_device_is_available(get_settings().DEVICE):
-                self._model = self.load_model(self._model_pack_path, meta_cat_config_dict={"general": {"device": get_settings().DEVICE}})
+                self._model = self.load_model(
+                    self._model_pack_path,
+                    meta_cat_config_dict={"general": {"device": get_settings().DEVICE}},
+                )
                 self._model.config.general["device"] = get_settings().DEVICE
             else:
                 self._model = self.load_model(self._model_pack_path)
@@ -151,8 +156,10 @@ class MedCATModel(AbstractModelService):
             List[Annotation]: A list of annotations containing the extracted named entities.
         """
 
-        doc = self.model.get_entities(text,
-                                      addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"])
+        doc = self.model.get_entities(
+            text,
+            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
+        )
         return [Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
@@ -172,7 +179,7 @@ class MedCATModel(AbstractModelService):
             self._data_iterator(texts),
             batch_size_chars=batch_size_chars,
             nproc=max(int(cpu_count() / 2), 1),
-            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"]
+            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
         )
         docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []
@@ -180,16 +187,18 @@ class MedCATModel(AbstractModelService):
             annotations_list.append([Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)])
         return annotations_list
 
-    def train_supervised(self,
-                         data_file: TextIO,
-                         epochs: int,
-                         log_frequency: int,
-                         training_id: str,
-                         input_file_name: str,
-                         raw_data_files: Optional[List[TextIO]] = None,
-                         description: Optional[str] = None,
-                         synchronised: bool = False,
-                         **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_supervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates supervised training on the model.
 
@@ -213,18 +222,30 @@ class MedCATModel(AbstractModelService):
 
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+        return self._supervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )
 
-    def train_unsupervised(self,
-                           data_file: TextIO,
-                           epochs: int,
-                           log_frequency: int,
-                           training_id: str,
-                           input_file_name: str,
-                           raw_data_files: Optional[List[TextIO]] = None,
-                           description: Optional[str] = None,
-                           synchronised: bool = False,
-                           **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_unsupervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates unsupervised training on the model.
 
@@ -248,18 +269,30 @@ class MedCATModel(AbstractModelService):
 
         if self._unsupervised_trainer is None:
             raise ConfigurationException("The unsupervised trainer is not enabled")
-        return self._unsupervised_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+        return self._unsupervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )
 
-    def train_metacat(self,
-                      data_file: TextIO,
-                      epochs: int,
-                      log_frequency: int,
-                      training_id: str,
-                      input_file_name: str,
-                      raw_data_files: Optional[List[TextIO]] = None,
-                      description: Optional[str] = None,
-                      synchronised: bool = False,
-                      **hyperparams: Dict[str, Any]) -> Tuple[bool, str, str]:
+    def train_metacat(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
         """
         Initiates metacat training on the model.
 
@@ -283,7 +316,17 @@ class MedCATModel(AbstractModelService):
 
         if self._metacat_trainer is None:
             raise ConfigurationException("The metacat trainer is not enabled")
-        return self._metacat_trainer.train(data_file, epochs, log_frequency, training_id, input_file_name, raw_data_files, description, synchronised, **hyperparams)
+        return self._metacat_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )
 
     def get_records_from_doc(self, doc: Dict) -> List[Dict]:
         """

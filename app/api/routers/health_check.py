@@ -7,9 +7,11 @@ router = APIRouter()
 
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.get("/healthz",
-            description="Health check endpoint",
-            include_in_schema=False)
+@router.get(
+"/healthz",
+    description="Health check endpoint",
+    include_in_schema=False,
+)
 async def is_healthy() -> PlainTextResponse:
     """
     Performs a health check to ensure the FastAPI service is in operation.
@@ -21,9 +23,11 @@ async def is_healthy() -> PlainTextResponse:
     return PlainTextResponse(content="OK", status_code=200)
 
 
-@router.get("/readyz",
-            description="Readiness check endpoint",
-            include_in_schema=False)
+@router.get(
+    "/readyz",
+    description="Readiness check endpoint",
+    include_in_schema=False,
+)
 async def is_ready(model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> PlainTextResponse:
     """
     Performs a readiness check to ensure the model service is ready for scoring and training tasks.

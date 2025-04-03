@@ -49,9 +49,11 @@ async def test_stream_process_empty_stream(model_service, app):
 @pytest.mark.asyncio
 async def test_stream_process_invalidate_jsonl(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process",
-                                 data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
-                                 headers={"Content-Type": "application/x-ndjson"})
+        response = await ac.post(
+            "/stream/process",
+            data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
+            headers={"Content-Type": "application/x-ndjson"},
+        )
 
     assert response.status_code == 200
     jsonlines = b""
@@ -63,9 +65,11 @@ async def test_stream_process_invalidate_jsonl(model_service, app):
 @pytest.mark.asyncio
 async def test_stream_process_unknown_jsonl_property(model_service, app):
     async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
-        response = await ac.post("/stream/process",
-                                 data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
-                                 headers={"Content-Type": "application/x-ndjson"})
+        response = await ac.post(
+            "/stream/process",
+            data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
+            headers={"Content-Type": "application/x-ndjson"},
+        )
 
     assert response.status_code == 200
     jsonlines = b""

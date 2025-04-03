@@ -16,23 +16,29 @@ def test_api_version(trf_model):
     assert trf_model.api_version == __version__
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_init_model(trf_model):
     trf_model.init_model()
     assert trf_model.model is not None
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_load_model(trf_model):
     tokenizer, model = TransformersModelDeIdentification.load_model(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip"))
     assert type(tokenizer) is TransformersTokenizerNER
     assert type(model) is BertForTokenClassification
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_info(trf_model):
     trf_model.init_model()
     model_card = trf_model.info()
@@ -41,8 +47,10 @@ def test_info(trf_model):
     assert model_card.model_type == ModelType.TRANSFORMERS_DEID
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(trf_model):
     trf_model.init_model()
     annotations = trf_model.annotate("NW1 2DA")
@@ -52,8 +60,10 @@ def test_annotate(trf_model):
     assert annotations[0]["end"] == 7
 
 
-@pytest.mark.skipif(not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
-                    reason="requires the model file to be present in the resources folder")
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_batch_annotate(trf_model):
     trf_model.init_model()
     annotation_list = trf_model.batch_annotate(["NW1 2DA", "NW1 2DA"])

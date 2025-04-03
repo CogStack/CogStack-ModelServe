@@ -24,20 +24,24 @@ logger = logging.getLogger("cms")
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
 
-@router.post("/train_unsupervised",
-             status_code=HTTP_202_ACCEPTED,
-             response_class=JSONResponse,
-             tags=[Tags.Training.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)])
-async def train_unsupervised(request: Request,
-                             training_data: Annotated[List[UploadFile], File(description="One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
-                             epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
-                             lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
-                             test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
-                             log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
-                             description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
-                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.post(
+    "/train_unsupervised",
+    status_code=HTTP_202_ACCEPTED,
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+)
+async def train_unsupervised(
+    request: Request,
+    training_data: Annotated[List[UploadFile], File(description="One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]")],
+    epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+    lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
+    test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage", ge=0.0)] = 0.2,
+    log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
+    description: Annotated[Union[str, None], Form(description="The description of the training or change logs")] = None,
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Triggers unsupervised training on the running model using one or more files, each containing a list of plain texts.
 
@@ -86,16 +90,18 @@ async def train_unsupervised(request: Request,
     data_file.seek(0)
     training_id = tracking_id or str(uuid.uuid4())
     try:
-        training_response = model_service.train_unsupervised(data_file,
-                                                             epochs,
-                                                             log_frequency,
-                                                             training_id,
-                                                             ",".join(file_names),
-                                                             raw_data_files=files,
-                                                             synchronised=(os.environ.get("CMS_CI", "false") == "true"),
-                                                             lr_override=lr_override,
-                                                             test_size=test_size,
-                                                             description=description)
+        training_response = model_service.train_unsupervised(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            ",".join(file_names),
+            raw_data_files=files,
+            synchronised=(os.environ.get("CMS_CI", "false") == "true"),
+            lr_override=lr_override,
+            test_size=test_size,
+            description=description,
+        )
     finally:
         for file in files:
             file.close()
@@ -103,24 +109,28 @@ async def train_unsupervised(request: Request,
     return _get_training_response(training_response, training_id)
 
 
-@router.post("/train_unsupervised_with_hf_hub_dataset",
-             status_code=HTTP_202_ACCEPTED,
-             response_class=JSONResponse,
-             tags=[Tags.Training.name],
-             dependencies=[Depends(cms_globals.props.current_active_user)])
-async def train_unsupervised_with_hf_dataset(request: Request,
-                                             hf_dataset_repo_id: Annotated[Union[str, None], Query(description="The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided")] = None,
-                                             hf_dataset_config: Annotated[Union[str, None], Query(description="The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided")] = None,
-                                             hf_dataset_package: Annotated[Union[UploadFile, None], File(description="A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'")] = None,
-                                             trust_remote_code: Annotated[bool, Query(description="Whether to trust the remote code of the dataset")] = False,
-                                             text_column_name: Annotated[str, Query(description="The name of the text column in the dataset")] = "text",
-                                             epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
-                                             lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
-                                             test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits", ge=0.0)] = 0.2,
-                                             log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
-                                             description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
-                                             tracking_id: Union[str, None] = Depends(validate_tracking_id),
-                                             model_service: AbstractModelService = Depends(cms_globals.model_service_dep)) -> JSONResponse:
+@router.post(
+    "/train_unsupervised_with_hf_hub_dataset",
+    status_code=HTTP_202_ACCEPTED,
+    response_class=JSONResponse,
+    tags=[Tags.Training.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+)
+async def train_unsupervised_with_hf_dataset(
+    request: Request,
+    hf_dataset_repo_id: Annotated[Union[str, None], Query(description="The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided")] = None,
+    hf_dataset_config: Annotated[Union[str, None], Query(description="The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided")] = None,
+    hf_dataset_package: Annotated[Union[UploadFile, None], File(description="A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'")] = None,
+    trust_remote_code: Annotated[bool, Query(description="Whether to trust the remote code of the dataset")] = False,
+    text_column_name: Annotated[str, Query(description="The name of the text column in the dataset")] = "text",
+    epochs: Annotated[int, Query(description="The number of training epochs", ge=0)] = 1,
+    lr_override: Annotated[Union[float, None], Query(description="The override of the initial learning rate", gt=0.0)] = None,
+    test_size: Annotated[Union[float, None], Query(description="The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits", ge=0.0)] = 0.2,
+    log_frequency: Annotated[int, Query(description="The number of processed documents or epochs after which training metrics will be logged", ge=1)] = 1000,
+    description: Annotated[Union[str, None], Query(description="The description of the training or change logs")] = None,
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
     """
     Triggers unsupervised training on the running model using a dataset from the Hugging Face Hub.
 
@@ -175,16 +185,18 @@ s
         hf_dataset.save_to_disk(data_dir.name)
 
     training_id = tracking_id or str(uuid.uuid4())
-    training_response = model_service.train_unsupervised(data_dir,
-                                                         epochs,
-                                                         log_frequency,
-                                                         training_id,
-                                                         input_file_name,
-                                                         raw_data_files=None,
-                                                         synchronised=(os.environ.get("CMS_CI", "false") == "true"),
-                                                         lr_override=lr_override,
-                                                         test_size=test_size,
-                                                         description=description)
+    training_response = model_service.train_unsupervised(
+        data_dir,
+        epochs,
+        log_frequency,
+        training_id,
+        input_file_name,
+        raw_data_files=None,
+        synchronised=(os.environ.get("CMS_CI", "false") == "true"),
+        lr_override=lr_override,
+        test_size=test_size,
+        description=description,
+    )
     return _get_training_response(training_response, training_id)
 
 

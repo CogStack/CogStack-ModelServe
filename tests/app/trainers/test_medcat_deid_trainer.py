@@ -8,11 +8,13 @@ from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTra
 from app.trainers.medcat_deid_trainer import MetricsCallback, LabelCountCallback
 
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources")
-model_service = create_autospec(MedCATModelDeIdentification,
-                                _config=Settings(),
-                                _model_parent_dir=model_parent_dir,
-                                _enable_trainer=True,
-                                _model_pack_path=os.path.join(model_parent_dir, "model.zip"))
+model_service = create_autospec(
+    MedCATModelDeIdentification,
+    _config=Settings(),
+    _model_parent_dir=model_parent_dir,
+    _enable_trainer=True,
+    _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
+)
 deid_trainer = MedcatDeIdentificationSupervisedTrainer(model_service)
 deid_trainer.model_name = "deid_trainer"
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
