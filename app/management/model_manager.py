@@ -10,7 +10,6 @@ from pandas import DataFrame
 from mlflow.pyfunc import PythonModel, PythonModelContext
 from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
-from mlflow.models.model import ModelInfo
 from app.model_services.base import AbstractModelService
 from app.config import Settings
 from app.exception import ManagedModelException
@@ -153,34 +152,33 @@ class ModelManager(PythonModel):
                 raise ManagedModelException(
                     f"Cannot find the model package file inside artifacts downloaded from {model_artifact_uri}"
                 )
+    @staticmethod
+    def get_code_path_list() -> List[str]:
+        return [
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model_services")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "processors")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trainers")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "__init__.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "domain.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exception.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "registry.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "utils.py")),
+            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logging.ini")),
+        ]
 
-    def log_model(
-        self,
-        model_name: str,
-        model_path: str,
-        registered_model_name: Optional[str] = None,
-    ) -> ModelInfo:
-        """
-        Logs the model with the specified name and local path to MLflow.
-
-        Args:
-            model_name (str): The name of the model to be logged.
-            model_path (str): The artifact path to the model.
-            registered_model_name (Optional[str]): The name of the registered model in MLflow.
-
-        Returns:
-            ModelInfo: The information instance of the logged model.
-        """
-
-        return mlflow.pyfunc.log_model(
-            artifact_path=model_name,
-            python_model=self,
-            artifacts={"model_path": model_path},
-            signature=self.model_signature,
-            code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements_from_file(),
-            registered_model_name=registered_model_name,
-        )
+    @staticmethod
+    def get_pip_requirements_from_file() -> Union[List[str], str]:
+        if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))):
+            with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
+                pyproject = toml.load(file)
+                return pyproject.get("project", {}).get("dependencies", [])
+        elif os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))):
+            return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
+        else:
+            raise ManagedModelException("Cannot find pip requirements.")
 
     def save_model(self, local_dir: str, model_path: str) -> None:
         """
@@ -196,8 +194,8 @@ class ModelManager(PythonModel):
             python_model=self,
             artifacts={"model_path": model_path},
             signature=self.model_signature,
-            code_path=ModelManager._get_code_path_list(),
-            pip_requirements=ModelManager._get_pip_requirements_from_file(),
+            code_path=ModelManager.get_code_path_list(),
+            pip_requirements=ModelManager.get_pip_requirements_from_file(),
         )
 
     def load_context(self, context: PythonModelContext) -> None:
@@ -280,35 +278,7 @@ class ModelManager(PythonModel):
             for _, item in df.iterrows():
                 yield item.to_dict()
 
-    @staticmethod
-    def _get_code_path_list() -> List[str]:
-        return [
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model_services")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "processors")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trainers")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "__init__.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "domain.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "exception.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "registry.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "utils.py")),
-            os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "logging.ini")),
-        ]
-
     @staticmethod   # type: ignore
     @func_deprecated
     def _get_pip_requirements() -> str:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
-
-    @staticmethod
-    def _get_pip_requirements_from_file() -> Union[List[str], str]:
-        if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))):
-            with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
-                pyproject = toml.load(file)
-                return pyproject.get("project", {}).get("dependencies", [])
-        elif os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))):
-            return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
-        else:
-            raise ManagedModelException("Cannot find pip requirements.")

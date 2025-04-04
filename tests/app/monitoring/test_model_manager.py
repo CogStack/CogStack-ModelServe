@@ -34,34 +34,12 @@ def test_download_model_package(mlflow_fixture):
         assert "Cannot find the model package file inside artifacts downloaded from mlflow_tracking_uri" == str(e)
 
 
-def test_log_model_with_registration(mlflow_fixture):
-    model_manager = ModelManager(_MockedModelService, Settings())
-    model_info = model_manager.log_model("model_name", "filepath", "model_name")
-    assert model_info is not None
-    mlflow.pyfunc.log_model.assert_called_once_with(
-        artifact_path="model_name",
-        python_model=model_manager,
-        signature=model_manager.model_signature,
-        code_path=model_manager._get_code_path_list(),
-        pip_requirements=model_manager._get_pip_requirements_from_file(),
-        artifacts={"model_path": "filepath"},
-        registered_model_name="model_name",
-    )
+def test_get_code_path_list(mlflow_fixture):
+    assert len(ModelManager.get_code_path_list()) == 12
 
 
-def test_log_model_without_registration(mlflow_fixture):
-    model_manager = ModelManager(_MockedModelService, Settings())
-    model_info = model_manager.log_model("model_name", "filepath")
-    assert model_info is not None
-    mlflow.pyfunc.log_model.assert_called_once_with(
-        artifact_path="model_name",
-        python_model=model_manager,
-        signature=model_manager.model_signature,
-        code_path=model_manager._get_code_path_list(),
-        pip_requirements=model_manager._get_pip_requirements_from_file(),
-        artifacts={"model_path": "filepath"},
-        registered_model_name=None,
-    )
+def test_get_pip_requirements_from_file(mlflow_fixture):
+    assert len(ModelManager.get_pip_requirements_from_file()) > 0
 
 
 def test_save_model(mlflow_fixture):
@@ -72,8 +50,8 @@ def test_save_model(mlflow_fixture):
             path=local_dir,
             python_model=model_manager,
             signature=model_manager.model_signature,
-            code_path=model_manager._get_code_path_list(),
-            pip_requirements=model_manager._get_pip_requirements_from_file(),
+            code_path=model_manager.get_code_path_list(),
+            pip_requirements=model_manager.get_pip_requirements_from_file(),
             artifacts={"model_path": "."},
         )
 

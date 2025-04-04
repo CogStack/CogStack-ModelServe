@@ -30,6 +30,7 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
     response_class=JSONResponse,
     tags=[Tags.Training.name],
     dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Upload one or more files each containing a list of plain texts and trigger the unsupervised training",
 )
 async def train_unsupervised(
     request: Request,
@@ -115,6 +116,7 @@ async def train_unsupervised(
     response_class=JSONResponse,
     tags=[Tags.Training.name],
     dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Upload or specify an existing Hugging Face dataset and trigger the unsupervised training",
 )
 async def train_unsupervised_with_hf_dataset(
     request: Request,

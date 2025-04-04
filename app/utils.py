@@ -31,10 +31,16 @@ def get_settings() -> Settings:
     Returns:
         Settings: An instance of the configuration settings.
     """
+
+    settings = Settings()
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-    os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
-    return Settings()
+    if settings.SYSTEM_METRICS_LOGGING_INTERVAL_SECONDS > 0:
+        os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
+        os.environ["MLFLOW_SYSTEM_METRICS_SAMPLING_INTERVAL"] = str(settings.SYSTEM_METRICS_LOGGING_INTERVAL_SECONDS)
+    else:
+        os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "false"
+    return settings
 
 
 def get_code_base_uri(model_name: str) -> Optional[str]:

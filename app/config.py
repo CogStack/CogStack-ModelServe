@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     AUTH_JWT_SECRET: str = ""                         # the JWT secret and will be ignored if AUTH_USER_ENABLED is not "true"
     AUTH_ACCESS_TOKEN_EXPIRE_SECONDS: int = 3600      # the seconds after which the JWT will expire
     AUTH_DATABASE_URL: str = "sqlite+aiosqlite:///./cms-users.db"     # the URL of the authentication database
+    SYSTEM_METRICS_LOGGING_INTERVAL_SECONDS: int = 30 # if set, enable the logging on system metrics and set the interval in seconds
     TRAINING_CONCEPT_ID_WHITELIST: str = ""           # the comma-separated concept IDs used for filtering annotations of interest
     TRAINING_METRICS_LOGGING_INTERVAL: int = 5        # the number of steps after which training metrics will be collected
     TRAINING_SAFE_MODEL_SERIALISATION: str = "false"  # if "true", serialise the trained model using safe tensors

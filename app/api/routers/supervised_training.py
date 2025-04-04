@@ -61,6 +61,7 @@ async def train_supervised(
     Returns:
         JSONResponse: A JSON response containing training response with the training ID.
     """
+
     files = []
     file_names = []
     for te in trainer_export:

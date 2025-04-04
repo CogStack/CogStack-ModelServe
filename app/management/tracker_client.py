@@ -11,6 +11,7 @@ from mlflow.utils.mlflow_tags import MLFLOW_SOURCE_NAME
 from mlflow.entities import RunStatus, Metric
 from mlflow.tracking import MlflowClient
 from mlflow.exceptions import MlflowException
+from mlflow.models.model import ModelInfo
 from app.management.model_manager import ModelManager
 from app.exception import StartTrainingException
 from app.domain import TrainerBackend, TrackerBackend
@@ -140,7 +141,7 @@ class TrackerClient(object):
         Args:
             local_dir (str): The local directory where the model will be saved.
             filepath (str): The artifact path to the model.
-            model_manager (ModelManager): The instance of ModelManager to handle saving.
+            model_manager (ModelManager): The instance of ModelManager used for model saving.
         """
 
         model_manager.save_model(local_dir, filepath)
@@ -345,6 +346,36 @@ class TrackerClient(object):
         mlflow.log_params(config)
 
     @staticmethod
+    def log_model(
+            model_name: str,
+            model_path: str,
+            model_manager: ModelManager,
+            registered_model_name: Optional[str] = None,
+    ) -> ModelInfo:
+        """
+        Logs the model with the specified name and local path to MLflow.
+
+        Args:
+            model_name (str): The name of the model to be logged.
+            model_path (str): The artifact path to the model.
+            model_manager (ModelManager): The instance of ModelManager used for model saving.
+            registered_model_name (Optional[str]): The name of the registered model in MLflow.
+
+        Returns:
+            ModelInfo: The information instance of the logged model.
+        """
+
+        return mlflow.pyfunc.log_model(
+            artifact_path=model_name,
+            python_model=model_manager,
+            artifacts={"model_path": model_path},
+            signature=model_manager.model_signature,
+            code_path=ModelManager.get_code_path_list(),
+            pip_requirements=ModelManager.get_pip_requirements_from_file(),
+            registered_model_name=registered_model_name,
+        )
+
+    @staticmethod
     def save_pretrained_model(
         model_name: str,
         model_path: str,
@@ -361,7 +392,7 @@ class TrackerClient(object):
         Args:
             model_name (str): The name of the model.
             model_path (str): The path to the pretrained model.
-            model_manager (ModelManager): The instance of ModelManager to handle saving.
+            model_manager (ModelManager): The instance of ModelManager used for model saving.
             training_type (Optional[str]): The type of training used for the model.
             run_name (Optional[str]): The name of the run for identification purposes.
             model_config (Optional[Dict]): The configuration of the model to save.
@@ -390,7 +421,7 @@ class TrackerClient(object):
                 tags = {**tags, **model_tags}
             mlflow.set_tags(tags)
             model_name = model_name.replace(" ", "_")
-            model_manager.log_model(model_name, model_path, model_name)
+            TrackerClient.log_model(model_name, model_path, model_manager, model_name)
             TrackerClient.end_with_success()
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
@@ -464,6 +495,7 @@ class TrackerClient(object):
         if batch:
             self.mlflow_client.log_batch(run_id=run_id, metrics=batch)
 
+
     def save_model(
         self,
         filepath: str,
@@ -477,7 +509,7 @@ class TrackerClient(object):
         Args:
             filepath (str): The artifact path of the model to save.
             model_name (str): The name of the model.
-            model_manager (ModelManager): The instance of ModelManager to handle saving.
+            model_manager (ModelManager): The instance of ModelManager used for model saving.
             validation_status (str): The status of the model validation (default: "pending").
 
         Returns:
@@ -489,7 +521,7 @@ class TrackerClient(object):
         mlflow.set_tag("training.output.package", os.path.basename(filepath))
 
         if not mlflow.get_tracking_uri().startswith("file:/"):
-            model_manager.log_model(model_name, filepath, model_name)
+            TrackerClient.log_model(model_name, filepath, model_manager, model_name)
             versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
             self.mlflow_client.set_model_version_tag(
                 name=model_name,
@@ -498,7 +530,7 @@ class TrackerClient(object):
                 value=validation_status,
             )
         else:
-            model_manager.log_model(model_name, filepath)
+            TrackerClient.log_model(model_name, filepath, model_manager)
 
         artifact_uri = mlflow.get_artifact_uri(model_name)
         mlflow.set_tag("training.output.model_uri", artifact_uri)

@@ -177,7 +177,7 @@ async def train_eval_metrics(
     """
     Retrieves the metrics of a training or evaluation job by its ID.
 
-    Parameters:
+    Args:
         request (Request): The request object.
         train_eval_id (str): The training or evaluation ID.
         model_service (AbstractModelService): The model service dependency.

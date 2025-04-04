@@ -211,7 +211,6 @@ def test_save_pretrained_model(mlflow_fixture):
     assert mlflow.set_tags.call_args.args[0]["training.mlflow.run_id"] == "run_id"
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
-    model_manager.log_model.assert_called_once_with("model_name", "model_path", "model_name")
 
 
 def test_log_single_exception(mlflow_fixture):
@@ -279,6 +278,44 @@ def test_log_model_config(mlflow_fixture):
     tracker_client.log_model_config({"property": "value"})
 
     mlflow.log_params.assert_called_once_with({"property": "value"})
+
+
+def test_log_model_with_registration(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    model_manager = Mock()
+    model_manager.model_signature = Mock()
+
+    model_info = tracker_client.log_model("model_name", "filepath", model_manager, "model_name")
+
+    assert model_info is not None
+    mlflow.pyfunc.log_model.assert_called_once_with(
+        artifact_path="model_name",
+        python_model=model_manager,
+        artifacts={"model_path": "filepath"},
+        signature=model_manager.model_signature,
+        code_path=ANY,
+        pip_requirements=ANY,
+        registered_model_name="model_name",
+    )
+
+
+def test_log_model_without_registration(mlflow_fixture):
+    tracker_client = TrackerClient("")
+    model_manager = Mock()
+    model_manager.model_signature = Mock()
+
+    model_info = tracker_client.log_model("model_name", "filepath", model_manager)
+
+    assert model_info is not None
+    mlflow.pyfunc.log_model.assert_called_once_with(
+        artifact_path="model_name",
+        python_model=model_manager,
+        signature=model_manager.model_signature,
+        code_path=ANY,
+        pip_requirements=ANY,
+        artifacts={"model_path": "filepath"},
+        registered_model_name=None,
+    )
 
 
 def test_send_batched_model_stats(mlflow_fixture):
