@@ -332,7 +332,7 @@ class TrackerClient(object):
             num_of_docs (int): The number of documents used for training or evaluation.
         """
 
-        mlflow.set_tag("training.document.size", num_of_docs)
+        mlflow.set_tag("training.document.size", str(num_of_docs))
 
     @staticmethod
     def log_model_config(config: Dict[str, str]) -> None:

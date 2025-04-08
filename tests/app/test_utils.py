@@ -30,6 +30,7 @@ from app.utils import (
     unpack_model_data_package,
     create_model_data_package,
     ensure_tensor_contiguity,
+    pyproject_dependencies_to_pip_requirements,
 )
 from app.domain import Annotation, Entity
 
@@ -259,6 +260,19 @@ def test_ensure_tensor_contiguity():
 
     for param in mock_model.parameters():
         assert param.data.is_contiguous() == True
+
+
+def test_pyproject_dependencies_to_pip_requirements():
+    pyproject_dependencies = [
+        "package~=1.2.3; python_version >= '3.10'",
+        "package~=0.1.2; python_version < '3.10'",
+        "another-package~=2.3.4",
+    ]
+
+    result = pyproject_dependencies_to_pip_requirements(pyproject_dependencies)
+
+    assert len(result) == 2
+    assert result[1] == "another-package~=2.3.4"
 
 
 class TestUnpackModelPackage(unittest.TestCase):

@@ -269,7 +269,7 @@ def test_log_document_size(mlflow_fixture):
 
     tracker_client.log_document_size(10)
 
-    mlflow.set_tag.assert_called_once_with("training.document.size", 10)
+    mlflow.set_tag.assert_called_once_with("training.document.size", "10")
 
 
 def test_log_model_config(mlflow_fixture):

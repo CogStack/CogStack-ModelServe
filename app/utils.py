@@ -4,6 +4,7 @@ import random
 import struct
 import inspect
 import os
+import sys
 import copy
 import functools
 import warnings
@@ -12,6 +13,7 @@ import tarfile
 import zipfile
 import numpy as np
 import pandas as pd
+from packaging.markers import Marker
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
@@ -610,6 +612,30 @@ def ensure_tensor_contiguity(model: PreTrainedModel) -> None:
 
     for param in model.parameters():
         param.data = param.data.contiguous()
+
+
+def pyproject_dependencies_to_pip_requirements(pyproject_dependencies: List[str]) -> List[str]:
+    """
+    Converts a list of pyproject dependencies to a list of pip requirements.
+
+    Args:
+        pyproject_dependencies (List[str]): The list of pyproject dependencies.
+
+    Returns:
+        List[str]: The list of pip requirements.
+    """
+
+    pip_requirements = []
+    current_py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    for dependency in pyproject_dependencies:
+        if ";" in dependency:
+            package, py_ver = dependency.split(";", 1)
+            if Marker(py_ver.strip()).evaluate({"python_version": current_py_ver}):
+                pip_requirements.append(package.strip())
+        else:
+            pip_requirements.append(dependency.strip())
+
+    return pip_requirements
 
 
 TYPE_ID_TO_NAME_PATCH = {

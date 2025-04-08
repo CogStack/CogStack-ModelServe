@@ -140,7 +140,7 @@ async def cancel_training(
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
 ) -> JSONResponse:
     """
-    Cancels the in-progress training job.
+    Cancels the in-progress training job (Experimental, the support for this may vary depending on the underlying model).
 
     Args:
         request (Request): The request object.

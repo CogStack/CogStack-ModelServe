@@ -1,5 +1,6 @@
 import os
 import pytest
+from transformers import AutoTokenizer, AutoModelForTokenClassification
 from unittest.mock import Mock, MagicMock
 from app.config import Settings
 from app.model_services.medcat_model_snomed import MedCATModelSnomed
@@ -84,4 +85,8 @@ def trf_model():
 def huggingface_ner_model():
     config = Settings()
     config.BASE_MODEL_FILE = "huggingface_ner_model.zip"
-    return HuggingFaceNerModel(config, MODEL_PARENT_DIR)
+    model_service = HuggingFaceNerModel(config, MODEL_PARENT_DIR)
+    test_hf_repo = "hf-internal-testing/tiny-bert-for-token-classification"
+    model_service.model = AutoModelForTokenClassification.from_pretrained(test_hf_repo)
+    model_service.tokenizer = AutoTokenizer.from_pretrained(test_hf_repo)
+    return model_service

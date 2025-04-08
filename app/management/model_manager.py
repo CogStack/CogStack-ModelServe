@@ -13,7 +13,7 @@ from mlflow.types import DataType, Schema, ColSpec
 from app.model_services.base import AbstractModelService
 from app.config import Settings
 from app.exception import ManagedModelException
-from app.utils import func_deprecated
+from app.utils import func_deprecated, pyproject_dependencies_to_pip_requirements
 
 
 @final
@@ -154,6 +154,13 @@ class ModelManager(PythonModel):
                 )
     @staticmethod
     def get_code_path_list() -> List[str]:
+        """
+        Gets the list of code paths to be included in the registered model.
+
+        Returns:
+            List[str]: The list of code paths to be included.
+        """
+
         return [
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data")),
             os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "management")),
@@ -171,10 +178,18 @@ class ModelManager(PythonModel):
 
     @staticmethod
     def get_pip_requirements_from_file() -> Union[List[str], str]:
+        """
+        Gets the list of pip requirements from the pyproject.toml file or the requirements.txt file.
+
+        Returns:
+            Union[List[str], str]: The list of pip requirements or the path to the requirements.txt file.
+        """
+
         if os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml"))):
             with open(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "pyproject.toml")), "r") as file:
                 pyproject = toml.load(file)
-                return pyproject.get("project", {}).get("dependencies", [])
+                dependencies = pyproject.get("project", {}).get("dependencies", [])
+                return pyproject_dependencies_to_pip_requirements(dependencies)
         elif os.path.exists(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))):
             return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
         else:
@@ -182,7 +197,7 @@ class ModelManager(PythonModel):
 
     def save_model(self, local_dir: str, model_path: str) -> None:
         """
-        Save the model with the specified path into a local directory.
+        Saves the model with the specified path into a local directory.
 
         Args:
             local_dir (str): The local directory where the model will be saved.
@@ -200,7 +215,7 @@ class ModelManager(PythonModel):
 
     def load_context(self, context: PythonModelContext) -> None:
         """
-        Load artifacts from the context and initialise the model service.
+        Loads artifacts from the context and initialise the model service.
 
         Args:
             context (PythonModelContext): The context containing the model artifacts.
