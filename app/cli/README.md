@@ -19,9 +19,9 @@ $ cms [OPTIONS] COMMAND [ARGS]...
 * `serve`: This serves various CogStack NLP models
 * `train`: This pretrains or fine-tunes various...
 * `register`: This pushes a pretrained NLP model to the...
-* `export-model-apis`: This generates model-specific API docs for...
+* `export-model-apis`: This generates a model-specific API...
 * `build`: This builds an OCI-compliant image to...
-* `export-openapi-spec`: This generates a single API doc for all...
+* `export-openapi-spec`: This generates an API document for all...
 * `stream`: This groups various stream operations
 * `package`: This groups various package operations
 
@@ -60,13 +60,13 @@ $ cms train [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to train  [required]
 * `--base-model-path TEXT`: The file path to the base model package to be trained on
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to train
 * `--training-type [supervised|unsupervised|meta_supervised]`: The type of training  [required]
 * `--data-file-path TEXT`: The path to the training asset file  [required]
 * `--epochs INTEGER`: The number of training epochs  [default: 1]
-* `--log-frequency INTEGER`: The number of processed documents after which training metrics will be logged  [default: 1]
+* `--log-frequency INTEGER`: The number of processed documents or epochs after which training metrics will be logged  [default: 1]
 * `--hyperparameters TEXT`: The overriding hyperparameters serialised as JSON string  [default: {}]
 * `--description TEXT`: The description of the training or change logs
 * `--model-name TEXT`: The string representation of the model name
@@ -86,10 +86,10 @@ $ cms register [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to register  [required]
 * `--model-path TEXT`: The file path to the model package  [required]
 * `--model-name TEXT`: The string representation of the registered model  [required]
-* `--training-type TEXT`: The type of training the model went through
+* `--training-type [supervised|unsupervised|meta_supervised]`: The type of training the model went through
 * `--model-config TEXT`: The string representation of a JSON object
 * `--model-metrics TEXT`: The string representation of a JSON array
 * `--model-tags TEXT`: The string representation of a JSON object
@@ -98,7 +98,7 @@ $ cms register [OPTIONS]
 
 ## `cms export-model-apis`
 
-This generates model-specific API docs for enabled endpoints
+This generates a model-specific API document for enabled endpoints
 
 **Usage**:
 
@@ -144,7 +144,7 @@ $ cms build [OPTIONS]
 
 ## `cms export-openapi-spec`
 
-This generates a single API doc for all endpoints
+This generates an API document for all endpoints defined in CMS
 
 **Usage**:
 
@@ -243,8 +243,8 @@ $ cms package hf-model [OPTIONS]
 
 * `--hf-repo-id TEXT`: The repository ID of the model to download from Hugging Face Hub, e.g., &#x27;google-bert/bert-base-cased&#x27;
 * `--hf-repo-revision TEXT`: The revision of the model to download from Hugging Face Hub
-* `--cached-model-dir TEXT`: Path to the cached model directory, will only be used if --hf-repo-id is not provided
-* `--output-model-package TEXT`: Path to save the model package, minus any format-specific extension, e.g., &#x27;./model_packages/bert-base-cased&#x27;
+* `--cached-model-dir TEXT`: The path to the cached model directory, will only be used if --hf-repo-id is not provided
+* `--output-model-package TEXT`: The path where the model package will be saved, minus any format-specific extension, e.g., &#x27;./model_packages/bert-base-cased&#x27;
 * `--archive-format [zip|gztar]`: The archive format of the model package, e.g., &#x27;zip&#x27; or &#x27;gztar&#x27;  [default: zip]
 * `--remove-cached / --no-remove-cached`: Whether to remove the downloaded cache after the model package is saved  [default: no-remove-cached]
 * `--help`: Show this message and exit.
@@ -263,8 +263,8 @@ $ cms package hf-dataset [OPTIONS]
 
 * `--hf-dataset-id TEXT`: The repository ID of the dataset to download from Hugging Face Hub, e.g., &#x27;stanfordnlp/imdb&#x27;
 * `--hf-dataset-revision TEXT`: The revision of the dataset to download from Hugging Face Hub
-* `--cached-dataset-dir TEXT`: Path to the cached dataset directory, will only be used if --hf-dataset-id is not provided
-* `--output-dataset-package TEXT`: Path to save the dataset package, minus any format-specific extension, e.g., &#x27;./dataset_packages/imdb&#x27;
+* `--cached-dataset-dir TEXT`: The path to the cached dataset directory, will only be used if --hf-dataset-id is not provided
+* `--output-dataset-package TEXT`: The path where the dataset package will be saved, minus any format-specific extension, e.g., &#x27;./dataset_packages/imdb&#x27;
 * `--archive-format [zip|gztar]`: The archive format of the dataset package, e.g., &#x27;zip&#x27; or &#x27;gztar&#x27;  [default: zip]
 * `--remove-cached / --no-remove-cached`: Whether to remove the downloaded cache after the dataset package is saved  [default: no-remove-cached]
 * `--trust-remote-code / --no-trust-remote-code`: Whether to trust and use the remote script of the dataset  [default: no-trust-remote-code]
