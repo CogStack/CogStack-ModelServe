@@ -22,4 +22,16 @@ else
     exit 1
 fi
 
-python cli/cli.py serve --model-type "${CMS_MODEL_TYPE}" --model-name "${CMS_MODEL_NAME}" --model-path "${CMS_MODEL_FILE}" --host 0.0.0.0 --port 8000
+if [ "${CMS_STREAMABLE}" = "true" ]; then
+    streamable="--streamable"
+else
+    streamable=""
+fi
+
+python cli/cli.py serve \
+  --model-type "${CMS_MODEL_TYPE}" \
+  --model-name "${CMS_MODEL_NAME}" \
+  --model-path "${CMS_MODEL_FILE}" \
+  --host 0.0.0.0 \
+  --port 8000 \
+  $streamable
