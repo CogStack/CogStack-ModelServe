@@ -56,7 +56,6 @@ async def get_entities_stream_from_jsonlines_stream(
 
 
 @router.websocket(PATH_WS_PROCESS)
-# @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
 async def get_inline_annotations_from_websocket(
     websocket: WebSocket,
     user_manager: CmsUserManager = Depends(get_user_manager),
@@ -135,31 +134,53 @@ class _LocalStreamingResponse(Response):
         self,
         content: Any,
         status_code: int = 200,
+        max_chunk_size: Optional[int] = 1024,
         headers: Optional[Mapping[str, str]] = None,
         media_type: Optional[str] = None,
         background: Optional[BackgroundTask] = None,
     ) -> None:
         self.content = content
         self.status_code = status_code
-        self.media_type = self.media_type if media_type is None else media_type
+        self.max_chunk_size = max_chunk_size
+        if media_type is not None:
+            self.media_type = media_type
         self.background = background
         self.init_headers(headers)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         response_started = False
-        max_chunk_size = 1024
         async for line in self.content:
             if not response_started:
-                await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
+                await send({
+                    "type": "http.response.start",
+                    "status": self.status_code,
+                    "headers": self.raw_headers,
+                })
                 response_started = True
             line_bytes = line.encode("utf-8")
-            for i in range(0, len(line_bytes), max_chunk_size):
-                chunk = line_bytes[i:i + max_chunk_size]
-                await send({"type": "http.response.body", "body": chunk, "more_body": True})
+            for i in range(0, len(line_bytes), self.max_chunk_size):
+                chunk = line_bytes[i:i + self.max_chunk_size]
+                await send({
+                    "type": "http.response.body",
+                    "body": chunk,
+                    "more_body": True,
+                })
         if not response_started:
-            await send({"type": "http.response.start", "status": self.status_code, "headers": self.raw_headers})
-            await send({"type": "http.response.body", "body": '{"error": "Empty stream"}\n'.encode("utf-8"), "more_body": True})
-        await send({"type": "http.response.body", "body": b"", "more_body": False})
+            await send({
+                "type": "http.response.start",
+                "status": self.status_code,
+                "headers": self.raw_headers,
+            })
+            await send({
+                "type": "http.response.body",
+                "body": '{"error": "Empty stream"}\n'.encode("utf-8"),
+                "more_body": True,
+            })
+        await send({
+            "type": "http.response.body",
+            "body": b"",
+            "more_body": False,
+        })
 
         if self.background is not None:
             await self.background()

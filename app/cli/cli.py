@@ -19,6 +19,7 @@ warnings.simplefilter("ignore")
 
 import uvicorn  # noqa
 import shutil  # noqa
+import tempfile  # noqa
 import typer  # noqa
 import graypy  # noqa
 import aiohttp  # noqa
@@ -443,12 +444,22 @@ def package_model(
     model_package_archive = os.path.abspath(os.path.expanduser(output_model_package))
     if hf_repo_id:
         try:
-            if not hf_repo_revision:
-                download_path = snapshot_download(repo_id=hf_repo_id)
-            else:
-                download_path = snapshot_download(repo_id=hf_repo_id, revision=hf_repo_revision)
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                if not hf_repo_revision:
+                    download_path = snapshot_download(
+                        repo_id=hf_repo_id,
+                        local_dir=tmp_dir,
+                        local_dir_use_symlinks=False,
+                    )
+                else:
+                    download_path = snapshot_download(
+                        repo_id=hf_repo_id,
+                        revision=hf_repo_revision,
+                        local_dir=tmp_dir,
+                        local_dir_use_symlinks=False,
+                    )
 
-            shutil.make_archive(model_package_archive, archive_format.value, download_path)
+                shutil.make_archive(model_package_archive, archive_format.value, download_path)
         finally:
             if remove_cached:
                 cached_model_path = os.path.abspath(os.path.join(download_path, "..", ".."))
