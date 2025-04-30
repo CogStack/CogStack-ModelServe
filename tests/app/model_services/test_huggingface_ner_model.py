@@ -24,15 +24,10 @@ def test_from_model(huggingface_ner_model):
     assert new_model_service.tokenizer == huggingface_ner_model.tokenizer
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_init_model(huggingface_ner_model):
     huggingface_ner_model.init_model()
     assert huggingface_ner_model.model is not None
     assert huggingface_ner_model.tokenizer is not None
-
 
 @pytest.mark.skipif(
     not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
@@ -44,10 +39,6 @@ def test_load_model(huggingface_ner_model):
     assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_info(huggingface_ner_model):
     huggingface_ner_model.init_model()
     model_card = huggingface_ner_model.info()
@@ -56,12 +47,8 @@ def test_info(huggingface_ner_model):
     assert model_card.model_type == ModelType.HUGGINGFACE_NER
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_annotate(huggingface_ner_model):
-    huggingface_ner_model.init_model()
+    huggingface_ner_model = huggingface_ner_model.from_model(huggingface_ner_model.model, huggingface_ner_model.tokenizer)
     annotations = huggingface_ner_model.annotate(
         """The patient is a 60-year-old female, who complained of coughing during meals. """
         """ Her outpatient evaluation revealed a mild-to-moderate cognitive linguistic deficit, which was completed approximately"""
@@ -91,10 +78,6 @@ def test_annotate(huggingface_ner_model):
     assert isinstance(annotations, list)
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_train_unsupervised(huggingface_ner_model):
     huggingface_ner_model.init_model()
     huggingface_ner_model._config.REDEPLOY_TRAINED_MODEL = "false"
@@ -105,10 +88,6 @@ def test_train_unsupervised(huggingface_ner_model):
     huggingface_ner_model._unsupervised_trainer.train.assert_called()
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_train_supervised(huggingface_ner_model):
     huggingface_ner_model.init_model()
     huggingface_ner_model._config.REDEPLOY_TRAINED_MODEL = "false"

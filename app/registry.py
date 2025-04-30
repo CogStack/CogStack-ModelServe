@@ -5,6 +5,7 @@ from app.model_services.medcat_model_umls import MedCATModelUmls
 from app.model_services.medcat_model_icd10 import MedCATModelIcd10
 from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 from app.model_services.huggingface_ner_model import HuggingFaceNerModel
+from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
 
 model_service_registry = {
     ModelType.MEDCAT_SNOMED: MedCATModelSnomed,
@@ -14,4 +15,5 @@ model_service_registry = {
     ModelType.ANONCAT: MedCATModelDeIdentification,
     ModelType.TRANSFORMERS_DEID: TransformersModelDeIdentification,
     ModelType.HUGGINGFACE_NER: HuggingFaceNerModel,
+    ModelType.HUGGINGFACE_LLM: HuggingFaceLlmModel,
 }

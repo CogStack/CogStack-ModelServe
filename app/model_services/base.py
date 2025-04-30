@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol
+from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncGenerator
 from app.config import Settings
 from app.domain import ModelCard, Annotation
 
@@ -63,8 +63,8 @@ class AbstractModelService(ABC, Generic[T]):
 
         Args:
             model_file_path (str): The path to the file containing the model.
-            *args: Additional positional arguments to be passed to the model loader.
-            **kwargs: Additional keyword arguments to be passed to the model loader.
+            *args (Any): Additional positional arguments to be passed to the model loader.
+            **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
         Returns:
             Any: The loaded model components.
@@ -164,13 +164,49 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
+    def generate(self,  prompt: str, *args: Any, **kwargs: Any) -> str:
+        """
+        Generates a text based on a given prompt.
+
+        Args:
+            prompt (str): The text to be used as the prompt.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            srt: The text containing the generated text.
+
+        Raises:
+            NotImplementedError: If the method is not implemented by the subclass.
+        """
+
+        raise NotImplementedError
+
+    async def async_generate(self,  prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:
+        """
+        Asynchronously generates a text stream based on a given prompt.
+
+        Args:
+            prompt (str): The text to be used as the prompt.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            AsyncGenerator: The stream containing the generated text.
+
+        Raises:
+            NotImplementedError: If the method is not implemented by the subclass.
+        """
+
+        raise NotImplementedError
+
     def train_supervised(self, *args: Any, **kwargs: Any) -> Tuple[bool, str, str]:
         """
         Initiates supervised training on the model.
 
         Args:
-            *args: Additional positional arguments to be passed to this method.
-            **kwargs: Additional keyword arguments to be passed to this method.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
             Tuple[bool, str, str]: A tuple with the first element indicating success or failure, the second element
@@ -187,8 +223,8 @@ class AbstractModelService(ABC, Generic[T]):
         Initiates unsupervised training on the model.
 
         Args:
-            *args: Additional positional arguments to be passed to this method.
-            **kwargs: Additional keyword arguments to be passed to this method.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
             Tuple[bool, str, str]: A tuple with the first element indicating success or failure, the second element
@@ -205,8 +241,8 @@ class AbstractModelService(ABC, Generic[T]):
         Initiates metacat training on the model.
 
         Args:
-            *args: Additional positional arguments to be passed to this method.
-            **kwargs: Additional keyword arguments to be passed to this method.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
             Tuple[bool, str, str]: A tuple with the first element indicating success or failure, the second element

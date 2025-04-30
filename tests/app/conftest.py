@@ -1,6 +1,6 @@
 import os
 import pytest
-from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import AutoTokenizer, AutoModelForTokenClassification, AutoModelForCausalLM
 from unittest.mock import Mock, MagicMock
 from app.config import Settings
 from app.model_services.medcat_model_snomed import MedCATModelSnomed
@@ -9,6 +9,7 @@ from app.model_services.medcat_model_umls import MedCATModelUmls
 from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
 from app.model_services.huggingface_ner_model import HuggingFaceNerModel
+from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
 
 MODEL_PARENT_DIR = os.path.join(os.path.dirname(__file__), "..", "resources", "model")
 
@@ -88,5 +89,16 @@ def huggingface_ner_model():
     model_service = HuggingFaceNerModel(config, MODEL_PARENT_DIR)
     test_hf_repo = "hf-internal-testing/tiny-bert-for-token-classification"
     model_service.model = AutoModelForTokenClassification.from_pretrained(test_hf_repo)
+    model_service.tokenizer = AutoTokenizer.from_pretrained(test_hf_repo)
+    return model_service
+
+
+@pytest.fixture(scope="function")
+def huggingface_llm_model():
+    config = Settings()
+    config.BASE_MODEL_FILE = "huggingface_llm_model.zip"
+    model_service = HuggingFaceLlmModel(config, MODEL_PARENT_DIR)
+    test_hf_repo = "hf-internal-testing/tiny-random-LlamaForCausalLM"
+    model_service.model = AutoModelForCausalLM.from_pretrained(test_hf_repo)
     model_service.tokenizer = AutoTokenizer.from_pretrained(test_hf_repo)
     return model_service

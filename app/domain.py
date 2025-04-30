@@ -14,6 +14,7 @@ class ModelType(str, Enum):
     ANONCAT = "anoncat"
     TRANSFORMERS_DEID = "transformers_deid"
     HUGGINGFACE_NER = "huggingface_ner"
+    HUGGINGFACE_LLM = "huggingface_llm"
 
 
 class Tags(str, Enum):
@@ -24,6 +25,7 @@ class Tags(str, Enum):
     Training = "Trigger model training on input annotations"
     Evaluating = "Evaluate the deployed model with trainer export"
     Authentication = "Authenticate registered users"
+    Generative = "Generate text based on the input prompt"
 
 
 class TagsStreamable(str, Enum):
