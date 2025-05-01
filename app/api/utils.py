@@ -7,7 +7,12 @@ from functools import lru_cache
 from typing import Optional
 from fastapi import FastAPI, Request
 from starlette.responses import JSONResponse
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR, HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
+from starlette.status import (
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_501_NOT_IMPLEMENTED,
+    HTTP_400_BAD_REQUEST,
+    HTTP_429_TOO_MANY_REQUESTS,
+)
 from slowapi.middleware import SlowAPIMiddleware, SlowAPIASGIMiddleware
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
@@ -138,6 +143,21 @@ def add_exception_handlers(app: FastAPI) -> None:
         """
         logger.exception(exception)
         return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
+
+    @app.exception_handler(NotImplementedError)
+    async def not_implemented_exception_handler(_: Request, exception: NotImplementedError) -> JSONResponse:
+        """
+        Handles not implemented exceptions.
+
+        Args:
+            _ (Request): The request object.
+            exception (NotImplementedError): The not implemented exception.
+
+        Returns:
+            JSONResponse: A JSON response with a 501 status code and an error message.
+        """
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_501_NOT_IMPLEMENTED, content={"message": str(exception)})
 
 
 def add_rate_limiter(app: FastAPI, config: Settings, streamable: bool = False) -> None:

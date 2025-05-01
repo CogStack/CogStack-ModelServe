@@ -76,6 +76,9 @@ def get_model_server(config: Settings, msd_overwritten: Optional[ModelServiceDep
         app = _load_preview_router(app)
         logger.debug("Preview router loaded")
 
+    app = _load_generative_router(app)
+    logger.debug("Generative router loaded")
+
     return app
 
 
@@ -92,7 +95,9 @@ def get_stream_server(config: Settings, msd_overwritten: Optional[ModelServiceDe
     """
 
     app = _get_app(msd_overwritten, streamable=True)
-    add_rate_limiter(app, config, streamable=True)
+
+    # This is not reliable for streamable endpoint and confusing the ASGI
+    # add_rate_limiter(app, config, streamable=True)
 
     app = _load_health_check_router(app)
     logger.debug("Health check router loaded")
@@ -124,9 +129,12 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
         openapi_tags=tags_metadata,
     )
     add_exception_handlers(app)
-    instrumentator = Instrumentator(
-        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]
-    ).instrument(app)
+
+    instrumentator = None
+    if not streamable:
+        instrumentator = Instrumentator(
+            excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]
+        ).instrument(app)
 
     if msd_overwritten is not None:
         cms_globals.model_service_dep = msd_overwritten
@@ -141,7 +149,9 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
         loop.set_default_executor(ThreadPoolExecutor(max_workers=50))
         RunVar("_default_thread_limiter").set(CapacityLimiter(50))  # type: ignore
         logger.debug("Default thread pool executor set to 50")
-        instrumentator.expose(app, include_in_schema=False, should_gzip=False)
+
+        if instrumentator is not None:
+            instrumentator.expose(app, include_in_schema=False, should_gzip=False)
         logger.debug("Prometheus instrumentator metrics exposed")
         if config.AUTH_USER_ENABLED == "true":
             await make_sure_db_and_tables()
@@ -278,10 +288,18 @@ def _load_training_operations(app: FastAPI) -> FastAPI:
     app.include_router(training_operations.router)
     return app
 
+
 def _load_health_check_router(app: FastAPI) -> FastAPI:
     from app.api.routers import health_check
     importlib.reload(health_check)
     app.include_router(health_check.router)
+    return app
+
+
+def _load_generative_router(app: FastAPI) -> FastAPI:
+    from app.api.routers import generative
+    importlib.reload(generative)
+    app.include_router(generative.router)
     return app
 
 

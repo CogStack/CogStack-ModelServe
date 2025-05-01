@@ -10,6 +10,7 @@ from unittest.mock import create_autospec
 from app.api.api import get_stream_server
 from app.utils import get_settings
 from app.model_services.medcat_model import MedCATModel
+from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
 from app.management.model_manager import ModelManager
 
 
@@ -22,21 +23,46 @@ config.AUTH_USER_ENABLED = "false"
 
 
 @pytest.fixture(scope="function")
-def model_service():
-    yield create_autospec(MedCATModel)
+def ner_model_service():
+    return create_autospec(MedCATModel)
 
 
 @pytest.fixture(scope="function")
-def app(model_service):
-    app = get_stream_server(config, msd_overwritten=lambda: model_service)
+def llm_model_service():
+    yield create_autospec(HuggingFaceLlmModel)
+
+
+@pytest.fixture(scope="function")
+def ner_app(ner_model_service):
+    app = get_stream_server(config, msd_overwritten=lambda: ner_model_service)
+    app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
+    yield app
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
+def llm_app(llm_model_service):
+    app = get_stream_server(config, msd_overwritten=lambda: llm_model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     yield app
     app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
-async def test_stream_process_empty_stream(model_service, app):
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
+async def test_stream_process(ner_app):
+    async with httpx.AsyncClient(app=ner_app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/stream/process",
+            data='{ "text": "This is a test"}',
+            headers={"Content-Type": "application/x-ndjson"},
+        )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_stream_process_empty_stream(ner_app):
+    async with httpx.AsyncClient(app=ner_app, base_url="http://test") as ac:
         response = await ac.post("/stream/process", data="", headers={"Content-Type": "application/x-ndjson"})
 
     assert response.status_code == 200
@@ -47,8 +73,8 @@ async def test_stream_process_empty_stream(model_service, app):
 
 
 @pytest.mark.asyncio
-async def test_stream_process_invalidate_jsonl(model_service, app):
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
+async def test_stream_process_invalidate_jsonl(ner_app):
+    async with httpx.AsyncClient(app=ner_app, base_url="http://test") as ac:
         response = await ac.post(
             "/stream/process",
             data='{"name": "doc1", "text": Spinal stenosis}\n'.encode("utf-8"),
@@ -63,8 +89,8 @@ async def test_stream_process_invalidate_jsonl(model_service, app):
 
 
 @pytest.mark.asyncio
-async def test_stream_process_unknown_jsonl_property(model_service, app):
-    async with httpx.AsyncClient(app=app, base_url="http://test") as ac:
+async def test_stream_process_unknown_jsonl_property(ner_app):
+    async with httpx.AsyncClient(app=ner_app, base_url="http://test") as ac:
         response = await ac.post(
             "/stream/process",
             data='{"unknown": "doc1", "text": "Spinal stenosis"}\n{"unknown": "doc2", "text": "Spinal stenosis"}',
@@ -78,15 +104,27 @@ async def test_stream_process_unknown_jsonl_property(model_service, app):
     assert "Invalid JSON properties found" in json.loads(jsonlines.decode("utf-8").splitlines()[-1])["error"]
 
 
-def test_websocket_process_on_annotation_error(model_service, app):
-    model_service.async_annotate.side_effect = Exception("something went wrong")
+def test_websocket_process_on_annotation_error(ner_model_service, ner_app):
+    ner_model_service.annotate_async.side_effect = Exception("something went wrong")
     model_manager = ModelManager(None, None)
-    model_manager.model_service = model_service
+    model_manager.model_service = ner_model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
     with pytest.raises(WebSocketDisconnect):
-        with TestClient(app) as client:
+        with TestClient(ner_app) as client:
             with client.websocket_connect("/stream/ws") as websocket:
                 websocket.send_text("Spinal stenosis")
                 response = websocket.receive_text()
                 assert response == "ERROR: something went wrong"
+
+
+@pytest.mark.asyncio
+async def test_stream_generate(llm_model_service, llm_app):
+    async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/stream/generate?max_tokens=32",
+            data="How are you doing?",
+            headers={"Content-Type": "text/plain"},
+        )
+
+    assert response.status_code == 200

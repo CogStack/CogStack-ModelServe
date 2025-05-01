@@ -122,7 +122,7 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
-    async def async_annotate(self, text: str) -> List[Annotation]:
+    async def annotate_async(self, text: str) -> List[Annotation]:
         """
         Asynchronously annotates a given text and returns a list of annotations.
 
@@ -164,7 +164,7 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
-    def generate(self,  prompt: str, *args: Any, **kwargs: Any) -> str:
+    def generate(self, prompt: str, *args: Any, **kwargs: Any) -> str:
         """
         Generates a text based on a given prompt.
 
@@ -182,7 +182,7 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
-    async def async_generate(self,  prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:
+    async def generate_async(self, prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:
         """
         Asynchronously generates a text stream based on a given prompt.
 

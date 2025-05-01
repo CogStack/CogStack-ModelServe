@@ -8,9 +8,11 @@ from starlette.requests import ClientDisconnect
 import app.api.globals as cms_globals
 
 from typing import Any, Mapping, Optional, AsyncGenerator
+from typing_extensions import Annotated
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
-from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException, Body, Query
+from fastapi.responses import StreamingResponse
 from pydantic import ValidationError
 from app.domain import Tags, TextStreamItem
 from app.model_services.base import AbstractModelService
@@ -19,7 +21,8 @@ from app.api.utils import get_rate_limiter
 from app.api.auth.users import get_user_manager, CmsUserManager
 
 PATH_STREAM_PROCESS = "/process"
-PATH_WS_PROCESS = "/ws"
+PATH_WS = "/ws"
+PATH_GENERATE= "/generate"
 
 router = APIRouter()
 config = get_settings()
@@ -28,6 +31,7 @@ logger = logging.getLogger("cms")
 
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"
+
 
 @router.post(
     PATH_STREAM_PROCESS,
@@ -55,7 +59,7 @@ async def get_entities_stream_from_jsonlines_stream(
     return _LocalStreamingResponse(annotation_stream, media_type="application/x-ndjson; charset=utf-8")
 
 
-@router.websocket(PATH_WS_PROCESS)
+@router.websocket(PATH_WS)
 async def get_inline_annotations_from_websocket(
     websocket: WebSocket,
     user_manager: CmsUserManager = Depends(get_user_manager),
@@ -106,7 +110,7 @@ async def get_inline_annotations_from_websocket(
             text = await websocket.receive_text()
             time_of_last_seen_msg = asyncio.get_event_loop().time()
             try:
-                annotations = await model_service.async_annotate(text)
+                annotations = await model_service.annotate_async(text)
                 annotated_text = ""
                 start_index = 0
                 for anno in annotations:
@@ -126,6 +130,38 @@ async def get_inline_annotations_from_websocket(
             await websocket.close()
         except RuntimeError as e:
             logger.debug(str(e))
+
+
+@router.post(
+    PATH_GENERATE,
+    tags=[Tags.Generative.name],
+    response_class=StreamingResponse,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Generate a stream of texts",
+)
+async def generate_stream(
+    request: Request,
+    prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
+    max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> StreamingResponse:
+    """
+    Generate a stream of texts in near real-time.
+
+    Args:
+        request (Request): The request object.
+        prompt (str): The prompt to be sent to the model.
+        max_tokens (int): The maximum number of tokens to generate.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        StreamingResponse: A streaming response containing the text generated in near real-time.
+    """
+
+    return StreamingResponse(
+        model_service.generate_async(prompt, max_tokens),   # type: ignore
+        media_type="text/event-stream"
+    )
 
 
 class _LocalStreamingResponse(Response):
@@ -158,8 +194,8 @@ class _LocalStreamingResponse(Response):
                 })
                 response_started = True
             line_bytes = line.encode("utf-8")
-            for i in range(0, len(line_bytes), self.max_chunk_size):
-                chunk = line_bytes[i:i + self.max_chunk_size]
+            for i in range(0, len(line_bytes), self.max_chunk_size):    # type: ignore
+                chunk = line_bytes[i:i + self.max_chunk_size]   # type: ignore
                 await send({
                     "type": "http.response.body",
                     "body": chunk,
@@ -203,7 +239,7 @@ async def _annotation_async_gen(request: Request, model_service: AbstractModelSe
                     try:
                         json_line_obj = json.loads(line)
                         TextStreamItem(**json_line_obj)
-                        annotations = await model_service.async_annotate(json_line_obj["text"])
+                        annotations = await model_service.annotate_async(json_line_obj["text"])
                         for anno in annotations:
                             anno.doc_name = json_line_obj.get("name", str(doc_idx))
                             yield anno.json(exclude_none=True) + "\n"

@@ -27,6 +27,7 @@ def test_get_model_server():
     assert {"name": "Training", "description": "Trigger model training on input annotations"} in tags
     assert {"name": "Evaluating", "description": "Evaluate the deployed model with trainer export"} in tags
     assert {"name": "Authentication", "description": "Authenticate registered users"} in tags
+    assert {"name": "Generative", "description": "Generate text based on the input prompt"} in tags
     assert "/info" in paths
     assert "/process" in paths
     assert "/process_jsonl" in paths
@@ -36,6 +37,7 @@ def test_get_model_server():
     assert "/redact_with_encryption" in paths
     assert "/preview" in paths
     assert "/preview_trainer_export" in paths
+    assert "/generate" in paths
     assert "/train_supervised" in paths
     assert "/train_unsupervised" in paths
     assert "/train_unsupervised_with_hf_hub_dataset" in paths
@@ -70,6 +72,7 @@ def test_get_stream_server():
     assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
     assert "/stream/process" in paths
     assert "/stream/ws" in paths
+    assert "/stream/generate" in paths
     assert "/auth/jwt/login" in paths
     assert "/auth/jwt/logout" in paths
     assert "/healthz" in paths

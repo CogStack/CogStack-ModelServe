@@ -191,7 +191,7 @@ class HuggingFaceLlmModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace Generative models")
 
-    def generate(self,  prompt: str, *args: Any, **kwargs: Any) -> str:
+    def generate(self, prompt: str, *args: Any, **kwargs: Any) -> str:
         """
         Generates text based on the prompt.
 
@@ -204,6 +204,8 @@ class HuggingFaceLlmModel(AbstractModelService):
             Any: The string containing the generated text.
         """
 
+        max_tokens = kwargs.get("max_tokens", 512)  # The maximum number of tokens to generate. Defaults to 512.
+
         self.model.eval()
 
         inputs = self.tokenizer(prompt, return_tensors="pt")
@@ -213,7 +215,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
-            max_new_tokens=512,
+            max_new_tokens=max_tokens,
             do_sample=True,
             temperature=0.7,
             top_p=0.9,
@@ -227,7 +229,7 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         return generated_text
 
-    async def async_generate(self,  prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:
+    async def generate_async(self, prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:   # type: ignore
         """
         Asynchronously generates text stream based on the prompt.
 
@@ -239,6 +241,8 @@ class HuggingFaceLlmModel(AbstractModelService):
         Returns:
             AsyncGenerator: The stream containing the generated text.
         """
+
+        max_tokens = kwargs.get("max_tokens", 512)  # The maximum number of tokens to generate. Defaults to 512.
 
         self.model.eval()
 
@@ -255,7 +259,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
             streamer=streamer,
-            max_new_tokens=512,
+            max_new_tokens=max_tokens,
             do_sample=True,
             temperature=0.7,
             top_p=0.9,
