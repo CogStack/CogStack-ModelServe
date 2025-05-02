@@ -85,20 +85,16 @@ def trf_model():
 @pytest.fixture(scope="function")
 def huggingface_ner_model():
     config = Settings()
-    config.BASE_MODEL_FILE = "huggingface_ner_model.zip"
+    config.BASE_MODEL_FILE = "huggingface_ner_model.tar.gz"
     model_service = HuggingFaceNerModel(config, MODEL_PARENT_DIR)
-    test_hf_repo = "hf-internal-testing/tiny-bert-for-token-classification"
-    model_service.model = AutoModelForTokenClassification.from_pretrained(test_hf_repo)
-    model_service.tokenizer = AutoTokenizer.from_pretrained(test_hf_repo)
+    model_service.init_model()
     return model_service
 
 
 @pytest.fixture(scope="function")
 def huggingface_llm_model():
     config = Settings()
-    config.BASE_MODEL_FILE = "huggingface_llm_model.zip"
+    config.BASE_MODEL_FILE = "huggingface_llm_model.tar.gz"
     model_service = HuggingFaceLlmModel(config, MODEL_PARENT_DIR)
-    test_hf_repo = "hf-internal-testing/tiny-random-LlamaForCausalLM"
-    model_service.model = AutoModelForCausalLM.from_pretrained(test_hf_repo)
-    model_service.tokenizer = AutoTokenizer.from_pretrained(test_hf_repo)
+    model_service.init_model()
     return model_service

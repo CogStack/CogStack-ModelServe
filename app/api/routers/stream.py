@@ -8,11 +8,9 @@ from starlette.requests import ClientDisconnect
 import app.api.globals as cms_globals
 
 from typing import Any, Mapping, Optional, AsyncGenerator
-from typing_extensions import Annotated
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
-from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException, Body, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
 from pydantic import ValidationError
 from app.domain import Tags, TextStreamItem
 from app.model_services.base import AbstractModelService
@@ -60,6 +58,7 @@ async def get_entities_stream_from_jsonlines_stream(
 
 
 @router.websocket(PATH_WS)
+# @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
 async def get_inline_annotations_from_websocket(
     websocket: WebSocket,
     user_manager: CmsUserManager = Depends(get_user_manager),
@@ -130,38 +129,6 @@ async def get_inline_annotations_from_websocket(
             await websocket.close()
         except RuntimeError as e:
             logger.debug(str(e))
-
-
-@router.post(
-    PATH_GENERATE,
-    tags=[Tags.Generative.name],
-    response_class=StreamingResponse,
-    dependencies=[Depends(cms_globals.props.current_active_user)],
-    description="Generate a stream of texts",
-)
-async def generate_stream(
-    request: Request,
-    prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
-    max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512,
-    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
-) -> StreamingResponse:
-    """
-    Generate a stream of texts in near real-time.
-
-    Args:
-        request (Request): The request object.
-        prompt (str): The prompt to be sent to the model.
-        max_tokens (int): The maximum number of tokens to generate.
-        model_service (AbstractModelService): The model service dependency.
-
-    Returns:
-        StreamingResponse: A streaming response containing the text generated in near real-time.
-    """
-
-    return StreamingResponse(
-        model_service.generate_async(prompt, max_tokens),   # type: ignore
-        media_type="text/event-stream"
-    )
 
 
 class _LocalStreamingResponse(Response):

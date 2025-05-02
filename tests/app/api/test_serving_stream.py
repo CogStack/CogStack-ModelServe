@@ -10,7 +10,6 @@ from unittest.mock import create_autospec
 from app.api.api import get_stream_server
 from app.utils import get_settings
 from app.model_services.medcat_model import MedCATModel
-from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
 from app.management.model_manager import ModelManager
 
 
@@ -28,21 +27,8 @@ def ner_model_service():
 
 
 @pytest.fixture(scope="function")
-def llm_model_service():
-    yield create_autospec(HuggingFaceLlmModel)
-
-
-@pytest.fixture(scope="function")
 def ner_app(ner_model_service):
     app = get_stream_server(config, msd_overwritten=lambda: ner_model_service)
-    app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
-    yield app
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope="function")
-def llm_app(llm_model_service):
-    app = get_stream_server(config, msd_overwritten=lambda: llm_model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     yield app
     app.dependency_overrides.clear()
@@ -116,15 +102,3 @@ def test_websocket_process_on_annotation_error(ner_model_service, ner_app):
                 websocket.send_text("Spinal stenosis")
                 response = websocket.receive_text()
                 assert response == "ERROR: something went wrong"
-
-
-@pytest.mark.asyncio
-async def test_stream_generate(llm_model_service, llm_app):
-    async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
-        response = await ac.post(
-            "/stream/generate?max_tokens=32",
-            data="How are you doing?",
-            headers={"Content-Type": "text/plain"},
-        )
-
-    assert response.status_code == 200

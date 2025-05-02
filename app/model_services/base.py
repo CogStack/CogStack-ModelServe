@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncGenerator
+from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncIterable
 from app.config import Settings
 from app.domain import ModelCard, Annotation
 
@@ -174,7 +174,7 @@ class AbstractModelService(ABC, Generic[T]):
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
-            srt: The text containing the generated text.
+            srt: The string containing the generated text.
 
         Raises:
             NotImplementedError: If the method is not implemented by the subclass.
@@ -182,7 +182,7 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
-    async def generate_async(self, prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:
+    def generate_async(self, prompt: str, *args: Any, **kwargs: Any) -> AsyncIterable:
         """
         Asynchronously generates a text stream based on a given prompt.
 
@@ -192,7 +192,7 @@ class AbstractModelService(ABC, Generic[T]):
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
-            AsyncGenerator: The stream containing the generated text.
+            AsyncIterable: The stream containing the generated text.
 
         Raises:
             NotImplementedError: If the method is not implemented by the subclass.

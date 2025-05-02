@@ -1,4 +1,4 @@
-from app.api.api import get_model_server, get_stream_server
+from app.api.api import get_model_server, get_stream_server, get_generative_server
 from app.api.dependencies import ModelServiceDep
 from app.utils import get_settings
 
@@ -37,7 +37,6 @@ def test_get_model_server():
     assert "/redact_with_encryption" in paths
     assert "/preview" in paths
     assert "/preview_trainer_export" in paths
-    assert "/generate" in paths
     assert "/train_supervised" in paths
     assert "/train_unsupervised" in paths
     assert "/train_unsupervised_with_hf_hub_dataset" in paths
@@ -70,11 +69,31 @@ def test_get_stream_server():
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
     assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
+    assert "/info" in paths
     assert "/stream/process" in paths
     assert "/stream/ws" in paths
-    assert "/stream/generate" in paths
     assert "/auth/jwt/login" in paths
     assert "/auth/jwt/logout" in paths
     assert "/healthz" in paths
     assert "/readyz" in paths
     assert "/metrics" not in paths
+
+def test_get_generative_server():
+    config = get_settings()
+    config.AUTH_USER_ENABLED = "true"
+
+    model_service_dep = ModelServiceDep("huggingface_llm_model", config)
+    app = get_generative_server(config, model_service_dep)
+    info = app.openapi()["info"]
+    tags = app.openapi_tags
+    paths = [route.path for route in app.routes]
+
+    assert isinstance(info["title"], str)
+    assert isinstance(info["summary"], str)
+    assert isinstance(info["version"], str)
+    assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
+    assert "/info" in paths
+    assert "/generate" in paths
+    assert "/stream/generate" in paths
+    assert "/healthz" in paths
+    assert "/readyz" in paths

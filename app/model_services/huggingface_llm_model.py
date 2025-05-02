@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncGenerator
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -169,7 +169,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         else:
             self._model, self._tokenizer = self.load_model(self._model_pack_path)
             if self._enable_trainer:
-                raise NotImplementedError("Trainers are not yet implemented for HuggingFace Generative models")
+                logger.error("Trainers are not yet implemented for HuggingFace Generative models")
 
     def info(self) -> ModelCard:
         """
@@ -191,20 +191,18 @@ class HuggingFaceLlmModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace Generative models")
 
-    def generate(self, prompt: str, *args: Any, **kwargs: Any) -> str:
+    def generate(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> str:
         """
         Generates text based on the prompt.
 
         Args:
-            prompt (str): The prompt for the text generation.
-            *args (Any): Additional positional arguments to be passed to this method.
+            prompt (str): The prompt for the text generation
+            max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
             Any: The string containing the generated text.
         """
-
-        max_tokens = kwargs.get("max_tokens", 512)  # The maximum number of tokens to generate. Defaults to 512.
 
         self.model.eval()
 
@@ -229,20 +227,18 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         return generated_text
 
-    async def generate_async(self, prompt: str, *args: Any, **kwargs: Any) -> AsyncGenerator:   # type: ignore
+    async def generate_async(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> AsyncIterable:
         """
         Asynchronously generates text stream based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation.
-            *args (Any): Additional positional arguments to be passed to the model loader.
+            max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
             **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
         Returns:
-            AsyncGenerator: The stream containing the generated text.
+            AsyncIterable: The stream containing the generated text.
         """
-
-        max_tokens = kwargs.get("max_tokens", 512)  # The maximum number of tokens to generate. Defaults to 512.
 
         self.model.eval()
 

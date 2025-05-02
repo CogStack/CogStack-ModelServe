@@ -36,7 +36,7 @@ from datasets import load_dataset  # noqa
 from app import __version__  # noqa
 from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
 from app.registry import model_service_registry  # noqa
-from app.api.api import get_model_server, get_stream_server # noqa
+from app.api.api import get_model_server, get_stream_server, get_generative_server # noqa
 from app.utils import get_settings, send_gelf_message  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
@@ -83,7 +83,6 @@ def serve_model(
     config.DEVICE = device.value
     if model_type in [
         ModelType.HUGGINGFACE_NER,
-        ModelType.HUGGINGFACE_LLM,
         ModelType.MEDCAT_DEID,
         ModelType.TRANSFORMERS_DEID,
     ]:
@@ -101,7 +100,6 @@ def serve_model(
 
     model_service_dep = ModelServiceDep(model_type, config, model_name if model_name is not None else "CMS model")
     cms_globals.model_service_dep = model_service_dep
-    model_server_app = get_model_server(config)
 
     dst_model_path = os.path.join(parent_dir, "model", "model.zip" if model_path.endswith(".zip") else "model.tar.gz")
     config.BASE_MODEL_FILE = "model.zip" if model_path.endswith(".zip") else "model.tar.gz"
@@ -122,15 +120,21 @@ def serve_model(
         model_service.model_name = model_name if model_name is not None else "CMS model"
         model_service_dep.model_service = model_service
         cms_globals.model_manager_dep = ModelManagerDep(model_service)
-        model_server_app = get_model_server(config)
     else:
         logger.error("Neither the model path or the mlflow model uri was passed in")
         typer.Exit(code=1)
 
+    if model_type in [ModelType.HUGGINGFACE_LLM]:
+        model_server_app = get_generative_server(config)
+    elif streamable:
+        model_server_app = get_stream_server(config)
+    else:
+        model_server_app = get_model_server(config)
+
     logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:
-    uvicorn.run(model_server_app if not streamable else get_stream_server(config), host=host, port=int(port), log_config=None)
+    uvicorn.run(model_server_app, host=host, port=int(port), log_config=None)
     # interrupted = True
     typer.echo("Shutting down due to either keyboard interrupt or system exit")
 

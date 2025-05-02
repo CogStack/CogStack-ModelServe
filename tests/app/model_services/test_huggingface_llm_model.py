@@ -28,12 +28,8 @@ def test_init_model(huggingface_llm_model):
     assert huggingface_llm_model.tokenizer is not None
 
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_llm_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
 def test_load_model(huggingface_llm_model):
-    model, tokenizer = HuggingFaceLlmModel.load_model(os.path.join(MODEL_PARENT_DIR, "huggingface_llm_model.zip"))
+    model, tokenizer = HuggingFaceLlmModel.load_model(os.path.join(MODEL_PARENT_DIR, "huggingface_llm_model.tar.gz"))
     assert isinstance(model, PreTrainedModel)
     assert isinstance(tokenizer, PreTrainedTokenizerBase)
 

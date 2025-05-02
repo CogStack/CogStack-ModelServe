@@ -76,9 +76,6 @@ def get_model_server(config: Settings, msd_overwritten: Optional[ModelServiceDep
         app = _load_preview_router(app)
         logger.debug("Preview router loaded")
 
-    app = _load_generative_router(app)
-    logger.debug("Generative router loaded")
-
     return app
 
 
@@ -96,8 +93,7 @@ def get_stream_server(config: Settings, msd_overwritten: Optional[ModelServiceDe
 
     app = _get_app(msd_overwritten, streamable=True)
 
-    # This is not reliable for streamable endpoint and confusing the ASGI
-    # add_rate_limiter(app, config, streamable=True)
+    add_rate_limiter(app, config, streamable=True)
 
     app = _load_health_check_router(app)
     logger.debug("Health check router loaded")
@@ -114,7 +110,43 @@ def get_stream_server(config: Settings, msd_overwritten: Optional[ModelServiceDe
     return app
 
 
-def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool = False) -> FastAPI:
+def get_generative_server(config: Settings, msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    """
+    Initialises a FastAPI instance configured for a generative server.
+
+    Args:
+        config: The CMS configuration.
+        msd_overwritten (Optional[ModelServiceDep]): An optional model service dependency to overwrite the default one.
+
+    Returns:
+        FastAPI: A FastAPI app instance.
+    """
+
+    app = _get_app(msd_overwritten, streamable=True, generative=True)
+
+    # This is not reliable for streamable endpoint and confusing the ASGI
+    # add_rate_limiter(app, config, streamable=True)
+
+    app = _load_health_check_router(app)
+    logger.debug("Health check router loaded")
+
+    if config.AUTH_USER_ENABLED == "true":
+        app = _load_auth_router(app)
+        logger.debug("Auth router loaded")
+
+    app = _load_model_card(app)
+    logger.debug("Model card router loaded")
+    app = _load_generative_router(app)
+    logger.debug("Generative router loaded")
+
+    return app
+
+
+def _get_app(
+    msd_overwritten: Optional[ModelServiceDep] = None,
+    streamable: bool = False,
+    generative: bool = False,
+) -> FastAPI:
     tags_metadata = [{  # type: ignore
         "name": tag.name,
         "description": tag.value
@@ -131,7 +163,7 @@ def _get_app(msd_overwritten: Optional[ModelServiceDep] = None, streamable: bool
     add_exception_handlers(app)
 
     instrumentator = None
-    if not streamable:
+    if not generative:
         instrumentator = Instrumentator(
             excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]
         ).instrument(app)

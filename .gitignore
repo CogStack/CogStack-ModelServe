@@ -127,9 +127,7 @@ docker/mlflow/models/model_dir/*
 
 *.log
 
-tests/resources/model
-!tests/resources/model/.gitkeep
-tests/resources/*.zip
+tests/resources/model/*/
 htmlcov
 
 tests/resources/model/.gitkeep

@@ -29,12 +29,9 @@ def test_init_model(huggingface_ner_model):
     assert huggingface_ner_model.model is not None
     assert huggingface_ner_model.tokenizer is not None
 
-@pytest.mark.skipif(
-    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip")),
-    reason="requires the model file to be present in the resources folder",
-)
+
 def test_load_model(huggingface_ner_model):
-    model, tokenizer = HuggingFaceNerModel.load_model(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.zip"))
+    model, tokenizer = HuggingFaceNerModel.load_model(os.path.join(MODEL_PARENT_DIR, "huggingface_ner_model.tar.gz"))
     assert isinstance(model, PreTrainedModel)
     assert isinstance(tokenizer, PreTrainedTokenizerBase)
 
