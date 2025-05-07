@@ -1,5 +1,5 @@
 Feature:
-  CogStack ModelServe APIs
+  CogStack ModelServe APIs (NER)
 
   @status
   Scenario Outline: Get general information about server healthiness, readiness and the running model

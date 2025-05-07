@@ -1,25 +1,27 @@
 import os
 import json
 import tempfile
-import httpx
 import pytest
 import requests
-import websockets
+import socket
 from pytest_bdd import scenarios, given, when, then, parsers
-from helper import ensure_app_config, get_logger, download_model, data_table, async_to_sync, run
+from helper import ensure_app_config, get_logger, download_model, data_table, run
 
 
+scenarios("../features/serving.feature")
 ensure_app_config(debug_mode=False)
 logger = get_logger(debug=True)
 
-model_pack_url = "https://cogstack-medcat-example-models.s3.eu-west-2.amazonaws.com/medcat-example-models/medmen_wstatus_2021_oct.zip"
-model_path = download_model(model_pack_url)
-
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def cms():
+    model_pack_url = "https://cogstack-medcat-example-models.s3.eu-west-2.amazonaws.com/medcat-example-models/medmen_wstatus_2021_oct.zip"
+    model_path = download_model(model_pack_url)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("", 0))
+        port = s.getsockname()[1]
     conf = {
         "model_path": model_path,
-        "base_url": "http://127.0.0.1:8100",
+        "base_url": f"http://127.0.0.1:{port}",
         "process": None,
     }
 
@@ -30,33 +32,9 @@ def cms():
         conf["process"].terminate()
         conf["process"].wait(timeout=30)
 
-
-@pytest.fixture(scope="session")
-def cms_stream():
-    conf = {
-        "model_path": model_path,
-        "base_url": "http://127.0.0.1:8101",
-        "process": None,
-    }
-
-    yield conf
-
-    if conf["process"] is not None and conf["process"].poll() is None:
-        logger.info("Terminating CMS stream server...")
-        conf["process"].terminate()
-        conf["process"].wait(timeout=30)
-
-scenarios("features/serving.feature")
-scenarios("features/serving_stream.feature")
-
-
 @given("CMS app is up and running", target_fixture="context")
 def cms_is_running(cms):
-   return run(cms, logger)
-
-@given("CMS stream app is up and running", target_fixture="context_stream")
-def cms_stream_is_running(cms_stream):
-   return run(cms_stream, logger, streamable=True)
+    return run(cms, logger)
 
 @then("the response should contain annotations")
 def check_response_json(context):
@@ -112,7 +90,7 @@ def send_post_request(context, request):
     )
 
 @when(data_table("I send a POST request with the following jsonlines content", fixture="request", orient="dict"))
-def send_post_request(context, request):
+def send_post_request_jsonlines(context, request):
     context["response"] = requests.post(
         f"{context['base_url']}{request[0]['endpoint']}",
         data=request[0]["data"].replace("\\n", "\n"),
@@ -189,7 +167,9 @@ def send_post_training_request_file(context, request):
 
     files = []
     for trainer_export_name in trainer_export_names:
-        trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", trainer_export_name)
+        trainer_export_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "resources", "fixture", trainer_export_name
+        )
         file = open(trainer_export_path, "rb")
         files.append(("trainer_export", file))
 
@@ -198,7 +178,9 @@ def send_post_training_request_file(context, request):
 
 @when(data_table("I send a POST request with the following training data", fixture="request", orient="dict"))
 def send_post_training_request_file(context, request):
-    training_data_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", request[0]["file_name"])
+    training_data_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "resources", "fixture", request[0]["file_name"]
+    )
     with open(training_data_path, "rb") as f:
         context["response"] = requests.post(
             f"{context['base_url']}{request[0]['endpoint']}?epochs=1&test_size=0.2&log_frequency=1000",
@@ -293,38 +275,3 @@ def check_response_annotation_stats(context):
     assert len(response_lines) > 1
     assert "concept,anno_count,anno_unique_counts,anno_ignorance_counts" == response_lines[0]
     context["response"].close()
-
-@when(data_table("I send an async POST request with the following jsonlines content", fixture="request", orient="dict"))
-@async_to_sync
-async def send_async_post_request(context_stream, request):
-    async with httpx.AsyncClient(base_url=context_stream["base_url"]) as ac:
-        context_stream["response"] = await ac.post(
-            f"{context_stream['base_url']}{request[0]['endpoint']}",
-            data=request[0]["data"].replace("\\n", "\n").encode("utf-8"),
-            headers={"Content-Type": request[0]["content_type"]},
-        )
-
-@then("the response should contain annotation stream")
-@async_to_sync
-async def check_response_stream(context_stream):
-    assert context_stream["response"].status_code == 200
-
-    async for line in context_stream["response"].aiter_lines():
-        line = line.strip()
-        if not line:
-            continue
-
-        data = json.loads(line)
-        assert data["doc_name"] in ["doc1", "doc2"]
-
-@when("I send a piece of text to the WS endpoint")
-@async_to_sync
-async def send_ws_request(context_stream):
-    ws_url = context_stream["base_url"].replace("http", "ws") + "/stream/ws"
-    async with websockets.connect(ws_url) as websocket:
-        await websocket.send("Spinal stenosis")
-        context_stream["response"] = await websocket.recv()
-
-@then("the response should contain annotated spans")
-def check_response_ws(context_stream):
-    assert context_stream["response"].lower() == "[spinal stenosis: spinal stenosis]"

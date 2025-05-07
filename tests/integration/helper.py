@@ -59,8 +59,8 @@ def ensure_app_config(debug_mode=False):
     os.environ["PYTHONUNBUFFERED"] = "1"
 
 
-def get_logger(debug=False):
-    logger = logging.getLogger("cms-integration")
+def get_logger(debug=False, name="cms-integration"):
+    logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
     stdout_handler = logging.StreamHandler()
     stdout_handler.setLevel(logging.DEBUG if debug else logging.INFO)
@@ -89,14 +89,14 @@ def download_model(model_url, max_retries = 5, initial_delay = 1):
             retry_delay *= 2
 
 
-def run(conf, logger, streamable=False):
+def run(conf, logger, streamable=False, generative=False):
 
     if conf["process"] is None or conf["process"].poll() is not None:
         conf["process"] = subprocess.Popen(
                 [ "cms", "serve"] +
                 (["--streamable"] if streamable else []) +
                 [
-                    "--model-type", ModelType.MEDCAT_UMLS.value,
+                    "--model-type", ModelType.MEDCAT_UMLS.value if not generative else ModelType.HUGGINGFACE_LLM.value,
                     "--model-path", conf["model_path"],
                     "--host", urlparse(conf["base_url"]).hostname,
                     "--port", str(urlparse(conf["base_url"]).port),

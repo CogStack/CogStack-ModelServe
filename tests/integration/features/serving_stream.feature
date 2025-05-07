@@ -1,5 +1,5 @@
 Feature:
-  CogStack ModelServe Stream APIs
+  CogStack ModelServe Stream APIs (NER)
 
   @ner-stream
   Scenario: Stream entities extracted from free texts
