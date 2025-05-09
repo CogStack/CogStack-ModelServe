@@ -9,13 +9,13 @@ description = "A model serving and governance system for CogStack NLP solutions"
 requires-python = ">=3.8,<3.12"
 dynamic = ["version"]
 dependencies = [
-    "medcat~=1.14.1; python_version >= '3.9'",
+    "medcat~=1.15.2; python_version >= '3.9'",
     "medcat~=1.13.1; python_version < '3.9'",
-    "transformers~=4.43.0",
+#    "transformers~=4.43.0",
     "torch<2.5.0; python_version < '3.9'",
     "datasets>=2.21.0",
     "blis<1.0.0",
-    "fastapi~=0.110.3",
+    "fastapi~=0.115.0",
     "uvicorn~=0.29.0",
     "python-multipart~=0.0.5",
     "ijson~=3.1.4",
@@ -24,7 +24,7 @@ dependencies = [
     "psycopg2-binary~=2.9.4",
     "boto3~=1.28.84",
     "typer~=0.15.1",
-    "prometheus-fastapi-instrumentator~=5.11.2",
+    "prometheus-fastapi-instrumentator~=7.0.0",
     "sentencepiece~=0.2.0",
     "slowapi~=0.1.7",
     "graypy~=2.1.0",
@@ -37,7 +37,7 @@ dependencies = [
     "pynvml~=11.5.3",
     "toml~=0.10.2",
     "peft<0.14.0",
-    "huggingface-hub~=0.27.1"
+    "huggingface-hub~=0.30.0"
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
@@ -100,6 +100,9 @@ docs = [
     "sphinx-autoapi~=3.5.0",
     "sphinx-autodoc-typehints~=2.0.1",
     "sphinx-rtd-theme~=3.0.2",
+]
+vllm = [
+    "vllm~=0.8.5",
 ]
 
 [tool.setuptools]

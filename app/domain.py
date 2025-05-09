@@ -98,6 +98,11 @@ class TrackerBackend(Enum):
     MLFLOW = "MLflow"
 
 
+class LlmEngine(Enum):
+    CMS = "CMS"
+    VLLM = "vLLM"
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
@@ -110,7 +115,7 @@ class Annotation(BaseModel):
     meta_anns: Optional[Dict] = Field(default=None, description="The meta annotations")
     athena_ids: Optional[List[Dict]] = Field(default=None, description="The OHDSI Athena concept IDs")
 
-    @root_validator()
+    @root_validator(pre=True)
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         if values["start"] >= values["end"]:
             raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="The start index should be lower than the end index")
@@ -150,7 +155,7 @@ class Entity(BaseModel):
     kb_id: str = Field(description="The knowledge base ID of the preview entity")
     kb_url: str = Field(description="The knowledge base URL of the preview entity")
 
-    @root_validator()
+    @root_validator(pre=True)
     def _validate(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         if values["start"] >= values["end"]:
             raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="The start index should be lower than the end index")

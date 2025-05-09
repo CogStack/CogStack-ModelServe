@@ -18,7 +18,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.auth.db import make_sure_db_and_tables
 from app.api.auth.users import Props
 from app.api.dependencies import ModelServiceDep
-from app.api.utils import add_exception_handlers, add_rate_limiter
+from app.api.utils import add_exception_handlers, add_rate_limiter, init_vllm_engine
 from app.config import Settings
 from app.domain import Tags, TagsStreamable
 from app.management.tracker_client import TrackerClient
@@ -141,6 +141,23 @@ def get_generative_server(config: Settings, msd_overwritten: Optional[ModelServi
 
     return app
 
+def get_vllm_server(config: Settings, log_level: str = "info") -> FastAPI:
+    """
+    Initialises a FastAPI instance configured for a vLLM server.
+
+    Args:
+        config: The CMS configuration.
+        log_level: The log level for the VLLM engine. Default to "info".
+
+    Returns:
+        FastAPI: A FastAPI app instance.
+    """
+
+    app = _get_app(None, streamable=False)
+    loop = asyncio.get_event_loop()
+    app = loop.run_until_complete(init_vllm_engine(app, log_level))
+
+    return app
 
 def _get_app(
     msd_overwritten: Optional[ModelServiceDep] = None,

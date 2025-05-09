@@ -1,6 +1,9 @@
 import os
 import json
-from pydantic import BaseSettings
+try:
+    from pydantic import BaseSettings
+except ImportError:
+    from pydantic.v1 import BaseSettings
 
 
 class Settings(BaseSettings):

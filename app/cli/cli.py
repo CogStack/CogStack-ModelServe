@@ -30,13 +30,14 @@ import app.api.globals as cms_globals  # noqa
 from logging import LogRecord  # noqa
 from typing import Optional, Tuple, Dict, Any  # noqa
 from urllib.parse import urlparse  # noqa
+from fastapi import FastAPI # noqa
 from fastapi.routing import APIRoute  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
 from app import __version__  # noqa
-from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat  # noqa
+from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat, LlmEngine  # noqa
 from app.registry import model_service_registry  # noqa
-from app.api.api import get_model_server, get_stream_server, get_generative_server # noqa
+from app.api.api import get_model_server, get_stream_server, get_generative_server, get_vllm_server # noqa
 from app.utils import get_settings, send_gelf_message  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
@@ -59,6 +60,7 @@ def serve_model(
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
     streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
     device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
+    llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS, help="The engine to use for text generation"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -75,6 +77,7 @@ def serve_model(
         model_name (Optional[str]): The optional string representation of the model name.
         streamable (bool): Serve the streamable endpoints only. Defaults to False.
         device (Device): The device to serve the model on. Defaults to Device.DEFAULT.
+        llm_engine (LlmEngine): The inference engine to use. Defaults to LlmEngine.CMS.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -106,31 +109,40 @@ def serve_model(
     if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
         shutil.rmtree(os.path.splitext(dst_model_path)[0])
 
-    if model_path:
-        try:
-            shutil.copy2(model_path, dst_model_path)
-        except shutil.SameFileError:
-            pass
-        model_service = model_service_dep()
-        model_service.model_name = model_name if model_name is not None else "CMS model"
-        model_service.init_model()
-        cms_globals.model_manager_dep = ModelManagerDep(model_service)
-    elif mlflow_model_uri:
-        model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
-        model_service.model_name = model_name if model_name is not None else "CMS model"
-        model_service_dep.model_service = model_service
-        cms_globals.model_manager_dep = ModelManagerDep(model_service)
-    else:
-        logger.error("Neither the model path or the mlflow model uri was passed in")
-        typer.Exit(code=1)
+    if llm_engine is not LlmEngine.VLLM:
+        if model_path:
+            try:
+                shutil.copy2(model_path, dst_model_path)
+            except shutil.SameFileError:
+                pass
+            model_service = model_service_dep()
+            model_service.model_name = model_name if model_name is not None else "CMS model"
+            model_service.init_model()
+            cms_globals.model_manager_dep = ModelManagerDep(model_service)
+        elif mlflow_model_uri:
+            model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
+            model_service.model_name = model_name if model_name is not None else "CMS model"
+            model_service_dep.model_service = model_service
+            cms_globals.model_manager_dep = ModelManagerDep(model_service)
+        else:
+            logger.error("Neither the model path or the mlflow model uri was passed in")
+            typer.Exit(code=1)
 
+    model_server_app: Optional[FastAPI] = None
     if model_type in [ModelType.HUGGINGFACE_LLM]:
-        model_server_app = get_generative_server(config)
+        if llm_engine == LlmEngine.CMS:
+            model_server_app = get_generative_server(config)
+        elif llm_engine == LlmEngine.VLLM:
+            model_server_app = get_vllm_server(config, log_level="debug" if debug else "info")
+        else:
+            logger.error("Unknown LLM engine: %s" % llm_engine)
+            typer.Exit(code=1)
     elif streamable:
         model_server_app = get_stream_server(config)
     else:
         model_server_app = get_model_server(config)
 
+    # if model_server_app is not None:
     logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:

@@ -3,10 +3,12 @@ import logging
 import re
 import hashlib
 import base64
+import contextlib
+import uuid
 from functools import lru_cache
-from typing import Optional
-from fastapi import FastAPI, Request
-from starlette.responses import JSONResponse
+from typing import Optional, Annotated
+from fastapi import FastAPI, Request, APIRouter, Body, Query
+from starlette.responses import JSONResponse, StreamingResponse
 from starlette.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_501_NOT_IMPLEMENTED,
@@ -23,6 +25,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from app.config import Settings
+from app.domain import Tags
 from app.exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
 
 logger = logging.getLogger("cms")
@@ -266,3 +269,96 @@ def decrypt(b64_encoded: str, private_key_pem: str) -> str:
         padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
     )
     return decrypted.decode()
+
+async def init_vllm_engine(app: FastAPI, log_level: str = "info") -> FastAPI:
+    """
+    Initialises the vLLM engine.
+
+    Args:
+        app: The FastAPI app instance.
+        log_level: The log level for the VLLM engine. Defaults to "info".
+    """
+
+    try:
+        from vllm.utils import FlexibleArgumentParser
+        from vllm.engine.arg_utils import AsyncEngineArgs
+        from vllm.entrypoints.openai.api_server import lifespan
+        from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
+        from vllm.entrypoints.chat_utils import parse_chat_messages, apply_hf_chat_template
+        from vllm.entrypoints.openai.api_server import (
+            run_server,
+            create_chat_completion,
+            show_available_models,
+            build_async_engine_client,
+            build_async_engine_client_from_engine_args,
+            init_app_state,
+            create_server_socket,
+        )
+        from vllm.entrypoints.launcher import serve_http
+        from vllm import SamplingParams, TokensPrompt
+    except ImportError:
+        logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
+
+    parser = FlexibleArgumentParser()
+    parser = make_arg_parser(parser)
+    args = parser.parse_args([])
+    validate_parsed_serve_args(args)
+    args.log_level = log_level
+
+    exit_stack = contextlib.AsyncExitStack()
+    engine = await exit_stack.enter_async_context(
+        build_async_engine_client_from_engine_args(AsyncEngineArgs.from_cli_args(args), True)
+    )
+    tokenizer = await engine.get_tokenizer()
+    vllm_config = await engine.get_vllm_config()
+    model_config = await engine.get_model_config()
+    await init_app_state(engine, vllm_config, app.state, args)
+
+    async def generate_text(
+        request: Request,
+        prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
+        max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512
+    ) -> StreamingResponse:
+        messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+
+        params = SamplingParams(max_tokens=max_tokens)
+        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")
+        prompt = TokensPrompt(
+            prompt_token_ids=apply_hf_chat_template(
+                tokenizer,
+                conversation=conversation,
+                tools=None,
+                add_generation_prompt=True,
+                continue_final_message=False,
+                chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
+                tokenize=True,
+            )
+        )
+
+        async def _stream():
+            start = 0
+            async for output in engine.generate(request_id=uuid.uuid4().hex, prompt=prompt, sampling_params=params):
+                text = output.outputs[0].text
+                yield text[start:]
+                start = len(text)
+
+        return StreamingResponse(_stream(), media_type="text/event-stream")
+
+    router = APIRouter()
+    endpoints = [
+        ["/generate", generate_text, ["POST"]],
+        ["/chat/completions", create_chat_completion, ["POST"]],
+        ["/models", show_available_models, ["GET"]],
+    ]
+
+    for route, endpoint, methods in endpoints:
+        router.add_api_route(
+            path=route,
+            endpoint=endpoint,
+            methods=methods,
+            include_in_schema=True,
+            tags=[Tags.Generative],
+        )
+    app.include_router(router)
+
+    return app
