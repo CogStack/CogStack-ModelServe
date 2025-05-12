@@ -5,7 +5,7 @@ import uuid
 import ijson
 import logging
 import datasets
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, cast
 from typing_extensions import Annotated
 
 from fastapi import APIRouter, Depends, UploadFile, Query, Request, File, Form
@@ -167,12 +167,19 @@ s
 
     data_dir = tempfile.TemporaryDirectory()
     if hf_dataset_package is not None:
-        if hf_dataset_package.filename and unpack_model_data_package(hf_dataset_package.filename, data_dir.name):
-            logger.debug("Training dataset uploaded and extracted")
-        else:
-            raise ClientException("Failed to extract the uploaded training dataset")
+        input_file_name = cast(str, hf_dataset_package.filename)
+        with tempfile.NamedTemporaryFile(
+            suffix=".zip" if input_file_name.endswith(".zip") else ".tar.gz",
+            mode="wb",
+        ) as temp_file:
+            temp_file.write(hf_dataset_package.file.read())
+            temp_file.flush()
+            if input_file_name and unpack_model_data_package(temp_file.name, data_dir.name):
+                logger.debug("Training dataset uploaded and extracted")
+            else:
+                raise ClientException("Failed to extract the uploaded training dataset")
     else:
-        input_file_name = hf_dataset_repo_id
+        input_file_name = cast(str, hf_dataset_repo_id)
         hf_dataset = datasets.load_dataset(hf_dataset_repo_id,
                                            cache_dir=get_settings().TRAINING_CACHE_DIR,
                                            trust_remote_code=trust_remote_code,

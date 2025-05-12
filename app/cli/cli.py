@@ -60,7 +60,7 @@ def serve_model(
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
     streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
     device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
-    llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS, help="The engine to use for text generation"),
+    llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS.value, help="The engine to use for text generation"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -81,6 +81,7 @@ def serve_model(
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
+    model_name = model_name or "CMS model"
     logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
     config.DEVICE = device.value
@@ -101,7 +102,7 @@ def serve_model(
         except Exception:
             logger.exception("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
 
-    model_service_dep = ModelServiceDep(model_type, config, model_name if model_name is not None else "CMS model")
+    model_service_dep = ModelServiceDep(model_type, config, model_name)
     cms_globals.model_service_dep = model_service_dep
 
     dst_model_path = os.path.join(parent_dir, "model", "model.zip" if model_path.endswith(".zip") else "model.tar.gz")
@@ -116,12 +117,12 @@ def serve_model(
             except shutil.SameFileError:
                 pass
             model_service = model_service_dep()
-            model_service.model_name = model_name if model_name is not None else "CMS model"
+            model_service.model_name = model_name
             model_service.init_model()
             cms_globals.model_manager_dep = ModelManagerDep(model_service)
         elif mlflow_model_uri:
             model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
-            model_service.model_name = model_name if model_name is not None else "CMS model"
+            model_service.model_name = model_name
             model_service_dep.model_service = model_service
             cms_globals.model_manager_dep = ModelManagerDep(model_service)
         else:
@@ -133,7 +134,12 @@ def serve_model(
         if llm_engine == LlmEngine.CMS:
             model_server_app = get_generative_server(config)
         elif llm_engine == LlmEngine.VLLM:
-            model_server_app = get_vllm_server(config, log_level="debug" if debug else "info")
+            model_server_app = get_vllm_server(
+                config,
+                model_path,
+                model_name,
+                log_level="debug" if debug else "info"
+            )
         else:
             logger.error("Unknown LLM engine: %s" % llm_engine)
             typer.Exit(code=1)
@@ -146,7 +152,7 @@ def serve_model(
     logger.info('Start serving model "%s" on %s:%s', model_type, host, port)
     # interrupted = False
     # while not interrupted:
-    uvicorn.run(model_server_app, host=host, port=int(port), log_config=None)
+    uvicorn.run(model_server_app, host=host, port=int(port), log_config=None)   # type: ignore
     # interrupted = True
     typer.echo("Shutting down due to either keyboard interrupt or system exit")
 
@@ -498,7 +504,7 @@ def package_dataset(
     hf_dataset_revision: str = typer.Option("", help="The revision of the dataset to download from Hugging Face Hub"),
     cached_dataset_dir: str = typer.Option("", help="The path to the cached dataset directory, will only be used if --hf-dataset-id is not provided"),
     output_dataset_package: str = typer.Option("", help="The path where the dataset package will be saved, minus any format-specific extension, e.g., './dataset_packages/imdb'"),
-    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the dataset package, e.g., 'zip' or 'gztar'"),
+    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP.value, help="The archive format of the dataset package, e.g., 'zip' or 'gztar'"),
     remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the dataset package is saved"),
     trust_remote_code: bool = typer.Option(False, help="Whether to trust and use the remote script of the dataset"),
 ) -> None:

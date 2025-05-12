@@ -4,7 +4,7 @@ from unittest.mock import create_autospec
 
 from fastapi.testclient import TestClient
 from app.api.api import get_model_server
-from app.utils import get_settings
+from app.utils import get_settings, load_pydantic_object_from_dict
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
 from app.domain import ModelCard, ModelType, Annotation
 
@@ -32,40 +32,49 @@ def test_healthz(client):
 
 
 def test_readyz(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "deid_model_description",
-        "model_type": ModelType.TRANSFORMERS_DEID,
-        "model_card": None,
-        "labels": None,
-    })
+    model_card = load_pydantic_object_from_dict(
+        ModelCard,
+        {
+            "api_version": "0.0.1",
+            "model_description": "deid_model_description",
+            "model_type": ModelType.TRANSFORMERS_DEID,
+            "model_card": None,
+            "labels": None,
+        },
+    )
     model_service.info.return_value = model_card
 
     assert client.get("/readyz").content.decode("utf-8") == ModelType.TRANSFORMERS_DEID
 
 
 def test_info(model_service, client):
-    model_card = ModelCard.parse_obj({
+    raw = {
         "api_version": "0.0.1",
         "model_description": "deid_model_description",
-        "model_type": ModelType.TRANSFORMERS_DEID,
+        "model_type": ModelType.TRANSFORMERS_DEID.value,
         "model_card": None,
         "labels": None,
-    })
+    }
+    model_card = load_pydantic_object_from_dict(ModelCard, raw)
     model_service.info.return_value = model_card
 
     response = client.get("/info")
 
-    assert response.json() == model_card
+    assert response.json() == raw
 
 
 def test_process(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "NW1 2BU",
-        "label_id": "C2120",
-        "start": 0,
-        "end": 6,
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "NW1 2BU",
+                "label_id": "C2120",
+                "start": 0,
+                "end": 6,
+            },
+        )
+    ]
     model_service.annotate.return_value = annotations
 
     response = client.post(
@@ -87,18 +96,28 @@ def test_process(model_service, client):
 
 def test_process_bulk(model_service, client):
     annotations_list = [
-        [Annotation.parse_obj({
-            "label_name": "NW1 2BU",
-            "label_id": "C2120",
-            "start": 0,
-            "end": 6,
-        })],
-        [Annotation.parse_obj({
-            "label_name": "NW1 2DA",
-            "label_id": "C2120",
-            "start": 0,
-            "end": 6,
-        })]
+        [
+            load_pydantic_object_from_dict(
+                Annotation,
+                {
+                    "label_name": "NW1 2BU",
+                    "label_id": "C2120",
+                    "start": 0,
+                    "end": 6,
+                },
+            )
+        ],
+        [
+            load_pydantic_object_from_dict(
+                Annotation,
+                {
+                    "label_name": "NW1 2DA",
+                    "label_id": "C2120",
+                    "start": 0,
+                    "end": 6,
+                },
+            )
+        ],
     ]
     model_service.batch_annotate.return_value = annotations_list
 
@@ -127,12 +146,17 @@ def test_process_bulk(model_service, client):
 
 
 def test_preview(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "NW1 2BU",
-        "label_id": "C2120",
-        "start": 0,
-        "end": 6,
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "NW1 2BU",
+                "label_id": "C2120",
+                "start": 0,
+                "end": 6,
+            },
+        )
+    ]
     model_service.annotate.return_value = annotations
     model_service.model_name = "De-Identification Model"
 

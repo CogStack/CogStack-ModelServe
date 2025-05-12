@@ -25,7 +25,7 @@ from app.domain import (
     Tags,
 )
 from app.model_services.base import AbstractModelService
-from app.utils import get_settings
+from app.utils import get_settings, load_pydantic_object_from_dict
 from app.api.dependencies import validate_tracking_id
 from app.api.utils import get_rate_limiter, encrypt
 from app.management.prometheus_metrics import (
@@ -219,10 +219,15 @@ def extract_entities_from_multi_text_file(
         data_file.seek(0)
         texts = ijson.items(data_file, "item")
         for text, annotations in zip(texts, annotations_list):
-            body.append(TextWithAnnotations.parse_obj({
-                "text": text,
-                "annotations": annotations
-            }))
+            body.append(
+                load_pydantic_object_from_dict(
+                    TextWithAnnotations,
+                {
+                        "text": text,
+                        "annotations": annotations
+                    },
+                )
+            )
             annotation_sum += len(annotations)
             _send_accuracy_metric(annotations, PATH_PROCESS_BULK)
             _send_meta_confidence_metric(annotations, PATH_PROCESS_BULK)

@@ -104,7 +104,7 @@ class LlmEngine(Enum):
 
 
 class Annotation(BaseModel):
-    doc_name: Optional[str] = Field(description="The name of the document to which the annotation belongs")
+    doc_name: Optional[str] = Field(default=None, description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
     end: int = Field(description="The first index after the annotation span")
     label_name: str = Field(description="The pretty name of the annotation concept")
@@ -134,7 +134,7 @@ class TextWithPublicKey(BaseModel):
 
 class TextStreamItem(BaseModel):
     text: str = Field(description="The text from which the annotations are extracted")
-    name: Optional[str] = Field(description="The name of the document containing the text")
+    name: Optional[str] = Field(default=None, description="The name of the document containing the text")
 
     class Config:
         extra = "forbid"
@@ -143,7 +143,7 @@ class TextStreamItem(BaseModel):
 class ModelCard(BaseModel):
     api_version: str = Field(description="The version of the model serve APIs")
     model_type: ModelType = Field(description="The type of the served model")
-    model_description: Optional[str] = Field(description="The description about the served model")
+    model_description: Optional[str] = Field(default=None, description="The description about the served model")
     model_card: Optional[dict] = Field(default=None, description="The metadata of the served model")
     labels: Optional[Dict[str, str]] = Field(default=None, description="The mapping of CUIs to names")
 
@@ -165,4 +165,4 @@ class Entity(BaseModel):
 class Doc(BaseModel):
     text: str = Field(description="The text from which the entities are extracted")
     ents: List[Entity] = Field(description="The list of extracted entities")
-    title: Optional[str] = Field(description="The headline of the text")
+    title: Optional[str] = Field(default=None, description="The headline of the text")

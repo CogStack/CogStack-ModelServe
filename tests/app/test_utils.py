@@ -31,6 +31,8 @@ from app.utils import (
     create_model_data_package,
     ensure_tensor_contiguity,
     pyproject_dependencies_to_pip_requirements,
+    get_model_data_package_base_name,
+    load_pydantic_object_from_dict,
 )
 from app.domain import Annotation, Entity
 
@@ -42,19 +44,29 @@ def test_get_code_base_uri():
 
 
 def test_annotations_to_entities():
-    annotations = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 1,
-        "end": 15,
-    })]
-    expected = [Entity.parse_obj({
-        "start": 1,
-        "end": 15,
-        "label": "Spinal stenosis",
-        "kb_id": "76107001",
-        "kb_url": "http://snomed.info/id/76107001",
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 1,
+                "end": 15,
+            },
+        ),
+    ]
+    expected = [
+        load_pydantic_object_from_dict(
+            Entity,
+            {
+                "start": 1,
+                "end": 15,
+                "label": "Spinal stenosis",
+                "kb_id": "76107001",
+                "kb_url": "http://snomed.info/id/76107001",
+            },
+        ),
+    ]
     assert annotations_to_entities(annotations, "SNOMED model") == expected
 
 
@@ -273,6 +285,12 @@ def test_pyproject_dependencies_to_pip_requirements():
 
     assert len(result) == 2
     assert result[1] == "another-package~=2.3.4"
+
+
+def test_get_model_data_package_base_name():
+    assert get_model_data_package_base_name("/path/to/model.zip") == "model"
+    assert get_model_data_package_base_name("/path/to/model.tar.gz") == "model"
+    assert get_model_data_package_base_name("/path/to/model") == "model"
 
 
 class TestUnpackModelPackage(unittest.TestCase):

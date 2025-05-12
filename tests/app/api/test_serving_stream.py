@@ -13,14 +13,6 @@ from app.model_services.medcat_model import MedCATModel
 from app.management.model_manager import ModelManager
 
 
-config = get_settings()
-config.ENABLE_TRAINING_APIS = "true"
-config.DISABLE_UNSUPERVISED_TRAINING = "false"
-config.ENABLE_EVALUATION_APIS = "true"
-config.ENABLE_PREVIEWS_APIS = "true"
-config.AUTH_USER_ENABLED = "false"
-
-
 @pytest.fixture(scope="function")
 def ner_model_service():
     return create_autospec(MedCATModel)
@@ -28,6 +20,13 @@ def ner_model_service():
 
 @pytest.fixture(scope="function")
 def ner_app(ner_model_service):
+    config = get_settings()
+    config.ENABLE_TRAINING_APIS = "true"
+    config.DISABLE_UNSUPERVISED_TRAINING = "false"
+    config.ENABLE_EVALUATION_APIS = "true"
+    config.ENABLE_PREVIEWS_APIS = "true"
+    config.AUTH_USER_ENABLED = "false"
+    config.AUTH_USER_ENABLED = "false"
     app = get_stream_server(config, msd_overwritten=lambda: ner_model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     yield app
@@ -96,9 +95,8 @@ def test_websocket_process_on_annotation_error(ner_model_service, ner_app):
     model_manager.model_service = ner_model_service
     cms_globals.model_manager_dep = lambda: model_manager
 
-    with pytest.raises(WebSocketDisconnect):
-        with TestClient(ner_app) as client:
-            with client.websocket_connect("/stream/ws") as websocket:
-                websocket.send_text("Spinal stenosis")
-                response = websocket.receive_text()
-                assert response == "ERROR: something went wrong"
+    with TestClient(ner_app) as client:
+        with client.websocket_connect("/stream/ws") as websocket:
+            websocket.send_text("Spinal stenosis")
+            response = websocket.receive_text()
+            assert response == "ERROR: something went wrong"

@@ -14,13 +14,14 @@ import zipfile
 import numpy as np
 import pandas as pd
 from packaging.markers import Marker
+from pydantic import BaseModel
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
 from transformers import PreTrainedModel
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any, Union, Type
+from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
 from app.domain import Annotation, Entity, CodeType, ModelType, Device
 from app.config import Settings
 
@@ -551,6 +552,24 @@ def unpack_model_data_package(model_data_file_path: str, model_data_folder_path:
     else:
         return False
 
+def get_model_data_package_base_name(file_path: str) -> str:
+    """
+    Gets the base name of a model data package file path.
+
+    Args:
+        file_path (str): The path to the model data package file.
+
+    Returns:
+        str: The base name of the model data package file.
+    """
+
+    if file_path.endswith(".tar.gz"):
+        return os.path.basename(file_path)[:-7]
+    elif file_path.endswith(".zip"):
+        return os.path.basename(file_path)[:-4]
+    else:
+        return os.path.splitext(os.path.basename(file_path))[0]
+
 
 def create_model_data_package(model_data_folder_path: str, model_data_file_path: str) -> bool:
     """
@@ -636,6 +655,27 @@ def pyproject_dependencies_to_pip_requirements(pyproject_dependencies: List[str]
             pip_requirements.append(dependency.strip())
 
     return pip_requirements
+
+T = TypeVar("T", bound=BaseModel)
+
+def load_pydantic_object_from_dict(model: Type[T], obj: Dict) -> T:
+    """
+    Loads the dictionary into the pydantic model passed in.
+
+    Args:
+         model (Type[T]): The pydantic model to parse the object into.
+         obj (Dict): The dictionary object to load.
+
+    Returns:
+        T: The pydantic model object.
+    """
+
+    if hasattr(model, "parse_obj"):
+        return model.parse_obj(obj)     # type: ignore
+    elif hasattr(model, "model_validate"):
+        return model.model_validate(obj)    # type: ignore
+    else:
+        raise TypeError("Model must have a known method for parsing objects.")
 
 
 TYPE_ID_TO_NAME_PATCH = {

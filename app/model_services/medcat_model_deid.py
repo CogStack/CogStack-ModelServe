@@ -11,7 +11,7 @@ from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.medcat_deid_trainer import MedcatDeIdentificationSupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation
-from app.utils import non_default_device_is_available, get_hf_pipeline_device_id
+from app.utils import non_default_device_is_available, get_hf_pipeline_device_id, load_pydantic_object_from_dict
 from app.exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -88,7 +88,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 entity["types"] = ["PII"]
 
         records = self.get_records_from_doc({"entities": doc["entities"]})
-        return [Annotation.parse_obj(record) for record in records]
+        return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
         """
@@ -153,7 +153,7 @@ class MedCATModelDeIdentification(MedCATModel):
         assert processed_char_len == (len(text) + leading_ws_len), f"{len(text) + leading_ws_len - processed_char_len} characters were not processed:\n{text}"
 
         records = self.get_records_from_doc({"entities": aggregated_entities})
-        return [Annotation.parse_obj(record) for record in records]
+        return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         """

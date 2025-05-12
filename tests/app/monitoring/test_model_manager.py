@@ -9,6 +9,7 @@ from app.management.model_manager import ModelManager
 from app.config import Settings
 from app.exception import ManagedModelException
 from app.domain import Annotation
+from app.utils import load_pydantic_object_from_dict
 
 
 def test_retrieve_python_model_from_uri(mlflow_fixture):
@@ -85,20 +86,25 @@ def test_predict(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    })]
+    model_manager._model_service.annotate.return_value = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 0,
+                "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
+            },
+        )
+    ]
     output = model_manager.predict(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
     assert output.to_dict() == {
         "doc_name": {0: "doc_1", 1: "doc_2"},
@@ -113,20 +119,25 @@ def test_predict_stream(mlflow_fixture):
     model_manager = ModelManager(_MockedModelService, Settings())
     model_manager._model_service = Mock()
     model_manager._model_service.annotate = Mock()
-    model_manager._model_service.annotate.return_value = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    })]
+    model_manager._model_service.annotate.return_value = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 0,
+                "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
+            },
+        )
+    ]
     output = model_manager.predict_stream(None, pd.DataFrame([{"name": "doc_1", "text": "text_1"}, {"name": "doc_2", "text": "text_2"}]))
     assert isinstance(output, Generator)
     assert list(output) == [

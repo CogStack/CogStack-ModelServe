@@ -24,6 +24,8 @@ from app.utils import (
     get_hf_pipeline_device_id,
     unpack_model_data_package,
     ensure_tensor_contiguity,
+    get_model_data_package_base_name,
+    load_pydantic_object_from_dict,
 )
 
 logger = logging.getLogger("cms")
@@ -153,7 +155,7 @@ class HuggingFaceNerModel(AbstractModelService):
             ConfigurationException: If the model package is not valid or not supported.
         """
 
-        model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
+        model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
                 model = AutoModelForTokenClassification.from_pretrained(model_path)
@@ -236,7 +238,7 @@ class HuggingFaceNerModel(AbstractModelService):
             df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
             df = df[df["accuracy"] >= self._multi_label_threshold]
         records = df.to_dict("records")
-        return [Annotation.parse_obj(record) for record in records]
+        return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace NER models")

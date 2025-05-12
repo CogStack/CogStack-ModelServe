@@ -12,10 +12,10 @@ from starlette.status import HTTP_404_NOT_FOUND
 
 import app.api.globals as cms_globals
 from app.api.dependencies import validate_tracking_id
-from app.domain import Doc, Tags, Annotation, Entity
+from app.domain import Doc, Tags, Entity
 from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import concat_trainer_exports
-from app.utils import annotations_to_entities
+from app.utils import annotations_to_entities, load_pydantic_object_from_dict
 
 router = APIRouter()
 logger = logging.getLogger("cms")
@@ -49,8 +49,7 @@ async def get_rendered_entities_from_text(
     - StreamingResponse: A streaming response containing the HTML representation of the extracted entities.
     """
 
-    annotation_dicts = model_service.annotate(text)
-    annotations = [Annotation.parse_obj(ad) for ad in annotation_dicts]
+    annotations = model_service.annotate(text)
     entities = annotations_to_entities(annotations, model_service.model_name)
     logger.debug("Entities extracted for previewing %s", entities)
     ent_input = Doc(text=text, ents=entities)
@@ -122,13 +121,18 @@ def get_rendered_entities_from_trainer_export(
                 continue
             entities = []
             for annotation in document["annotations"]:
-                entities.append(Entity.parse_obj({
-                    "start": annotation["start"],
-                    "end": annotation["end"],
-                    "label": f"{annotation['cui']} ({'correct' if annotation.get('correct', True) else 'incorrect'}{'; terminated' if annotation.get('deleted', False) and annotation.get('killed', False) else ''})",
-                    "kb_id": annotation["cui"],
-                    "kb_url": "#",
-                }))
+                entities.append(
+                    load_pydantic_object_from_dict(
+                        Entity,
+                        {
+                            "start": annotation["start"],
+                            "end": annotation["end"],
+                            "label": f"{annotation['cui']} ({'correct' if annotation.get('correct', True) else 'incorrect'}{'; terminated' if annotation.get('deleted', False) and annotation.get('killed', False) else ''})",
+                            "kb_id": annotation["cui"],
+                            "kb_url": "#",
+                        },
+                    )
+                )
             # Displacy cannot handle annotations out of appearance order so be this
             entities = sorted(entities, key=lambda e: e.start)
             logger.debug("Entities extracted for previewing %s", entities)

@@ -24,7 +24,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          uv sync --group dev
+          uv sync --group dev # --group vllm requires Pydantic V2
       - name: Check types
         run: |
           uv run mypy app

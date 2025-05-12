@@ -9,7 +9,7 @@ from unittest.mock import create_autospec, Mock
 from fastapi.testclient import TestClient
 from app.api.api import get_model_server
 from app.domain import ModelCard, ModelType, Annotation
-from app.utils import get_settings
+from app.utils import get_settings, load_pydantic_object_from_dict
 from app.model_services.medcat_model import MedCATModel
 from app.management.model_manager import ModelManager
 
@@ -26,6 +26,7 @@ NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fi
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
 TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export_multi_projs.json")
 MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
+HF_DATASET_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "dataset", "huggingface_dataset.zip")
 
 
 @pytest.fixture(scope="function")
@@ -43,20 +44,25 @@ def client(model_service):
 
 
 def test_process_invalid_jsonl(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 0,
+                "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
+            },
+        )
+    ]
     model_service.annotate.return_value = annotations
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
@@ -73,20 +79,25 @@ def test_process_invalid_jsonl(model_service, client):
 
 
 def test_process_unknown_jsonl_properties(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+        {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 0,
+                "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
+            },
+        )
+    ]
     model_service.annotate.return_value = annotations
     model_manager = ModelManager(None, None)
     model_manager.model_service = model_service
@@ -103,20 +114,25 @@ def test_process_unknown_jsonl_properties(model_service, client):
 
 
 def test_redact_with_white_list(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "Spinal stenosis",
+                "label_id": "76107001",
+                "start": 0,
+                "end": 15,
+                "accuracy": 1.0,
+                "meta_anns": {
+                    "Status": {
+                        "value": "Affirmed",
+                        "confidence": 0.9999833106994629,
+                        "name": "Status"
+                    }
+                },
             }
-        },
-    })]
+        )
+    ]
 
     concepts_to_keep = ["76107001"]
     url = f"/redact?concepts_to_keep={','.join(concepts_to_keep)}"
@@ -147,20 +163,25 @@ def test_warning_on_no_redaction(model_service, client):
 
 
 def test_redact_with_encryption(model_service, client):
-    annotations = [Annotation.parse_obj({
-        "label_name": "Spinal stenosis",
-        "label_id": "76107001",
-        "start": 0,
-        "end": 15,
-        "accuracy": 1.0,
-        "meta_anns": {
-            "Status": {
-                "value": "Affirmed",
-                "confidence": 0.9999833106994629,
-                "name": "Status"
-            }
-        },
-    })]
+    annotations = [
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                    "label_name": "Spinal stenosis",
+                    "label_id": "76107001",
+                    "start": 0,
+                    "end": 15,
+                    "accuracy": 1.0,
+                    "meta_anns": {
+                        "Status": {
+                            "value": "Affirmed",
+                            "confidence": 0.9999833106994629,
+                            "name": "Status"
+                        }
+                    },
+            },
+        )
+    ]
     body = {
         "text": "Spinal stenosis",
         "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"
@@ -340,24 +361,34 @@ def test_train_unsupervised(model_service, client):
 
 
 def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "huggingface_ner_model_description",
-        "model_type": ModelType.MEDCAT_SNOMED,
-        "model_card": None,
-        "labels": None,
-    })
+    model_card = load_pydantic_object_from_dict(
+        ModelCard,
+        {
+            "api_version": "0.0.1",
+            "model_description": "huggingface_ner_model_description",
+            "model_type": ModelType.MEDCAT_SNOMED,
+            "model_card": None,
+            "labels": None,
+        },
+    )
     model_service.info.return_value = model_card
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
 
-    response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb&hf_dataset_config=plain_text&trust_remote_code=false&text_column_name=text&epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1")
+    with open(HF_DATASET_PATH, "rb") as f:
+        response = client.post(
+            "/train_unsupervised_with_hf_hub_dataset?hf_dataset_config=plain_text&trust_remote_code=false&text_column_name=text&epochs=1&lr_override=0.01&test_size=0.2&log_frequency=1",
+            files={"hf_dataset_package": ("huggingface_dataset.zip", f, "multipart/form-data")},
+        )
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
     assert all(key in response.json() for key in ["training_id", "experiment_id", "run_id"])
 
-    # test with provided tracking ID
-    response = client.post(f"/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb&tracking_id={TRACKING_ID}")
+    with open(HF_DATASET_PATH, "rb") as f:
+        response = client.post(
+            f"/train_unsupervised_with_hf_hub_dataset?tracking_id={TRACKING_ID}",
+            files={"hf_dataset_package": ("huggingface_dataset.zip", f, "multipart/form-data")},
+        )
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."
@@ -623,20 +654,25 @@ def test_get_annotation_stats(client):
 
 def test_extract_entities_from_text_list_file_as_json_file(model_service, client):
     annotations_list = [
-        [Annotation.parse_obj({
-            "label_name": "Spinal stenosis",
-            "label_id": "76107001",
-            "start": 0,
-            "end": 15,
-            "accuracy": 1.0,
-            "meta_anns": {
-                "Status": {
-                    "value": "Affirmed",
-                    "confidence": 0.9999833106994629,
-                    "name": "Status"
-                }
-            },
-        })]
+        [
+            load_pydantic_object_from_dict(
+                Annotation,
+                {
+                    "label_name": "Spinal stenosis",
+                    "label_id": "76107001",
+                    "start": 0,
+                    "end": 15,
+                    "accuracy": 1.0,
+                    "meta_anns": {
+                        "Status": {
+                            "value": "Affirmed",
+                            "confidence": 0.9999833106994629,
+                            "name": "Status"
+                        }
+                    },
+                },
+            )
+        ]
     ] * 15
     model_service.batch_annotate.return_value = annotations_list
 

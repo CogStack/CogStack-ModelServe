@@ -119,6 +119,7 @@ app/build
 app/cogstack_model_serve.egg-info
 app/dist
 app/cms_cache
+app/cli/cache
 
 analysis/
 

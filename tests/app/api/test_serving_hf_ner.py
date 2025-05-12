@@ -4,7 +4,7 @@ import app.api.globals as cms_globals
 from fastapi.testclient import TestClient
 from unittest.mock import create_autospec
 from app.api.api import get_model_server
-from app.utils import get_settings
+from app.utils import get_settings, load_pydantic_object_from_dict
 from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 from app.domain import ModelCard, ModelType
 
@@ -20,7 +20,7 @@ NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fi
 ANOTHER_TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "another_trainer_export.json")
 TRAINER_EXPORT_MULTI_PROJS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export_multi_projs.json")
 MULTI_TEXTS_FILE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "sample_texts.json")
-
+HF_DATASET_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "dataset", "huggingface_dataset.zip")
 
 @pytest.fixture(scope="function")
 def model_service():
@@ -37,17 +37,24 @@ def client(model_service):
 
 
 def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
-    model_card = ModelCard.parse_obj({
-        "api_version": "0.0.1",
-        "model_description": "huggingface_ner_model_description",
-        "model_type": ModelType.HUGGINGFACE_NER,
-        "model_card": None,
-        "labels": None,
-    })
+    model_card = load_pydantic_object_from_dict(
+        ModelCard,
+        {
+            "api_version": "0.0.1",
+            "model_description": "huggingface_ner_model_description",
+            "model_type": ModelType.HUGGINGFACE_NER,
+            "model_card": None,
+            "labels": None,
+        },
+    )
     model_service.info.return_value = model_card
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
 
-    response = client.post("/train_unsupervised_with_hf_hub_dataset?hf_dataset_repo_id=imdb")
+    with open(HF_DATASET_PATH, "rb") as f:
+        response = client.post(
+            f"/train_unsupervised_with_hf_hub_dataset",
+            files={"hf_dataset_package": ("huggingface_dataset.zip", f, "multipart/form-data")},
+        )
 
     model_service.train_unsupervised.assert_called()
     assert response.json()["message"] == "Your training started successfully."

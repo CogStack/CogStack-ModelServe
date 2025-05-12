@@ -11,7 +11,14 @@ from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervi
 from app.trainers.metacat_trainer import MetacatTrainer
 from app.domain import ModelCard, Annotation
 from app.config import Settings
-from app.utils import get_settings, TYPE_ID_TO_NAME_PATCH, non_default_device_is_available, unpack_model_data_package
+from app.utils import (
+    get_settings,
+    TYPE_ID_TO_NAME_PATCH,
+    non_default_device_is_available,
+    unpack_model_data_package,
+    get_model_data_package_base_name,
+    load_pydantic_object_from_dict,
+)
 from app.exception import ConfigurationException
 
 logger = logging.getLogger("cms")
@@ -104,7 +111,7 @@ class MedCATModel(AbstractModelService):
             ConfigurationException: If the model package archive format is not supported.
         """
 
-        model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
+        model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), *args, **kwargs)
             logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
@@ -160,7 +167,7 @@ class MedCATModel(AbstractModelService):
             text,
             addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
         )
-        return [Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)]
+        return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         """
@@ -184,7 +191,9 @@ class MedCATModel(AbstractModelService):
         docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []
         for _, doc in docs.items():
-            annotations_list.append([Annotation.parse_obj(record) for record in self.get_records_from_doc(doc)])
+            annotations_list.append([
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)
+            ])
         return annotations_list
 
     def train_supervised(

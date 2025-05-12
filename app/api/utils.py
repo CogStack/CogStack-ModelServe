@@ -6,7 +6,8 @@ import base64
 import contextlib
 import uuid
 from functools import lru_cache
-from typing import Optional, Annotated
+from typing import Optional, AsyncGenerator
+from typing_extensions import Annotated
 from fastapi import FastAPI, Request, APIRouter, Body, Query
 from starlette.responses import JSONResponse, StreamingResponse
 from starlette.status import (
@@ -270,31 +271,31 @@ def decrypt(b64_encoded: str, private_key_pem: str) -> str:
     )
     return decrypted.decode()
 
-async def init_vllm_engine(app: FastAPI, log_level: str = "info") -> FastAPI:
+async def init_vllm_engine(app: FastAPI,
+                           model_dir_path: str,
+                           model_name: str,
+                           log_level: str = "info") -> FastAPI:
     """
     Initialises the vLLM engine.
 
     Args:
-        app: The FastAPI app instance.
-        log_level: The log level for the VLLM engine. Defaults to "info".
+        app (FastAPI): The FastAPI app instance.
+        model_dir_path (str): The path to the directory containing the model.
+        model_name (str): The name of the model.
+        log_level (str): The log level for the VLLM engine. Defaults to "info".
     """
 
     try:
         from vllm.utils import FlexibleArgumentParser
         from vllm.engine.arg_utils import AsyncEngineArgs
-        from vllm.entrypoints.openai.api_server import lifespan
         from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
         from vllm.entrypoints.chat_utils import parse_chat_messages, apply_hf_chat_template
         from vllm.entrypoints.openai.api_server import (
-            run_server,
             create_chat_completion,
             show_available_models,
-            build_async_engine_client,
             build_async_engine_client_from_engine_args,
             init_app_state,
-            create_server_socket,
         )
-        from vllm.entrypoints.launcher import serve_http
         from vllm import SamplingParams, TokensPrompt
     except ImportError:
         logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
@@ -303,11 +304,17 @@ async def init_vllm_engine(app: FastAPI, log_level: str = "info") -> FastAPI:
     parser = make_arg_parser(parser)
     args = parser.parse_args([])
     validate_parsed_serve_args(args)
+    args.model = model_dir_path
+    args.served_model_name = [model_name]
+    # args.tokenizer = model_dir_path
     args.log_level = log_level
 
     exit_stack = contextlib.AsyncExitStack()
     engine = await exit_stack.enter_async_context(
-        build_async_engine_client_from_engine_args(AsyncEngineArgs.from_cli_args(args), True)
+        build_async_engine_client_from_engine_args(
+            AsyncEngineArgs.from_cli_args(args),
+            disable_frontend_multiprocessing=True,
+        )
     )
     tokenizer = await engine.get_tokenizer()
     vllm_config = await engine.get_vllm_config()
@@ -335,7 +342,7 @@ async def init_vllm_engine(app: FastAPI, log_level: str = "info") -> FastAPI:
             )
         )
 
-        async def _stream():
+        async def _stream() -> AsyncGenerator[bytes, None]:
             start = 0
             async for output in engine.generate(request_id=uuid.uuid4().hex, prompt=prompt, sampling_params=params):
                 text = output.outputs[0].text

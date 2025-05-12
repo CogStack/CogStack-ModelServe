@@ -22,7 +22,8 @@ from app.api.utils import add_exception_handlers, add_rate_limiter, init_vllm_en
 from app.config import Settings
 from app.domain import Tags, TagsStreamable
 from app.management.tracker_client import TrackerClient
-from app.utils import get_settings
+from app.utils import get_settings, unpack_model_data_package, get_model_data_package_base_name
+from app.exception import ConfigurationException
 
 
 logging.getLogger("asyncio").setLevel(logging.ERROR)
@@ -141,21 +142,27 @@ def get_generative_server(config: Settings, msd_overwritten: Optional[ModelServi
 
     return app
 
-def get_vllm_server(config: Settings, log_level: str = "info") -> FastAPI:
+def get_vllm_server(config: Settings, model_file_path: str, model_name: str,log_level: str = "info") -> FastAPI:
     """
     Initialises a FastAPI instance configured for a vLLM server.
 
     Args:
-        config: The CMS configuration.
-        log_level: The log level for the VLLM engine. Default to "info".
+        config (Settings): The CMS configuration.
+        model_file_path (str): The path to the model file.
+        model_name (str): The name of the model.
+        log_level (str): The log level for the VLLM engine. Default to "info".
 
     Returns:
         FastAPI: A FastAPI app instance.
     """
 
     app = _get_app(None, streamable=False)
-    loop = asyncio.get_event_loop()
-    app = loop.run_until_complete(init_vllm_engine(app, log_level))
+    model_dir_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
+    if unpack_model_data_package(model_file_path, model_dir_path):
+        loop = asyncio.get_event_loop()
+        app = loop.run_until_complete(init_vllm_engine(app, model_dir_path, model_name, log_level))
+    else:
+        raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
     return app
 

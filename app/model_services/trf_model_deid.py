@@ -11,7 +11,7 @@ from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.domain import ModelCard, ModelType, Annotation
 from app.config import Settings
-from app.utils import cls_deprecated, non_default_device_is_available
+from app.utils import cls_deprecated, non_default_device_is_available, load_pydantic_object_from_dict
 
 logger = logging.getLogger("cms")
 
@@ -126,12 +126,15 @@ class TransformersModelDeIdentification(AbstractModelService):
                     t_text = self._tokenizer.hf_tokenizer.decode(input_ids[t_idx])
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
-                    annotation = Annotation.parse_obj({
-                        "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),
-                        "label_id": self._id2cui[cur_cui_id],
-                        "start": offset_mappings[t_idx][0],
-                        "end": offset_mappings[t_idx][1],
-                    })
+                    annotation = load_pydantic_object_from_dict(
+                        Annotation,
+                        {
+                            "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),
+                            "label_id": self._id2cui[cur_cui_id],
+                            "start": offset_mappings[t_idx][0],
+                            "end": offset_mappings[t_idx][1],
+                        },
+                    )
                     if ist:
                         annotation.text = t_text
                     if annotations:

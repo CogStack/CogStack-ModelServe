@@ -20,6 +20,7 @@ from app.utils import (
     non_default_device_is_available,
     unpack_model_data_package,
     ensure_tensor_contiguity,
+    get_model_data_package_base_name,
 )
 
 logger = logging.getLogger("cms")
@@ -137,7 +138,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             ConfigurationException: If the model package is not valid or not supported.
         """
 
-        model_path = os.path.join(os.path.dirname(model_file_path), os.path.basename(model_file_path).split(".")[0])
+        model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
                 model = AutoModelForCausalLM.from_pretrained(model_path)

@@ -14,6 +14,7 @@ from app.processors.metrics_collector import (
 )
 from app.exception import AnnotationException
 from app.domain import Annotation
+from app.utils import load_pydantic_object_from_dict
 
 
 @pytest.fixture
@@ -23,18 +24,24 @@ def model_service():
 
 def test_sanity_check_model_with_trainer_export_path(model_service):
     annotations = [
-        Annotation.parse_obj({
-            "label_name": "gastroesophageal reflux",
-            "label_id": "C0017168",
-            "start": 332,
-            "end": 355,
-        }),
-        Annotation.parse_obj({
-            "label_name": "hypertension",
-            "label_id": "C0020538",
-            "start": 255,
-            "end": 267,
-        })
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "gastroesophageal reflux",
+                "label_id": "C0017168",
+                "start": 332,
+                "end": 355,
+            },
+        ),
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "hypertension",
+                "label_id": "C0020538",
+                "start": 255,
+                "end": 267,
+            },
+        ),
     ]
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
@@ -52,18 +59,23 @@ def test_sanity_check_model_with_trainer_export_path(model_service):
 
 def test_evaluate_model_and_return_dataframe(model_service):
     annotations = [
-        Annotation.parse_obj({
-            "label_name": "gastroesophageal reflux",
-            "label_id": "C0017168",
-            "start": 332,
-            "end": 355,
-        }),
-        Annotation.parse_obj({
-            "label_name": "hypertension",
-            "label_id": "C0020538",
-            "start": 255,
-            "end": 267,
-        })
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "gastroesophageal reflux",
+                "label_id": "C0017168",
+                "start": 332,
+                "end": 355,
+            }),
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "hypertension",
+                "label_id": "C0020538",
+                "start": 255,
+                "end": 267,
+            },
+        ),
     ]
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
@@ -80,18 +92,24 @@ def test_evaluate_model_and_return_dataframe(model_service):
 
 def test_sanity_check_model_with_trainer_export_file(model_service):
     annotations = [
-        Annotation.parse_obj({
-            "label_name": "gastroesophageal reflux",
-            "label_id": "C0017168",
-            "start": 332,
-            "end": 355,
-        }),
-        Annotation.parse_obj({
-            "label_name": "hypertension",
-            "label_id": "C0020538",
-            "start": 255,
-            "end": 267,
-        })
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "gastroesophageal reflux",
+                "label_id": "C0017168",
+                "start": 332,
+                "end": 355,
+            }
+        ),
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "hypertension",
+                "label_id": "C0020538",
+                "start": 255,
+                "end": 267,
+            }
+        ),
     ]
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
@@ -109,18 +127,24 @@ def test_sanity_check_model_with_trainer_export_file(model_service):
 
 def test_sanity_check_model_with_trainer_export_dict(model_service):
     annotations = [
-        Annotation.parse_obj({
-            "label_name": "gastroesophageal reflux",
-            "label_id": "C0017168",
-            "start": 332,
-            "end": 355,
-        }),
-        Annotation.parse_obj({
-            "label_name": "hypertension",
-            "label_id": "C0020538",
-            "start": 255,
-            "end": 267,
-        })
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "gastroesophageal reflux",
+                "label_id": "C0017168",
+                "start": 332,
+                "end": 355,
+            },
+        ),
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "hypertension",
+                "label_id": "C0020538",
+                "start": 255,
+                "end": 267,
+            },
+        ),
     ]
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
@@ -138,18 +162,24 @@ def test_sanity_check_model_with_trainer_export_dict(model_service):
 
 def test_evaluate_model_and_include_anchors(model_service):
     annotations = [
-        Annotation.parse_obj({
-            "label_name": "gastroesophageal reflux",
-            "label_id": "C0017168",
-            "start": 332,
-            "end": 355,
-        }),
-        Annotation.parse_obj({
-            "label_name": "hypertension",
-            "label_id": "C0020538",
-            "start": 255,
-            "end": 267,
-        })
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "gastroesophageal reflux",
+                "label_id": "C0017168",
+                "start": 332,
+                "end": 355,
+            },
+        ),
+        load_pydantic_object_from_dict(
+            Annotation,
+            {
+                "label_name": "hypertension",
+                "label_id": "C0020538",
+                "start": 255,
+                "end": 267,
+            },
+        ),
     ]
     model_service.annotate.return_value = annotations
     path = os.path.join(os.path.join(os.path.dirname(__file__), "..", "..", "resources"), "fixture", "trainer_export.json")
