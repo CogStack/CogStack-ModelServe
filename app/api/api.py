@@ -166,6 +166,23 @@ def get_vllm_server(config: Settings, model_file_path: str, model_name: str,log_
 
     return app
 
+def get_app_for_api_docs(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    app = _get_app(msd_overwritten, streamable=False, generative=False)
+    app = _load_health_check_router(app)
+    app = _load_auth_router(app)
+    app = _load_model_card(app)
+    app = _load_invocation_router(app)
+    app = _load_supervised_training_router(app)
+    app = _load_unsupervised_training_router(app)
+    app = _load_metacat_training_router(app)
+    app = _load_training_operations(app)
+    app = _load_evaluation_router(app)
+    app = _load_preview_router(app)
+    app = _load_stream_router(app)
+    app = _load_generative_router(app)
+    return app
+
+
 def _get_app(
     msd_overwritten: Optional[ModelServiceDep] = None,
     streamable: bool = False,

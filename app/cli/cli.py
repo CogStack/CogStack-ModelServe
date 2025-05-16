@@ -37,7 +37,13 @@ from datasets import load_dataset  # noqa
 from app import __version__  # noqa
 from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat, LlmEngine  # noqa
 from app.registry import model_service_registry  # noqa
-from app.api.api import get_model_server, get_stream_server, get_generative_server, get_vllm_server # noqa
+from app.api.api import (
+    get_model_server,
+    get_stream_server,
+    get_generative_server,
+    get_vllm_server,
+    get_app_for_api_docs,
+)   # noqa
 from app.utils import get_settings, send_gelf_message  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
@@ -638,7 +644,9 @@ def build_image(
 
 
 @cmd_app.command("export-openapi-spec", help="This generates an API document for all endpoints defined in CMS")
-def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")) -> None:
+def generate_api_doc(
+    api_title: str = typer.Option("CogStack Model Serve APIs", help="The string representation of the API title")
+) -> None:
     """
     Generates an OpenAPI document for all endpoints defined in CMS.
 
@@ -649,17 +657,11 @@ def generate_api_doc(api_title: str = typer.Option("CogStack Model Serve APIs", 
     """
 
     config = get_settings()
-    config.ENABLE_TRAINING_APIS = "true"
-    config.DISABLE_UNSUPERVISED_TRAINING = "false"
-    config.DISABLE_METACAT_TRAINING = "false"
-    config.ENABLE_EVALUATION_APIS = "true"
-    config.ENABLE_PREVIEWS_APIS = "true"
     config.AUTH_USER_ENABLED = "true"
-
-    model_service_dep = ModelServiceDep(ModelType.MEDCAT_SNOMED, config, api_title)
+    model_service_dep = ModelServiceDep("ALL", config, api_title)   # type: ignore
     cms_globals.model_service_dep = model_service_dep
     doc_name = f"{api_title.lower().replace(' ', '_')}.json"
-    app = get_model_server(config)
+    app = get_app_for_api_docs(None)
     for route in app.routes:
         if isinstance(route, APIRoute):
             route.operation_id = route.name
