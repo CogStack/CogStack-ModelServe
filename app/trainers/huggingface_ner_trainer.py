@@ -71,7 +71,7 @@ class _HuggingFaceNerTrainerCommon(object):
 @final
 class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrainerCommon):
     """
-    A supervised trainer class for HuggingFace NER models.
+    An unsupervised trainer class for HuggingFace NER models.
 
     Args:
     model_service (HuggingFaceNerModel): An instance of the HuggingFace NER model service.
@@ -100,7 +100,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         description: Optional[str] = None,
     ) -> None:
         """
-        Runs the supervised training loop for HuggingFace NER models.
+        Runs the unsupervised training loop for HuggingFace NER models.
 
         Args:
             training_params (Dict): A dictionary containing parameters for the training.
@@ -480,7 +480,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 @final
 class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerCommon):
     """
-    An unsupervised trainer class for HuggingFace NER models.
+    A supervised trainer class for HuggingFace NER models.
 
     Args:
         model_service (HuggingFaceNerModel): An instance of the HuggingFace NER model service.
@@ -533,7 +533,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         description: Optional[str] = None,
     ) -> None:
         """
-        Runs the unsupervised training loop for HuggingFace NER models.
+        Runs the supervised training loop for HuggingFace NER models.
 
         Args:
             training_params (Dict): A dictionary containing parameters for the training.

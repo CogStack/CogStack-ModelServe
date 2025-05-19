@@ -1,15 +1,21 @@
 #!/bin/sh
 
+app_name_option=""
 if [ -n "$MLFLOW_BASIC_AUTH_ENABLED" ] && [ "$MLFLOW_BASIC_AUTH_ENABLED" = "true" ]; then
   app_name_option="--app-name basic-auth"
-else
-  app_name_option=""
+fi
+
+gunicorn_option=""
+if [ -n "$MLFLOW_NUM_OF_WORKERS" ]; then
+  gunicorn_option="$gunicorn_option --workers $MLFLOW_NUM_OF_WORKERS"
+fi
+
+if [ -n "$MLFLOW_WORKER_TIMEOUT_SECONDS" ]; then
+  gunicorn_option="$gunicorn_option --timeout $MLFLOW_WORKER_TIMEOUT_SECONDS"
 fi
 
 if [ -n "$MLFLOW_SERVER_DEBUG" ] && [ "$MLFLOW_SERVER_DEBUG" = "true" ]; then
-  debug_option="--gunicorn-opts='--log-level=debug'"
-else
-  debug_option=""
+  gunicorn_option="$gunicorn_option --log-level debug"
 fi
 
 mlflow server \
@@ -20,4 +26,4 @@ mlflow server \
   --serve-artifacts \
   --host 0.0.0.0 \
   --port 5000 \
-  $debug_option
+  --gunicorn-opts "$gunicorn_option"
