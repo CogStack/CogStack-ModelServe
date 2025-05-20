@@ -163,7 +163,6 @@ class HuggingFaceNerModel(AbstractModelService):
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
                     model_max_length=model.config.max_position_embeddings,
-                    add_special_tokens=False,
                     do_lower_case=False,
                 )
                 logger.info("Model package loaded from %s", os.path.normpath(model_file_path))

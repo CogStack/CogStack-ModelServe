@@ -105,16 +105,16 @@ Feature:
   Scenario: Preview trainer export
     Given CMS app is up and running
     When I send a POST request with the following trainer export
-      | endpoint                                                | file_name           | content_type        |
-      | /preview_trainer_export?project_id=14&document_id=3204  | trainer_export.json | multipart/form-data |
+      | endpoint                                                | file_name                  | content_type        |
+      | /preview_trainer_export?project_id=14&document_id=3204  | medcat_trainer_export.json | multipart/form-data |
     Then the response should contain a preview page
 
   @train
   Scenario: Train supervised
     Given CMS app is up and running
     When I send a POST request with the following trainer export
-      | endpoint                                                                                             | file_name           | content_type        |
-      | /train_supervised?epochs=1&lr_override=0.01&test_size=0.2&early_stopping_patience=-1&log_frequency=1 | trainer_export.json | multipart/form-data |
+      | endpoint                                                                                             | file_name                  | content_type        |
+      | /train_supervised?epochs=1&lr_override=0.01&test_size=0.2&early_stopping_patience=-1&log_frequency=1 | medcat_trainer_export.json | multipart/form-data |
     Then the response should contain the training ID
     When I send a GET request to /train_eval_info with that ID
     Then the response should contain the training information
@@ -137,8 +137,8 @@ Feature:
   Scenario: Evaluate served model
     Given CMS app is up and running
     When I send a POST request with the following trainer export
-      | endpoint  | file_name           | content_type        |
-      | /evaluate | trainer_export.json | multipart/form-data |
+      | endpoint  | file_name                  | content_type        |
+      | /evaluate | medcat_trainer_export.json | multipart/form-data |
     Then the response should contain the evaluation ID
     When I send a GET request to /train_eval_info with that ID
     Then the response should contain the evaluation information
@@ -147,8 +147,8 @@ Feature:
   Scenario: Sanity check the model with a trainer export
       Given CMS app is up and running
       When I send a POST request with the following trainer export
-        | endpoint      | file_name           | content_type        |
-        | /sanity-check | trainer_export.json | multipart/form-data |
+        | endpoint      | file_name                  | content_type        |
+        | /sanity-check | medcat_trainer_export.json | multipart/form-data |
       Then the response should contain evaluation metrics per concept
 
   @misc

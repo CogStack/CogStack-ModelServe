@@ -6,7 +6,7 @@ except ImportError:
     from pydantic.v1 import BaseSettings
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):   # type: ignore
     BASE_MODEL_FILE: str = "model.zip"                # the base name of the model file
     BASE_MODEL_FULL_PATH: str = ""                    # the full path to the model file
     DEVICE: str = "default"                           # the device literal, either "default", "cpu[:X]", "cuda[:X]" or "mps[:X]"

@@ -146,7 +146,6 @@ class HuggingFaceLlmModel(AbstractModelService):
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
                     model_max_length=model.config.max_position_embeddings,
-                    add_special_tokens=False,
                     do_lower_case=False,
                 )
                 logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
@@ -207,7 +206,7 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         self.model.eval()
 
-        inputs = self.tokenizer(prompt, return_tensors="pt")
+        inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
         if non_default_device_is_available(self._config.DEVICE):
             inputs.to(get_settings().DEVICE)
 
@@ -243,7 +242,7 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         self.model.eval()
 
-        inputs = self.tokenizer(prompt, return_tensors="pt")
+        inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
         if non_default_device_is_available(self._config.DEVICE):
             inputs.to(get_settings().DEVICE)
 

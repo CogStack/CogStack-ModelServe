@@ -457,7 +457,12 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         max_length: int,
     ) -> Iterable[Dict[str, Any]]:
         for text in texts:
-            encoded = tokenizer(text, truncation=False, return_special_tokens_mask=True)
+            encoded = tokenizer(
+                text,
+                add_special_tokens=False,
+                truncation=False,
+                return_special_tokens_mask=True,
+            )
 
             for i in range(0, len(encoded["input_ids"]), max_length):
                 chunked_input_ids = encoded["input_ids"][i:i + max_length]
@@ -768,7 +773,12 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         model: PreTrainedModel,
     ) -> Iterable[Dict[str, Any]]:
         for document in documents:
-            encoded = tokenizer(document["text"], truncation=False, return_offsets_mapping=True)
+            encoded = tokenizer(
+                document["text"],
+                add_special_tokens=False,
+                truncation=False,
+                return_offsets_mapping=True,
+            )
             document["annotations"] = sorted(document["annotations"], key=lambda annotation: annotation["start"])
             for i in range(0, len(encoded["input_ids"]), max_length):
                 chunked_input_ids = encoded["input_ids"][i:i + max_length]
