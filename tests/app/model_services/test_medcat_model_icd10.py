@@ -102,9 +102,9 @@ def test_annotate(medcat_icd10_model):
     annotations = medcat_icd10_model.annotate("Spinal stenosis")
     assert len(annotations) == 1
     assert type(annotations[0]["label_name"]) is str
-    assert annotations[0]["start"] == 0
-    assert annotations[0]["end"] == 15
-    assert annotations[0]["accuracy"] > 0
+    assert annotations[0].start == 0
+    assert annotations[0].end == 15
+    assert annotations[0].accuracy > 0
 
 
 @pytest.mark.skipif(

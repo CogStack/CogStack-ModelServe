@@ -41,6 +41,7 @@ class HuggingFaceNerModel(AbstractModelService):
         enable_trainer: Optional[bool] = None,
         model_name: Optional[str] = None,
         base_model_file: Optional[str] = None,
+        confidence_threshold: float = 0.5,
     ) -> None:
         """
         Initialises the HuggingFace NER model service with specified configurations.
@@ -51,6 +52,7 @@ class HuggingFaceNerModel(AbstractModelService):
             enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
             model_name (Optional[str]): The name of the model. Defaults to None.
             base_model_file (Optional[str]): The model package file name. Defaults to None.
+            confidence_threshold (float): The threshold for the confidence score. Defaults to 0.5.
         """
 
         super().__init__(config)
@@ -62,7 +64,7 @@ class HuggingFaceNerModel(AbstractModelService):
         self._tokenizer: PreTrainedTokenizerBase = None
         self._ner_pipeline: Pipeline = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
-        self._multi_label_threshold = 0.5
+        self._confidence_threshold = confidence_threshold
         self.model_name = model_name or "HuggingFace NER model"
 
     @property
@@ -230,12 +232,17 @@ class HuggingFaceNerModel(AbstractModelService):
         df = pd.DataFrame(entities)
 
         if df.empty:
-            df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])
+            columns = ["label_name", "label_id", "start", "end", "accuracy"]
+            df = pd.DataFrame(columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns)
         else:
             for idx, row in df.iterrows():
                 df.loc[idx, "label_id"] = row["entity_group"]
+                if self._config.INCLUDE_SPAN_TEXT == "true":
+                    df.loc[idx, "text"] = text[row["start"]:row["end"]]
+
             df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
-            df = df[df["accuracy"] >= self._multi_label_threshold]
+            df = df[df["accuracy"] >= self._confidence_threshold]
+
         records = df.to_dict("records")
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 

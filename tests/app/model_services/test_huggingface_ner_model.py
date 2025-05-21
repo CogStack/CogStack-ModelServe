@@ -1,6 +1,5 @@
 import os
 import tempfile
-import pytest
 from unittest.mock import Mock
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
@@ -45,7 +44,8 @@ def test_info(huggingface_ner_model):
 
 
 def test_annotate(huggingface_ner_model):
-    huggingface_ner_model = huggingface_ner_model.from_model(huggingface_ner_model.model, huggingface_ner_model.tokenizer)
+    huggingface_ner_model._config.INCLUDE_SPAN_TEXT = "true"
+    huggingface_ner_model._confidence_threshold = 0.01
     annotations = huggingface_ner_model.annotate(
         """The patient is a 60-year-old female, who complained of coughing during meals. """
         """ Her outpatient evaluation revealed a mild-to-moderate cognitive linguistic deficit, which was completed approximately"""
@@ -73,6 +73,11 @@ def test_annotate(huggingface_ner_model):
         """ further evaluation of her esophageal function.,The patient does not need any skilled speech therapy for her swallowing"""
         """ abilities at this time, and she is discharged from my services.). Dr. ABC""")
     assert isinstance(annotations, list)
+    assert len(annotations) > 0
+    assert annotations[0].start == 0
+    assert annotations[0].end > annotations[0].start
+    assert annotations[0].accuracy > 0
+    assert len(annotations[0].text) > 0
 
 
 def test_train_unsupervised(huggingface_ner_model):
