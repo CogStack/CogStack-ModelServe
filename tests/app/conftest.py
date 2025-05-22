@@ -72,6 +72,7 @@ def medcat_umls_model():
 def medcat_deid_model():
     config = Settings()
     config.BASE_MODEL_FILE = "deid_model.zip"
+    config.INCLUDE_SPAN_TEXT = "true"
     return MedCATModelDeIdentification(config, MODEL_PARENT_DIR, True)
 
 
@@ -86,6 +87,7 @@ def trf_model():
 def huggingface_ner_model():
     config = Settings()
     config.BASE_MODEL_FILE = "huggingface_ner_model.tar.gz"
+    config.INCLUDE_SPAN_TEXT = "true"
     model_service = HuggingFaceNerModel(config, MODEL_PARENT_DIR)
     model_service.init_model()
     return model_service

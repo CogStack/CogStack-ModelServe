@@ -55,7 +55,7 @@ def test_annotate(trf_model):
     trf_model.init_model()
     annotations = trf_model.annotate("NW1 2DA")
     assert len(annotations) == 1
-    assert type(annotations[0]["label_name"]) is str
+    assert type(annotations[0].label_name) is str
     assert annotations[0].start == 0
     assert annotations[0].end == 7
 
@@ -68,7 +68,7 @@ def test_batch_annotate(trf_model):
     trf_model.init_model()
     annotation_list = trf_model.batch_annotate(["NW1 2DA", "NW1 2DA"])
     assert len(annotation_list) == 2
-    assert type(annotation_list[0][0]["label_name"]) is str
-    assert type(annotation_list[1][0]["label_name"]) is str
+    assert type(annotation_list[0][0].label_name) is str
+    assert type(annotation_list[1][0].label_name) is str
     assert annotation_list[0][0].start == annotation_list[1][0].start == 0
     assert annotation_list[0][0].end == annotation_list[1][0].end == 7

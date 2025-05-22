@@ -166,10 +166,16 @@ class MedCATModelDeIdentification(MedCATModel):
             List[List[Annotation]]: A list where each element is a list of annotations containing the extracted PII entities.
         """
 
-        annotation_list = []
-        for text in texts:
-            annotation_list.append(self.annotate(text))
-        return annotation_list
+        annotations_list = []
+        entities_list = self.model.get_entities_multi_texts(texts)
+        for entities in entities_list:
+            for _, entity in entities["entities"].items():
+                entity["types"] = ["PII"]
+            annotations_list.append([
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)
+            ])
+
+        return annotations_list
 
     def init_model(self) -> None:
         """Initializes the MedCAT De-Identification (AnonCAT) model based on the configuration."""

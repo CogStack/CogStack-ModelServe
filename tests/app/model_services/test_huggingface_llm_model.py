@@ -1,5 +1,4 @@
 import os
-import pytest
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from app import __version__

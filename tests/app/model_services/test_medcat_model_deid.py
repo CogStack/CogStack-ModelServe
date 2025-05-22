@@ -90,12 +90,11 @@ def test_annotate(medcat_deid_model):
     assert type(annotations[1].label_name) is str
     assert annotations[0].start == 598
     assert annotations[0].end == 601
-    assert annotations[0].source_value == "ABC"
+    assert annotations[0].text == "ABC"
     assert annotations[0].accuracy > 0
     assert annotations[0].categories == ["PII"]
     assert annotations[1].start == 2839
     assert annotations[1].end == 2842
-    assert annotations[1].source_value == "ABC"
     assert annotations[1].accuracy > 0
     assert annotations[1].categories == ["PII"]
 
@@ -133,16 +132,16 @@ def test_annotate_with_local_chunking(medcat_deid_model):
         """ further evaluation of her esophageal function.,The patient does not need any skilled speech therapy for her swallowing"""
         """ abilities at this time, and she is discharged from my services.). Dr. ABC""")
     assert len(annotations) == 2
-    assert type(annotations[0]["label_name"]) is str
-    assert type(annotations[1]["label_name"]) is str
+    assert type(annotations[0].label_name) is str
+    assert type(annotations[1].label_name) is str
     assert annotations[0].start == 598
     assert annotations[0].end == 601
-    assert annotations[0].source_value == "ABC"
+    assert annotations[0].text == "ABC"
     assert annotations[0].accuracy > 0
     assert annotations[0].categories == ["PII"]
     assert annotations[1].start == 2839
     assert annotations[1].end == 2842
-    assert annotations[1].source_value == "ABC"
+    assert annotations[1].text == "ABC"
     assert annotations[1].accuracy > 0
     assert annotations[1].categories == ["PII"]
 
@@ -153,14 +152,26 @@ def test_annotate_with_local_chunking(medcat_deid_model):
 )
 def test_batch_annotate(medcat_deid_model):
     medcat_deid_model.init_model()
-    annotation_list = medcat_deid_model.batch_annotate(["This is a post code NW1 2DA", "This is a post code NW1 2DA"])
-    assert len(annotation_list) == 2
-    assert type(annotation_list[0][0].label_name) is str
-    assert type(annotation_list[1][0].label_name) is str
-    assert annotation_list[0][0].start == annotation_list[1][0].start == 20
-    assert annotation_list[0][0].end == annotation_list[1][0].end == 27
-    assert annotation_list[0][0].accuracy > 0
-    assert annotation_list[1][0].accuracy > 0
+    annotations_list = medcat_deid_model.batch_annotate([
+        "This is a post code NW1 2DA",
+        "This is a post code NW1 2DB",
+        "This is a post code NW1 2DC",
+        "This is a post code NW1 2DD",
+        "This is a post code NW1 2DE",
+        "This is a post code NW1 2DF",
+        "This is a post code NW1 2DG",
+        "This is a post code NW1 2DH",
+        "This is a post code NW1 2DI",
+        "This is a post code NW1 2DJ",
+    ])
+    assert len(annotations_list) == 10
+    for annotations in annotations_list:
+        for annotation in annotations:
+            assert type(annotation.label_name) is str
+            assert type(annotation.label_id) is str
+            assert annotation.categories == ["PII"]
+            assert annotation.end > annotation.start
+            assert annotation.accuracy > 0
 
 
 @pytest.mark.skipif(

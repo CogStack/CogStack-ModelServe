@@ -44,7 +44,6 @@ def test_info(huggingface_ner_model):
 
 
 def test_annotate(huggingface_ner_model):
-    huggingface_ner_model._config.INCLUDE_SPAN_TEXT = "true"
     huggingface_ner_model._confidence_threshold = 0.01
     annotations = huggingface_ner_model.annotate(
         """The patient is a 60-year-old female, who complained of coughing during meals. """
