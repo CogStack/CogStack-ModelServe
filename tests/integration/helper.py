@@ -1,15 +1,14 @@
 import os
 import asyncio
 import logging
-import requests
 import subprocess
 import tempfile
 import threading
-import time
 from functools import partial, wraps
 from pytest_bdd import parsers
 from urllib.parse import urlparse
 from app.domain import ModelType
+from app.utils import download_model_package
 
 
 def parse_data_table(text, orient="dict"):
@@ -69,24 +68,16 @@ def get_logger(debug=False, name="cms-integration"):
     return logger
 
 
-def download_model(model_url, max_retries = 5, initial_delay = 1):
-    model_path = os.path.join(".pytest_cache", "model.zip")
-    if os.path.exists(model_path):
-        return model_path
-    retry_delay = initial_delay
-    for attempt in range(max_retries):
-        try:
-            with requests.get(model_url, stream=True) as response:
-                response.raise_for_status()
-                with open(model_path, "wb") as file:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        file.write(chunk)
-            return model_path
-        except requests.exceptions.RequestException as e:
-            if attempt == max_retries - 1:
-                raise Exception(f"Failed to download model from {model_url} after {max_retries} attempts: {e}")
-            time.sleep(retry_delay)
-            retry_delay *= 2
+def download_model(model_url, file_name, max_retries = 5, initial_delay = 1):
+    model_path = os.path.join(".pytest_cache", file_name)
+    download_model_package(
+        model_package_url=model_url,
+        destination_path=model_path,
+        max_retries=max_retries,
+        initial_delay_secs=initial_delay,
+        overwrite=False,
+    )
+    return model_path
 
 
 def run(conf, logger, streamable=False, generative=False):

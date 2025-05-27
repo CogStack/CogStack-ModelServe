@@ -142,13 +142,13 @@ def get_generative_server(config: Settings, msd_overwritten: Optional[ModelServi
 
     return app
 
-def get_vllm_server(config: Settings, model_file_path: str, model_name: str,log_level: str = "info") -> FastAPI:
+def get_vllm_server(config: Settings, model_package_path: str, model_name: str, log_level: str = "info") -> FastAPI:
     """
     Initialises a FastAPI instance configured for a vLLM server.
 
     Args:
         config (Settings): The CMS configuration.
-        model_file_path (str): The path to the model file.
+        model_package_path (str): The path to the model package file.
         model_name (str): The name of the model.
         log_level (str): The log level for the VLLM engine. Default to "info".
 
@@ -157,12 +157,12 @@ def get_vllm_server(config: Settings, model_file_path: str, model_name: str,log_
     """
 
     app = _get_app(None, streamable=False)
-    model_dir_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
-    if unpack_model_data_package(model_file_path, model_dir_path):
+    model_dir_path = os.path.join(os.path.dirname(model_package_path), get_model_data_package_base_name(model_package_path))
+    if unpack_model_data_package(model_package_path, model_dir_path):
         loop = asyncio.get_event_loop()
         app = loop.run_until_complete(init_vllm_engine(app, model_dir_path, model_name, log_level))
     else:
-        raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
+        raise ConfigurationException(f"Model package archive format is not supported: {model_package_path}")
 
     return app
 

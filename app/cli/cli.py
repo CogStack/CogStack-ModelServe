@@ -44,7 +44,7 @@ from app.api.api import (
     get_vllm_server,
     get_app_for_api_docs,
 )   # noqa
-from app.utils import get_settings, send_gelf_message  # noqa
+from app.utils import get_settings, send_gelf_message, download_model_package  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from app.management.tracker_client import TrackerClient  # noqa
@@ -59,7 +59,7 @@ logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_exist
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
 def serve_model(
     model_type: ModelType = typer.Option(..., help="The type of the model to serve"),
-    model_path: str = typer.Option("", help="The file path to the model package"),
+    model_path: str = typer.Option("", help="Either the file path to the local model package or the URL to the remote one"),
     mlflow_model_uri: str = typer.Option("", help="The URI of the MLflow model to serve", metavar="models:/MODEL_NAME/ENV"),
     host: str = typer.Option("127.0.0.1", help="The hostname of the server"),
     port: str = typer.Option("8000", help="The port of the server"),
@@ -76,7 +76,7 @@ def serve_model(
 
     Args:
         model_type (ModelType): The type of the model to serve.
-        model_path (str): The file path to the model package. Not required if mlflow_model_uri is provided.
+        model_path (str): Either the file path to the local model package or the URL to the remote one. Not required if mlflow_model_uri is provided.
         mlflow_model_uri (str): The URI of the MLflow model to serve. Not required if model_path is provided.
         host (str): The hostname of the server. Defaults to "127.0.0.1".
         port (str): The port of the server. Defaults to "8000".
@@ -118,10 +118,20 @@ def serve_model(
 
     if llm_engine is not LlmEngine.VLLM:
         if model_path:
-            try:
-                shutil.copy2(model_path, dst_model_path)
-            except shutil.SameFileError:
-                pass
+            if model_path.startswith("http://") or model_path.startswith("https://"):
+                try:
+                    download_model_package(model_path, dst_model_path)
+                    logger.info("Model package successfully downloaded from %s to %s", model_path, dst_model_path)
+                except Exception as e:
+                    logger.error("Failed to download model package from %s: %s", model_path, e)
+                    typer.Exit(code=1)
+            else:
+                try:
+                    shutil.copy2(model_path, dst_model_path)
+                except shutil.SameFileError:
+                    logger.warning("Source and destination are the same model package file.")
+                    pass
+
             model_service = model_service_dep()
             model_service.model_name = model_name
             model_service.init_model()
@@ -142,7 +152,7 @@ def serve_model(
         elif llm_engine == LlmEngine.VLLM:
             model_server_app = get_vllm_server(
                 config,
-                model_path,
+                dst_model_path,
                 model_name,
                 log_level="debug" if debug else "info"
             )
@@ -448,7 +458,7 @@ def package_model(
     hf_repo_revision: str = typer.Option("", help="The revision of the model to download from Hugging Face Hub"),
     cached_model_dir: str = typer.Option("", help="The path to the cached model directory, will only be used if --hf-repo-id is not provided"),
     output_model_package: str = typer.Option("", help="The path where the model package will be saved, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
-    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
+    archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP.value, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
     remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
 ) -> None:
     """

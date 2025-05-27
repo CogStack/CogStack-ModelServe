@@ -15,7 +15,7 @@ logger = get_logger(debug=True)
 @pytest.fixture(scope="module")
 def cms():
     model_pack_url = "https://cogstack-medcat-example-models.s3.eu-west-2.amazonaws.com/medcat-example-models/medmen_wstatus_2021_oct.zip"
-    model_path = download_model(model_pack_url)
+    model_path = download_model(model_pack_url, "cms_model.zip")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("", 0))
         port = s.getsockname()[1]

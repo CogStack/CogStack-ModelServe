@@ -8,6 +8,8 @@ import sys
 import copy
 import functools
 import warnings
+import requests     # type: ignore
+import time
 import torch
 import tarfile
 import zipfile
@@ -22,8 +24,9 @@ from transformers import PreTrainedModel
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
-from app.domain import Annotation, Entity, CodeType, ModelType, Device
 from app.config import Settings
+from app.domain import Annotation, Entity, CodeType, ModelType, Device
+from app.exception import ManagedModelException
 
 
 @lru_cache
@@ -676,6 +679,45 @@ def load_pydantic_object_from_dict(model: Type[T], obj: Dict) -> T:
         return model.model_validate(obj)    # type: ignore
     else:
         raise TypeError("Model must have a known method for parsing objects.")
+
+
+def download_model_package(
+    model_package_url: str,
+    destination_path: str,
+    max_retries: int = 5,
+    initial_delay_secs: int = 1,
+    overwrite: bool = True,
+) -> None:
+    """
+    Downloads a model package from a URL and returns the path to the downloaded file.
+
+    Args:
+        model_package_url (str): The URL of the model package to download.
+        destination_path (str): The path where the downloaded model package file will be saved.
+        max_retries (int): The maximum number of retries to attempt. Defaults to 5.
+        initial_delay_secs (int): The initial delay in seconds between retries. Defaults to 1.
+        overwrite (bool): Whether to overwrite the destination file if it already exists. Defaults to True.
+
+    Raises:
+        ManagedModelException: If the model package was not successfully downloaded after the maximum number of retries.
+    """
+
+    if os.path.exists(destination_path) and not overwrite:
+        return
+
+    retry_delay = float(initial_delay_secs)
+    for attempt in range(max_retries):
+        try:
+            with requests.get(model_package_url, stream=True) as response:
+                response.raise_for_status()
+                with open(destination_path, "wb") as file:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        file.write(chunk)
+        except requests.exceptions.RequestException as e:
+            if attempt == max_retries - 1:
+                raise ManagedModelException(f"Failed to download model from {model_package_url} after {max_retries} attempts: {e}")
+            time.sleep(retry_delay)
+            retry_delay *= 2
 
 
 TYPE_ID_TO_NAME_PATCH = {
