@@ -1,6 +1,5 @@
 import os
 import pytest
-from transformers import AutoTokenizer, AutoModelForTokenClassification, AutoModelForCausalLM
 from unittest.mock import Mock, MagicMock
 from app.config import Settings
 from app.model_services.medcat_model_snomed import MedCATModelSnomed

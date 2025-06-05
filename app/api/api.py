@@ -167,6 +167,16 @@ def get_vllm_server(config: Settings, model_package_path: str, model_name: str, 
     return app
 
 def get_app_for_api_docs(msd_overwritten: Optional[ModelServiceDep] = None) -> FastAPI:
+    """
+    Initialises a FastAPI instance configured for generating API documentation.
+
+    Args:
+        msd_overwritten (Optional[ModelServiceDep]): An optional model service dependency to overwrite the default one.
+
+    Returns:
+        FastAPI: A FastAPI app instance.
+    """
+
     app = _get_app(msd_overwritten, streamable=False, generative=False)
     app = _load_health_check_router(app)
     app = _load_auth_router(app)

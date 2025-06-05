@@ -116,22 +116,23 @@ def serve_model(
     if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
         shutil.rmtree(os.path.splitext(dst_model_path)[0])
 
+    if model_path:
+        if model_path.startswith("http://") or model_path.startswith("https://"):
+            try:
+                download_model_package(model_path, dst_model_path)
+                logger.info("Model package successfully downloaded from %s to %s", model_path, dst_model_path)
+            except Exception as e:
+                logger.error("Failed to download model package from %s: %s", model_path, e)
+                typer.Exit(code=1)
+        else:
+            try:
+                shutil.copy2(model_path, dst_model_path)
+            except shutil.SameFileError:
+                logger.warning("Source and destination are the same model package file.")
+                pass
+
     if llm_engine is not LlmEngine.VLLM:
         if model_path:
-            if model_path.startswith("http://") or model_path.startswith("https://"):
-                try:
-                    download_model_package(model_path, dst_model_path)
-                    logger.info("Model package successfully downloaded from %s to %s", model_path, dst_model_path)
-                except Exception as e:
-                    logger.error("Failed to download model package from %s: %s", model_path, e)
-                    typer.Exit(code=1)
-            else:
-                try:
-                    shutil.copy2(model_path, dst_model_path)
-                except shutil.SameFileError:
-                    logger.warning("Source and destination are the same model package file.")
-                    pass
-
             model_service = model_service_dep()
             model_service.model_name = model_name
             model_service.init_model()

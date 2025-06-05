@@ -305,6 +305,7 @@ async def init_vllm_engine(app: FastAPI,
     args = parser.parse_args([])
     validate_parsed_serve_args(args)
     args.model = model_dir_path
+    args.dtype = "float16"
     args.served_model_name = [model_name]
     # args.tokenizer = model_dir_path
     args.log_level = log_level
@@ -329,9 +330,9 @@ async def init_vllm_engine(app: FastAPI,
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 
         params = SamplingParams(max_tokens=max_tokens)
-        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")
+        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")   # type: ignore
         prompt = TokensPrompt(
-            prompt_token_ids=apply_hf_chat_template(
+            prompt_token_ids=apply_hf_chat_template(    # type: ignore
                 tokenizer,
                 conversation=conversation,
                 tools=None,
@@ -346,7 +347,7 @@ async def init_vllm_engine(app: FastAPI,
             start = 0
             async for output in engine.generate(request_id=uuid.uuid4().hex, prompt=prompt, sampling_params=params):
                 text = output.outputs[0].text
-                yield text[start:]
+                yield text[start:]  # type: ignore
                 start = len(text)
 
         return StreamingResponse(_stream(), media_type="text/event-stream")
