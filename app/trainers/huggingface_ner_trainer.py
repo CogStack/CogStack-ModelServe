@@ -42,6 +42,7 @@ from app.utils import (
     create_model_data_package,
     get_model_data_package_extension,
     ensure_tensor_contiguity,
+    get_model_data_package_base_name,
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend
@@ -126,7 +127,10 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
                 model, tokenizer = self._model_service.load_model(copied_model_pack_path)
-                copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
+                copied_model_directory = os.path.join(
+                    os.path.dirname(copied_model_pack_path),
+                    get_model_data_package_base_name(copied_model_pack_path),
+                )
                 mlm_model = self._get_mlm_model(model, copied_model_directory)
 
                 if non_default_device_is_available(self._config.DEVICE):
@@ -561,7 +565,10 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
                 model, tokenizer = self._model_service.load_model(copied_model_pack_path)
-                copied_model_directory = os.path.splitext(copied_model_pack_path)[0]
+                copied_model_directory = os.path.join(
+                    os.path.dirname(copied_model_pack_path),
+                    get_model_data_package_base_name(copied_model_pack_path),
+                )
 
                 if non_default_device_is_available(self._config.DEVICE):
                     model.to(self._config.DEVICE)
@@ -652,6 +659,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                         safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
                     )
                     create_model_data_package(copied_model_directory, retrained_model_pack_path)
+                    logger.debug("Retrained model saved to: %s", retrained_model_pack_path)
                     model_uri = self._tracker_client.save_model(
                         retrained_model_pack_path,
                         self._model_name,

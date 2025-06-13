@@ -221,6 +221,7 @@ class TrainerCommon(object):
         shutil.copy2(model_file_path, copied_model_pack_path)
         if os.path.exists(copied_model_pack_path.replace(model_pack_file_ext, "")):
             shutil.rmtree(copied_model_pack_path.replace(model_pack_file_ext, ""))
+        logger.debug("Model file copied to %s", copied_model_pack_path)
         return copied_model_pack_path
 
     @staticmethod

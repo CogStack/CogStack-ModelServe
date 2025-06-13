@@ -579,8 +579,8 @@ def create_model_data_package(model_data_folder_path: str, model_data_file_path:
     Creates a model data package by compressing the specified folder into a zip or tar.gz file.
 
     Args:
-        model_data_folder_path (str): The path to the folder containing the model data.
-        model_data_file_path (str): The path where the compressed model data package will be saved.
+        model_data_folder_path (str): The absolute path to the folder containing the model data.
+        model_data_file_path (str): The absolute path where the compressed model data package will be saved.
 
     Returns:
         bool: True if the package was successfully created, False otherwise.
