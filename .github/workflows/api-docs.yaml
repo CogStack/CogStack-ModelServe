@@ -2,16 +2,16 @@ name: api-docs
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
 
     if: |
-      github.repository != 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/master' &&
+      github.repository == 'CogStack/CogStack-ModelServe' &&
+      github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
@@ -56,8 +56,13 @@ jobs:
             echo "No API doc changes detected and publishing skipped."
             exit 0
           fi
+<<<<<<< HEAD
       - name: Update API docs
         uses: ad-m/github-push-action@master
+=======
+      - name: Update OpenAPI docs
+        uses: ad-m/github-push-action@main
+>>>>>>> 4fcb576 (chore: Update CI to use 'main' instead of 'master')
         with:
           branch: gh-pages
           github_token: ${{ secrets.GITHUB_TOKEN }}

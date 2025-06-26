@@ -3,11 +3,11 @@ name: docker extra
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [ main ]
     paths:
       - 'docker/mlflow/**'
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
     paths:
       - 'docker/mlflow/**'
 
@@ -29,7 +29,7 @@ jobs:
     needs: lint
     if: |
       github.repository == 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/master' &&
+      github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
