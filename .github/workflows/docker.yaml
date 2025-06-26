@@ -3,9 +3,9 @@ name: docker
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 env:
   REGISTRY: docker.io
@@ -25,7 +25,7 @@ jobs:
     needs: lint
     if: |
       github.repository == 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/master' &&
+      github.ref == 'refs/heads/main' &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
