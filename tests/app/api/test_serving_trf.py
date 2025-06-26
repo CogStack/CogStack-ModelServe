@@ -37,6 +37,7 @@ def test_readyz(model_service, client):
         "model_description": "deid_model_description",
         "model_type": ModelType.TRANSFORMERS_DEID,
         "model_card": None,
+        "labels": None,
     })
     model_service.info.return_value = model_card
 
@@ -49,6 +50,7 @@ def test_info(model_service, client):
         "model_description": "deid_model_description",
         "model_type": ModelType.TRANSFORMERS_DEID,
         "model_card": None,
+        "labels": None,
     })
     model_service.info.return_value = model_card
 

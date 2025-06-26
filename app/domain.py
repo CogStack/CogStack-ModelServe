@@ -138,6 +138,7 @@ class ModelCard(BaseModel):
     model_type: ModelType = Field(description="The type of the served model")
     model_description: Optional[str] = Field(description="The description about the served model")
     model_card: Optional[dict] = Field(default=None, description="The metadata of the served model")
+    labels: Optional[Dict[str, str]] = Field(default=None, description="The mapping of CUIs to names")
 
 
 class Entity(BaseModel):

@@ -345,6 +345,7 @@ def test_train_unsupervised_with_hf_hub_dataset(model_service, client):
         "model_description": "huggingface_ner_model_description",
         "model_type": ModelType.MEDCAT_SNOMED,
         "model_card": None,
+        "labels": None,
     })
     model_service.info.return_value = model_card
     model_service.train_unsupervised.return_value = (True, "experiment_id", "run_id")
