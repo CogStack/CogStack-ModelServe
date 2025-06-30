@@ -23,10 +23,6 @@ jobs:
 
   build-and-push:
     needs: lint
-    if: |
-      github.repository == 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read
