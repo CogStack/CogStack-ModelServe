@@ -1242,6 +1242,14 @@
                         "type": "object",
                         "title": "Model Card",
                         "description": "The metadata of the served model"
+                    },
+                    "labels": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object",
+                        "title": "Labels",
+                        "description": "The mapping of CUIs to names"
                     }
                 },
                 "type": "object",
