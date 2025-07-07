@@ -170,26 +170,33 @@
                 "operationId": "extract_entities_from_multi_text_file",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_extract_entities_from_multi_text_file_process_bulk_file_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -218,67 +225,88 @@
                 "operationId": "get_redacted_text",
                 "parameters": [
                     {
-                        "description": "List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]",
+                        "name": "concepts_to_keep",
+                        "in": "query",
                         "required": false,
                         "schema": {
+                            "type": "array",
                             "items": {
                                 "type": "string"
                             },
-                            "type": "array",
-                            "title": "Concepts To Keep",
                             "description": "List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]",
-                            "default": []
+                            "default": [],
+                            "title": "Concepts To Keep"
                         },
-                        "name": "concepts_to_keep",
-                        "in": "query"
+                        "description": "List of concepts (Label IDs) that should not be removedd during the redaction process. List should be in the format ['label1','label2'...]"
                     },
                     {
-                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean",
-                            "title": "Warn On No Redaction",
-                            "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
-                            "default": false
-                        },
                         "name": "warn_on_no_redaction",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The custom symbols used for masking detected spans",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Mask",
-                            "description": "The custom symbols used for masking detected spans"
+                            "anyOf": [
+                                {
+                                    "type": "boolean"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                            "default": false,
+                            "title": "Warn On No Redaction"
                         },
+                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking"
+                    },
+                    {
                         "name": "mask",
-                        "in": "query"
-                    },
-                    {
-                        "description": "Whether or not to hash detected spans",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "title": "Hash",
-                            "description": "Whether or not to hash detected spans",
-                            "default": false
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The custom symbols used for masking detected spans",
+                            "title": "Mask"
                         },
+                        "description": "The custom symbols used for masking detected spans"
+                    },
+                    {
                         "name": "hash",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "boolean"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Whether or not to hash detected spans",
+                            "default": false,
+                            "title": "Hash"
+                        },
+                        "description": "Whether or not to hash detected spans"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "text/plain": {
                             "schema": {
                                 "type": "string",
-                                "title": "Text",
-                                "description": "The plain text to be sent to the model for NER and redaction"
+                                "description": "The plain text to be sent to the model for NER and redaction",
+                                "title": "Text"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -312,27 +340,34 @@
                 "operationId": "get_redacted_text_with_encryption",
                 "parameters": [
                     {
-                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
+                        "name": "warn_on_no_redaction",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "boolean",
-                            "title": "Warn On No Redaction",
+                            "anyOf": [
+                                {
+                                    "type": "boolean"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
                             "description": "Return warning when no entities were detected for redaction to prevent potential info leaking",
-                            "default": false
+                            "default": false,
+                            "title": "Warn On No Redaction"
                         },
-                        "name": "warn_on_no_redaction",
-                        "in": "query"
+                        "description": "Return warning when no entities were detected for redaction to prevent potential info leaking"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/TextWithPublicKey"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -366,88 +401,116 @@
                 "operationId": "train_supervised",
                 "parameters": [
                     {
-                        "description": "The number of training epochs",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "minimum": 0.0,
-                            "title": "Epochs",
-                            "description": "The number of training epochs",
-                            "default": 1
-                        },
                         "name": "epochs",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the initial learning rate",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "number",
-                            "exclusiveMinimum": 0.0,
-                            "title": "Lr Override",
-                            "description": "The override of the initial learning rate"
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "The number of training epochs",
+                            "default": 1,
+                            "title": "Epochs"
                         },
+                        "description": "The number of training epochs"
+                    },
+                    {
                         "name": "lr_override",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "number",
-                            "title": "Test Size",
-                            "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
-                            "default": 0.2
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the initial learning rate",
+                            "title": "Lr Override"
                         },
+                        "description": "The override of the initial learning rate"
+                    },
+                    {
                         "name": "test_size",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "integer",
-                            "title": "Early Stopping Patience",
-                            "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
-                            "default": -1
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
+                            "default": 0.2,
+                            "title": "Test Size"
                         },
+                        "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)"
+                    },
+                    {
                         "name": "early_stopping_patience",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                            "default": -1,
+                            "title": "Early Stopping Patience"
+                        },
+                        "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)"
                     },
                     {
-                        "description": "The number of processed documents or epochs after which training metrics will be logged",
+                        "name": "log_frequency",
+                        "in": "query",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "minimum": 1.0,
-                            "title": "Log Frequency",
+                            "minimum": 1,
                             "description": "The number of processed documents or epochs after which training metrics will be logged",
-                            "default": 1
+                            "default": 1,
+                            "title": "Log Frequency"
                         },
-                        "name": "log_frequency",
-                        "in": "query"
+                        "description": "The number of processed documents or epochs after which training metrics will be logged"
                     },
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_train_supervised_train_supervised_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "202": {
@@ -477,81 +540,102 @@
                     "Training"
                 ],
                 "summary": "Train Unsupervised",
-                "description": "Triggers unsupervised training on the running model using one or more files, each containing a list of plain texts.\n\nArgs:\n    request (Request): The request object.\n    training_data (List[UploadFile]): A list of files uploaded, each containing a list of plain texts in the format of [\"text_1\", \"text_2\", ..., \"text_n\"].\n    epochs (int): The number of training epochs to perform. Defaults to 1.\n    lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.\n    test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.\n    log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.\n    description (str, optional): A description of the training or change logs. Defaults to empty.\n    tracking_id (str, optional): n optional tracking ID of the requested task.\n    model_service (AbstractModelService): The model service dependency.\n\nReturns:\n    JSONResponse: A JSON response containing training response with the training ID.\n\nRaises:\n    ClientException: If there is an issue with the file provided for training.\n    ConfigurationException: If the running model does not support unsupervised training.",
+                "description": "Upload one or more files each containing a list of plain texts and trigger the unsupervised training",
                 "operationId": "train_unsupervised",
                 "parameters": [
                     {
-                        "description": "The number of training epochs",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "minimum": 0.0,
-                            "title": "Epochs",
-                            "description": "The number of training epochs",
-                            "default": 1
-                        },
                         "name": "epochs",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the initial learning rate",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "exclusiveMinimum": 0.0,
-                            "title": "Lr Override",
-                            "description": "The override of the initial learning rate"
-                        },
-                        "name": "lr_override",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the test size in percentage",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "minimum": 0.0,
-                            "title": "Test Size",
-                            "description": "The override of the test size in percentage",
-                            "default": 0.2
-                        },
-                        "name": "test_size",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of processed documents or epochs after which training metrics will be logged",
+                        "in": "query",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "minimum": 1.0,
-                            "title": "Log Frequency",
-                            "description": "The number of processed documents or epochs after which training metrics will be logged",
-                            "default": 1000
+                            "minimum": 0,
+                            "description": "The number of training epochs",
+                            "default": 1,
+                            "title": "Epochs"
                         },
-                        "name": "log_frequency",
-                        "in": "query"
+                        "description": "The number of training epochs"
                     },
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "lr_override",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the initial learning rate",
+                            "title": "Lr Override"
                         },
+                        "description": "The override of the initial learning rate"
+                    },
+                    {
+                        "name": "test_size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "minimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the test size in percentage",
+                            "default": 0.2,
+                            "title": "Test Size"
+                        },
+                        "description": "The override of the test size in percentage"
+                    },
+                    {
+                        "name": "log_frequency",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
+                            "default": 1000,
+                            "title": "Log Frequency"
+                        },
+                        "description": "The number of processed documents or epochs after which training metrics will be logged"
+                    },
+                    {
                         "name": "tracking_id",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_train_unsupervised_train_unsupervised_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "202": {
@@ -581,127 +665,169 @@
                     "Training"
                 ],
                 "summary": "Train Unsupervised With Hf Dataset",
-                "description": "Triggers unsupervised training on the running model using a dataset from the Hugging Face Hub.\n\n    Args:\n        request (Request): The request object.\n        hf_dataset_repo_id (str, optional): The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided.\n        hf_dataset_config (str, optional): The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided.\n        hf_dataset_package (UploadFile, optional): A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'.\n        trust_remote_code (bool): Whether to trust the remote code of the dataset. Defaults to False.\n        text_column_name (str): The name of the text column in the dataset. Defaults to \"text\".\n        epochs (int): The number of training epochs to perform. Defaults tos 1.\n        lr_override (float, optional): The override of the initial learning rate. Defaults to the value used in previous training and must be greater than 0.0.\n        test_size (float, optional): An override of the test size in percentage. Defaults to 0.2.\n        log_frequency (int): The number of processed documents or epochs after which training metrics will be logged. Must be at least 1.\n        description (str, optional): A description of the training or change logs. Defaults to empty.\n        tracking_id (str, optional): n optional tracking ID of the requested task.\n        model_service (AbstractModelService): The model service dependency.\n\n    Returns:\n        JSONResponse: A JSON response containing training response with the training ID.\ns\n    Raises:\n        ClientException: If 'hf_dataset_repo_id' and 'hf_dataset_package' are both None, or if the dataset does not contain the specified text column.\n        ConfigurationException: If the running model does not support unsupervised training.",
+                "description": "Upload or specify an existing Hugging Face dataset and trigger the unsupervised training",
                 "operationId": "train_unsupervised_with_hf_dataset",
                 "parameters": [
                     {
-                        "description": "The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "Hf Dataset Repo Id",
-                            "description": "The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided"
-                        },
                         "name": "hf_dataset_repo_id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Hf Dataset Config",
-                            "description": "The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided",
+                            "title": "Hf Dataset Repo Id"
                         },
-                        "name": "hf_dataset_config",
-                        "in": "query"
+                        "description": "The repository ID of the dataset to download from Hugging Face Hub, will be ignored when 'hf_dataset_package' is provided"
                     },
                     {
-                        "description": "Whether to trust the remote code of the dataset",
+                        "name": "hf_dataset_config",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided",
+                            "title": "Hf Dataset Config"
+                        },
+                        "description": "The name of the dataset configuration, will be ignored when 'hf_dataset_package' is provided"
+                    },
+                    {
+                        "name": "trust_remote_code",
+                        "in": "query",
                         "required": false,
                         "schema": {
                             "type": "boolean",
-                            "title": "Trust Remote Code",
                             "description": "Whether to trust the remote code of the dataset",
-                            "default": false
+                            "default": false,
+                            "title": "Trust Remote Code"
                         },
-                        "name": "trust_remote_code",
-                        "in": "query"
+                        "description": "Whether to trust the remote code of the dataset"
                     },
                     {
-                        "description": "The name of the text column in the dataset",
-                        "required": false,
-                        "schema": {
-                            "type": "string",
-                            "title": "Text Column Name",
-                            "description": "The name of the text column in the dataset",
-                            "default": "text"
-                        },
                         "name": "text_column_name",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of training epochs",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "integer",
-                            "minimum": 0.0,
-                            "title": "Epochs",
-                            "description": "The number of training epochs",
-                            "default": 1
+                            "type": "string",
+                            "description": "The name of the text column in the dataset",
+                            "default": "text",
+                            "title": "Text Column Name"
                         },
+                        "description": "The name of the text column in the dataset"
+                    },
+                    {
                         "name": "epochs",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the initial learning rate",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "exclusiveMinimum": 0.0,
-                            "title": "Lr Override",
-                            "description": "The override of the initial learning rate"
-                        },
-                        "name": "lr_override",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "minimum": 0.0,
-                            "title": "Test Size",
-                            "description": "The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits",
-                            "default": 0.2
-                        },
-                        "name": "test_size",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of processed documents or epochs after which training metrics will be logged",
+                        "in": "query",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "minimum": 1.0,
-                            "title": "Log Frequency",
-                            "description": "The number of processed documents or epochs after which training metrics will be logged",
-                            "default": 1000
+                            "minimum": 0,
+                            "description": "The number of training epochs",
+                            "default": 1,
+                            "title": "Epochs"
                         },
+                        "description": "The number of training epochs"
+                    },
+                    {
+                        "name": "lr_override",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the initial learning rate",
+                            "title": "Lr Override"
+                        },
+                        "description": "The override of the initial learning rate"
+                    },
+                    {
+                        "name": "test_size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "minimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits",
+                            "default": 0.2,
+                            "title": "Test Size"
+                        },
+                        "description": "The override of the test size in percentage will only take effect if the dataset does not have predefined validation or test splits"
+                    },
+                    {
                         "name": "log_frequency",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The description of the training or change logs",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Description",
-                            "description": "The description of the training or change logs"
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
+                            "default": 1000,
+                            "title": "Log Frequency"
                         },
+                        "description": "The number of processed documents or epochs after which training metrics will be logged"
+                    },
+                    {
                         "name": "description",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The tracking ID of the requested task",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The description of the training or change logs",
+                            "title": "Description"
                         },
+                        "description": "The description of the training or change logs"
+                    },
+                    {
                         "name": "tracking_id",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
@@ -745,52 +871,59 @@
                 "operationId": "train_metacat",
                 "parameters": [
                     {
-                        "description": "The number of training epochs",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "minimum": 0.0,
-                            "title": "Epochs",
-                            "description": "The number of training epochs",
-                            "default": 1
-                        },
                         "name": "epochs",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The number of processed documents or epochs after which training metrics will be logged",
+                        "in": "query",
                         "required": false,
                         "schema": {
                             "type": "integer",
-                            "minimum": 1.0,
-                            "title": "Log Frequency",
-                            "description": "The number of processed documents or epochs after which training metrics will be logged",
-                            "default": 1
+                            "minimum": 0,
+                            "description": "The number of training epochs",
+                            "default": 1,
+                            "title": "Epochs"
                         },
-                        "name": "log_frequency",
-                        "in": "query"
+                        "description": "The number of training epochs"
                     },
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "log_frequency",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
+                            "default": 1,
+                            "title": "Log Frequency"
                         },
+                        "description": "The number of processed documents or epochs after which training metrics will be logged"
+                    },
+                    {
                         "name": "tracking_id",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_train_metacat_train_metacat_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "202": {
@@ -824,15 +957,15 @@
                 "operationId": "train_eval_info",
                 "parameters": [
                     {
-                        "description": "The training or evaluation ID",
+                        "name": "train_eval_id",
+                        "in": "query",
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "title": "Train Eval Id",
-                            "description": "The training or evaluation ID"
+                            "description": "The training or evaluation ID",
+                            "title": "Train Eval Id"
                         },
-                        "name": "train_eval_id",
-                        "in": "query"
+                        "description": "The training or evaluation ID"
                     }
                 ],
                 "responses": {
@@ -867,26 +1000,33 @@
                 "operationId": "get_evaluation_with_trainer_export",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_get_evaluation_with_trainer_export_evaluate_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -940,15 +1080,15 @@
                 "operationId": "train_eval_metrics",
                 "parameters": [
                     {
-                        "description": "The training or evaluation ID",
+                        "name": "train_eval_id",
+                        "in": "query",
                         "required": true,
                         "schema": {
                             "type": "string",
-                            "title": "Train Eval Id",
-                            "description": "The training or evaluation ID"
+                            "description": "The training or evaluation ID",
+                            "title": "Train Eval Id"
                         },
-                        "name": "train_eval_id",
-                        "in": "query"
+                        "description": "The training or evaluation ID"
                     }
                 ],
                 "responses": {
@@ -983,26 +1123,33 @@
                 "operationId": "get_sanity_check_with_trainer_export",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_get_sanity_check_with_trainer_export_sanity_check_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -1031,64 +1178,71 @@
                 "operationId": "get_inter_annotator_agreement_scores",
                 "parameters": [
                     {
-                        "description": "The project ID from one annotator",
-                        "required": true,
-                        "schema": {
-                            "type": "integer",
-                            "title": "Annotator A Project Id",
-                            "description": "The project ID from one annotator"
-                        },
                         "name": "annotator_a_project_id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The project ID from another annotator",
+                        "in": "query",
                         "required": true,
                         "schema": {
                             "type": "integer",
-                            "title": "Annotator B Project Id",
-                            "description": "The project ID from another annotator"
+                            "description": "The project ID from one annotator",
+                            "title": "Annotator A Project Id"
                         },
-                        "name": "annotator_b_project_id",
-                        "in": "query"
+                        "description": "The project ID from one annotator"
                     },
                     {
-                        "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span",
+                        "name": "annotator_b_project_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "description": "The project ID from another annotator",
+                            "title": "Annotator B Project Id"
+                        },
+                        "description": "The project ID from another annotator"
+                    },
+                    {
+                        "name": "scope",
+                        "in": "query",
                         "required": true,
                         "schema": {
                             "type": "string",
+                            "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span",
                             "enum": [
                                 "per_concept",
                                 "per_document",
                                 "per_span"
                             ],
-                            "title": "Scope",
-                            "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span"
+                            "title": "Scope"
                         },
-                        "name": "scope",
-                        "in": "query"
+                        "description": "The scope for which the score will be calculated, e.g., per_concept, per_document or per_span"
                     },
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_get_inter_annotator_agreement_scores_iaa_scores_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -1117,26 +1271,33 @@
                 "operationId": "get_concatenated_trainer_exports",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_get_concatenated_trainer_exports_concat_trainer_exports_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -1170,26 +1331,33 @@
                 "operationId": "get_annotation_stats",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "multipart/form-data": {
                             "schema": {
                                 "$ref": "#/components/schemas/Body_get_annotation_stats_annotation_stats_post"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -1218,28 +1386,35 @@
                 "operationId": "get_rendered_entities_from_text",
                 "parameters": [
                     {
-                        "description": "The tracking ID of the requested task",
+                        "name": "tracking_id",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
                         },
-                        "name": "tracking_id",
-                        "in": "query"
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
+                    "required": true,
                     "content": {
                         "text/plain": {
                             "schema": {
                                 "type": "string",
-                                "title": "Text",
-                                "description": "The text to be sent to the model for NER"
+                                "description": "The text to be sent to the model for NER",
+                                "title": "Text"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "responses": {
                     "200": {
@@ -1268,37 +1443,58 @@
                 "operationId": "get_rendered_entities_from_trainer_export",
                 "parameters": [
                     {
-                        "description": "The target project ID, and if not provided, all projects will be included",
-                        "required": false,
-                        "schema": {
-                            "type": "integer",
-                            "title": "Project Id",
-                            "description": "The target project ID, and if not provided, all projects will be included"
-                        },
                         "name": "project_id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The target document ID, and if not provided, all documents of the target project(s) will be included",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "integer",
-                            "title": "Document Id",
-                            "description": "The target document ID, and if not provided, all documents of the target project(s) will be included"
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The target project ID, and if not provided, all projects will be included",
+                            "title": "Project Id"
                         },
+                        "description": "The target project ID, and if not provided, all projects will be included"
+                    },
+                    {
                         "name": "document_id",
-                        "in": "query"
-                    },
-                    {
-                        "description": "The tracking ID of the requested task",
+                        "in": "query",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "title": "Tracking Id",
-                            "description": "The tracking ID of the requested task"
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The target document ID, and if not provided, all documents of the target project(s) will be included",
+                            "title": "Document Id"
                         },
+                        "description": "The target document ID, and if not provided, all documents of the target project(s) will be included"
+                    },
+                    {
                         "name": "tracking_id",
-                        "in": "query"
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
@@ -1333,7 +1529,14 @@
             "Annotation": {
                 "properties": {
                     "doc_name": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Doc Name",
                         "description": "The name of the document to which the annotation belongs"
                     },
@@ -1358,33 +1561,70 @@
                         "description": "The code of the annotation concept"
                     },
                     "categories": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Categories",
                         "description": "The categories to which the annotation concept belongs"
                     },
                     "accuracy": {
-                        "type": "number",
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Accuracy",
                         "description": "The confidence score of the annotation"
                     },
                     "text": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Text",
                         "description": "The string literal of the annotation span"
                     },
                     "meta_anns": {
-                        "type": "object",
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Meta Anns",
                         "description": "The meta annotations"
                     },
                     "athena_ids": {
-                        "items": {
-                            "type": "object"
-                        },
-                        "type": "array",
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "additionalProperties": true,
+                                    "type": "object"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Athena Ids",
                         "description": "The OHDSI Athena concept IDs"
                     }
@@ -1537,7 +1777,14 @@
                         "description": "One or more trainer export files to be uploaded"
                     },
                     "description": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Description",
                         "description": "The description on the training or change logs"
                     }
@@ -1560,7 +1807,14 @@
                         "description": "One or more trainer export files to be uploaded"
                     },
                     "description": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Description",
                         "description": "The description of the training or change logs"
                     }
@@ -1583,7 +1837,14 @@
                         "description": "One or more files to be uploaded and each contains a list of plain texts, in the format of [\"text_1\", \"text_2\", ..., \"text_n\"]"
                     },
                     "description": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Description",
                         "description": "The description of the training or change logs"
                     }
@@ -1597,8 +1858,15 @@
             "Body_train_unsupervised_with_hf_dataset_train_unsupervised_with_hf_hub_dataset_post": {
                 "properties": {
                     "hf_dataset_package": {
-                        "type": "string",
-                        "format": "binary",
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "binary"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Hf Dataset Package",
                         "description": "A ZIP file or Gzipped tarball containing the dataset to be uploaded, will disable the download of 'hf_dataset_repo_id'"
                     }
@@ -1627,28 +1895,46 @@
                         "description": "The version of the model serve APIs"
                     },
                     "model_type": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ModelType"
-                            }
-                        ],
+                        "$ref": "#/components/schemas/ModelType",
                         "description": "The type of the served model"
                     },
                     "model_description": {
-                        "type": "string",
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Model Description",
                         "description": "The description about the served model"
                     },
                     "model_card": {
-                        "type": "object",
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Model Card",
                         "description": "The metadata of the served model"
                     },
                     "labels": {
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object",
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Labels",
                         "description": "The mapping of CUIs to names"
                     }
@@ -1669,10 +1955,10 @@
                     "medcat_deid",
                     "anoncat",
                     "transformers_deid",
-                    "huggingface_ner"
+                    "huggingface_ner",
+                    "huggingface_llm"
                 ],
-                "title": "ModelType",
-                "description": "An enumeration."
+                "title": "ModelType"
             },
             "TextWithAnnotations": {
                 "properties": {
@@ -1780,6 +2066,10 @@
         {
             "name": "Authentication",
             "description": "Authenticate registered users"
+        },
+        {
+            "name": "Generative",
+            "description": "Generate text based on the input prompt"
         }
     ]
 }
