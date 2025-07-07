@@ -21,6 +21,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
 - [HuggingFace NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
+- [HuggingFace LLM Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_llm_model_apis.html)
 - [All-in-One Doc](https://cogstack.github.io/CogStack-ModelServe/docs/cogstack_model_serve_apis.html)
 
 You can use the following commands to explore available CLI options (see in full [docs](./app/cli/README.md)):
@@ -54,13 +55,14 @@ Then the API docs similar to the ones shown above will be accessible at http://1
 ### Servable Model Types:
 The following table summarises the servable model types with their respective output concepts:
 
-|    model-type     |  docker-service   |         output-spans          |
-|:-----------------:|:-----------------:|:-----------------------------:|
-|   medcat_snomed   |   medcat-snomed   | labelled with SNOMED concepts |
-|   medcat_icd10    |   medcat-icd10    | labelled with ICD-10 concepts |
-|    medcat_umls    |    medcat-umls    |  labelled with UMLS concepts  |
-|    medcat_deid (anoncat)    |    medcat-deid    |  labelled with latest PII concepts   |
-|  huggingface_ner  |  huggingface_ner  |    customer managed labels    |
+|      model-type       | docker-service  |           output-spans            |
+|:---------------------:|:---------------:|:---------------------------------:|
+|     medcat_snomed     |  medcat-snomed  |   labelled with SNOMED concepts   |
+|     medcat_icd10      |  medcat-icd10   |   labelled with ICD-10 concepts   |
+|      medcat_umls      |   medcat-umls   |    labelled with UMLS concepts    |
+| medcat_deid (anoncat) |   medcat-deid   | labelled with latest PII concepts |
+|    huggingface_ner    | huggingface_ner |      customer managed labels      |
+|    huggingface_llm    | huggingface_llm |     free texts with no labels     |
 
 ### Serving retrained or fine-tuned models
 After the Training API is called and its background job completes successfully, the new model and its training
@@ -195,6 +197,18 @@ curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
     --data-binary $'{"name": "DOC", "text": "TEXT"}\n{"name": "ANOTHER_DOC", "text": "ANOTHER_TEXT"}'
 ```
 will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
+
+### Serve causal language models
+You can serve causal LLMs (e.g., LLaMa 3 or DeepSeek R1) using the `huggingface_llm` model type. To do so, run:
+```commandline
+cms serve --model-type huggingface_llm --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+```
+To generate texts in near real-time, send a request with the optional query parameter `max_tokens`:
+```commandline
+curl -N -X 'POST' 'http://127.0.0.1:8000/stream/generate?max_tokens=512' \
+    -H 'accept: application/json'  -H 'Content-Type: text/plain' \
+    -d 'What is hypertension?'
+```
 
 #### Chat with served models
 You can also "chat" with the running model using the `/stream/ws` endpoint. For example:

@@ -443,7 +443,11 @@ def generate_api_doc_per_model(
     model_service_dep = ModelServiceDep(model_type, config, model_name or model_type)
     cms_globals.model_service_dep = model_service_dep
     doc_name = f"{model_name or model_type}_model_apis.json"
-    app = get_model_server(config)
+
+    if model_type == ModelType.HUGGINGFACE_LLM:
+        app = get_generative_server(config)
+    else:
+        app = get_model_server(config)
     for route in app.routes:
         if isinstance(route, APIRoute):
             route.operation_id = route.name
