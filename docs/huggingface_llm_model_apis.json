@@ -1,0 +1,272 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "CogStack ModelServe",
+        "summary": "A model serving and governance system for CogStack NLP solutions",
+        "version": "0.1.0"
+    },
+    "paths": {
+        "/info": {
+            "get": {
+                "tags": [
+                    "Metadata"
+                ],
+                "summary": "Get Model Card",
+                "description": "Get information about the model being served",
+                "operationId": "get_model_card",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ModelCard"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/generate": {
+            "post": {
+                "tags": [
+                    "Generative"
+                ],
+                "summary": "Generate Text",
+                "description": "Generate text",
+                "operationId": "generate_text",
+                "parameters": [
+                    {
+                        "name": "max_tokens",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "description": "The maximum number of tokens to generate",
+                            "default": 512,
+                            "title": "Max Tokens"
+                        },
+                        "description": "The maximum number of tokens to generate"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "type": "string",
+                                "description": "The prompt to be sent to the model",
+                                "title": "Prompt"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/stream/generate": {
+            "post": {
+                "tags": [
+                    "Generative"
+                ],
+                "summary": "Generate Text Stream",
+                "description": "Generate a stream of texts",
+                "operationId": "generate_text_stream",
+                "parameters": [
+                    {
+                        "name": "max_tokens",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "description": "The maximum number of tokens to generate",
+                            "default": 512,
+                            "title": "Max Tokens"
+                        },
+                        "description": "The maximum number of tokens to generate"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "text/plain": {
+                            "schema": {
+                                "type": "string",
+                                "description": "The prompt to be sent to the model",
+                                "title": "Prompt"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HTTPValidationError": {
+                "properties": {
+                    "detail": {
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        },
+                        "type": "array",
+                        "title": "Detail"
+                    }
+                },
+                "type": "object",
+                "title": "HTTPValidationError"
+            },
+            "ModelCard": {
+                "properties": {
+                    "api_version": {
+                        "type": "string",
+                        "title": "Api Version",
+                        "description": "The version of the model serve APIs"
+                    },
+                    "model_type": {
+                        "$ref": "#/components/schemas/ModelType",
+                        "description": "The type of the served model"
+                    },
+                    "model_description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Model Description",
+                        "description": "The description about the served model"
+                    },
+                    "model_card": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Model Card",
+                        "description": "The metadata of the served model"
+                    },
+                    "labels": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "type": "string"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Labels",
+                        "description": "The mapping of CUIs to names"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "api_version",
+                    "model_type"
+                ],
+                "title": "ModelCard"
+            },
+            "ModelType": {
+                "type": "string",
+                "enum": [
+                    "medcat_snomed",
+                    "medcat_umls",
+                    "medcat_icd10",
+                    "medcat_deid",
+                    "anoncat",
+                    "transformers_deid",
+                    "huggingface_ner",
+                    "huggingface_llm"
+                ],
+                "title": "ModelType"
+            },
+            "ValidationError": {
+                "properties": {
+                    "loc": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "integer"
+                                }
+                            ]
+                        },
+                        "type": "array",
+                        "title": "Location"
+                    },
+                    "msg": {
+                        "type": "string",
+                        "title": "Message"
+                    },
+                    "type": {
+                        "type": "string",
+                        "title": "Error Type"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "loc",
+                    "msg",
+                    "type"
+                ],
+                "title": "ValidationError"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Streaming",
+            "description": "Retrieve NER entities as a stream by running the model"
+        }
+    ]
+}
