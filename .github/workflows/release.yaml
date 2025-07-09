@@ -1,4 +1,4 @@
-name: Release
+name: release
 
 on:
   release:
@@ -32,7 +32,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     needs: qc
-    if: github.ref == 'refs/heads/production'
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
 
@@ -71,13 +75,46 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
           labels: ${{ steps.cms_meta.outputs.labels }}
-      
+
       - name: Attest CMS image artifacts
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}
           subject-digest: ${{ steps.build_and_push_cms.outputs.digest }}
           push-to-registry: true
+
+      - name: Inspect the released image
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          docker image inspect ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+
+  release-extra:
+    runs-on: ubuntu-latest
+    needs: qc
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract the tag
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract Mlflow UI meta
         id: mlflow_ui_meta
@@ -91,23 +128,21 @@ jobs:
         with:
           platforms: linux/amd64,linux/arm64
           context: .
-          file: docker/Dockerfile
+          file: docker/mlflow/server/Dockerfile
           push: true
           github-token: ${{ github.token }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
           labels: ${{ steps.mlflow_ui_meta.outputs.labels }}
-        
+
       - name: Attest Mlflow UI image artifacts
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}
           subject-digest: ${{ steps.build_and_push_mlflow_ui.outputs.digest }}
           push-to-registry: true
-  
-      - name: Inspect released images
+
+      - name: Inspect the released image
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
-          docker image inspect ${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
           docker pull ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
-          docker image inspect ${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          docker image inspect ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}

@@ -65,7 +65,7 @@ services:
         condition: "service_healthy"
 
   mlflow-ui:
-    image: cogstacksystems/cogstack-mlflow-ui:dev
+    image: cogstacksystems/cogstack-mlflow-ui:0.1.0
     restart: always
     networks:
       - cogstack-model-serve_cms
