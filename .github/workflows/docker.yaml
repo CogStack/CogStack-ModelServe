@@ -25,8 +25,11 @@ jobs:
     needs: lint
     if: |
       github.repository == 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      (
+        github.ref == 'refs/heads/main' ||
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,6 +52,20 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Extract CMS meta
+        id: cms_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+            type=match,pattern=cogstack-modelserve/v(\d+\.\d+\.\d+),group=1
 
       - name: Build and push CMS
         uses: docker/build-push-action@v6
@@ -58,8 +75,8 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:dev
+          tags: ${{ steps.cms_meta.outputs.tags }}
+          labels: ${{ steps.cms_meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

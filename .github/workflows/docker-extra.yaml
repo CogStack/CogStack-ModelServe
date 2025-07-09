@@ -29,8 +29,11 @@ jobs:
     needs: lint
     if: |
       github.repository == 'CogStack/CogStack-ModelServe' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      (
+        github.ref == 'refs/heads/main' ||
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,6 +65,20 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Extract MLflow UI meta
+        id: cms_mlflow_ui_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=tag
+            type=ref,event=pr
+            type=sha
+            type=match,pattern=cogstack-modelserve/v(\d+\.\d+\.\d+),group=1
+
       - name: Build and push MLflow UI
         uses: docker/build-push-action@v6
         id: build_and_push_mlflow_ui
@@ -70,8 +87,8 @@ jobs:
           context: .
           file: docker/mlflow/server/Dockerfile
           push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:dev
+          tags: ${{ steps.cms_mlflow_ui_meta.outputs.tags }}
+          labels: ${{ steps.cms_mlflow_ui_meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
       

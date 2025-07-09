@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  REGISTRY: docker.io
+  CMS_IMAGE_NAME: cogstacksystems/cogstack-modelserve
+  MLFLOW_UI_IMAGE_NAME: cogstacksystems/cogstack-mlflow-ui
+
+jobs:
+  qc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+            version: "0.6.10"
+            python-version: "3.10"
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group docs --group vllm
+      - name: Run unit tests
+        run: |
+          uv run pytest -v tests/app --cov --cov-report=html:coverage_reports #--random-order
+      - name: Run integration tests
+        run: |
+          uv run pytest -s -v tests/integration
+
+  release:
+    runs-on: ubuntu-latest
+    needs: qc
+    if: github.ref == 'refs/heads/production'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract the tag
+        run: |
+          echo "RELEASE_VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract CMS meta
+        id: cms_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}
+
+      - name: Build and push CMS image
+        uses: docker/build-push-action@v6
+        id: build_and_push_cms
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: docker/Dockerfile
+          push: true
+          github-token: ${{ github.token }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          labels: ${{ steps.cms_meta.outputs.labels }}
+      
+      - name: Attest CMS image artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}
+          subject-digest: ${{ steps.build_and_push_cms.outputs.digest }}
+          push-to-registry: true
+
+      - name: Extract Mlflow UI meta
+        id: mlflow_ui_meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}
+  
+      - name: Build and push Mlflow UI image
+        uses: docker/build-push-action@v6
+        id: build_and_push_mlflow_ui
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: .
+          file: docker/Dockerfile
+          push: true
+          github-token: ${{ github.token }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          labels: ${{ steps.mlflow_ui_meta.outputs.labels }}
+        
+      - name: Attest Mlflow UI image artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}
+          subject-digest: ${{ steps.build_and_push_mlflow_ui.outputs.digest }}
+          push-to-registry: true
+  
+      - name: Inspect released images
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          docker image inspect ${{ env.CMS_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          docker pull ${{ env.REGISTRY }}/${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+          docker image inspect ${{ env.MLFLOW_UI_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
