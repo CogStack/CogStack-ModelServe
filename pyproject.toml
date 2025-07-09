@@ -43,6 +43,7 @@ readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
 license = {text = "Elastic License 2.0"}
 classifiers=[
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
