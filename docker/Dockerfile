@@ -23,15 +23,16 @@ RUN addgroup --gid $CMS_GID cms || true && \
 
 COPY app /app
 COPY pyproject.toml /pyproject.toml
+COPY uv.lock /uv.lock
 COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
-RUN pip install --no-cache-dir -U pip && \
-    pip install --no-cache-dir -e . && \
+RUN pip install --no-cache-dir uv==0.7.20 && \
+    uv sync --locked && \
     chmod +x /app/entrypoint.sh
 
 WORKDIR /app
 EXPOSE 8000
 USER cms:cms
-CMD ["/app/entrypoint.sh"]
+CMD ["uv", "run", "/app/entrypoint.sh"]
