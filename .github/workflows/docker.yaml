@@ -89,6 +89,7 @@ jobs:
           push-to-registry: true
 
       - name: Update Docker Hub description
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
