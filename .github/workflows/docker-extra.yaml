@@ -99,3 +99,11 @@ jobs:
             subject-name: ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}
             subject-digest: ${{ steps.build_and_push_mlflow_ui.outputs.digest }}
             push-to-registry: true
+
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKER_IMAGE_NAME }}
+          readme-filepath: ./docker/mlflow/server/README.md
