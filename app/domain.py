@@ -167,3 +167,30 @@ class Doc(BaseModel):
     text: str = Field(description="The text from which the entities are extracted")
     ents: List[Entity] = Field(description="The list of extracted entities")
     title: Optional[str] = Field(default=None, description="The headline of the text")
+
+
+class PromptRole(Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+
+class PromptMessage(BaseModel):
+    role: PromptRole = Field(description="The role who generates the message")
+    content: str = Field(description="The actual text of the message")
+
+
+class OpenAIChatRequest(BaseModel):
+    messages: List[PromptMessage] = Field(..., description="A list of messages to be sent to the model")
+    stream: bool = Field(..., description="Whether to stream the response")
+    max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
+    temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
+
+
+class OpenAIChatResponse(BaseModel):
+    id: str
+    object: str
+    created: int
+    model: str
+    choices: List

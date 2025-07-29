@@ -1,4 +1,5 @@
 import os
+from unittest.mock import MagicMock
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from app import __version__
@@ -43,5 +44,77 @@ def test_info(huggingface_llm_model):
 
 def test_generate(huggingface_llm_model):
     huggingface_llm_model.init_model()
-    output = huggingface_llm_model.generate("How are you doing?")
-    assert isinstance(output, str)
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.tokenizer = MagicMock()
+    inputs = MagicMock()
+    inputs.input_ids = MagicMock(shape=[1, 2])
+    inputs.attention_mask = MagicMock()
+    huggingface_llm_model.tokenizer.return_value = inputs
+    outputs = [MagicMock(shape=[2])]
+    huggingface_llm_model.model.generate.return_value = outputs
+    huggingface_llm_model.tokenizer.decode.return_value = "Yeah."
+
+    result = huggingface_llm_model.generate(
+        prompt="Alright?",
+        max_tokens=128,
+        temperature=0.5,
+    )
+
+    huggingface_llm_model.tokenizer.assert_called_once_with(
+        "Alright?",
+        add_special_tokens=False,
+        return_tensors="pt",
+    )
+    huggingface_llm_model.model.generate.assert_called_once_with(
+        inputs=inputs.input_ids,
+        attention_mask=inputs.attention_mask,
+        max_new_tokens=128,
+        do_sample=False,
+        temperature=0.5,
+        top_p=0.9,
+    )
+    huggingface_llm_model.tokenizer.decode.assert_called_once_with(
+        outputs[0],
+        skip_prompt=True,
+        skip_special_tokens=True,
+    )
+    assert result == "Yeah."
+
+
+async def test_generate_async(huggingface_llm_model):
+    huggingface_llm_model.init_model()
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.tokenizer = MagicMock()
+    inputs = MagicMock()
+    inputs.input_ids = MagicMock(shape=[1, 2])
+    inputs.attention_mask = MagicMock()
+    huggingface_llm_model.tokenizer.return_value = inputs
+    outputs = [MagicMock(shape=[2])]
+    huggingface_llm_model.model.generate.return_value = outputs
+    huggingface_llm_model.tokenizer.decode.return_value = "Yeah."
+
+    result = await huggingface_llm_model.generate_async(
+        prompt="Alright?",
+        max_tokens=128,
+        temperature=0.5,
+    )
+
+    huggingface_llm_model.tokenizer.assert_called_once_with(
+        "Alright?",
+        add_special_tokens=False,
+        return_tensors="pt",
+    )
+    huggingface_llm_model.model.generate_async.assert_called_once_with(
+        inputs=inputs.input_ids,
+        attention_mask=inputs.attention_mask,
+        max_new_tokens=128,
+        do_sample=False,
+        temperature=0.5,
+        top_p=0.9,
+    )
+    huggingface_llm_model.tokenizer.decode.assert_called_once_with(
+        outputs[0],
+        skip_prompt=True,
+        skip_special_tokens=True,
+    )
+    assert result == "Yeah."
