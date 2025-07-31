@@ -189,8 +189,8 @@ class OpenAIChatRequest(BaseModel):
 
 
 class OpenAIChatResponse(BaseModel):
-    id: str
-    object: str
-    created: int
-    model: str
-    choices: List
+    id: str = Field(..., description="The unique identifier for the chat completion request")
+    object: str = Field(..., description="The type of the response")
+    created: int = Field(..., description="The timestamp when the completion was generated")
+    model: str = Field(..., description="The name of the model used for generating the completion")
+    choices: List = Field(..., description="The generated messages and their metadata")
