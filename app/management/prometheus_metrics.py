@@ -34,3 +34,24 @@ cms_bulk_processed_docs = Histogram(
     "Number of bulk-processed documents",
     ["handler"],
 )
+
+# The histogram metric to track the number of tokens in the messages of the input prompt
+cms_prompt_tokens = Histogram(
+    "cms_prompt_tokens",
+    "Number of tokens in the messages of the input prompt",
+    ["handler"],
+)
+
+# The histogram metric to track the number of tokens in the generated assistant reply
+cms_completion_tokens = Histogram(
+    "cms_completion_tokens",
+    "Number of tokens in the generated assistant reply",
+    ["handler"],
+)
+
+# The histogram metric to track the total number of tokens used in the prompt and the completion
+cms_total_tokens = Histogram(
+    "cms_total_tokens",
+    "Number of tokens used in the prompt and the completion",
+    ["handler"],
+)
