@@ -756,6 +756,14 @@ def get_prompt_from_messages(tokenizer: PreTrainedTokenizer, messages: List[Prom
             tokenize=False,
             add_generation_prompt=True,
         )
+    elif hasattr(tokenizer, "default_chat_template") and tokenizer.default_chat_template:
+        # This largely depends on how older versions of HF tokenizers behave and may not work universally
+        tokenizer.chat_template = tokenizer.default_chat_template
+        prompt = tokenizer.apply_chat_template(
+            [dump_pydantic_object_to_dict(message) for message in messages],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
     else:
         system_content = ""
         prompt_parts: List[str] = []
@@ -835,4 +843,3 @@ TYPE_ID_TO_NAME_PATCH = {
     "25624495": '© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.',
     "55540447": "linkage concept"
 }
-
