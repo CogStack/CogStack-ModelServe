@@ -352,7 +352,7 @@ async def init_vllm_engine(app: FastAPI,
             chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
             tokenize=True,
         )
-        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)
+        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)   # type: ignore
 
         async def _stream() -> AsyncGenerator[bytes, None]:
             start = 0
