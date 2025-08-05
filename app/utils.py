@@ -27,6 +27,7 @@ from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
 from app.config import Settings
 from app.domain import Annotation, Entity, CodeType, ModelType, Device, PromptMessage, PromptRole
 from app.exception import ManagedModelException
+from app.processors.prompt_factory import PromptFactory
 
 
 @lru_cache
@@ -739,47 +740,60 @@ def download_model_package(
             retry_delay *= 2
 
 
-def get_prompt_from_messages(tokenizer: PreTrainedTokenizer, messages: List[PromptMessage]) -> str:
+def get_prompt_from_messages(
+        tokenizer: PreTrainedTokenizer,
+        messages: List[PromptMessage],
+        override_template: Optional[str] = None,
+) -> str:
     """
     Generates a prompt from a list of prompt messages.
 
     Args:
         tokenizer (PreTrainedTokenizer): The tokenizer to use for applying the chat template.
         messages (List[PromptMessage]): The list of prompt messages to use for generating the prompt.
+        override_template (str): The name of the chat template to use for generating the prompt.
 
     Returns:
         str: The generated prompt.
     """
-    if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
-        prompt = tokenizer.apply_chat_template(
-            [dump_pydantic_object_to_dict(message) for message in messages],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-    elif hasattr(tokenizer, "default_chat_template") and tokenizer.default_chat_template:
-        # This largely depends on how older versions of HF tokenizers behave and may not work universally
-        tokenizer.chat_template = tokenizer.default_chat_template
-        prompt = tokenizer.apply_chat_template(
-            [dump_pydantic_object_to_dict(message) for message in messages],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-    else:
-        system_content = ""
-        prompt_parts: List[str] = []
-        for message in messages:
-            content = message.content.strip()
-            if message.role == PromptRole.SYSTEM:
-                system_content = content
-            elif message.role == PromptRole.USER:
-                prompt_parts.append(f"<|user|>\n{content}</s>")
-            elif message.role == PromptRole.ASSISTANT:
-                prompt_parts.append(f"<|assistant|>\n{content}</s>")
-        if system_content:
-            prompt = f"<|system|>\n{system_content}</s>\n" + "\n".join(prompt_parts)
+    if override_template is None:
+        if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
+            prompt = tokenizer.apply_chat_template(
+                [dump_pydantic_object_to_dict(message) for message in messages],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        elif hasattr(tokenizer, "default_chat_template") and tokenizer.default_chat_template:
+            # This largely depends on how older versions of HF tokenizers behave and may not work universally
+            tokenizer.chat_template = tokenizer.default_chat_template
+            prompt = tokenizer.apply_chat_template(
+                [dump_pydantic_object_to_dict(message) for message in messages],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
         else:
-            prompt = "\n".join(prompt_parts)
-        prompt += "\n<|assistant|>\n"
+            system_content = ""
+            prompt_parts: List[str] = []
+            for message in messages:
+                content = message.content.strip()
+                if message.role == PromptRole.SYSTEM:
+                    system_content = content
+                elif message.role == PromptRole.USER:
+                    prompt_parts.append(f"<|user|>\n{content}</s>")
+                elif message.role == PromptRole.ASSISTANT:
+                    prompt_parts.append(f"<|assistant|>\n{content}</s>")
+            if system_content:
+                prompt = f"<|system|>\n{system_content}</s>\n" + "\n".join(prompt_parts)
+            else:
+                prompt = "\n".join(prompt_parts)
+            prompt += "\n<|assistant|>\n"
+    else:
+        tokenizer.chat_template = PromptFactory.create_chat_template(name=override_template)
+        prompt = tokenizer.apply_chat_template(
+            [dump_pydantic_object_to_dict(message) for message in messages],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
     return prompt
 
 TYPE_ID_TO_NAME_PATCH = {
