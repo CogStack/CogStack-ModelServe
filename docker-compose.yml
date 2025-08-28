@@ -98,6 +98,53 @@ services:
       retries: 3
       start_period: 60s
 
+  medcat-opcs4:
+    image: cogstacksystems/cogstack-modelserve:0.1.0
+    labels:
+      - org.cogstack.model-serve=medcat_opcs4
+      - org.cogstack.model-name=OPCS-4 MedCAT model
+      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+    restart: always
+    networks:
+      - cms
+    volumes:
+      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - retrained-models:/app/model/retrained:rw
+      - ./docker/medcat-opcs4/.env:/app/envs/.env:ro
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - CMS_MODEL_TYPE=medcat_opcs4
+      - CMS_MODEL_NAME=OPCS-4 MedCAT model
+      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+      - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://mlflow-ui:5000}
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME:-admin}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD:-password}
+      - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-true}
+      - GELF_INPUT_URI=${GELF_INPUT_URI:-http://graylog:12201}
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=mlflow-ui,minio,graylog,auth-db,localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+    expose:
+      - 8000
+    ports:
+      - 8182:8000
+    healthcheck:  # readiness check
+      test: ["CMD", "curl", "-f", "http://localhost:8000/info"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   medcat-deid:
     image: cogstacksystems/cogstack-modelserve:0.1.0
     labels:

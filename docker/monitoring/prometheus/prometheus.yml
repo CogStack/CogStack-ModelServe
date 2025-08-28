@@ -31,6 +31,12 @@ scrape_configs:
     - targets:
       - "medcat-icd10:8000"
 
+  - job_name: "cms_medcat-opcs4"
+    scrape_interval: 15s
+    static_configs:
+    - targets:
+      - "medcat-opcs4:8000"
+
   - job_name: "cms_medcat-deid"
     scrape_interval: 15s
     static_configs:

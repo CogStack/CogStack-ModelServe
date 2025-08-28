@@ -63,6 +63,7 @@ def get_code_base_uri(model_name: str) -> Optional[str]:
     code_base_uris = {
         CodeType.SNOMED.value: "http://snomed.info/id",
         CodeType.ICD10.value: "https://icdcodelookup.com/icd-10/codes",
+        CodeType.OPCS4.value: "https://nhsengland.kahootz.com/connect.ti/t_c_home/view?objectId=14270896#14270896",
         CodeType.UMLS.value: "https://uts.nlm.nih.gov/uts/umls/concept",
     }
     for code_name, base_uri in code_base_uris.items():

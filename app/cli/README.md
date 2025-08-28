@@ -37,7 +37,7 @@ $ cms serve [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
 * `--model-path TEXT`: The file path to the model package
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to serve
 * `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
@@ -60,7 +60,7 @@ $ cms train [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to train  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to train  [required]
 * `--base-model-path TEXT`: The file path to the base model package to be trained on
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to train
 * `--training-type [supervised|unsupervised|meta_supervised]`: The type of training  [required]
@@ -86,7 +86,7 @@ $ cms register [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to register  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to register  [required]
 * `--model-path TEXT`: The file path to the model package  [required]
 * `--model-name TEXT`: The string representation of the registered model  [required]
 * `--training-type [supervised|unsupervised|meta_supervised]`: The type of training the model went through
@@ -108,7 +108,7 @@ $ cms export-model-apis [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
 * `--add-training-apis / --no-add-training-apis`: Add training APIs to the doc  [default: no-add-training-apis]
 * `--add-evaluation-apis / --no-add-evaluation-apis`: Add evaluation APIs to the doc  [default: no-add-evaluation-apis]
 * `--add-previews-apis / --no-add-previews-apis`: Add preview APIs to the doc  [default: no-add-previews-apis]

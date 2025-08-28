@@ -15,6 +15,7 @@
 				"name": "Intracerebral haemorrhage, unspecified",
 				"code": "I61.9"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 1,
@@ -51,6 +52,7 @@
 				"name": "Other and unspecified disturbances of skin sensation",
 				"code": "R20.8"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 8,
@@ -87,6 +89,7 @@
 				"name": "Malaise and fatigue",
 				"code": "R53"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 11,
@@ -123,6 +126,7 @@
 				"name": "Malaise and fatigue",
 				"code": "R53"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 18,
@@ -159,6 +163,7 @@
 				"name": "Dizziness and giddiness",
 				"code": "R42"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 20,
@@ -195,6 +200,7 @@
 				"name": "Other and unspecified disturbances of skin sensation",
 				"code": "R20.8"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 27,
@@ -231,6 +237,7 @@
 				"name": "Malaise and fatigue",
 				"code": "R53"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 35,
@@ -267,6 +274,7 @@
 				"name": "Dizziness and giddiness",
 				"code": "R42"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 37,
@@ -303,6 +311,7 @@
 				"name": "Dizziness and giddiness",
 				"code": "R42"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 39,
@@ -339,6 +348,7 @@
 				"name": "Coma, unspecified",
 				"code": "R40.2"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 42,
@@ -372,6 +382,7 @@
 			"start": 656,
 			"end": 663,
 			"icd10": [],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 50,
@@ -408,6 +419,7 @@
 				"name": "Syncope and collapse",
 				"code": "R55"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 52,
@@ -441,6 +453,7 @@
 			"start": 721,
 			"end": 735,
 			"icd10": [],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 53,
@@ -477,6 +490,7 @@
 				"name": "Disorders of calcium metabolism",
 				"code": "E83.5"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 54,
@@ -510,6 +524,7 @@
 			"start": 783,
 			"end": 796,
 			"icd10": [],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 56,
@@ -546,6 +561,7 @@
 				"name": "Disorders of calcium metabolism",
 				"code": "E83.5"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 59,
@@ -582,6 +598,7 @@
 				"name": "Endocarditis, valve unspecified",
 				"code": "I38"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 87,
@@ -618,6 +635,7 @@
 				"name": "Essential (primary) hypertension",
 				"code": "I10"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 91,
@@ -654,6 +672,7 @@
 				"name": "Rheumatic fever without mention of heart involvement",
 				"code": "I00"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 93,
@@ -690,6 +709,7 @@
 				"name": "Heart disease, unspecified",
 				"code": "I51.9"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 96,
@@ -726,6 +746,7 @@
 				"name": "Chronic obstructive pulmonary disease, unspecified",
 				"code": "J44.9"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 99,
@@ -762,6 +783,7 @@
 				"name": "Mental and behavioural disorders due to use of alcohol",
 				"code": "F10.1"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 100,
@@ -798,6 +820,7 @@
 				"name": "Polyp of colon",
 				"code": "K63.5"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 102,
@@ -834,6 +857,7 @@
 				"name": "Chronic ischaemic heart disease, unspecified",
 				"code": "I25.9"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 104,
@@ -870,6 +894,7 @@
 				"name": "Heart failure, unspecified",
 				"code": "I50.9"
 			}],
+			"opcs4": [],
 			"ontologies": ["SNOMED"],
 			"snomed": [],
 			"id": 105,

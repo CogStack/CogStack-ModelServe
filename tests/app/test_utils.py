@@ -40,6 +40,7 @@ from app.domain import Annotation, Entity
 def test_get_code_base_uri():
     assert get_code_base_uri("SNOMED model") == "http://snomed.info/id"
     assert get_code_base_uri("ICD-10 model") == "https://icdcodelookup.com/icd-10/codes"
+    assert get_code_base_uri("OPCS-4 model") == "https://nhsengland.kahootz.com/connect.ti/t_c_home/view?objectId=14270896#14270896"
     assert get_code_base_uri("UMLS model") == "https://uts.nlm.nih.gov/uts/umls/concept"
 
 
@@ -95,7 +96,7 @@ def test_json_normalize_medcat_entities():
         medcat_entities = json.load(f)
     df = json_normalize_medcat_entities(medcat_entities)
     assert len(df) == 25
-    assert df.columns.tolist() == ["pretty_name", "cui", "type_ids", "types", "source_value", "detected_name", "acc", "context_similarity", "start", "end", "icd10", "ontologies", "snomed", "id", "meta_anns.Presence.value", "meta_anns.Presence.confidence", "meta_anns.Presence.name", "meta_anns.Subject.value", "meta_anns.Subject.confidence", "meta_anns.Subject.name", "meta_anns.Time.value", "meta_anns.Time.confidence", "meta_anns.Time.name"]
+    assert df.columns.tolist() == ["pretty_name", "cui", "type_ids", "types", "source_value", "detected_name", "acc", "context_similarity", "start", "end", "icd10", "opcs4", "ontologies", "snomed", "id", "meta_anns.Presence.value", "meta_anns.Presence.confidence", "meta_anns.Presence.name", "meta_anns.Subject.value", "meta_anns.Subject.confidence", "meta_anns.Subject.name", "meta_anns.Time.value", "meta_anns.Time.confidence", "meta_anns.Time.name"]
 
 
 def test_json_normalize_trainer_export():
