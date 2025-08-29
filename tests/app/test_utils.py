@@ -40,7 +40,7 @@ from app.domain import Annotation, Entity
 def test_get_code_base_uri():
     assert get_code_base_uri("SNOMED model") == "http://snomed.info/id"
     assert get_code_base_uri("ICD-10 model") == "https://icdcodelookup.com/icd-10/codes"
-    assert get_code_base_uri("OPCS-4 model") == "https://nhsengland.kahootz.com/connect.ti/t_c_home/view?objectId=14270896#14270896"
+    assert get_code_base_uri("OPCS-4 model") == "https://nhsengland.kahootz.com/t_c_home/view?objectID=14270896"
     assert get_code_base_uri("UMLS model") == "https://uts.nlm.nih.gov/uts/umls/concept"
 
 
