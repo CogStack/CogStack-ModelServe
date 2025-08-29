@@ -1952,6 +1952,7 @@
                     "medcat_snomed",
                     "medcat_umls",
                     "medcat_icd10",
+                    "medcat_opcs4",
                     "medcat_deid",
                     "anoncat",
                     "transformers_deid",
