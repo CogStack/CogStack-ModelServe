@@ -36,6 +36,7 @@ RUN mkdir -p /app/model/model && \
     chown -R $CMS_UID:$CMS_GID /app
 RUN pip install --no-cache-dir uv==0.7.20 && \
     uv sync --locked && \
+    chown -R $CMS_UID:$CMS_GID /.venv && \
     chmod +x /app/entrypoint.sh
 
 WORKDIR /app
