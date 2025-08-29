@@ -81,6 +81,44 @@ services:
       - https_proxy=$HTTPS_PROXY
       - no_proxy=localhost
 
+  medcat-opcs4:
+    extends:
+      file: ./docker-compose.yml
+      service: medcat-opcs4
+    labels:
+      - org.cogstack.model-serve.dev=true
+    build:
+        context: ./
+        dockerfile: ./docker/medcat-opcs4/Dockerfile
+        args:
+          - CMS_MODEL_NAME=OPCS-4 MedCAT model
+          - CMS_UID=${CMS_UID:-1000}
+          - CMS_GID=${CMS_GID:-1000}
+          - HTTP_PROXY=$HTTP_PROXY
+          - HTTPS_PROXY=$HTTPS_PROXY
+          - NO_PROXY=$NO_PROXY
+    image: local-cms-medcat-opcs4:do-not-push
+    environment:
+      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - AWS_ACCESS_KEY_ID=
+      - AWS_SECRET_ACCESS_KEY=
+      - MLFLOW_S3_ENDPOINT_URL=
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-file:/tmp/mlruns}
+      - MLFLOW_TRACKING_USERNAME=
+      - MLFLOW_TRACKING_PASSWORD=
+      - MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING=${MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING:-false}
+      - GELF_INPUT_URI=
+      - AUTH_USER_ENABLED=${AUTH_USER_ENABLED:-false}
+      - AUTH_JWT_SECRET=$AUTH_JWT_SECRET
+      - AUTH_ACCESS_TOKEN_EXPIRE_SECONDS=${AUTH_ACCESS_TOKEN_EXPIRE_SECONDS:-3600}
+      - AUTH_DATABASE_URL=${AUTH_DATABASE_URL:-sqlite+aiosqlite:///./cms-users.db}
+      - HTTP_PROXY=$HTTP_PROXY
+      - HTTPS_PROXY=$HTTPS_PROXY
+      - NO_PROXY=localhost
+      - http_proxy=$HTTP_PROXY
+      - https_proxy=$HTTPS_PROXY
+      - no_proxy=localhost
+
   medcat-deid:
     extends:
       file: ./docker-compose.yml

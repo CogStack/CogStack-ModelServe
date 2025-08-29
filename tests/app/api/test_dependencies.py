@@ -5,6 +5,7 @@ from app.api.dependencies import ModelServiceDep, validate_tracking_id
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.model_services.medcat_model_icd10 import MedCATModelIcd10
+from app.model_services.medcat_model_opcs4 import MedCATModelOpcs4
 from app.model_services.medcat_model_umls import MedCATModelUmls
 from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
@@ -19,6 +20,11 @@ def test_medcat_snomed_dep():
 def test_medcat_icd10_dep():
     model_service_dep = ModelServiceDep("medcat_icd10", Settings())
     assert isinstance(model_service_dep(), MedCATModelIcd10)
+
+
+def test_medcat_opcs4_dep():
+    model_service_dep = ModelServiceDep("medcat_opcs4", Settings())
+    assert isinstance(model_service_dep(), MedCATModelOpcs4)
 
 
 def test_medcat_umls_dep():

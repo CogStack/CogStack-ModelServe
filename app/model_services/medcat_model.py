@@ -165,7 +165,7 @@ class MedCATModel(AbstractModelService):
 
         doc = self.model.get_entities(
             text,
-            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
+            addl_info=["cui2icd10", "cui2opcs4", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
         )
         return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)]
 
@@ -186,7 +186,7 @@ class MedCATModel(AbstractModelService):
             self._data_iterator(texts),
             batch_size_chars=batch_size_chars,
             nproc=max(int(cpu_count() / 2), 1),
-            addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
+            addl_info=["cui2icd10", "cui2opcs4", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
         )
         docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []

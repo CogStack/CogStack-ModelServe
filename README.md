@@ -18,6 +18,7 @@ Currently, CMS offers both HTTP endpoints for running NLP-related jobs and a com
 [OpenAPI Docs](https://cogstack.github.io/CogStack-ModelServe/):
 - [SNOMED MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_snomed_model_apis.html)
 - [ICD-10 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_icd10_model_apis.html)
+- [OPCS-4 MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_opcs4_model_apis.html)
 - [UMLS MedCAT Model](https://cogstack.github.io/CogStack-ModelServe/docs/medcat_umls_model_apis.html)
 - [De-ID MedCAT Model (AnonCAT)](https://cogstack.github.io/CogStack-ModelServe/docs/anoncat_model_apis.html)
 - [HuggingFace NER Model](https://cogstack.github.io/CogStack-ModelServe/docs/huggingface_ner_model_apis.html)
@@ -59,6 +60,7 @@ The following table summarises the servable model types with their respective ou
 |:---------------------:|:---------------:|:---------------------------------:|
 |     medcat_snomed     |  medcat-snomed  |   labelled with SNOMED concepts   |
 |     medcat_icd10      |  medcat-icd10   |   labelled with ICD-10 concepts   |
+|     medcat_opcs4      |  medcat-opcs4   |   labelled with OPCS-4 concepts   |
 |      medcat_umls      |   medcat-umls   |    labelled with UMLS concepts    |
 | medcat_deid (anoncat) |   medcat-deid   | labelled with latest PII concepts |
 |    huggingface_ner    | huggingface_ner |      customer managed labels      |

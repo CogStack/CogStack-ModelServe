@@ -4,6 +4,7 @@ from unittest.mock import Mock, MagicMock
 from app.config import Settings
 from app.model_services.medcat_model_snomed import MedCATModelSnomed
 from app.model_services.medcat_model_icd10 import MedCATModelIcd10
+from app.model_services.medcat_model_opcs4 import MedCATModelOpcs4
 from app.model_services.medcat_model_umls import MedCATModelUmls
 from app.model_services.medcat_model_deid import MedCATModelDeIdentification
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
@@ -58,6 +59,14 @@ def medcat_icd10_model():
     config.BASE_MODEL_FILE = "icd10_model.zip"
     config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
     return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
+
+
+@pytest.fixture(scope="function")
+def medcat_opcs4_model():
+    config = Settings()
+    config.BASE_MODEL_FILE = "opcs4_model.zip"
+    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
+    return MedCATModelOpcs4(config, MODEL_PARENT_DIR, True)
 
 
 @pytest.fixture(scope="function")

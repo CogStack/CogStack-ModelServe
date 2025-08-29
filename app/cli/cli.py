@@ -65,7 +65,7 @@ def serve_model(
     port: str = typer.Option("8000", help="The port of the server"),
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
     streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
-    device: Device = typer.Option(Device.DEFAULT, help="The device to serve the model on"),
+    device: Device = typer.Option(Device.DEFAULT.value, help="The device to serve the model on"),
     llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS.value, help="The engine to use for text generation"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
@@ -90,7 +90,7 @@ def serve_model(
     model_name = model_name or "CMS model"
     logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
-    config.DEVICE = device.value
+    config.DEVICE = device
     if model_type in [
         ModelType.HUGGINGFACE_NER,
         ModelType.MEDCAT_DEID,
@@ -186,7 +186,7 @@ def train_model(
     hyperparameters: str = typer.Option("{}", help="The overriding hyperparameters serialised as JSON string"),
     description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
-    device: Device = typer.Option(Device.DEFAULT, help="The device to train the model on"),
+    device: Device = typer.Option(Device.DEFAULT.value, help="The device to train the model on"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -212,7 +212,7 @@ def train_model(
     logger = _get_logger(debug, model_type, model_name)
 
     config = get_settings()
-    config.DEVICE = device.value
+    config.DEVICE = device
 
     model_service_dep = ModelServiceDep(model_type, config)
     cms_globals.model_service_dep = model_service_dep

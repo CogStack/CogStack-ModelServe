@@ -33,6 +33,7 @@ jobs:
         run: |
           python app/cli/cli.py export-model-apis --model-type medcat_snomed --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
           python app/cli/cli.py export-model-apis --model-type medcat_icd10 --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
+          python app/cli/cli.py export-model-apis --model-type medcat_opcs4 --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
           python app/cli/cli.py export-model-apis --model-type medcat_umls --add-training-apis --no-exclude-unsupervised-training --no-exclude-metacat-training --add-evaluation-apis --add-previews-apis
           python app/cli/cli.py export-model-apis --model-type anoncat --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
           python app/cli/cli.py export-model-apis --model-type transformers_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
@@ -43,6 +44,7 @@ jobs:
           git checkout gh-pages
           mv ./medcat_snomed_model_apis.json ./docs/medcat_snomed_model_apis.json
           mv ./medcat_icd10_model_apis.json ./docs/medcat_icd10_model_apis.json
+          mv ./medcat_opcs4_model_apis.json ./docs/medcat_opcs4_model_apis.json
           mv ./medcat_umls_model_apis.json ./docs/medcat_umls_model_apis.json
           mv ./anoncat_model_apis.json ./docs/anoncat_model_apis.json
           mv ./transformers_deid_model_apis.json ./docs/transformers_deid_model_apis.json
@@ -51,7 +53,7 @@ jobs:
           mv ./cogstack_model_serve_apis.json ./docs/cogstack_model_serve_apis.json
           git config --global user.name "cogstack-model-serve"
           git config --global user.email "cogstack-model-serve@users.noreply.github.com"
-          git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/anoncat_model_apis.json ./docs/transformers_deid_model_apis.json ./docs/huggingface_ner_model_apis.json ./docs/huggingface_llm_model_apis.json ./docs/cogstack_model_serve_apis.json
+          git add ./docs/medcat_snomed_model_apis.json ./docs/medcat_icd10_model_apis.json ./docs/medcat_opcs4_model_apis.json ./docs/medcat_umls_model_apis.json ./docs/anoncat_model_apis.json ./docs/transformers_deid_model_apis.json ./docs/huggingface_ner_model_apis.json ./docs/huggingface_llm_model_apis.json ./docs/cogstack_model_serve_apis.json
           if [[ `git status --porcelain --untracked-files=no` ]]; then
             git commit -m "update api docs"
           else
