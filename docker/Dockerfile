@@ -42,4 +42,4 @@ RUN pip install --no-cache-dir uv==0.7.20 && \
 WORKDIR /app
 EXPOSE 8000
 USER cms:cms
-CMD ["bash", "-c", "source /.venv/bin/activate && ./entrypoint.sh"]
+CMD ["bash", "-c", "./entrypoint.sh"]
