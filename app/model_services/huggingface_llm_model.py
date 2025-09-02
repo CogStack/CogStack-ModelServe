@@ -1,8 +1,9 @@
 import os
 import logging
 import asyncio
+import torch
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, Callable
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, Callable, Union
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -307,3 +308,50 @@ class HuggingFaceLlmModel(AbstractModelService):
             return
         finally:
             logger.debug("Chat response generation completed")
+
+    def create_embeddings(
+        self,
+        text: Union[str, List[str]],
+        *args: Any,
+        **kwargs: Any
+    ) -> Union[List[float], List[List[float]]]:
+        """
+        Creates embeddings for a given text or list of texts using the model's hidden states.
+
+        Args:
+            text (Union[str, List[str]]): The text(s) to be embedded.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            List[float], List[List[float]]: The embedding vector(s) for the text(s).
+
+        Raises:
+            NotImplementedError: If the model doesn't support embeddings.
+        """
+
+        self.model.eval()
+
+        inputs = self.tokenizer(
+            text,
+            add_special_tokens=False,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
+
+        if non_default_device_is_available(self._config.DEVICE):
+            inputs.to(get_settings().DEVICE)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs, output_hidden_states=True)
+
+        last_hidden_state = outputs.hidden_states[-1]
+        attention_mask = inputs["attention_mask"]
+        masked_hidden_states = last_hidden_state * attention_mask.unsqueeze(-1)
+        sum_hidden_states = masked_hidden_states.sum(dim=1)
+        num_tokens = attention_mask.sum(dim=1, keepdim=True)
+        embeddings = sum_hidden_states / num_tokens
+
+        results = embeddings.cpu().numpy().tolist()
+        return results[0] if isinstance(text, str) else results
