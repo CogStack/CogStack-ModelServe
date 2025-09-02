@@ -31,7 +31,9 @@ def llm_app(llm_model_service):
 
 @pytest.fixture(scope="function")
 def client(llm_model_service):
+    llm_model_service.model_name = "HuggingFace LLM model"
     llm_model_service.generate.return_value = "Yeah."
+    llm_model_service.create_embeddings.return_value = [[1.0, 2.0, 3.0]]
     app = get_generative_server(config, msd_overwritten=lambda: llm_model_service)
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     client = TestClient(app)
@@ -82,6 +84,7 @@ async def test_generate_chat_completions(llm_model_service, llm_app):
           "content": "Who are you?"
         }
       ],
+      "model": "HuggingFace LLM model",
       "stream": True,
       "max_tokens": 128,
       "temperature": 0.7
@@ -98,3 +101,22 @@ async def test_generate_chat_completions(llm_model_service, llm_app):
     assert response.text.startswith("data:")
     assert "id" in response.text
     assert "chat.completion.chunk" in response.text
+
+
+def test_create_embeddings(client):
+    request_data = {
+        "input": ["Alright"],
+        "model": "HuggingFace LLM model",
+    }
+    response = client.post(
+        "/v1/embeddings",
+        data=json.dumps(request_data),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response.json() == {
+        "object": "list",
+        "data": [{"object": "embedding", "embedding": [1.0, 2.0, 3.0], "index": 0}],
+        "model": "HuggingFace LLM model"
+    }

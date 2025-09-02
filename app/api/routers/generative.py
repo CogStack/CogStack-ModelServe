@@ -10,8 +10,16 @@ from functools import partial
 from fastapi import APIRouter, Depends, Request, Body, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import PlainTextResponse, StreamingResponse, JSONResponse
-from starlette.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
-from app.domain import Tags, OpenAIChatRequest, OpenAIChatResponse, PromptMessage, PromptRole
+from starlette.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
+from app.domain import (
+    Tags,
+    OpenAIChatRequest,
+    OpenAIChatResponse,
+    OpenAIEmbeddingsRequest,
+    OpenAIEmbeddingsResponse,
+    PromptMessage,
+    PromptRole,
+)
 from app.model_services.base import AbstractModelService
 from app.utils import get_settings, get_prompt_from_messages
 from app.api.utils import get_rate_limiter
@@ -21,6 +29,7 @@ from app.management.prometheus_metrics import cms_prompt_tokens, cms_completion_
 PATH_GENERATE = "/generate"
 PATH_GENERATE_ASYNC = "/stream/generate"
 PATH_OPENAI_COMPLETIONS = "/v1/chat/completions"
+PATH_OPENAI_EMBEDDINGS = "/v1/embeddings"
 
 router = APIRouter()
 config = get_settings()
@@ -134,7 +143,7 @@ async def generate_text_stream(
 
 @router.post(
     PATH_OPENAI_COMPLETIONS,
-    tags=[Tags.Generative.name],
+    tags=[Tags.OpenAICompatible.name],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Generate chat response based on messages, similar to OpenAI's /v1/chat/completions",
@@ -162,6 +171,7 @@ def generate_chat_completions(
     """
 
     messages = request_data.messages
+    model = model_service.model_name if request_data.model != model_service.model_name else request_data.model
     stream = request_data.stream
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
@@ -224,7 +234,7 @@ def generate_chat_completions(
             id=tracking_id,
             object="chat.completion",
             created=int(time.time()),
-            model=model_service.model_name,
+            model=model,
             choices=[
                 {
                     "index": 0,
@@ -239,14 +249,100 @@ def generate_chat_completions(
         return JSONResponse(content=jsonable_encoder(completion), headers={"x-cms-tracking-id": tracking_id})
 
 
+@router.post(
+    PATH_OPENAI_EMBEDDINGS,
+    tags=[Tags.OpenAICompatible.name],
+    response_model=None,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+)
+def embed_texts(
+    request: Request,
+    request_data: Annotated[OpenAIEmbeddingsRequest, Body(
+        description="Text(s) to be embedded", media_type="application/json"
+    )],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> JSONResponse:
+    """
+    Embeds text or a list of texts, mimicking OpenAI's /v1/embeddings endpoint.
+
+    Args:
+        request (Request): The request object.
+        request_data (OpenAIEmbeddingsRequest): The request data containing model and input text(s).
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A response containing the embeddings of the text(s).
+    """
+    tracking_id = tracking_id or str(uuid.uuid4())
+
+    if not hasattr(model_service, "create_embeddings"):
+        error_response = {
+            "error": {
+                "message": "Model does not support embeddings",
+                "type": "invalid_request_error",
+                "param": "model",
+                "code": "model_not_supported",
+            }
+        }
+        return JSONResponse(
+            content=error_response,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    input_text = request_data.input
+    model = model_service.model_name if request_data.model != model_service.model_name else request_data.model
+
+    if isinstance(input_text, str):
+        input_texts = [input_text]
+    else:
+        input_texts = input_text
+
+    try:
+        embeddings_data = []
+
+        for i, embedding in enumerate(model_service.create_embeddings(input_texts)):
+            embeddings_data.append({
+                "object": "embedding",
+                "embedding": embedding,
+                "index": i,
+            })
+
+        response = OpenAIEmbeddingsResponse(object="list", data=embeddings_data, model=model)
+
+        return JSONResponse(
+            content=jsonable_encoder(response),
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    except Exception as e:
+        logger.error("Failed to create embeddings")
+        logger.exception(e)
+        error_response = {
+            "error": {
+                "message": f"Failed to create embeddings: {str(e)}",
+                "type": "server_error",
+                "code": "internal_error",
+            }
+        }
+        return JSONResponse(
+            content=error_response,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+
 def _empty_prompt_error() -> Iterable[str]:
     yield "ERROR: No prompt text provided\n"
 
 
 def _send_usage_metrics(handler: str, prompt_token_num: int, completion_token_num: int) -> None:
     cms_prompt_tokens.labels(handler=handler).observe(prompt_token_num)
-    logger.debug(f"Sent prompt tokens usage: {prompt_token_num}")
+    logger.debug("Sent prompt tokens usage: %s", prompt_token_num)
     cms_completion_tokens.labels(handler=handler).observe(completion_token_num)
-    logger.debug(f"Sent completion tokens usage: {completion_token_num}")
+    logger.debug("Sent completion tokens usage: %s", completion_token_num)
     cms_total_tokens.labels(handler=handler).observe(prompt_token_num + completion_token_num)
-    logger.debug(f"Sent total tokens usage: {prompt_token_num + completion_token_num}")
+    logger.debug("Sent total tokens usage: %s", prompt_token_num + completion_token_num)
