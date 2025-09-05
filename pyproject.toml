@@ -82,6 +82,8 @@ docs = [
 
 vllm = [
     "vllm~=0.8.5; python_version >= '3.9'",
+    "trl>=0.11.4",
+    "bitsandbytes>=0.45.5",
 ]
 
 # For pip versions not supporting PEP 735
@@ -111,6 +113,8 @@ docs = [
 
 vllm = [
     "vllm~=0.8.5; python_version >= '3.9'",
+    "trl>=0.11.4",
+    "bitsandbytes>=0.45.5",
 ]
 
 [tool.setuptools]

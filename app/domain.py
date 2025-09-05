@@ -31,7 +31,13 @@ class Tags(str, Enum):
 
 
 class TagsStreamable(str, Enum):
+    Metadata = "Get the model card"
     Streaming = "Retrieve NER entities as a stream by running the model"
+
+
+class TagsGenerative(str, Enum):
+    Metadata = "Get the model card"
+    Generative = "Generate text based on the input prompt"
 
 
 class CodeType(str, Enum):
@@ -104,6 +110,19 @@ class LlmEngine(Enum):
     CMS = "CMS"
     VLLM = "vLLM"
 
+class LlmRole(Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+class LlmTrainerType(Enum):
+    GRPO = "grpo"
+    PPO = "ppo"
+
+class LlmDatasetType(Enum):
+    JSON = "json"
+    CSV = "csv"
 
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(default=None, description="The name of the document to which the annotation belongs")
