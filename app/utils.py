@@ -740,6 +740,55 @@ def download_model_package(
             retry_delay *= 2
 
 
+def get_default_chat_template() -> str:
+    """
+    Gets the default chat template.
+
+    Returns:
+        str: The default chat template.
+    """
+
+    return (
+        "{% if messages[0]['role'] == 'system' %}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}"
+        "{% set loop_messages = messages %}"
+        "{% set system_message = false %}"
+        "{% endif %}"
+        "{% for message in loop_messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if loop.index0 == 0 and system_message != false %}"
+        "{% set content = '<<SYS>>\\n' + system_message + '\\n<</SYS>>\\n\\n' + message['content'] %}"
+        "{% else %}"
+        "{% set content = message['content'] %}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '<s>[INST] ' + content + ' [/INST]' }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ ' ' + content + ' </s>' }}"
+        "{% endif %}"
+        "{% endfor %}"
+    )
+
+
+def get_default_system_prompt() -> str:
+    """
+    Gets the default system prompt.
+
+    Returns:
+        str: The default system prompt.
+    """
+    return (
+        "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
+        "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
+        "process and answer are enclosed within <reasoning> </reasoning> and <answer> </answer> tags, respectively, i.e., "
+        "<reasoning> reasoning process here </reasoning><answer> answer here </answer>"
+    )
+
+
 def get_prompt_from_messages(
         tokenizer: PreTrainedTokenizer,
         messages: List[PromptMessage],
@@ -795,6 +844,7 @@ def get_prompt_from_messages(
             add_generation_prompt=True,
         )
     return prompt
+
 
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
