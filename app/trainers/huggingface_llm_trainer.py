@@ -18,7 +18,6 @@ from transformers import (
     TrainerCallback,
     TrainerState,
     TrainerControl,
-    Trainer
 )
 from peft import LoraConfig, get_peft_model # type: ignore
 from app.management.model_manager import ModelManager
@@ -41,6 +40,7 @@ from app.exception import (
     DatasetException,
     ConfigurationException,
     DeviceNotAvailableError,
+    ExtraDependencyRequiredException,
 )
 if TYPE_CHECKING:
     from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
@@ -93,25 +93,6 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         self._max_length = model_service.model.config.max_position_embeddings
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
-    class _LocalDataCollator:
-
-        def __init__(self, max_length: int, pad_token_id: int) -> None:
-            self.max_length = max_length
-            self.pad_token_id = pad_token_id
-
-        def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
-            return {
-                "input_ids": torch.tensor([self._add_padding(f["input_ids"], self.max_length, self.pad_token_id) for f in features], dtype=torch.long),
-                "labels": torch.tensor([self._add_padding(f["labels"], self.max_length, HuggingFaceLlmSupervisedTrainer.PAD_LABEL_ID) for f in features], dtype=torch.long),
-                "attention_mask": torch.tensor([self._add_padding(f["attention_mask"], self.max_length, 0) for f in features], dtype=torch.long),
-            }
-
-        @staticmethod
-        def _add_padding(target: List[int], max_length: int, pad_token_id: int) -> List[int]:
-            padding_length = max(0, max_length - len(target))
-            paddings = [pad_token_id] * padding_length
-            return target + paddings
-
     def _load_dataset_from_config(self, data_file: TextIO, training_params: Dict) -> Tuple[datasets.Dataset, datasets.Dataset]:
         """
         Loads training and validation datasets based on configuration in training_params.
@@ -155,8 +136,6 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             test_dataset.set_format(type=None, columns=["problem", "solution"])
         else:
             raise DatasetException("Unsupported dataset format")
-
-
 
     def _load_huggingface_dataset(self, training_params: Dict) -> Tuple[datasets.Dataset, datasets.Dataset]:
         """Loads dataset from HuggingFace Hub."""
@@ -320,6 +299,12 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         if self._config.DEVICE is not Device.GPU.value:
             raise DeviceNotAvailableError("This trainer currently requires a CUDA device")
 
+        try:
+            from trl import GRPOConfig, GRPOTrainer  # , PPOConfig, PPOTrainer
+        except ImportError:
+            logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
+            raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
+
         copied_model_pack_path = None
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
@@ -328,6 +313,9 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         reset_random_seed()
         eval_mode = training_params["nepochs"] == 0
         self._tracker_client.log_trainer_mode(not eval_mode)
+        trainer = None
+        max_seq_length = 1024
+
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
@@ -368,79 +356,27 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
 
                 model = get_peft_model(model, lora_config)
 
-                def extract_xml_answer(text: str) -> str:
-                    answer = text.split("<answer>")[-1]
-                    answer = answer.split("</answer>")[0]
-                    return answer.strip()
-
-                # Reward functions
-                def correctness_reward_func(
-                    prompts: List,
-                    completions: List,
-                    answer: List,
-                    **kwargs: Dict[str, Any]
-                ) -> List[float]:
-                    responses = [completion[0]['content'] for completion in completions]
-                    q = prompts[0][-1]['content']
-                    extracted_responses = [extract_xml_answer(r) for r in responses]
-                    print('-' * 20, f"Question:\n{q}", f"\nAnswer:\n{answer[0]}", f"\nResponse:\n{responses[0]}",
-                          f"\nExtracted:\n{extracted_responses[0]}")
-                    return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
-
-                def int_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
-                    responses = [completion[0]['content'] for completion in completions]
-                    extracted_responses = [extract_xml_answer(r) for r in responses]
-                    return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
-
-                def strict_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
-                    """Reward function that checks if the completion has a specific format."""
-                    pattern = r"^<reasoning>\n.*?\n</reasoning>\n<answer>\n.*?\n</answer>\n$"
-                    responses = [completion[0]["content"] for completion in completions]
-                    matches = [re.match(pattern, r) for r in responses]
-                    return [0.5 if match else 0.0 for match in matches]
-
-                def soft_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
-                    """Reward function that checks if the completion has a specific format."""
-                    pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
-                    responses = [completion[0]["content"] for completion in completions]
-                    matches = [re.match(pattern, r) for r in responses]
-                    return [0.5 if match else 0.0 for match in matches]
-
-                def count_xml(text: str) -> float:
-                    count = 0.0
-                    if text.count("<reasoning>\n") == 1:
-                        count += 0.125
-                    if text.count("\n</reasoning>\n") == 1:
-                        count += 0.125
-                    if text.count("\n<answer>\n") == 1:
-                        count += 0.125
-                        count -= len(text.split("\n</answer>\n")[-1]) * 0.001
-                    if text.count("\n</answer>") == 1:
-                        count += 0.125
-                        count -= (len(text.split("\n</answer>")[-1]) - 1) * 0.001
-                    return count
-
-                def xmlcount_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
-                    contents = [completion[0]["content"] for completion in completions]
-                    return [count_xml(c) for c in contents]
-
                 mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
                 cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
                 trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
 
-                max_prompt_length = 256
-                max_seq_length = 1024
-
-                try:
-                    from trl import GRPOConfig, GRPOTrainer #, PPOConfig, PPOTrainer
-                except ImportError:
-                    logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
-
                 trainer_type = training_params.get("trainer_type", LlmTrainerType.GRPO.value).lower()
+                max_prompt_length = max(train_dataset.map(
+                    lambda x: {
+                        "tokens": tokenizer.apply_chat_template(
+                            x["prompt"],
+                            add_generation_prompt=True,
+                            tokenize=True
+                        )
+                    },
+                    batched=True,
+                ).map(lambda x: {"length": len(x["tokens"])})["length"]) + 1
                 if trainer_type == LlmTrainerType.PPO.value:
                     raise NotImplementedError("PPO training is not yet supported for HuggingFace LLM models")
                 elif trainer_type == LlmTrainerType.GRPO.value:
                     training_args = GRPOConfig(
+                        output_dir=results_path,
+                        logging_dir=logs_path,
                         learning_rate=5e-6,
                         adam_beta1=0.9,
                         adam_beta2=0.99,
@@ -459,18 +395,11 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                         save_steps=250,
                         max_grad_norm=0.1,
                         report_to="none",
-                        output_dir="outputs",
                     )
                     trainer = GRPOTrainer(
                         model=model,
                         processing_class=tokenizer,
-                        reward_funcs=[
-                            xmlcount_reward_func,
-                            soft_format_reward_func,
-                            strict_format_reward_func,
-                            int_reward_func,
-                            correctness_reward_func,
-                        ],
+                        reward_funcs=self._get_reward_functions(),
                         args=training_args,
                         train_dataset=train_dataset,
                         eval_dataset=test_dataset,
@@ -546,41 +475,56 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     self._training_in_progress = False
                 self._clean_up_training_cache()
                 self._housekeep_file(copied_model_pack_path)
-                del trainer
-                gc.collect()
-                torch.cuda.empty_cache()
+                if trainer is not None:
+                    del trainer
+                    gc.collect()
+                    torch.cuda.empty_cache()
         else:
             try:
                 logger.info("Evaluating the running model...")
-                model, tokenizer = self._model_service.load_model(self._model_pack_path)
+                model, tokenizer = self._model_service.model, self._model_service.tokenizer
                 if non_default_device_is_available(self._config.DEVICE):
                     model.to(self._config.DEVICE)
 
                 eval_dataset, _ = self._load_dataset_from_config(data_file, training_params)
                 make_conversation = self._create_conversation_formatter(training_params)
                 eval_dataset = eval_dataset.map(make_conversation)
+                max_prompt_length = max(eval_dataset.map(
+                    lambda x: {
+                        "tokens": tokenizer.apply_chat_template(
+                            x["prompt"],
+                            add_generation_prompt=True,
+                            tokenize=True
+                        )
+                    },
+                    batched=True,
+                ).map(lambda x: {"length": len(x["tokens"])})["length"]) + 1
 
-                data_collator = self._LocalDataCollator(
-                    max_length=self._max_length,
-                    pad_token_id=tokenizer.pad_token_id if hasattr(tokenizer, 'pad_token_id') else 0
-                )
-
-                training_args = TrainingArguments(
+                training_args = GRPOConfig(
                     output_dir=results_path,
                     logging_dir=logs_path,
-                    per_device_eval_batch_size=1,
+                    per_device_eval_batch_size=6,
+                    num_generations=2,
+                    max_prompt_length=max_prompt_length,
+                    max_completion_length=max_seq_length - max_prompt_length,
+                    num_train_epochs=training_params["nepochs"],
+                    report_to="none",
                     do_train=False,
                     do_eval=True,
-                    report_to="none",
-                    dataloader_drop_last=False,
                 )
 
-                trainer = Trainer(
+                mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
+                trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
+
+                trainer = GRPOTrainer(
                     model=model,
+                    processing_class=tokenizer,
                     args=training_args,
-                    data_collator=data_collator,
+                    reward_funcs=self._get_reward_functions(),
+                    train_dataset=None,
                     eval_dataset=eval_dataset,
-                    tokenizer=tokenizer,
+                    callbacks=trainer_callbacks,
                 )
 
                 eval_metrics = trainer.evaluate()
@@ -588,8 +532,24 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 self._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
                 self._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
+            except torch.OutOfMemoryError as e:
+                logger.exception("Evaluation failed on CUDA OOM")
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
+                        try:
+                            torch.cuda.reset_peak_memory_stats()
+                            torch.cuda.reset_accumulated_memory_stats()
+                        except Exception:
+                            pass
+                        torch.cuda.synchronize()
+                except Exception:
+                    pass
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
             except Exception as e:
-                logger.exception("Model evaluation failed")
+                logger.exception("Evaluation failed")
                 self._tracker_client.log_exceptions(e)
                 self._tracker_client.end_with_failure()
             finally:
@@ -597,6 +557,83 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 with self._training_lock:
                     self._training_in_progress = False
                 self._clean_up_training_cache()
+                if trainer is not None:
+                    del trainer
+                    gc.collect()
+                    torch.cuda.empty_cache()
+
+    @staticmethod
+    def _get_reward_functions() -> List:
+
+        def extract_xml_answer(text: str) -> str:
+            answer = text.split("<answer>")[-1]
+            answer = answer.split("</answer>")[0]
+            return answer.strip()
+
+        # Reward functions
+        def correctness_reward_func(
+                prompts: List,
+                completions: List,
+                answer: List,
+                **kwargs: Dict[str, Any]
+        ) -> List[float]:
+            responses = [completion[0]['content'] for completion in completions]
+            q = prompts[0][-1]['content']
+            extracted_responses = [extract_xml_answer(r) for r in responses]
+            logger.debug(
+                "%s\nQuestion:\n%s\nAnswer:\n%s\nResponse:\n%s\nExtracted:\n%s",
+                "-" * 20,
+                q,
+                answer[0],
+                responses[0],
+                extracted_responses[0]
+            )
+            return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
+
+        def int_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+            responses = [completion[0]['content'] for completion in completions]
+            extracted_responses = [extract_xml_answer(r) for r in responses]
+            return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
+
+        def strict_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+            """Reward function that checks if the completion has a specific format."""
+            pattern = r"^<reasoning>\n.*?\n</reasoning>\n<answer>\n.*?\n</answer>\n$"
+            responses = [completion[0]["content"] for completion in completions]
+            matches = [re.match(pattern, r) for r in responses]
+            return [0.5 if match else 0.0 for match in matches]
+
+        def soft_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+            """Reward function that checks if the completion has a specific format."""
+            pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
+            responses = [completion[0]["content"] for completion in completions]
+            matches = [re.match(pattern, r) for r in responses]
+            return [0.5 if match else 0.0 for match in matches]
+
+        def count_xml(text: str) -> float:
+            count = 0.0
+            if text.count("<reasoning>\n") == 1:
+                count += 0.125
+            if text.count("\n</reasoning>\n") == 1:
+                count += 0.125
+            if text.count("\n<answer>\n") == 1:
+                count += 0.125
+                count -= len(text.split("\n</answer>\n")[-1]) * 0.001
+            if text.count("\n</answer>") == 1:
+                count += 0.125
+                count -= (len(text.split("\n</answer>")[-1]) - 1) * 0.001
+            return count
+
+        def xmlcount_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+            contents = [completion[0]["content"] for completion in completions]
+            return [count_xml(c) for c in contents]
+
+        return [
+            xmlcount_reward_func,
+            soft_format_reward_func,
+            strict_format_reward_func,
+            int_reward_func,
+            correctness_reward_func,
+        ]
 
 
 @final
