@@ -27,7 +27,13 @@ from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from app.config import Settings
 from app.domain import TagsGenerative
-from app.exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
+from app.exception import (
+    StartTrainingException,
+    AnnotationException,
+    ConfigurationException,
+    ClientException,
+    ExtraDependencyRequiredException,
+)
 
 logger = logging.getLogger("cms")
 
@@ -111,6 +117,24 @@ def add_exception_handlers(app: FastAPI) -> None:
         Args:
             _ (Request): The request object.
             exception (ConfigurationException): The configuration exception.
+
+        Returns:
+            JSONResponse: A JSON response with a 500 status code and an error message.
+        """
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
+
+    @app.exception_handler(ExtraDependencyRequiredException)
+    async def extra_dependency_exception_handler(
+        _: Request,
+        exception: ExtraDependencyRequiredException
+    ) -> JSONResponse:
+        """
+        Handles extra dependency required exceptions.
+
+        Args:
+            _ (Request): The request object.
+            exception (ExtraDependencyRequiredException): The extra dependency required exception.
 
         Returns:
             JSONResponse: A JSON response with a 500 status code and an error message.
@@ -299,8 +323,8 @@ async def init_vllm_engine(app: FastAPI,
         )
         from vllm import SamplingParams, TokensPrompt
     except ImportError:
-        # Raise a custom exception if vLLM is not installed
-        raise ConfigurationException("Cannot import the vLLM engine. Please install it with `pip install vllm`.")
+        logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
+        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
 
     parser = FlexibleArgumentParser()
     parser = make_arg_parser(parser)
