@@ -7,6 +7,7 @@ import datasets
 import re
 import threading
 import json
+import inspect
 import pandas as pd
 from typing import final, Dict, TextIO, Optional, Any, List, Tuple, TYPE_CHECKING, Callable
 from transformers import __version__ as transformers_version
@@ -482,6 +483,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         else:
             try:
                 logger.info("Evaluating the running model...")
+                include_rewards_metrics = training_params.get("include_rewards_metrics", False)
                 model, tokenizer = self._model_service.model, self._model_service.tokenizer
                 if non_default_device_is_available(self._config.DEVICE):
                     model.to(self._config.DEVICE)
@@ -528,8 +530,23 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 )
 
                 eval_metrics = trainer.evaluate()
+                if "perplexity" not in eval_metrics and "eval_loss" in eval_metrics:
+                    eval_metrics.update({"perplexity": math.exp(eval_metrics["eval_loss"])})
                 logger.info(f"Evaluation metrics: {eval_metrics}")
                 self._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
+                if include_rewards_metrics:
+                    try:
+                        reward_metrics = self._evaluate_with_rewards(
+                            model=model,
+                            tokenizer=tokenizer,
+                            eval_dataset=eval_dataset,
+                            max_new_tokens=training_args.max_completion_length,
+                        )
+                        if reward_metrics:
+                            logger.info(f"Reward metrics: {reward_metrics}")
+                            self._tracker_client.send_hf_metrics_logs(reward_metrics, 0)
+                    except Exception as e:
+                        logger.warning(f"Failed to compute reward-based metrics: {e}")
                 self._tracker_client.end_with_success()
                 logger.info("Model evaluation finished")
             except torch.OutOfMemoryError as e:
@@ -577,8 +594,8 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 answer: List,
                 **kwargs: Dict[str, Any]
         ) -> List[float]:
-            responses = [completion[0]['content'] for completion in completions]
-            q = prompts[0][-1]['content']
+            responses = [completion[0]["content"] for completion in completions]
+            q = prompts[0][-1]["content"]
             extracted_responses = [extract_xml_answer(r) for r in responses]
             logger.debug(
                 "%s\nQuestion:\n%s\nAnswer:\n%s\nResponse:\n%s\nExtracted:\n%s",
@@ -591,7 +608,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
 
         def int_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
-            responses = [completion[0]['content'] for completion in completions]
+            responses = [completion[0]["content"] for completion in completions]
             extracted_responses = [extract_xml_answer(r) for r in responses]
             return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
 
@@ -634,6 +651,74 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             int_reward_func,
             correctness_reward_func,
         ]
+
+    def _evaluate_with_rewards(
+        self,
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizerBase,
+        eval_dataset: datasets.Dataset,
+        max_new_tokens: int,
+    ) -> Dict[str, float]:
+        model.eval()
+        if non_default_device_is_available(self._config.DEVICE):
+            model.to(self._config.DEVICE)
+
+        reward_funcs = self._get_reward_functions()
+        reward_sums: Dict[str, float] = {fn.__name__: 0.0 for fn in reward_funcs}
+        count = 0
+
+        for example in eval_dataset:
+            if "prompt" not in example:
+                continue
+            messages = example["prompt"]
+            answer = example.get("answer", "")
+
+            prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            inputs = tokenizer(prompt_text, return_tensors="pt")
+            input_ids = inputs["input_ids"]
+            attention_mask = inputs.get("attention_mask")
+            if non_default_device_is_available(self._config.DEVICE):
+                input_ids = input_ids.to(self._config.DEVICE)
+                attention_mask = attention_mask.to(self._config.DEVICE)
+
+            with torch.no_grad():
+                generated = model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,
+                    temperature=0.0,
+                    eos_token_id=getattr(tokenizer, "eos_token_id", None),
+                    pad_token_id=getattr(tokenizer, "pad_token_id", 0),
+                )
+
+            completion_text = tokenizer.decode(generated[0][input_ids.shape[1]:], skip_special_tokens=True)
+            for fn in reward_funcs:
+                sig = inspect.signature(fn)
+                kwargs: Dict[str, Any] = {}
+                if "prompts" in sig.parameters:
+                    kwargs["prompts"] = [messages]
+                if "completions" in sig.parameters:
+                    kwargs["completions"] = [({"content": completion_text},)]
+                if "answer" in sig.parameters:
+                    kwargs["answer"] = [answer]
+
+                try:
+                    rewards = fn(**kwargs)  # type: ignore
+                    value = float(rewards[0]) if isinstance(rewards, (list, tuple)) and rewards else float(rewards)
+                except Exception:
+                    value = 0.0
+
+                reward_sums[fn.__name__] += value
+            count += 1
+        if count == 0:
+            return {}
+
+        reward_avgs = {f"reward_{name}": total / count for name, total in reward_sums.items()}
+        reward_overall_mean = sum(reward_avgs.values()) / len(reward_avgs) if reward_avgs else 0.0
+        reward_avgs["reward_overall_mean"] = reward_overall_mean
+        reward_avgs["reward_samples"] = float(count)
+        return reward_avgs
 
 
 @final
