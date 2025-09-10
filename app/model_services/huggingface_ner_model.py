@@ -175,8 +175,13 @@ class HuggingFaceNerModel(AbstractModelService):
         else:
             raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
-    def init_model(self) -> None:
-        """Initialises the HuggingFace model, its tokenizer and a NER pipeline based on the configuration."""
+    def init_model(self, *args: Any, **kwargs: Any) -> None:
+        """Initialises the HuggingFace model, its tokenizer and a NER pipeline based on the configuration.
+
+        Args:
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+        """
 
         if all([
             hasattr(self, "_model"),

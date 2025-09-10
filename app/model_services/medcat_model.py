@@ -119,8 +119,13 @@ class MedCATModel(AbstractModelService):
         else:
             raise ConfigurationException("Model package archive format is not supported")
 
-    def init_model(self) -> None:
-        """Initializes the MedCAT model based on the configuration."""
+    def init_model(self, *args: Any, **kwargs: Any) -> None:
+        """Initializes the MedCAT model based on the configuration.
+
+        Args:
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+        """
 
         if hasattr(self, "_model") and isinstance(self._model, CAT):
             logger.warning("Model service is already initialised and can be initialised only once")

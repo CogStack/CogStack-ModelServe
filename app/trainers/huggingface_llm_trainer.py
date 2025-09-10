@@ -88,8 +88,11 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         self._model_service = model_service
         self._model_name = model_service.model_name
         self._model_pack_path = model_service._model_pack_path
-        self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained",
-                                                  self._model_name.replace(" ", "_"))
+        self._retrained_models_dir = os.path.join(
+            model_service._model_parent_dir,
+            "retrained",
+            self._model_name.replace(" ", "_"),
+        )
         self._model_manager = ModelManager(type(model_service), model_service._config)
         self._max_length = model_service.model.config.max_position_embeddings
         os.makedirs(self._retrained_models_dir, exist_ok=True)
@@ -306,7 +309,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
             raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
 
-        copied_model_pack_path = None
+        trained_model_pack_path = None
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
         skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
         results_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "results"))
@@ -319,15 +322,16 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
 
         if not eval_mode:
             try:
-                logger.info("Loading a new model copy for training...")
-                copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
-                model, tokenizer = self._model_service.load_model(
-                    copied_model_pack_path,
-                    load_in_4bit=True,  # for memory efficient training
+                logger.info("Loading a PEFT model for training...")
+                model_pack_file_ext = get_model_data_package_extension(self._model_pack_path)
+                trained_model_pack_path = self._model_pack_path.replace(
+                    model_pack_file_ext,
+                    f"_trained_{run_id}{model_pack_file_ext}",
                 )
-                copied_model_directory = os.path.join(
-                    os.path.dirname(copied_model_pack_path),
-                    get_model_data_package_base_name(copied_model_pack_path),
+                model, tokenizer = self._model_service.model, self._model_service.tokenizer
+                trained_model_directory = os.path.join(
+                    os.path.dirname(trained_model_pack_path),
+                    get_model_data_package_base_name(trained_model_pack_path),
                 )
 
                 if non_default_device_is_available(self._config.DEVICE):
@@ -355,7 +359,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     ],
                 )
 
-                model = get_peft_model(model, lora_config)
+                peft_model = get_peft_model(model, lora_config)
 
                 mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
                 cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
@@ -378,6 +382,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     training_args = GRPOConfig(
                         output_dir=results_path,
                         logging_dir=logs_path,
+                        logging_steps=log_frequency,
                         learning_rate=5e-6,
                         adam_beta1=0.9,
                         adam_beta2=0.99,
@@ -385,20 +390,18 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                         warmup_ratio=0.1,
                         lr_scheduler_type="cosine",
                         optim="paged_adamw_8bit",
-                        logging_steps=1,
                         per_device_train_batch_size=6,   # This global batch size must be divisible by the number of generations
                         gradient_accumulation_steps=1,
                         num_generations=6,
                         max_prompt_length=max_prompt_length,
                         max_completion_length=max_seq_length - max_prompt_length,
                         num_train_epochs = training_params["nepochs"],
-                        max_steps=250,
                         save_steps=250,
                         max_grad_norm=0.1,
                         report_to="none",
                     )
                     trainer = GRPOTrainer(
-                        model=model,
+                        model=peft_model,
                         processing_class=tokenizer,
                         reward_funcs=self._get_reward_functions(),
                         args=training_args,
@@ -409,7 +412,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 else:
                     raise ConfigurationException(f"Unsupported trainer type: {trainer_type}")
 
-                self._tracker_client.log_model_config(model.config.to_dict())
+                self._tracker_client.log_model_config({**model.config.to_dict(), **peft_model.peft_config})
                 self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
 
                 logger.info(f"Performing {trainer_type.upper()} training...")
@@ -422,11 +425,13 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_LLM.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
+                    model = peft_model.merge_and_unload()
                     model.save_pretrained(
-                        copied_model_directory,
+                        trained_model_directory,
                         safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
                     )
-                    create_model_data_package(copied_model_directory, retrained_model_pack_path)
+                    tokenizer.save_pretrained(trained_model_directory)
+                    create_model_data_package(trained_model_directory, retrained_model_pack_path)
                     model_uri = self._tracker_client.save_model(
                         retrained_model_pack_path,
                         self._model_name,
@@ -475,7 +480,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 with self._training_lock:
                     self._training_in_progress = False
                 self._clean_up_training_cache()
-                self._housekeep_file(copied_model_pack_path)
+                self._housekeep_file(trained_model_pack_path)
                 if trainer is not None:
                     del trainer
                     gc.collect()
@@ -505,6 +510,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 training_args = GRPOConfig(
                     output_dir=results_path,
                     logging_dir=logs_path,
+                    logging_steps=log_frequency,
                     per_device_eval_batch_size=6,
                     num_generations=2,
                     max_prompt_length=max_prompt_length,
@@ -607,19 +613,19 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             )
             return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
 
-        def int_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+        def int_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
             responses = [completion[0]["content"] for completion in completions]
             extracted_responses = [extract_xml_answer(r) for r in responses]
             return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
 
-        def strict_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+        def strict_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
             """Reward function that checks if the completion has a specific format."""
             pattern = r"^<reasoning>\n.*?\n</reasoning>\n<answer>\n.*?\n</answer>\n$"
             responses = [completion[0]["content"] for completion in completions]
             matches = [re.match(pattern, r) for r in responses]
             return [0.5 if match else 0.0 for match in matches]
 
-        def soft_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+        def soft_format_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
             """Reward function that checks if the completion has a specific format."""
             pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
             responses = [completion[0]["content"] for completion in completions]
@@ -640,7 +646,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 count -= (len(text.split("\n</answer>")[-1]) - 1) * 0.001
             return count
 
-        def xmlcount_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> list[float]:
+        def xmlcount_reward_func(completions: Tuple[Any], **kwargs: Dict[str, Any]) -> List[float]:
             contents = [completion[0]["content"] for completion in completions]
             return [count_xml(c) for c in contents]
 
