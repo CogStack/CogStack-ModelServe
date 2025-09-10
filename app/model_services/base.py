@@ -154,9 +154,13 @@ class AbstractModelService(ABC, Generic[T]):
         raise NotImplementedError
 
     @abstractmethod
-    def init_model(self) -> None:
+    def init_model(self, *args: Any, **kwargs: Any) -> None:
         """
         Initialises the model and auxiliary resources.
+
+        Args:
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Raises:
             NotImplementedError: If the method is not implemented by the subclass.
