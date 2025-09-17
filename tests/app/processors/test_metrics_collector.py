@@ -7,7 +7,6 @@ from app.model_services.base import AbstractModelService
 from app.processors.metrics_collector import (
     sanity_check_model_with_trainer_export,
     concat_trainer_exports,
-    concat_json_lists,
     get_stats_from_trainer_export,
     get_iaa_scores_per_concept,
     get_iaa_scores_per_doc,
@@ -333,56 +332,3 @@ def test_get_iaa_scores_per_span_and_return_dataframe():
     assert len(result["cohens_kappa"]) == 30
     assert len(result["iaa_percentage_meta"]) == 30
     assert len(result["cohens_kappa_meta"]) == 30
-
-
-def test_concat_json_lists_return_list():
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f1:
-        json.dump([{"question": "question_1", "answer": "answer_1"}, {"question": "question_2", "answer": "answer_2"}], f1)
-        file1_path = f1.name
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f2:
-        json.dump([{"question": "question_3", "answer": "answer_3"}], f2)
-        file2_path = f2.name
-
-    try:
-        result = concat_json_lists([file1_path, file2_path])
-
-        assert isinstance(result, list)
-        assert len(result) == 3
-        assert result[0] == {"question": "question_1", "answer": "answer_1"}
-        assert result[1] == {"question": "question_2", "answer": "answer_2"}
-        assert result[2] == {"question": "question_3", "answer": "answer_3"}
-    finally:
-        os.unlink(file1_path)
-        os.unlink(file2_path)
-
-
-def test_concat_json_lists_save_to_file():
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f1:
-        json.dump([{"question": "question_1", "answer": "answer_1"}], f1)
-        file1_path = f1.name
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f2:
-        json.dump([{"question": "question_2", "answer": "answer_2"}], f2)
-        file2_path = f2.name
-
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as output_file:
-        output_path = output_file.name
-
-    try:
-        result = concat_json_lists([file1_path, file2_path], output_path)
-
-        assert isinstance(result, str)
-        assert result == output_path
-
-        with open(output_path, 'r') as f:
-            saved_data = json.load(f)
-
-        assert isinstance(saved_data, list)
-        assert len(saved_data) == 2
-        assert saved_data[0] == {"question": "question_1", "answer": "answer_1"}
-        assert saved_data[1] == {"question": "question_2", "answer": "answer_2"}
-    finally:
-        os.unlink(file1_path)
-        os.unlink(file2_path)
-        os.unlink(output_path)

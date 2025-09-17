@@ -3,19 +3,17 @@ import logging
 import asyncio
 import torch
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Callable, Union
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, Callable, Union
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizerBase,
     TextIteratorStreamer,
-    BitsAndBytesConfig,
 )
 from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
-from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation
 from app.config import Settings
 from app.utils import (
@@ -125,19 +123,13 @@ class HuggingFaceLlmModel(AbstractModelService):
         return model_service
 
     @staticmethod
-    def load_model(
-        model_file_path: str,
-        *args: Tuple,
-        load_in_4bit: bool = False,
-        **kwargs: Dict[str, Any]
-    ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         """
         Loads a pre-trained model and its tokenizer from a model package file.
 
         Args:
             model_file_path (str): The path to the model package file.
             *args (Tuple): Additional positional arguments.
-            load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
             **kwargs (Dict[str, Any]): Additional keyword arguments.
 
         Returns:
@@ -150,16 +142,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
-                if load_in_4bit:
-                    bnb_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_quant_type="nf4",
-                        bnb_4bit_compute_dtype=torch.bfloat16,
-                        bnb_4bit_use_double_quant=True,
-                    )
-                    model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
-                else:
-                    model = AutoModelForCausalLM.from_pretrained(model_path)
+                model = AutoModelForCausalLM.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
@@ -189,7 +172,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             if non_default_device_is_available(get_settings().DEVICE):
                 self._model.to(get_settings().DEVICE)
             if self._enable_trainer:
-                self._supervised_trainer = HuggingFaceLlmSupervisedTrainer(self)
+                logger.error("Trainers are not yet implemented for HuggingFace Generative models")
 
     def info(self) -> ModelCard:
         """
@@ -372,49 +355,3 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         results = embeddings.cpu().numpy().tolist()
         return results[0] if isinstance(text, str) else results
-
-    def train_supervised(
-        self,
-        data_file: TextIO,
-        epochs: int,
-        log_frequency: int,
-        training_id: str,
-        input_file_name: str,
-        raw_data_files: Optional[List[TextIO]] = None,
-        description: Optional[str] = None,
-        synchronised: bool = False,
-        **hyperparams: Dict[str, Any],
-    ) -> Tuple[bool, str, str]:
-        """
-        Initiates supervised training on the model.
-
-        Args:
-            data_file (TextIO): The file containing the trainer export data.
-            epochs (int): The number of training epochs.
-            log_frequency (int): The number of epochs after which training metrics will be logged.
-            training_id (str): A unique identifier for the training process.
-            input_file_name (str): The name of the input file to be logged.
-            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
-            description (Optional[str]): The description of the training or change logs. Defaults to empty.
-            synchronised (bool): Whether to wait for the training to complete.
-            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
-
-        Returns:
-            Tuple[bool, str, str]: A tuple with the first element indicating success or failure.
-
-        Raises:
-            ConfigurationException: If the supervised trainer is not enabled.
-        """
-        if self._supervised_trainer is None:
-            raise ConfigurationException("The supervised trainer is not enabled")
-        return self._supervised_trainer.train(
-            data_file,
-            epochs,
-            log_frequency,
-            training_id,
-            input_file_name,
-            raw_data_files,
-            description,
-            synchronised,
-            **hyperparams,
-        )

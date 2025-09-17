@@ -26,7 +26,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from app.config import Settings
-from app.domain import TagsGenerative
+from app.domain import Tags
 from app.exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
 
 logger = logging.getLogger("cms")
@@ -376,7 +376,7 @@ async def init_vllm_engine(app: FastAPI,
             endpoint=endpoint,
             methods=methods,
             include_in_schema=True,
-            tags=[TagsGenerative.Generative.name],
+            tags=[Tags.Generative],
         )
     app.include_router(router)
 

@@ -13,7 +13,6 @@ from fastapi.responses import PlainTextResponse, StreamingResponse, JSONResponse
 from starlette.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from app.domain import (
     Tags,
-    TagsGenerative,
     OpenAIChatRequest,
     OpenAIChatResponse,
     OpenAIEmbeddingsRequest,
@@ -42,7 +41,7 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
 
 @router.post(
     PATH_GENERATE,
-    tags=[TagsGenerative.Generative],
+    tags=[Tags.Generative.name],
     response_class=PlainTextResponse,
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Generate text",
@@ -92,7 +91,7 @@ def generate_text(
 
 @router.post(
     PATH_GENERATE_ASYNC,
-    tags=[TagsGenerative.Generative],
+    tags=[Tags.Generative.name],
     response_class=StreamingResponse,
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Generate a stream of texts",

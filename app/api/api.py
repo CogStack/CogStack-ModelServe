@@ -4,7 +4,7 @@ import importlib
 import os.path
 import app.api.globals as cms_globals
 
-from typing import Dict, Any, Optional, Union, Type
+from typing import Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 from anyio.lowlevel import RunVar
 from anyio import CapacityLimiter
@@ -20,7 +20,7 @@ from app.api.auth.users import Props
 from app.api.dependencies import ModelServiceDep
 from app.api.utils import add_exception_handlers, add_rate_limiter, init_vllm_engine
 from app.config import Settings
-from app.domain import Tags, TagsStreamable, TagsGenerative
+from app.domain import Tags, TagsStreamable
 from app.management.tracker_client import TrackerClient
 from app.utils import get_settings, unpack_model_data_package, get_model_data_package_base_name
 from app.exception import ConfigurationException
@@ -131,11 +131,6 @@ def get_generative_server(config: Settings, msd_overwritten: Optional[ModelServi
     app = _load_health_check_router(app)
     logger.debug("Health check router loaded")
 
-    if config.ENABLE_TRAINING_APIS == "true":
-        app = _load_supervised_training_router(app)
-        logger.debug("Supervised training router loaded")
-        app = _load_training_operations(app)
-
     if config.AUTH_USER_ENABLED == "true":
         app = _load_auth_router(app)
         logger.debug("Auth router loaded")
@@ -203,18 +198,11 @@ def _get_app(
     streamable: bool = False,
     generative: bool = False,
 ) -> FastAPI:
-    config = get_settings()
-    tags: Union[Type[Tags], Type[TagsStreamable], Type[TagsGenerative]]
-    if generative:
-        tags = TagsGenerative
-    elif streamable:
-        tags = TagsStreamable
-    else:
-        tags = Tags
     tags_metadata = [{  # type: ignore
-        "name": tag.name,   # type: ignore
-        "description": tag.value    # type: ignore
-    } for tag in tags]
+        "name": tag.name,
+        "description": tag.value
+    } for tag in (Tags if not streamable else TagsStreamable)]
+    config = get_settings()
     app = FastAPI(
         title="CogStack ModelServe",
         summary="A model serving and governance system for CogStack NLP solutions",

@@ -194,36 +194,6 @@ def concat_trainer_exports(
         return combined
 
 
-def concat_json_lists(
-    data_file_paths: List[str],
-    combined_data_file_path: Optional[str] = None,
-) -> Union[List[Dict[str, Any]], str]:
-    """
-    Concatenates multiple json list files into a single combined file.
-
-    Args:
-        data_file_paths (List[str]): List of paths to files each containing a json list.
-        combined_data_file_path (Optional[str]): The file path where the combined data will be saved. If None, the combined data will be returned as a list.
-
-
-    Returns:
-        Union[List[Dict[str, Any]], str]: The path to the combined data file if `combined_data_file_path` is provided, or the combined data as a list otherwise.
-    """
-    combined: List = []
-    for path in data_file_paths:
-        with open(path, "r") as f:
-            data = json.load(f)
-        combined.extend(data)
-
-    if isinstance(combined_data_file_path, str):
-        with open(combined_data_file_path, "w") as f:
-            json.dump(combined, f)
-
-        return combined_data_file_path
-    else:
-        return combined
-
-
 def get_stats_from_trainer_export(
     trainer_export: Union[str, IO, Dict],
     return_df: bool = False,

@@ -12,9 +12,9 @@ from starlette.status import HTTP_202_ACCEPTED, HTTP_503_SERVICE_UNAVAILABLE
 
 import app.api.globals as cms_globals
 from app.api.dependencies import validate_tracking_id
-from app.domain import Tags, ModelType
+from app.domain import Tags
 from app.model_services.base import AbstractModelService
-from app.processors.metrics_collector import concat_json_lists, concat_trainer_exports
+from app.processors.metrics_collector import concat_trainer_exports
 from app.utils import filter_by_concept_ids
 
 router = APIRouter()
@@ -72,19 +72,12 @@ async def train_supervised(
         files.append(temp_te)
         file_names.append("" if te.filename is None else te.filename)
 
-    if model_service.info().model_type is not ModelType.HUGGINGFACE_LLM:
-        concatenated_te = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
-        logger.debug("Training exports concatenated")
-        data_file = tempfile.NamedTemporaryFile(mode="w+")
-        concatenated_te = filter_by_concept_ids(cast(Dict[str, Any], concatenated_te), model_service.info().model_type)
-        logger.debug("Training exports filtered by concept IDs")
-        json.dump(concatenated_te, data_file)
-    else:
-        concatenated = concat_json_lists([file.name for file in files])
-        logger.debug("Training exports concatenated")
-        data_file = tempfile.NamedTemporaryFile(mode="w+")
-        json.dump(concatenated, data_file)
-
+    concatenated = concat_trainer_exports([file.name for file in files], allow_recurring_doc_ids=False)
+    logger.debug("Training exports concatenated")
+    data_file = tempfile.NamedTemporaryFile(mode="w")
+    concatenated = filter_by_concept_ids(cast(Dict[str, Any], concatenated), model_service.info().model_type)
+    logger.debug("Training exports filtered by concept IDs")
+    json.dump(concatenated, data_file)
     data_file.flush()
     data_file.seek(0)
     training_id = tracking_id or str(uuid.uuid4())
@@ -107,7 +100,6 @@ async def train_supervised(
             file.close()
 
     return _get_training_response(training_response, training_id)
-
 
 
 def _get_training_response(training_response: Tuple[bool, str, str], training_id: str) -> JSONResponse:
