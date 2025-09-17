@@ -168,8 +168,6 @@ class HuggingFaceLlmModel(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model, self._tokenizer = self.load_model(self._model_pack_path)
-            if non_default_device_is_available(get_settings().DEVICE):
-                self._model.to(get_settings().DEVICE)
             if self._enable_trainer:
                 logger.error("Trainers are not yet implemented for HuggingFace Generative models")
 
@@ -193,20 +191,13 @@ class HuggingFaceLlmModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace Generative models")
 
-    def generate(
-        self,
-        prompt: str,
-        max_tokens: int = 512,
-        temperature: float = 0.7,
-        **kwargs: Any
-    ) -> str:
+    def generate(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> str:
         """
         Generates text based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
-            temperature (float): The temperature for the text generation. Defaults to 0.7.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
@@ -223,8 +214,8 @@ class HuggingFaceLlmModel(AbstractModelService):
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
             max_new_tokens=max_tokens,
-            do_sample=False,
-            temperature=temperature,
+            do_sample=True,
+            temperature=0.7,
             top_p=0.9,
         )
 
@@ -236,20 +227,13 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         return generated_text
 
-    async def generate_async(
-        self,
-        prompt: str,
-        max_tokens: int = 512,
-        temperature: float = 0.7,
-        **kwargs: Any
-    ) -> AsyncIterable:
+    async def generate_async(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> AsyncIterable:
         """
         Asynchronously generates text stream based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
-            temperature (float): The temperature for the text generation. Defaults to 0.7.
             **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
         Returns:
@@ -273,7 +257,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             streamer=streamer,
             max_new_tokens=max_tokens,
             do_sample=True,
-            temperature=temperature,
+            temperature=0.7,
             top_p=0.9,
         )
 

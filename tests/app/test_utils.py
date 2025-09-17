@@ -6,7 +6,7 @@ import shutil
 import zipfile
 import tarfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from safetensors.torch import save_file
 from transformers import PreTrainedModel
 from urllib.parse import urlparse
@@ -33,10 +33,8 @@ from app.utils import (
     pyproject_dependencies_to_pip_requirements,
     get_model_data_package_base_name,
     load_pydantic_object_from_dict,
-    dump_pydantic_object_to_dict,
-    get_prompt_from_messages,
 )
-from app.domain import Annotation, Entity, PromptMessage, PromptRole
+from app.domain import Annotation, Entity
 
 
 def test_get_code_base_uri():
@@ -395,46 +393,3 @@ class _DummyModel(torch.nn.Module):
 
     def forward(self, x):
         return self.linear(x)
-
-
-def test_get_prompt_with_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
-        mock_tokenizer = tok.return_value
-        mock_tokenizer.chat_template = "Mock chat template"
-        mock_tokenizer.apply_chat_template.return_value = "Mock chat template applied"
-        messages = [
-            PromptMessage(content="Alright?", role=PromptRole.USER.value),
-            PromptMessage(content="Yeah.", role=PromptRole.ASSISTANT.value),
-        ]
-
-        prompt = get_prompt_from_messages(mock_tokenizer, messages)
-
-        assert prompt == "Mock chat template applied"
-
-
-def test_get_prompt_without_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
-        mock_tokenizer = tok.return_value
-        mock_tokenizer.chat_template = None
-        messages = [
-            PromptMessage(content="You are a helpful assistant.", role=PromptRole.SYSTEM.value),
-            PromptMessage(content="Alright?", role=PromptRole.USER.value),
-            PromptMessage(content="Yeah.", role=PromptRole.ASSISTANT.value),
-        ]
-
-        prompt = get_prompt_from_messages(mock_tokenizer, messages)
-
-        expected_prompt = "<|system|>\nYou are a helpful assistant.</s>\n<|user|>\nAlright?</s>\n<|assistant|>\nYeah.</s>\n<|assistant|>\n"
-        assert prompt == expected_prompt
-
-
-def test_get_prompt_with_no_messages():
-    with patch('transformers.PreTrainedTokenizer') as tok:
-        mock_tokenizer = tok.return_value
-        mock_tokenizer.chat_template = None
-        messages = []
-
-        prompt = get_prompt_from_messages(mock_tokenizer, messages)
-
-        expected_prompt = "\n<|assistant|>\n"
-        assert prompt == expected_prompt

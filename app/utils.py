@@ -20,12 +20,12 @@ from pydantic import BaseModel
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import PreTrainedModel
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
 from app.config import Settings
-from app.domain import Annotation, Entity, CodeType, ModelType, Device, PromptMessage, PromptRole
+from app.domain import Annotation, Entity, CodeType, ModelType, Device
 from app.exception import ManagedModelException
 
 
@@ -682,24 +682,6 @@ def load_pydantic_object_from_dict(model: Type[T], obj: Dict) -> T:
         raise TypeError("Model must have a known method for parsing objects.")
 
 
-def dump_pydantic_object_to_dict(model: BaseModel) -> Dict:
-    """
-    Dumps the pydantic model object to a dictionary.
-
-    Args:
-        model (BaseModel): The pydantic model to dump.
-
-    Returns:
-        Dict: The dictionary object.
-    """
-
-    if hasattr(model, "model_dump"):
-        return model.model_dump()    # type: ignore
-    elif hasattr(model, "dict"):
-        return model.dict()    # type: ignore
-    else:
-        raise TypeError("Model must have a known method for dumping objects.")
-
 def download_model_package(
     model_package_url: str,
     destination_path: str,
@@ -738,41 +720,6 @@ def download_model_package(
             time.sleep(retry_delay)
             retry_delay *= 2
 
-
-def get_prompt_from_messages(tokenizer: PreTrainedTokenizer, messages: List[PromptMessage]) -> str:
-    """
-    Generates a prompt from a list of prompt messages.
-
-    Args:
-        tokenizer (PreTrainedTokenizer): The tokenizer to use for applying the chat template.
-        messages (List[PromptMessage]): The list of prompt messages to use for generating the prompt.
-
-    Returns:
-        str: The generated prompt.
-    """
-    if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
-        prompt = tokenizer.apply_chat_template(
-            [dump_pydantic_object_to_dict(message) for message in messages],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-    else:
-        system_content = ""
-        prompt_parts: List[str] = []
-        for message in messages:
-            content = message.content.strip()
-            if message.role == PromptRole.SYSTEM:
-                system_content = content
-            elif message.role == PromptRole.USER:
-                prompt_parts.append(f"<|user|>\n{content}</s>")
-            elif message.role == PromptRole.ASSISTANT:
-                prompt_parts.append(f"<|assistant|>\n{content}</s>")
-        if system_content:
-            prompt = f"<|system|>\n{system_content}</s>\n" + "\n".join(prompt_parts)
-        else:
-            prompt = "\n".join(prompt_parts)
-        prompt += "\n<|assistant|>\n"
-    return prompt
 
 TYPE_ID_TO_NAME_PATCH = {
     "32816260": "physical object",
