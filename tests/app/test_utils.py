@@ -412,27 +412,10 @@ def test_get_prompt_with_chat_template():
         assert prompt == "Mock chat template applied"
 
 
-def test_get_prompt_with_default_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
-        mock_tokenizer = tok.return_value
-        mock_tokenizer.chat_template = None
-        mock_tokenizer.default_chat_template = "Mock default chat template"
-        mock_tokenizer.apply_chat_template.return_value = "Mock default chat template applied"
-        messages = [
-            PromptMessage(content="Alright?", role=PromptRole.USER.value),
-            PromptMessage(content="Yeah.", role=PromptRole.ASSISTANT.value),
-        ]
-
-        prompt = get_prompt_from_messages(mock_tokenizer, messages)
-
-        assert prompt == "Mock default chat template applied"
-
-
 def test_get_prompt_without_chat_template():
     with patch('transformers.PreTrainedTokenizer') as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = None
-        mock_tokenizer.default_chat_template = None
         messages = [
             PromptMessage(content="You are a helpful assistant.", role=PromptRole.SYSTEM.value),
             PromptMessage(content="Alright?", role=PromptRole.USER.value),
@@ -449,9 +432,9 @@ def test_get_prompt_with_no_messages():
     with patch('transformers.PreTrainedTokenizer') as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = None
-        mock_tokenizer.default_chat_template = None
         messages = []
 
         prompt = get_prompt_from_messages(mock_tokenizer, messages)
 
-        assert prompt == "\n<|assistant|>\n"
+        expected_prompt = "\n<|assistant|>\n"
+        assert prompt == expected_prompt
