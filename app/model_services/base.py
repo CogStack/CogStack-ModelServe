@@ -1,6 +1,6 @@
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncIterable, Union
+from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncIterable
 from app.config import Settings
 from app.domain import ModelCard, Annotation
 
@@ -17,7 +17,7 @@ class _TrainerCommon(Protocol):
 T = TypeVar("T", bound=_TrainerCommon)
 
 class AbstractModelService(ABC, Generic[T]):
-    """An abstract base class defining the common interface for NER model services."""
+    """An abstract base class defining the common interface for all model services."""
 
     @abstractmethod
     def __init__(self, config: Settings, *args: Any, **kwargs: Any) -> None:
@@ -193,29 +193,6 @@ class AbstractModelService(ABC, Generic[T]):
 
         Returns:
             AsyncIterable: The stream containing the generated text.
-
-        Raises:
-            NotImplementedError: If the method is not implemented by the subclass.
-        """
-
-        raise NotImplementedError
-
-    def create_embeddings(
-        self,
-        text: Union[str, List[str]],
-        *args: Any,
-        **kwargs: Any
-    ) -> Union[List[float], List[List[float]]]:
-        """
-        Creates embeddings for a given text or list of texts.
-
-        Args:
-            text (Union[str, List[str]]): The text(s) to be embedded.
-            *args (Any): Additional positional arguments to be passed to this method.
-            **kwargs (Any): Additional keyword arguments to be passed to this method.
-
-        Returns:
-            Union[List[float], List[List[float]]]: The embedding vector(s) for the text(s).
 
         Raises:
             NotImplementedError: If the method is not implemented by the subclass.
