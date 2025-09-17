@@ -174,14 +174,8 @@ class HuggingFaceLlmModel(AbstractModelService):
         else:
             raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
-    def init_model(self, load_in_4bit: bool = False, *args: Any, **kwargs: Any) -> None:
-        """Initialises the HuggingFace model and its tokenizer based on the configuration.
-
-        Args:
-            load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
-            *args (Any): Additional positional arguments to be passed to this method.
-            **kwargs (Any): Additional keyword arguments to be passed to this method.
-        """
+    def init_model(self) -> None:
+        """Initialises the HuggingFace model and its tokenizer based on the configuration."""
 
         if all([
             hasattr(self, "_model"),
@@ -191,7 +185,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         ]):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model, self._tokenizer = self.load_model(self._model_pack_path, load_in_4bit=load_in_4bit)
+            self._model, self._tokenizer = self.load_model(self._model_pack_path)
             if non_default_device_is_available(get_settings().DEVICE):
                 self._model.to(get_settings().DEVICE)
             if self._enable_trainer:

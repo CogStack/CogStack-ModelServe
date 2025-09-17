@@ -67,7 +67,6 @@ def serve_model(
     streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
     device: Device = typer.Option(Device.DEFAULT.value, help="The device to serve the model on"),
     llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS.value, help="The engine to use for text generation"),
-    load_in_4bit: Optional[bool] = typer.Option(False, help="Load the model in 4-bit precision, used by 'huggingface_llm' models"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -85,7 +84,6 @@ def serve_model(
         streamable (bool): Serve the streamable endpoints only. Defaults to False.
         device (Device): The device to serve the model on. Defaults to Device.DEFAULT.
         llm_engine (LlmEngine): The inference engine to use. Defaults to LlmEngine.CMS.
-        load_in_4bit (bool): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -137,7 +135,7 @@ def serve_model(
         if model_path:
             model_service = model_service_dep()
             model_service.model_name = model_name
-            model_service.init_model(load_in_4bit=load_in_4bit)
+            model_service.init_model()
             cms_globals.model_manager_dep = ModelManagerDep(model_service)
         elif mlflow_model_uri:
             model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
@@ -189,7 +187,6 @@ def train_model(
     description: Optional[str] = typer.Option(None, help="The description of the training or change logs"),
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
     device: Device = typer.Option(Device.DEFAULT.value, help="The device to train the model on"),
-    load_in_4bit: Optional[bool] = typer.Option(False, help="Load the model in 4-bit precision, used by 'huggingface_llm' models"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -209,7 +206,6 @@ def train_model(
         description (Optional[str]): The optional description of the training or change logs.
         model_name (Optional[str]): The optional string representation of the model name.
         device (Device): The device to train the model on. Defaults to Device.DEFAULT.
-        load_in_4bit (bool): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -233,7 +229,7 @@ def train_model(
             pass
         model_service = model_service_dep()
         model_service.model_name = model_name if model_name is not None else "CMS model"
-        model_service.init_model(load_in_4bit=load_in_4bit)
+        model_service.init_model()
     elif mlflow_model_uri:
         model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
         model_service.model_name = model_name if model_name is not None else "CMS model"

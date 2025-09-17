@@ -547,6 +547,11 @@ def unpack_model_data_package(model_data_file_path: str, model_data_folder_path:
     elif model_data_file_path.endswith(".tar.gz"):
         with tarfile.open(model_data_file_path, "r:gz") as f:
             for member in f.getmembers():
+                path_parts = member.name.split(os.sep)
+                stripped_path = os.sep.join(path_parts[1:])
+                if not stripped_path:
+                    continue
+                member.name = stripped_path
                 f.extract(member, path=model_data_folder_path)
             return True
     else:
