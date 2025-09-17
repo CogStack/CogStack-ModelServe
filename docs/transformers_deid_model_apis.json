@@ -1579,6 +1579,10 @@
         {
             "name": "Generative",
             "description": "Generate text based on the input prompt"
+        },
+        {
+            "name": "OpenAICompatible",
+            "description": "Compatible with OpenAI APIs"
         }
     ]
 }
