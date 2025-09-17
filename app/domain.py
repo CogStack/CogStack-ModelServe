@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 
 from fastapi import HTTPException
 from starlette.status import HTTP_400_BAD_REQUEST
@@ -27,10 +27,17 @@ class Tags(str, Enum):
     Evaluating = "Evaluate the deployed model with trainer export"
     Authentication = "Authenticate registered users"
     Generative = "Generate text based on the input prompt"
+    OpenAICompatible = "Compatible with OpenAI APIs"
 
 
 class TagsStreamable(str, Enum):
+    Metadata = "Get the model card"
     Streaming = "Retrieve NER entities as a stream by running the model"
+
+
+class TagsGenerative(str, Enum):
+    Metadata = "Get the model card"
+    Generative = "Generate text based on the input prompt"
 
 
 class CodeType(str, Enum):
@@ -103,6 +110,19 @@ class LlmEngine(Enum):
     CMS = "CMS"
     VLLM = "vLLM"
 
+class LlmRole(Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+class LlmTrainerType(Enum):
+    GRPO = "grpo"
+    PPO = "ppo"
+
+class LlmDatasetType(Enum):
+    JSON = "json"
+    CSV = "csv"
 
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(default=None, description="The name of the document to which the annotation belongs")
@@ -167,3 +187,42 @@ class Doc(BaseModel):
     text: str = Field(description="The text from which the entities are extracted")
     ents: List[Entity] = Field(description="The list of extracted entities")
     title: Optional[str] = Field(default=None, description="The headline of the text")
+
+
+class PromptRole(Enum):
+    SYSTEM = "system"
+    USER = "user"
+    ASSISTANT = "assistant"
+    TOOL = "tool"
+
+
+class PromptMessage(BaseModel):
+    role: PromptRole = Field(description="The role who generates the message")
+    content: str = Field(description="The actual text of the message")
+
+
+class OpenAIChatRequest(BaseModel):
+    messages: List[PromptMessage] = Field(..., description="A list of messages to be sent to the model")
+    stream: bool = Field(..., description="Whether to stream the response")
+    max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
+    model: str = Field(..., description="The name of the model used for generating the completion")
+    temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
+
+
+class OpenAIChatResponse(BaseModel):
+    id: str = Field(..., description="The unique identifier for the chat completion request")
+    object: str = Field(..., description="The type of the response")
+    created: int = Field(..., description="The timestamp when the completion was generated")
+    model: str = Field(..., description="The name of the model used for generating the completion")
+    choices: List = Field(..., description="The generated messages and their metadata")
+
+
+class OpenAIEmbeddingsRequest(BaseModel):
+    input: Union[str, List[str]] = Field(..., description="Input text or list of texts to embed")
+    model: str = Field(..., description="The name of the model used for creating the embeddings")
+
+
+class OpenAIEmbeddingsResponse(BaseModel):
+    object: str = Field(..., description="The type of the response")
+    data: List[Dict[str, Any]] = Field(..., description="List of embedding objects")
+    model: str = Field(..., description="The name of the model used for creating the embeddings")

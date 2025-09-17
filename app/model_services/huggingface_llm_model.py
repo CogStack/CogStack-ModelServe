@@ -1,18 +1,21 @@
 import os
 import logging
 import asyncio
+import torch
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncIterable
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Callable, Union
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizerBase,
     TextIteratorStreamer,
+    BitsAndBytesConfig,
 )
 from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
+from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation
 from app.config import Settings
 from app.utils import (
@@ -122,13 +125,19 @@ class HuggingFaceLlmModel(AbstractModelService):
         return model_service
 
     @staticmethod
-    def load_model(model_file_path: str, *args: Tuple, **kwargs: Dict[str, Any]) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
+    def load_model(
+        model_file_path: str,
+        *args: Tuple,
+        load_in_4bit: bool = False,
+        **kwargs: Dict[str, Any]
+    ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         """
         Loads a pre-trained model and its tokenizer from a model package file.
 
         Args:
             model_file_path (str): The path to the model package file.
             *args (Tuple): Additional positional arguments.
+            load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
             **kwargs (Dict[str, Any]): Additional keyword arguments.
 
         Returns:
@@ -141,7 +150,16 @@ class HuggingFaceLlmModel(AbstractModelService):
         model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
-                model = AutoModelForCausalLM.from_pretrained(model_path)
+                if load_in_4bit:
+                    bnb_config = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_quant_type="nf4",
+                        bnb_4bit_compute_dtype=torch.bfloat16,
+                        bnb_4bit_use_double_quant=True,
+                    )
+                    model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                else:
+                    model = AutoModelForCausalLM.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
@@ -156,8 +174,14 @@ class HuggingFaceLlmModel(AbstractModelService):
         else:
             raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
-    def init_model(self) -> None:
-        """Initialises the HuggingFace model and its tokenizer based on the configuration."""
+    def init_model(self, load_in_4bit: bool = False, *args: Any, **kwargs: Any) -> None:
+        """Initialises the HuggingFace model and its tokenizer based on the configuration.
+
+        Args:
+            load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+        """
 
         if all([
             hasattr(self, "_model"),
@@ -167,9 +191,11 @@ class HuggingFaceLlmModel(AbstractModelService):
         ]):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model, self._tokenizer = self.load_model(self._model_pack_path)
+            self._model, self._tokenizer = self.load_model(self._model_pack_path, load_in_4bit=load_in_4bit)
+            if non_default_device_is_available(get_settings().DEVICE):
+                self._model.to(get_settings().DEVICE)
             if self._enable_trainer:
-                logger.error("Trainers are not yet implemented for HuggingFace Generative models")
+                self._supervised_trainer = HuggingFaceLlmSupervisedTrainer(self)
 
     def info(self) -> ModelCard:
         """
@@ -191,13 +217,22 @@ class HuggingFaceLlmModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace Generative models")
 
-    def generate(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> str:
+    def generate(
+        self,
+        prompt: str,
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        report_tokens: Optional[Callable[[str], None]] = None,
+        **kwargs: Any
+    ) -> str:
         """
         Generates text based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
+            temperature (float): The temperature for the text generation. Defaults to 0.7.
+            report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
@@ -214,26 +249,39 @@ class HuggingFaceLlmModel(AbstractModelService):
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
             max_new_tokens=max_tokens,
-            do_sample=True,
-            temperature=0.7,
+            do_sample=False,
+            temperature=temperature,
             top_p=0.9,
         )
 
         outputs = self.model.generate(**generation_kwargs)
         generated_text = self.tokenizer.decode(outputs[0], skip_prompt=True, skip_special_tokens=True)
-
-
         logger.debug("Response generation completed")
+
+        if report_tokens:
+            report_tokens(
+                prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
+                completion_token_num=outputs[0].shape[-1],  # type: ignore
+            )
 
         return generated_text
 
-    async def generate_async(self, prompt: str, max_tokens: int = 512, **kwargs: Any) -> AsyncIterable:
+    async def generate_async(
+        self,
+        prompt: str,
+        max_tokens: int = 512,
+        temperature: float = 0.7,
+        report_tokens: Optional[Callable[[str], None]] = None,
+        **kwargs: Any
+    ) -> AsyncIterable:
         """
         Asynchronously generates text stream based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
+            temperature (float): The temperature for the text generation. Defaults to 0.7.
+            report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
         Returns:
@@ -257,18 +305,123 @@ class HuggingFaceLlmModel(AbstractModelService):
             streamer=streamer,
             max_new_tokens=max_tokens,
             do_sample=True,
-            temperature=0.7,
+            temperature=temperature,
             top_p=0.9,
         )
 
         try:
             _ = self._text_generator.submit(self.model.generate, **generation_kwargs)
+            output = ""
             for content in streamer:
                 yield content
+                output += content
                 await asyncio.sleep(0.01)
+            if report_tokens:
+                report_tokens(
+                    prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
+                    completion_token_num=self.tokenizer(    # type: ignore
+                        output,
+                        add_special_tokens=False,
+                        return_tensors="pt"
+                    ).input_ids.shape[-1],
+                )
         except Exception as e:
             logger.error("An error occurred while generating the response")
             logger.exception(e)
             return
         finally:
             logger.debug("Chat response generation completed")
+
+    def create_embeddings(
+        self,
+        text: Union[str, List[str]],
+        *args: Any,
+        **kwargs: Any
+    ) -> Union[List[float], List[List[float]]]:
+        """
+        Creates embeddings for a given text or list of texts using the model's hidden states.
+
+        Args:
+            text (Union[str, List[str]]): The text(s) to be embedded.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            List[float], List[List[float]]: The embedding vector(s) for the text(s).
+
+        Raises:
+            NotImplementedError: If the model doesn't support embeddings.
+        """
+
+        self.model.eval()
+
+        inputs = self.tokenizer(
+            text,
+            add_special_tokens=False,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
+
+        if non_default_device_is_available(self._config.DEVICE):
+            inputs.to(get_settings().DEVICE)
+
+        with torch.no_grad():
+            outputs = self.model(**inputs, output_hidden_states=True)
+
+        last_hidden_state = outputs.hidden_states[-1]
+        attention_mask = inputs["attention_mask"]
+        masked_hidden_states = last_hidden_state * attention_mask.unsqueeze(-1)
+        sum_hidden_states = masked_hidden_states.sum(dim=1)
+        num_tokens = attention_mask.sum(dim=1, keepdim=True)
+        embeddings = sum_hidden_states / num_tokens
+        l2_normalised = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+        results = l2_normalised.cpu().numpy().tolist()
+        return results[0] if isinstance(text, str) else results
+
+    def train_supervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
+        """
+        Initiates supervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing the trainer export data.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of epochs after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]: A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the supervised trainer is not enabled.
+        """
+        if self._supervised_trainer is None:
+            raise ConfigurationException("The supervised trainer is not enabled")
+        return self._supervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )

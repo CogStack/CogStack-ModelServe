@@ -20,13 +20,14 @@ from pydantic import BaseModel
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
-from transformers import PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizer
 from urllib.parse import ParseResult
 from functools import lru_cache
 from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
 from app.config import Settings
-from app.domain import Annotation, Entity, CodeType, ModelType, Device
+from app.domain import Annotation, Entity, CodeType, ModelType, Device, PromptMessage, PromptRole
 from app.exception import ManagedModelException
+from app.processors.prompt_factory import PromptFactory
 
 
 @lru_cache
@@ -546,11 +547,6 @@ def unpack_model_data_package(model_data_file_path: str, model_data_folder_path:
     elif model_data_file_path.endswith(".tar.gz"):
         with tarfile.open(model_data_file_path, "r:gz") as f:
             for member in f.getmembers():
-                path_parts = member.name.split(os.sep)
-                stripped_path = os.sep.join(path_parts[1:])
-                if not stripped_path:
-                    continue
-                member.name = stripped_path
                 f.extract(member, path=model_data_folder_path)
             return True
     else:
@@ -682,6 +678,24 @@ def load_pydantic_object_from_dict(model: Type[T], obj: Dict) -> T:
         raise TypeError("Model must have a known method for parsing objects.")
 
 
+def dump_pydantic_object_to_dict(model: BaseModel) -> Dict:
+    """
+    Dumps the pydantic model object to a dictionary.
+
+    Args:
+        model (BaseModel): The pydantic model to dump.
+
+    Returns:
+        Dict: The dictionary object.
+    """
+
+    if hasattr(model, "model_dump"):
+        return model.model_dump(mode="json")    # type: ignore
+    elif hasattr(model, "dict"):
+        return model.dict()    # type: ignore
+    else:
+        raise TypeError("Model must have a known method for dumping objects.")
+
 def download_model_package(
     model_package_url: str,
     destination_path: str,
@@ -719,6 +733,112 @@ def download_model_package(
                 raise ManagedModelException(f"Failed to download model from {model_package_url} after {max_retries} attempts: {e}")
             time.sleep(retry_delay)
             retry_delay *= 2
+
+
+def get_default_chat_template() -> str:
+    """
+    Gets the default chat template.
+
+    Returns:
+        str: The default chat template.
+    """
+
+    return (
+        "{% if messages[0]['role'] == 'system' %}"
+        "{% set loop_messages = messages[1:] %}"
+        "{% set system_message = messages[0]['content'] %}"
+        "{% else %}"
+        "{% set loop_messages = messages %}"
+        "{% set system_message = false %}"
+        "{% endif %}"
+        "{% for message in loop_messages %}"
+        "{% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}"
+        "{{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}"
+        "{% endif %}"
+        "{% if loop.index0 == 0 and system_message != false %}"
+        "{% set content = '<<SYS>>\\n' + system_message + '\\n<</SYS>>\\n\\n' + message['content'] %}"
+        "{% else %}"
+        "{% set content = message['content'] %}"
+        "{% endif %}"
+        "{% if message['role'] == 'user' %}"
+        "{{ '<s>[INST] ' + content + ' [/INST]' }}"
+        "{% elif message['role'] == 'assistant' %}"
+        "{{ ' ' + content + ' </s>' }}"
+        "{% endif %}"
+        "{% endfor %}"
+    )
+
+
+def get_default_system_prompt() -> str:
+    """
+    Gets the default system prompt.
+
+    Returns:
+        str: The default system prompt.
+    """
+    return (
+        "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
+        "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
+        "process and answer are enclosed within <reasoning> </reasoning> and <answer> </answer> tags, respectively, i.e., "
+        "<reasoning> reasoning process here </reasoning><answer> answer here </answer>"
+    )
+
+
+def get_prompt_from_messages(
+        tokenizer: PreTrainedTokenizer,
+        messages: List[PromptMessage],
+        override_template: Optional[str] = None,
+) -> str:
+    """
+    Generates a prompt from a list of prompt messages.
+
+    Args:
+        tokenizer (PreTrainedTokenizer): The tokenizer to use for applying the chat template.
+        messages (List[PromptMessage]): The list of prompt messages to use for generating the prompt.
+        override_template (str): The name of the chat template to use for generating the prompt.
+
+    Returns:
+        str: The generated prompt.
+    """
+    if override_template is None:
+        if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
+            prompt = tokenizer.apply_chat_template(
+                [dump_pydantic_object_to_dict(message) for message in messages],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        elif hasattr(tokenizer, "default_chat_template") and tokenizer.default_chat_template:
+            # This largely depends on how older versions of HF tokenizers behave and may not work universally
+            tokenizer.chat_template = tokenizer.default_chat_template
+            prompt = tokenizer.apply_chat_template(
+                [dump_pydantic_object_to_dict(message) for message in messages],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        else:
+            system_content = ""
+            prompt_parts: List[str] = []
+            for message in messages:
+                content = message.content.strip()
+                if message.role == PromptRole.SYSTEM:
+                    system_content = content
+                elif message.role == PromptRole.USER:
+                    prompt_parts.append(f"<|user|>\n{content}</s>")
+                elif message.role == PromptRole.ASSISTANT:
+                    prompt_parts.append(f"<|assistant|>\n{content}</s>")
+            if system_content:
+                prompt = f"<|system|>\n{system_content}</s>\n" + "\n".join(prompt_parts)
+            else:
+                prompt = "\n".join(prompt_parts)
+            prompt += "\n<|assistant|>\n"
+    else:
+        tokenizer.chat_template = PromptFactory.create_chat_template(name=override_template)
+        prompt = tokenizer.apply_chat_template(
+            [dump_pydantic_object_to_dict(message) for message in messages],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    return prompt
 
 
 TYPE_ID_TO_NAME_PATCH = {

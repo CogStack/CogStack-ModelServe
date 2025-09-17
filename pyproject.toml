@@ -37,7 +37,7 @@ dependencies = [
     "pynvml~=11.5.3",
     "toml~=0.10.2",
     "peft<0.14.0",
-    "huggingface-hub~=0.32.0",
+    "huggingface-hub~=0.33.0",
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
@@ -71,6 +71,7 @@ dev = [
     "locust<2.32.0",
     "typer-cli~=0.15.1",
     "types-toml==0.10.8.20240310",
+    "openai>=1.84.0",
 ]
 docs = [
     "sphinx~=7.1.2",
@@ -81,6 +82,8 @@ docs = [
 
 vllm = [
     "vllm~=0.8.5; python_version >= '3.9'",
+    "trl>=0.11.4",
+    "bitsandbytes>=0.45.5",
 ]
 
 # For pip versions not supporting PEP 735
@@ -99,6 +102,7 @@ dev = [
     "locust<2.32.0",
     "typer-cli~=0.15.1",
     "types-toml==0.10.8.20240310",
+    "openai>=1.84.0",
 ]
 docs = [
     "sphinx~=7.1.2",
@@ -109,6 +113,8 @@ docs = [
 
 vllm = [
     "vllm~=0.8.5; python_version >= '3.9'",
+    "trl>=0.11.4",
+    "bitsandbytes>=0.45.5",
 ]
 
 [tool.setuptools]

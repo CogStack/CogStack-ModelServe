@@ -27,4 +27,12 @@ class ClientException(Exception):
 
 
 class DatasetException(Exception):
-    """ An exception raised due to dataset errors"""
+    """An exception raised due to dataset errors"""
+
+
+class DeviceNotAvailableError(RuntimeError):
+    """An exception raised when a specificy device is required but not available."""
+
+
+class ExtraDependencyRequiredException(Exception):
+    """An exception raised when an extra dependency is required but not found."""

@@ -26,8 +26,14 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
 from app.config import Settings
-from app.domain import Tags
-from app.exception import StartTrainingException, AnnotationException, ConfigurationException, ClientException
+from app.domain import TagsGenerative
+from app.exception import (
+    StartTrainingException,
+    AnnotationException,
+    ConfigurationException,
+    ClientException,
+    ExtraDependencyRequiredException,
+)
 
 logger = logging.getLogger("cms")
 
@@ -111,6 +117,24 @@ def add_exception_handlers(app: FastAPI) -> None:
         Args:
             _ (Request): The request object.
             exception (ConfigurationException): The configuration exception.
+
+        Returns:
+            JSONResponse: A JSON response with a 500 status code and an error message.
+        """
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
+
+    @app.exception_handler(ExtraDependencyRequiredException)
+    async def extra_dependency_exception_handler(
+        _: Request,
+        exception: ExtraDependencyRequiredException
+    ) -> JSONResponse:
+        """
+        Handles extra dependency required exceptions.
+
+        Args:
+            _ (Request): The request object.
+            exception (ExtraDependencyRequiredException): The extra dependency required exception.
 
         Returns:
             JSONResponse: A JSON response with a 500 status code and an error message.
@@ -286,6 +310,7 @@ async def init_vllm_engine(app: FastAPI,
     """
 
     try:
+        # Import necessary vLLM components
         from vllm.utils import FlexibleArgumentParser
         from vllm.engine.arg_utils import AsyncEngineArgs
         from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
@@ -299,15 +324,18 @@ async def init_vllm_engine(app: FastAPI,
         from vllm import SamplingParams, TokensPrompt
     except ImportError:
         logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
+        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
 
     parser = FlexibleArgumentParser()
     parser = make_arg_parser(parser)
     args = parser.parse_args([])
     validate_parsed_serve_args(args)
+
     args.model = model_dir_path
     args.dtype = "float16"
     args.served_model_name = [model_name]
-    # args.tokenizer = model_dir_path
+    args.max_model_len = 2048 # The default batched length (2048) needs to be higher than max_model_len.
+    # args.tokenizer = model_dir_path # Uncomment if your tokenizer is in a different path or needs explicit setting.
     args.log_level = log_level
 
     exit_stack = contextlib.AsyncExitStack()
@@ -317,9 +345,11 @@ async def init_vllm_engine(app: FastAPI,
             disable_frontend_multiprocessing=True,
         )
     )
+
     tokenizer = await engine.get_tokenizer()
     vllm_config = await engine.get_vllm_config()
     model_config = await engine.get_model_config()
+
     await init_app_state(engine, vllm_config, app.state, args)
 
     async def generate_text(
@@ -327,27 +357,32 @@ async def init_vllm_engine(app: FastAPI,
         prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
         max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512
     ) -> StreamingResponse:
+        """
+        Custom endpoint for streaming text generation.
+        This endpoint takes a raw text prompt and streams back the generated text.
+        It applies a chat template to the prompt internally for model compatibility.
+        """
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 
         params = SamplingParams(max_tokens=max_tokens)
+
         conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")   # type: ignore
-        prompt = TokensPrompt(
-            prompt_token_ids=apply_hf_chat_template(    # type: ignore
-                tokenizer,
-                conversation=conversation,
-                tools=None,
-                add_generation_prompt=True,
-                continue_final_message=False,
-                chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
-                tokenize=True,
-            )
+        prompt_tokens = apply_hf_chat_template(    # type: ignore
+            tokenizer,
+            conversation=conversation,
+            tools=None,
+            add_generation_prompt=True,
+            continue_final_message=False,
+            chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
+            tokenize=True,
         )
+        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)   # type: ignore
 
         async def _stream() -> AsyncGenerator[bytes, None]:
             start = 0
-            async for output in engine.generate(request_id=uuid.uuid4().hex, prompt=prompt, sampling_params=params):
+            async for output in engine.generate(request_id=uuid.uuid4().hex, prompt=prompt_obj, sampling_params=params):
                 text = output.outputs[0].text
-                yield text[start:]  # type: ignore
+                yield text[start:].encode("utf-8")
                 start = len(text)
 
         return StreamingResponse(_stream(), media_type="text/event-stream")
@@ -365,7 +400,7 @@ async def init_vllm_engine(app: FastAPI,
             endpoint=endpoint,
             methods=methods,
             include_in_schema=True,
-            tags=[Tags.Generative],
+            tags=[TagsGenerative.Generative.name],
         )
     app.include_router(router)
 

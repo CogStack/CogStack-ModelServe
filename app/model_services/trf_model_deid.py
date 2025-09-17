@@ -86,7 +86,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         logger.info("Model loaded from %s", unpacked_model_dir)
         return tokenizer, model
 
-    def init_model(self) -> None:
+    def init_model(self, *args: Any, **kwargs: Any) -> None:
         if hasattr(self, "_model") and isinstance(self._model, PreTrainedModel):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
