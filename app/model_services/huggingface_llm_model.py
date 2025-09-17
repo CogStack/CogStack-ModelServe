@@ -369,9 +369,8 @@ class HuggingFaceLlmModel(AbstractModelService):
         sum_hidden_states = masked_hidden_states.sum(dim=1)
         num_tokens = attention_mask.sum(dim=1, keepdim=True)
         embeddings = sum_hidden_states / num_tokens
-        l2_normalised = torch.nn.functional.normalize(embeddings, p=2, dim=1)
 
-        results = l2_normalised.cpu().numpy().tolist()
+        results = embeddings.cpu().numpy().tolist()
         return results[0] if isinstance(text, str) else results
 
     def train_supervised(
