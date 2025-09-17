@@ -1920,7 +1920,7 @@
         "/generate": {
             "post": {
                 "tags": [
-                    "Generate text based on the input prompt"
+                    "Generative"
                 ],
                 "summary": "Generate Text",
                 "description": "Generate text",
@@ -1946,38 +1946,6 @@
                             "title": "Max Tokens"
                         },
                         "description": "The maximum number of tokens to generate"
-                    },
-                    {
-                        "name": "temperature",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "exclusiveMaximum": 1.0,
-                            "exclusiveMinimum": 0.0,
-                            "description": "The temperature of the generated text",
-                            "default": 0.7,
-                            "title": "Temperature"
-                        },
-                        "description": "The temperature of the generated text"
-                    },
-                    {
-                        "name": "tracking_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
-                            "description": "The tracking ID of the requested task",
-                            "title": "Tracking Id"
-                        },
-                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
@@ -2019,7 +1987,7 @@
         "/stream/generate": {
             "post": {
                 "tags": [
-                    "Generate text based on the input prompt"
+                    "Generative"
                 ],
                 "summary": "Generate Text Stream",
                 "description": "Generate a stream of texts",
@@ -2045,38 +2013,6 @@
                             "title": "Max Tokens"
                         },
                         "description": "The maximum number of tokens to generate"
-                    },
-                    {
-                        "name": "temperature",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "type": "number",
-                            "exclusiveMaximum": 1.0,
-                            "exclusiveMinimum": 0.0,
-                            "description": "The temperature of the generated text",
-                            "default": 0.7,
-                            "title": "Temperature"
-                        },
-                        "description": "The temperature of the generated text"
-                    },
-                    {
-                        "name": "tracking_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
-                            "description": "The tracking ID of the requested task",
-                            "title": "Tracking Id"
-                        },
-                        "description": "The tracking ID of the requested task"
                     }
                 ],
                 "requestBody": {
@@ -2094,144 +2030,6 @@
                 "responses": {
                     "200": {
                         "description": "Successful Response"
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/chat/completions": {
-            "post": {
-                "tags": [
-                    "OpenAICompatible"
-                ],
-                "summary": "Generate Chat Completions",
-                "description": "Generate chat response based on messages, similar to OpenAI's /v1/chat/completions",
-                "operationId": "generate_chat_completions",
-                "security": [
-                    {
-                        "OAuth2PasswordBearer": []
-                    },
-                    {
-                        "APIKeyCookie": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "tracking_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
-                            "description": "The tracking ID of the requested task",
-                            "title": "Tracking Id"
-                        },
-                        "description": "The tracking ID of the requested task"
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OpenAIChatRequest",
-                                "description": "OpenAI-like completion request"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/embeddings": {
-            "post": {
-                "tags": [
-                    "OpenAICompatible"
-                ],
-                "summary": "Embed Texts",
-                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
-                "operationId": "embed_texts",
-                "security": [
-                    {
-                        "OAuth2PasswordBearer": []
-                    },
-                    {
-                        "APIKeyCookie": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "tracking_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
-                            "description": "The tracking ID of the requested task",
-                            "title": "Tracking Id"
-                        },
-                        "description": "The tracking ID of the requested task"
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OpenAIEmbeddingsRequest",
-                                "description": "Text(s) to be embedded"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
                     },
                     "422": {
                         "description": "Validation Error",
@@ -2843,109 +2641,6 @@
                 ],
                 "title": "ModelType"
             },
-            "OpenAIChatRequest": {
-                "properties": {
-                    "messages": {
-                        "items": {
-                            "$ref": "#/components/schemas/PromptMessage"
-                        },
-                        "type": "array",
-                        "title": "Messages",
-                        "description": "A list of messages to be sent to the model"
-                    },
-                    "stream": {
-                        "type": "boolean",
-                        "title": "Stream",
-                        "description": "Whether to stream the response"
-                    },
-                    "max_tokens": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0.0,
-                        "title": "Max Tokens",
-                        "description": "The maximum number of tokens to generate",
-                        "default": 512
-                    },
-                    "model": {
-                        "type": "string",
-                        "title": "Model",
-                        "description": "The name of the model used for generating the completion"
-                    },
-                    "temperature": {
-                        "type": "number",
-                        "maximum": 1.0,
-                        "minimum": 0.0,
-                        "title": "Temperature",
-                        "description": "The temperature of the generated text",
-                        "default": 0.7
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "messages",
-                    "stream",
-                    "model"
-                ],
-                "title": "OpenAIChatRequest"
-            },
-            "OpenAIEmbeddingsRequest": {
-                "properties": {
-                    "input": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ],
-                        "title": "Input",
-                        "description": "Input text or list of texts to embed"
-                    },
-                    "model": {
-                        "type": "string",
-                        "title": "Model",
-                        "description": "The name of the model used for creating the embeddings"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "input",
-                    "model"
-                ],
-                "title": "OpenAIEmbeddingsRequest"
-            },
-            "PromptMessage": {
-                "properties": {
-                    "role": {
-                        "$ref": "#/components/schemas/PromptRole",
-                        "description": "The role who generates the message"
-                    },
-                    "content": {
-                        "type": "string",
-                        "title": "Content",
-                        "description": "The actual text of the message"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "role",
-                    "content"
-                ],
-                "title": "PromptMessage"
-            },
-            "PromptRole": {
-                "type": "string",
-                "enum": [
-                    "system",
-                    "user",
-                    "assistant",
-                    "tool"
-                ],
-                "title": "PromptRole"
-            },
             "TextWithAnnotations": {
                 "properties": {
                     "text": {
@@ -3072,10 +2767,6 @@
         {
             "name": "Generative",
             "description": "Generate text based on the input prompt"
-        },
-        {
-            "name": "OpenAICompatible",
-            "description": "Compatible with OpenAI APIs"
         }
     ]
 }
