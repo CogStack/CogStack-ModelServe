@@ -694,7 +694,7 @@ def dump_pydantic_object_to_dict(model: BaseModel) -> Dict:
     """
 
     if hasattr(model, "model_dump"):
-        return model.model_dump(mode="json")    # type: ignore
+        return model.model_dump()    # type: ignore
     elif hasattr(model, "dict"):
         return model.dict()    # type: ignore
     else:
@@ -835,4 +835,3 @@ TYPE_ID_TO_NAME_PATCH = {
     "25624495": '© 2002-2020 International Health Terminology Standards Development Organisation (IHTSDO). All rights reserved. SNOMED CT®, was originally created by The College of American Pathologists. "SNOMED" and "SNOMED CT" are registered trademarks of the IHTSDO.',
     "55540447": "linkage concept"
 }
-

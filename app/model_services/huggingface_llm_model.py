@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, Callable
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -198,7 +198,6 @@ class HuggingFaceLlmModel(AbstractModelService):
         prompt: str,
         max_tokens: int = 512,
         temperature: float = 0.7,
-        report_tokens: Optional[Callable[[str], None]] = None,
         **kwargs: Any
     ) -> str:
         """
@@ -208,7 +207,6 @@ class HuggingFaceLlmModel(AbstractModelService):
             prompt (str): The prompt for the text generation
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
-            report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
@@ -232,13 +230,9 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         outputs = self.model.generate(**generation_kwargs)
         generated_text = self.tokenizer.decode(outputs[0], skip_prompt=True, skip_special_tokens=True)
-        logger.debug("Response generation completed")
 
-        if report_tokens:
-            report_tokens(
-                prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
-                completion_token_num=outputs[0].shape[-1],  # type: ignore
-            )
+
+        logger.debug("Response generation completed")
 
         return generated_text
 
@@ -247,7 +241,6 @@ class HuggingFaceLlmModel(AbstractModelService):
         prompt: str,
         max_tokens: int = 512,
         temperature: float = 0.7,
-        report_tokens: Optional[Callable[[str], None]] = None,
         **kwargs: Any
     ) -> AsyncIterable:
         """
@@ -257,7 +250,6 @@ class HuggingFaceLlmModel(AbstractModelService):
             prompt (str): The prompt for the text generation.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
-            report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
         Returns:
@@ -287,20 +279,9 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         try:
             _ = self._text_generator.submit(self.model.generate, **generation_kwargs)
-            output = ""
             for content in streamer:
                 yield content
-                output += content
                 await asyncio.sleep(0.01)
-            if report_tokens:
-                report_tokens(
-                    prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
-                    completion_token_num=self.tokenizer(    # type: ignore
-                        output,
-                        add_special_tokens=False,
-                        return_tensors="pt"
-                    ).input_ids.shape[-1],
-                )
         except Exception as e:
             logger.error("An error occurred while generating the response")
             logger.exception(e)

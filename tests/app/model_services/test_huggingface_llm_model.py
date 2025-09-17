@@ -46,7 +46,6 @@ def test_generate(huggingface_llm_model):
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
-    mock_send_metrics = MagicMock()
     inputs = MagicMock()
     inputs.input_ids = MagicMock(shape=[1, 2])
     inputs.attention_mask = MagicMock()
@@ -59,7 +58,6 @@ def test_generate(huggingface_llm_model):
         prompt="Alright?",
         max_tokens=128,
         temperature=0.5,
-        report_tokens=mock_send_metrics
     )
 
     huggingface_llm_model.tokenizer.assert_called_once_with(
@@ -80,10 +78,6 @@ def test_generate(huggingface_llm_model):
         skip_prompt=True,
         skip_special_tokens=True,
     )
-    mock_send_metrics.assert_called_once_with(
-        prompt_token_num=2,
-        completion_token_num=2,
-    )
     assert result == "Yeah."
 
 
@@ -91,7 +85,6 @@ async def test_generate_async(huggingface_llm_model):
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
-    mock_send_metrics = MagicMock()
     inputs = MagicMock()
     inputs.input_ids = MagicMock(shape=[1, 2])
     inputs.attention_mask = MagicMock()
@@ -104,7 +97,6 @@ async def test_generate_async(huggingface_llm_model):
         prompt="Alright?",
         max_tokens=128,
         temperature=0.5,
-        report_tokens=mock_send_metrics
     )
 
     huggingface_llm_model.tokenizer.assert_called_once_with(
@@ -124,9 +116,5 @@ async def test_generate_async(huggingface_llm_model):
         outputs[0],
         skip_prompt=True,
         skip_special_tokens=True,
-    )
-    mock_send_metrics.assert_called_once_with(
-        prompt_token_num=2,
-        completion_token_num=2,
     )
     assert result == "Yeah."

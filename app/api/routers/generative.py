@@ -6,7 +6,6 @@ import app.api.globals as cms_globals
 
 from typing import Union, Iterable, AsyncGenerator
 from typing_extensions import Annotated
-from functools import partial
 from fastapi import APIRouter, Depends, Request, Body, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import PlainTextResponse, StreamingResponse, JSONResponse
@@ -16,7 +15,6 @@ from app.model_services.base import AbstractModelService
 from app.utils import get_settings, get_prompt_from_messages
 from app.api.utils import get_rate_limiter
 from app.api.dependencies import validate_tracking_id
-from app.management.prometheus_metrics import cms_prompt_tokens, cms_completion_tokens, cms_total_tokens
 
 PATH_GENERATE = "/generate"
 PATH_GENERATE_ASYNC = "/stream/generate"
@@ -46,7 +44,7 @@ def generate_text(
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> PlainTextResponse:
     """
-    Generates text based on the prompt provided.
+    Generate text based on the prompt provided.
 
     Args:
         request (Request): The request object.
@@ -63,12 +61,7 @@ def generate_text(
     tracking_id = tracking_id or str(uuid.uuid4())
     if prompt:
         return PlainTextResponse(
-            model_service.generate(
-                prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE),
-            ),
+            model_service.generate(prompt, max_tokens=max_tokens, temperature=temperature),
             headers={"x-cms-tracking-id": tracking_id},
             status_code=HTTP_200_OK,
         )
@@ -96,7 +89,7 @@ async def generate_text_stream(
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> StreamingResponse:
     """
-    Generates a stream of texts in near real-time.
+    Generate a stream of texts in near real-time.
 
     Args:
         request (Request): The request object.
@@ -113,12 +106,7 @@ async def generate_text_stream(
     tracking_id = tracking_id or str(uuid.uuid4())
     if prompt:
         return StreamingResponse(
-            model_service.generate_async(
-                prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE_ASYNC),
-            ),
+            model_service.generate_async(prompt, max_tokens=max_tokens, temperature=temperature),
             media_type="text/event-stream",
             headers={"x-cms-tracking-id": tracking_id},
             status_code=HTTP_200_OK,
@@ -133,7 +121,7 @@ async def generate_text_stream(
 
 
 @router.post(
-    PATH_OPENAI_COMPLETIONS,
+    "/v1/chat/completions",
     tags=[Tags.Generative.name],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
@@ -148,7 +136,7 @@ def generate_chat_completions(
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> Union[StreamingResponse, JSONResponse]:
     """
-    Generates chat response based on messages, mimicking OpenAI's /v1/chat/completions endpoint.
+    Generate chat response based on messages, mimicking OpenAI's /v1/chat/completions endpoint.
 
     Args:
         request (Request): The request object.
@@ -165,7 +153,6 @@ def generate_chat_completions(
     stream = request_data.stream
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
-    tracking_id = tracking_id or str(uuid.uuid4())
 
     if not messages:
         error_response = {
@@ -176,25 +163,16 @@ def generate_chat_completions(
                 "code": "missing_field",
             }
         }
-        return JSONResponse(
-            content=error_response,
-            status_code=HTTP_400_BAD_REQUEST,
-            headers={"x-cms-tracking-id": tracking_id},
-        )
+        return JSONResponse(content=error_response, status_code=HTTP_400_BAD_REQUEST)
 
-    async def _stream(prompt: str, max_tokens: int, temperature: float) -> AsyncGenerator:
+    async def _stream(p: str, mt: int, t: float) -> AsyncGenerator:
         data = {
-            "id": tracking_id,
+            "id": tracking_id or str(uuid.uuid4()),
             "object": "chat.completion.chunk",
             "choices": [{"delta": {"role": PromptRole.ASSISTANT.value}}],
         }
         yield f"data: {json.dumps(data)}\n\n"
-        async for chunk in model_service.generate_async(
-            prompt,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            report_tokens=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS)
-        ):
+        async for chunk in model_service.generate_async(p, max_tokens=mt, temperature=t):
             data = {
                 "choices": [
                     {
@@ -210,18 +188,12 @@ def generate_chat_completions(
     if stream:
         return StreamingResponse(
             _stream(prompt, max_tokens, temperature),
-            media_type="text/event-stream",
-            headers={"x-cms-tracking-id": tracking_id},
+            media_type="text/event-stream"
         )
     else:
-        generated_text = model_service.generate(
-            prompt,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            send_metrics=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS),
-        )
+        generated_text = model_service.generate(prompt, max_tokens=max_tokens, temperature=temperature)
         completion = OpenAIChatResponse(
-            id=tracking_id,
+            id=str(uuid.uuid4()),
             object="chat.completion",
             created=int(time.time()),
             model=model_service.model_name,
@@ -234,19 +206,10 @@ def generate_chat_completions(
                     ),
                     "finish_reason": "stop",
                 }
-            ],
+            ]
         )
-        return JSONResponse(content=jsonable_encoder(completion), headers={"x-cms-tracking-id": tracking_id})
+        return JSONResponse(content=jsonable_encoder(completion))
 
 
 def _empty_prompt_error() -> Iterable[str]:
     yield "ERROR: No prompt text provided\n"
-
-
-def _send_usage_metrics(handler: str, prompt_token_num: int, completion_token_num: int) -> None:
-    cms_prompt_tokens.labels(handler=handler).observe(prompt_token_num)
-    logger.debug(f"Sent prompt tokens usage: {prompt_token_num}")
-    cms_completion_tokens.labels(handler=handler).observe(completion_token_num)
-    logger.debug(f"Sent completion tokens usage: {completion_token_num}")
-    cms_total_tokens.labels(handler=handler).observe(prompt_token_num + completion_token_num)
-    logger.debug(f"Sent total tokens usage: {prompt_token_num + completion_token_num}")
