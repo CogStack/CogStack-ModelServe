@@ -44,7 +44,7 @@ from app.api.api import (
     get_vllm_server,
     get_app_for_api_docs,
 )   # noqa
-from app.utils import get_settings, send_gelf_message, download_model_package  # noqa
+from app.utils import get_settings, send_gelf_message, download_model_package, get_model_data_package_base_name  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from app.management.tracker_client import TrackerClient  # noqa
@@ -113,10 +113,7 @@ def serve_model(
     model_service_dep = ModelServiceDep(model_type, config, model_name)
     cms_globals.model_service_dep = model_service_dep
 
-    dst_model_path = os.path.join(parent_dir, "model", "model.zip" if model_path.endswith(".zip") else "model.tar.gz")
-    config.BASE_MODEL_FILE = "model.zip" if model_path.endswith(".zip") else "model.tar.gz"
-    if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
-        shutil.rmtree(os.path.splitext(dst_model_path)[0])
+    dst_model_path = _ensure_dst_model_path(model_path, parent_dir, config)
 
     if model_path:
         if model_path.startswith("http://") or model_path.startswith("https://"):
@@ -221,15 +218,13 @@ def train_model(
     model_service_dep = ModelServiceDep(model_type, config)
     cms_globals.model_service_dep = model_service_dep
 
-    dst_model_path = os.path.join(parent_dir, "model", "model.zip" if base_model_path.endswith(".zip") else "model.tar.gz")
-    config.BASE_MODEL_FILE = "model.zip" if base_model_path.endswith(".zip") else "model.tar.gz"
-    if dst_model_path and os.path.exists(os.path.splitext(dst_model_path)[0]):
-        shutil.rmtree(os.path.splitext(dst_model_path)[0])
+    dst_model_path = _ensure_dst_model_path(base_model_path, parent_dir, config)
 
     if base_model_path:
         try:
             shutil.copy2(base_model_path, dst_model_path)
         except shutil.SameFileError:
+            logger.warning("Source and destination are the same model package file.")
             pass
         model_service = model_service_dep()
         model_service.model_name = model_name if model_name is not None else "CMS model"
@@ -706,6 +701,23 @@ def show_banner() -> None:
                   |___/
     """
     typer.echo(banner)
+
+
+def _ensure_dst_model_path(model_path: str, parent_dir: str, config) -> str:
+    if model_path.endswith(".zip"):
+        dst_model_path = os.path.join(parent_dir, "model", "model.zip")
+        config.BASE_MODEL_FILE = "model.zip"
+    else:
+        dst_model_path = os.path.join(parent_dir, "model", "model.tar.gz")
+        config.BASE_MODEL_FILE = "model.tar.gz"
+    model_dir = os.path.join(parent_dir, "model", "model")
+    if os.path.exists(model_dir):
+        shutil.rmtree(model_dir)
+    if dst_model_path.endswith(".zip") and os.path.exists(dst_model_path.replace(".zip", ".tar.gz")):
+        os.remove(dst_model_path.replace(".zip", ".tar.gz"))
+    if dst_model_path.endswith(".tar.gz") and os.path.exists(dst_model_path.replace(".tar.gz", ".zip")):
+        os.remove(dst_model_path.replace(".tar.gz", ".zip"))
+    return dst_model_path
 
 
 def _get_logger(
