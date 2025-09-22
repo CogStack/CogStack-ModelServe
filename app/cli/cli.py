@@ -35,6 +35,7 @@ from fastapi.routing import APIRoute  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from datasets import load_dataset  # noqa
 from app import __version__  # noqa
+from app.config import Settings  # noqa
 from app.domain import ModelType, TrainingType, BuildBackend, Device, ArchiveFormat, LlmEngine  # noqa
 from app.registry import model_service_registry  # noqa
 from app.api.api import (
@@ -703,7 +704,7 @@ def show_banner() -> None:
     typer.echo(banner)
 
 
-def _ensure_dst_model_path(model_path: str, parent_dir: str, config) -> str:
+def _ensure_dst_model_path(model_path: str, parent_dir: str, config: Settings) -> str:
     if model_path.endswith(".zip"):
         dst_model_path = os.path.join(parent_dir, "model", "model.zip")
         config.BASE_MODEL_FILE = "model.zip"

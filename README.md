@@ -165,9 +165,27 @@ docker compose -f docker-compose-mon.yml up -d
 #### Log management
 CMS provides a `log` stack to run services used for centralised logging and log analysis:
 ```commandline
-export GRAYLOG_PASSWORD_SECRET=<GRAYLOG_PASSWORD_SECRET>
-export GRAYLOG_ROOT_PASSWORD_SHA2=<GRAYLOG_ROOT_PASSWORD_SHA2>
+export GRAYLOG_PASSWORD_SECRET=`openssl rand -hex 32`
+export GRAYLOG_ROOT_PASSWORD_SHA2=`echo -m "CHANGE_ME" | sha256`
 docker compose -f docker-compose-log.yml up -d
+```
+
+After running this stack for the first time, you will need to create a default input to which CMS can send logs:
+
+```commandline
+curl -u "admin:CHANGE_ME" \
+-X POST "http://localhost:9000/api/system/inputs" \
+-H "Content-Type: application/json" \
+-H "X-Requested-By: curl" \
+-d '{
+    "title": "CMS GELF Input",
+    "type": "org.graylog.plugins.gelf.inputs.GELFTCPInput",
+    "global": true,
+    "configuration": {
+        "bind_address": "0.0.0.0",
+        "port": 12201
+    }
+}'
 ```
 
 #### Proxying
