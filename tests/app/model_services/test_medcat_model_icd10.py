@@ -30,7 +30,7 @@ def test_get_records_from_doc(medcat_icd10_model):
                 "0": {
                     "pretty_name": "pretty_name",
                     "cui": "cui",
-                    "types": ["type"],
+                    "type_ids": ["type"],
                     "icd10": [{"code": "code", "name": "name"}],
                     "athena_ids": [{"name": "name_1", "code": "code_1"}, {"name": "name_2", "code": "code_2"}],
                     "acc": 1.0,

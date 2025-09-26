@@ -114,7 +114,7 @@ class TrackerClient(object):
             step (int): The current step in the training or evaluation process.
         """
 
-        metrics = {key.replace(" ", "_").lower(): val for key, val in stats.items()}
+        metrics = {key.replace(" ", "_").lower(): val for key, val in stats.items() if isinstance(val, (int, float))}
         mlflow.log_metrics(metrics, step)
 
     @staticmethod

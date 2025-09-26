@@ -1,6 +1,6 @@
 import os
 from unittest.mock import create_autospec, patch, Mock
-from medcat.config_meta_cat import General, Model, Train
+from medcat.config.config_meta_cat import General, Model, Train
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
 from app.trainers.metacat_trainer import MetacatTrainer
@@ -38,15 +38,15 @@ def test_deploy_model():
 
 def test_save_model_pack():
     model = Mock()
-    model.create_model_pack.return_value = "model_pack_name"
+    model.save_model_pack.return_value = "model_pack_name"
     metacat_trainer.save_model_pack(
         model,
         "retrained_models_dir",
         "model.zip",
         "model description",
     )
-    model.create_model_pack.called_once_with("retrained_models_dir", "model")
-    assert model.config.version.description == "model description"
+    model.save_model_pack.called_once_with("retrained_models_dir", "model")
+    assert model.config.meta.description == "model description"
 
 
 def test_metacat_trainer(mlflow_fixture):

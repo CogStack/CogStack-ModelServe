@@ -29,7 +29,7 @@ def test_get_records_from_doc(medcat_snomed_model):
             "0": {
                 "pretty_name": "pretty_name",
                 "cui": "cui",
-                "types": ["type"],
+                "type_ids": ["type"],
                 "athena_ids": [{"name": "name_1", "code": "code_1"}, {"name": "name_2", "code": "code_2"}],
                 "meta_anns": {}
             }

@@ -2,7 +2,7 @@ import os
 import pytest
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers.models.bert.modeling_bert import BertForTokenClassification
-from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
+from medcat.components.ner.trf.tokenizer import TransformersTokenizer
 from app import __version__
 from app.domain import ModelType
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
@@ -31,7 +31,7 @@ def test_init_model(trf_model):
 )
 def test_load_model(trf_model):
     tokenizer, model = TransformersModelDeIdentification.load_model(os.path.join(MODEL_PARENT_DIR, "trf_deid_model.zip"))
-    assert type(tokenizer) is TransformersTokenizerNER
+    assert type(tokenizer) is TransformersTokenizer
     assert type(model) is BertForTokenClassification
 
 
