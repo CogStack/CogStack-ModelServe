@@ -49,7 +49,7 @@ def mlflow_fixture(mocker):
 def medcat_snomed_model():
     config = Settings()
     config.BASE_MODEL_FILE = "snomed_model.zip"
-    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
+    config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
     return MedCATModelSnomed(config, MODEL_PARENT_DIR, True)
 
 
@@ -57,7 +57,7 @@ def medcat_snomed_model():
 def medcat_icd10_model():
     config = Settings()
     config.BASE_MODEL_FILE = "icd10_model.zip"
-    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
+    config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
     return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
 
 

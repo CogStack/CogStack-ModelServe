@@ -142,6 +142,9 @@ class MedCATModel(AbstractModelService):
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
                 self._metacat_trainer = MetacatTrainer(self)
+            self._model.config.general.map_to_other_ontologies = [  # type: ignore # await new MedCAT release
+                tui.strip() for tui in self._config.MEDCAT2_MAPPED_ONTOLOGIES.split(",")
+            ]
 
     def info(self) -> ModelCard:
         """
@@ -168,10 +171,7 @@ class MedCATModel(AbstractModelService):
         """
 
         assert self.model is not None, "Model is not initialised"
-        doc = self.model.get_entities(
-            text,
-            # addl_info=["cui2icd10", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
-        )
+        doc = self.model.get_entities(text)
         return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)] # type: ignore
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
@@ -400,4 +400,4 @@ class MedCATModel(AbstractModelService):
             if type_info is None:
                 continue
             whitelisted_cuis.update(type_info.cuis)
-        self._model.config.components.linking.filters.cuis.update(whitelisted_cuis)
+        self._model.config.components.linking.filters.cuis = whitelisted_cuis

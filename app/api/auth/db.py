@@ -52,5 +52,4 @@ async def get_user_db(session: AsyncSession = Depends(_get_async_session)) -> As
         SQLAlchemyUserDatabase: A database instance initialised with the given session and the User model.
     """
 
-    # TODO: fix this type checking error
     yield SQLAlchemyUserDatabase(session, User)
