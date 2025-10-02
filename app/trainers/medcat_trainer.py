@@ -11,6 +11,7 @@ from contextlib import redirect_stdout
 from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
+from medcat.stats.stats import get_stats
 from app.management.log_captor import LogCaptor
 from app.management.model_manager import ModelManager
 from app.trainers.base import SupervisedTrainer, UnsupervisedTrainer
@@ -154,6 +155,10 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
                 with redirect_stdout(LogCaptor(self._glean_and_log_metrics)):    # type: ignore
                     fps, fns, tps, p, r, f1, cc, examples = model.trainer.train_supervised_raw(training_data, **train_supervised_params)
+
+                # This can be removed after the returned values are fixed in medcat trainer's train_supervised_raw()
+                fps, fns, tps, p, r, f1, cc, examples = get_stats(model, training_data, training_params["nepochs"])
+
                 self._save_examples(examples, ["tp", "tn"])
                 del examples
                 gc.collect()
