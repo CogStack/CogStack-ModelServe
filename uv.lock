@@ -693,7 +693,7 @@ dependencies = [
     { name = "graypy" },
     { name = "huggingface-hub" },
     { name = "ijson" },
-    { name = "medcat", extra = ["deid", "dict-ner", "meta-cat", "rel-cat", "spacy"] },
+    { name = "medcat", extra = ["deid", "meta-cat", "rel-cat", "spacy"] },
     { name = "mlflow" },
     { name = "peft" },
     { name = "prometheus-fastapi-instrumentator" },
@@ -786,7 +786,7 @@ requires-dist = [
     { name = "huggingface-hub", specifier = "~=0.33.0" },
     { name = "ijson", specifier = "~=3.1.4" },
     { name = "locust", marker = "extra == 'dev'", specifier = "<2.32.0" },
-    { name = "medcat", extras = ["deid", "dict-ner", "meta-cat", "rel-cat", "spacy"], marker = "python_full_version >= '3.9'", specifier = "~=2.1.0" },
+    { name = "medcat", extras = ["deid", "meta-cat", "rel-cat", "spacy"], specifier = "~=2.1.0" },
     { name = "mlflow", specifier = "~=2.16.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "~=1.14.0" },
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.84.0" },
@@ -812,13 +812,12 @@ requires-dist = [
     { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = "~=2.0.1" },
     { name = "sphinx-rtd-theme", marker = "extra == 'docs'", specifier = "~=3.0.2" },
     { name = "toml", specifier = "~=0.10.2" },
-    { name = "torch", marker = "python_full_version < '3.9'", specifier = "<2.5.0" },
     { name = "trl", marker = "extra == 'vllm'", specifier = ">=0.11.4" },
     { name = "typer", specifier = "~=0.15.1" },
     { name = "typer-cli", marker = "extra == 'dev'", specifier = "~=0.15.1" },
     { name = "types-toml", marker = "extra == 'dev'", specifier = "==0.10.8.20240310" },
     { name = "uvicorn", specifier = "~=0.29.0" },
-    { name = "vllm", marker = "python_full_version >= '3.9' and extra == 'vllm'", specifier = "~=0.8.5" },
+    { name = "vllm", marker = "extra == 'vllm'", specifier = "~=0.8.5" },
     { name = "websockets", specifier = "~=12.0" },
 ]
 provides-extras = ["dev", "docs", "vllm"]
@@ -849,7 +848,7 @@ docs = [
 vllm = [
     { name = "bitsandbytes", specifier = ">=0.45.5" },
     { name = "trl", specifier = ">=0.11.4" },
-    { name = "vllm", marker = "python_full_version >= '3.9'", specifier = "~=0.8.5" },
+    { name = "vllm", specifier = "~=0.8.5" },
 ]
 
 [[package]]
@@ -2784,9 +2783,6 @@ deid = [
     { name = "torch" },
     { name = "transformers" },
 ]
-dict-ner = [
-    { name = "pyahocorasick" },
-]
 meta-cat = [
     { name = "peft" },
     { name = "scikit-learn" },
@@ -4058,29 +4054,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/37/a8/d832f7293ebb21690860d2e01d8115e5ff6f2ae8bbdc953f0eb0fa4bd2c7/py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690", size = 104716, upload-time = "2022-10-25T20:38:06.303Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/a9/023730ba63db1e494a271cb018dcd361bd2c917ba7004c3e49d5daf795a2/py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5", size = 22335, upload-time = "2022-10-25T20:38:27.636Z" },
-]
-
-[[package]]
-name = "pyahocorasick"
-version = "2.2.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/68/4b/e3bee663803e2202be984e1291084355f064dfa3a6a632e01fe496445a5c/pyahocorasick-2.2.0.tar.gz", hash = "sha256:817f302088400a1402bf2f8631fdb21cf5a2666888e0d6a7d5a3ad556212e9da", size = 103916, upload-time = "2025-06-19T05:51:28.087Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ad/d4/62c7eb67e304d0e746a0a782f261011d78fc4a440f00d37ee95fd93816fb/pyahocorasick-2.2.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:779f1bb63644655d6001f5b1c5f864ec1284cf1b622ac24774f8444ab92f4f84", size = 58159, upload-time = "2025-06-19T05:50:52.668Z" },
-    { url = "https://files.pythonhosted.org/packages/10/c6/02d4adcf2e75eb68c4e9f929b09731d9c21459af1184efe90d51ad837b8a/pyahocorasick-2.2.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:6e9e082ffc2b240017357aeccaedc7aaccba530cb9e64945e23e999ef98b19c5", size = 33241, upload-time = "2025-06-19T05:50:53.752Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/7a/9bd41a59d6ee3abec9a494c21a2da425c3ca54b0d440b84deb37d47e3b66/pyahocorasick-2.2.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:9b82717334794ee1bf50ab574c2b990179fc5bfedf1ff40875f18f011f5f7d5d", size = 106573, upload-time = "2025-06-19T05:50:55.316Z" },
-    { url = "https://files.pythonhosted.org/packages/11/c9/89d776685a0c2d0062b6d7d29e7d91525bc9528404fe49fff60a3b39ca84/pyahocorasick-2.2.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:f6be205779ba8e58670356a8cc5fbbbcf9255bfe24569c736d45f036fce9f2af", size = 113493, upload-time = "2025-06-19T05:50:56.919Z" },
-    { url = "https://files.pythonhosted.org/packages/f7/c2/ce20c9a5b89147b70b2002f0c9b4d692677f011bb532826c4c204e72a207/pyahocorasick-2.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:43a2f3302a1c45d54fb24cd988629908b11e70da32fed0042e3558f1a6603b00", size = 34992, upload-time = "2025-06-19T05:50:58.494Z" },
-    { url = "https://files.pythonhosted.org/packages/fc/3d/f4348a913b1731ca8724f093321896d3ec19ac2526bf959f6a3365873267/pyahocorasick-2.2.0-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:a20d05f965ba3d5d38fd26b80d087fb59b8945d3dab3571ff9d64cef6d7edf01", size = 58130, upload-time = "2025-06-19T05:51:00.04Z" },
-    { url = "https://files.pythonhosted.org/packages/b6/a4/ebea4cb5450fa77c0168fb2054916ff88eb26e1b4471d63a89b2be3f4291/pyahocorasick-2.2.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:4352ade48042067eae16c9c049351cd037078fdf1885c6befe44c7fd38ec7bc9", size = 33241, upload-time = "2025-06-19T05:51:01.504Z" },
-    { url = "https://files.pythonhosted.org/packages/92/e2/f233e79c6f70c0d5eaee4382f4994b8db505e9947f6c08c6bb99daacce03/pyahocorasick-2.2.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3463d65232e93ddbdab22be8c22ebc9246419d9be738da07af2bccf800c57107", size = 113941, upload-time = "2025-06-19T05:51:02.988Z" },
-    { url = "https://files.pythonhosted.org/packages/55/35/6af44ddde1198d4a55c521fc42028046dabf5413212d74ac6c1b3caae471/pyahocorasick-2.2.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:9850cc8fc3071c239965ba1ca2114de990493025381582176af5951a64ff11cb", size = 116381, upload-time = "2025-06-19T05:51:04.756Z" },
-    { url = "https://files.pythonhosted.org/packages/ac/06/d956a977db3cfa6f58cc031ca3e728bf7fc24076b5e040927b2fad2eb5e3/pyahocorasick-2.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:e55347e2b884ec87c972e5f7706625f5bc4e07e703fbc1fb51a6f3bb3087d650", size = 34985, upload-time = "2025-06-19T05:51:06.384Z" },
-    { url = "https://files.pythonhosted.org/packages/cb/4f/7ef4e0a7ee5c94e8a4d9fc332baf3be743d2634f0aeb2d3d3e6f8700c26d/pyahocorasick-2.2.0-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:9c964af712aa57216575d1d42afed9a9b1df296794739654ed1359a2c4a6074f", size = 58173, upload-time = "2025-06-19T05:51:21.009Z" },
-    { url = "https://files.pythonhosted.org/packages/d1/6d/718db0b31ce5df316abadc01dd9e81e4a179ebbcb15c18f87c5d99bf7512/pyahocorasick-2.2.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:179fb28f3bd9865ec175ed47283feb68af99d9ca1c63a4f25282d6575f29cdbd", size = 33250, upload-time = "2025-06-19T05:51:22.54Z" },
-    { url = "https://files.pythonhosted.org/packages/9b/bf/203aeab3bf5db13a0bc85b69777986f2ca3a691e0dbd8b05975e8cbce810/pyahocorasick-2.2.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.whl", hash = "sha256:08e7125b4baa5e6e293c06a994e7d11462c5bd4f08b708ab97ba5edddf07c5ff", size = 98690, upload-time = "2025-06-19T05:51:23.766Z" },
-    { url = "https://files.pythonhosted.org/packages/95/52/0780049884b2d66a6b7d252d618df65effef9da8fbeaf1ce5736c63e2632/pyahocorasick-2.2.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:cfb8d47b5d709342c6f65770d266a5f608f7e2736f161427146ff504bc698bc6", size = 113088, upload-time = "2025-06-19T05:51:25.146Z" },
-    { url = "https://files.pythonhosted.org/packages/60/5e/00a1a63194a3c9f72f8e48ccab325c87547806ef31105fb533b07313beb3/pyahocorasick-2.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:a54abc9f24ec9578769ce6ae24fce438e92171932d400c77b4ff5564e5be3b97", size = 35037, upload-time = "2025-06-19T05:51:26.418Z" },
 ]
 
 [[package]]

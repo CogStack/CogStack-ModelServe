@@ -210,9 +210,16 @@ def check_response_evaluation_metrics(context):
     assert context["response"].headers["Content-Type"] == "application/json"
     response_json = context["response"].json()
     assert len(response_json) == 1
+    assert "per_concept_counts" in response_json[0]
+    assert "per_concept_count_train" in response_json[0]
+    assert "per_concept_acc_fp" in response_json[0]
+    assert "per_concept_acc_fn" in response_json[0]
+    assert "per_concept_acc_tp" in response_json[0]
+    assert "per_concept_acc_cc" in response_json[0]
     assert "per_concept_precision" in response_json[0]
     assert "per_concept_recall" in response_json[0]
     assert "per_concept_f1" in response_json[0]
+    assert "concepts" in response_json[0]
     context["response"].close()
 
 @then("the response should contain the unsupervised evaluation metrics")

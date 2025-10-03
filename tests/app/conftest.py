@@ -22,7 +22,7 @@ def mlflow_fixture(mocker):
     active_run.info.run_id = "run_id"
     active_run.data = MagicMock()
     active_run.data.metrics = {"precision": 0.9973285610540512, "recall": 0.9896606632947247, "f1": 0.9934285636532457}
-    active_run.data.tags = {"tag": "tag"}
+    active_run.data.tags = {"training.entity.classes": "['concept_1', 'concept_2']"}
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.get_experiment_by_name", return_value=None)

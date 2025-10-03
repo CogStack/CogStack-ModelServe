@@ -9,9 +9,7 @@ description = "A model serving and governance system for CogStack NLP solutions"
 requires-python = ">3.9,<3.12"
 dynamic = ["version"]
 dependencies = [
-    "medcat[spacy,meta-cat,deid,rel-cat,dict-ner]~=2.1.0; python_version >= '3.9'",
-    # "medcat~=1.13.1; python_version < '3.9'",
-    "torch<2.5.0; python_version < '3.9'",
+    "medcat[spacy,meta-cat,deid,rel-cat]~=2.1.0",
     "datasets>=2.21.0",
     "fastapi~=0.115.0",
     "uvicorn~=0.29.0",
@@ -45,7 +43,6 @@ license = {text = "Elastic License 2.0"}
 classifiers=[
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    # "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -81,7 +78,7 @@ docs = [
 ]
 
 vllm = [
-    "vllm~=0.8.5; python_version >= '3.9'",
+    "vllm~=0.8.5",
     "trl>=0.11.4",
     "bitsandbytes>=0.45.5",
 ]
@@ -112,7 +109,7 @@ docs = [
 ]
 
 vllm = [
-    "vllm~=0.8.5; python_version >= '3.9'",
+    "vllm~=0.8.5",
     "trl>=0.11.4",
     "bitsandbytes>=0.45.5",
 ]

@@ -347,7 +347,7 @@ def test_get_info_by_job_id(mlflow_fixture):
         output_format="list",
     )
     assert len(job_info) == 1
-    assert job_info[0]["tags"] == {"tag": "tag"}
+    assert job_info[0]["tags"] == {"training.entity.classes": "['concept_1', 'concept_2']"}
 
 
 def test_get_metrics_by_job_id(mlflow_fixture):
@@ -384,4 +384,5 @@ def test_get_metrics_by_job_id(mlflow_fixture):
         "precision": [0.9973285610540512, 0.9973285610540512],
         "recall": [0.9896606632947247, 0.9896606632947247],
         "f1": [0.9934285636532457, 0.9934285636532457],
+        "concepts": ["concept_1", "concept_2"],
     }]

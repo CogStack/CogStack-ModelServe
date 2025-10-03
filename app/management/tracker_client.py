@@ -1,3 +1,4 @@
+import ast
 import os
 import socket
 import mlflow
@@ -563,6 +564,7 @@ class TrackerClient(object):
                 metrics_history = {}
                 for metric in run.data.metrics.keys():
                     metrics_history[metric] = [m.value for m in self.mlflow_client.get_metric_history(run_id=run.info.run_id, key=metric)]
+                metrics_history["concepts"] = ast.literal_eval(run.data.tags.get("training.entity.classes", "[]"))
                 metrics.append(metrics_history)
             return metrics
         except MlflowException as e:
