@@ -96,3 +96,41 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ env.DOCKER_IMAGE_NAME }}
           readme-filepath: ./README.md
+
+  smoke-test:
+    needs: build-and-push
+    if: |
+      github.repository == 'CogStack/CogStack-ModelServe' &&
+      (
+        github.ref == 'refs/heads/main' ||
+        github.event_name == 'pull_request' ||
+        github.event_name == 'workflow_dispatch'
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the test model
+        run: |
+          wget -O test_model.zip https://cogstack-medcat-example-models.s3.eu-west-2.amazonaws.com/medcat-example-models/medmen_wstatus_2021_oct.zip
+
+      - name: Run the CMS container
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          docker run -d --name cms-test \
+            -p 8000:8000 \
+            -e CMS_MODEL_NAME="Test Model" \
+            -e CMS_MODEL_TYPE="medcat_umls" \
+            -v $(pwd)/test_model.zip:/app/model/model.zip \
+            ${{ env.REGISTRY }}/${{ env.DOCKER_IMAGE_NAME }}:sha-${SHORT_SHA}
+
+      - name: Wait for the CMS container to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/readyz; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "CMS did not become ready in time"
+          exit 1
