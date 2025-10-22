@@ -58,11 +58,12 @@ class MedCATModelOpcs4(MedCATModel):
             ModelCard: A card containing information about the MedCAT OPCS-4 model.
         """
 
+        assert self.model is not None, "Model is not initialised"
         return ModelCard(
             model_description=self.model_name,
             model_type=ModelType.MEDCAT_OPCS4,
             api_version=self.api_version,
-            model_card=self.model.get_model_card(as_dict=True),
+            model_card=dict(self.model.get_model_card(as_dict=True)),
         )
 
     def get_records_from_doc(self, doc: Dict) -> List[Dict]:

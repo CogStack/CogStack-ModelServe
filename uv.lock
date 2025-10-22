@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">3.9, <3.12"
 resolution-markers = [
     "python_full_version > '3.11' and sys_platform == 'darwin'",
@@ -693,7 +693,8 @@ dependencies = [
     { name = "graypy" },
     { name = "huggingface-hub" },
     { name = "ijson" },
-    { name = "medcat", extra = ["deid", "meta-cat", "rel-cat", "spacy"] },
+    { name = "medcat", version = "2.1.0", source = { registry = "https://pypi.org/simple" }, extra = ["deid", "meta-cat", "rel-cat", "spacy"], marker = "python_full_version < '3.10'" },
+    { name = "medcat", version = "2.2.0", source = { registry = "https://pypi.org/simple" }, extra = ["deid", "meta-cat", "rel-cat", "spacy"], marker = "python_full_version >= '3.10'" },
     { name = "mlflow" },
     { name = "peft" },
     { name = "prometheus-fastapi-instrumentator" },
@@ -703,8 +704,6 @@ dependencies = [
     { name = "python-multipart" },
     { name = "sentencepiece" },
     { name = "slowapi" },
-    { name = "spacy", version = "3.8.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "spacy", version = "3.8.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "toml" },
     { name = "typer" },
     { name = "uvicorn" },
@@ -786,7 +785,8 @@ requires-dist = [
     { name = "huggingface-hub", specifier = "~=0.33.0" },
     { name = "ijson", specifier = "~=3.1.4" },
     { name = "locust", marker = "extra == 'dev'", specifier = "<2.32.0" },
-    { name = "medcat", extras = ["deid", "meta-cat", "rel-cat", "spacy"], specifier = "~=2.1.0" },
+    { name = "medcat", extras = ["deid", "meta-cat", "rel-cat", "spacy"], marker = "python_full_version < '3.10'", specifier = "~=2.1.0" },
+    { name = "medcat", extras = ["deid", "meta-cat", "rel-cat", "spacy"], marker = "python_full_version >= '3.10'", specifier = "~=2.2.0" },
     { name = "mlflow", specifier = "~=2.16.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "~=1.14.0" },
     { name = "openai", marker = "extra == 'dev'", specifier = ">=1.84.0" },
@@ -806,7 +806,6 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.6.9" },
     { name = "sentencepiece", specifier = "~=0.2.0" },
     { name = "slowapi", specifier = "~=0.1.7" },
-    { name = "spacy", specifier = ">3.8" },
     { name = "sphinx", marker = "extra == 'docs'", specifier = "~=7.1.2" },
     { name = "sphinx-autoapi", marker = "extra == 'docs'", specifier = "~=3.5.0" },
     { name = "sphinx-autodoc-typehints", marker = "extra == 'docs'", specifier = "~=2.0.1" },
@@ -2760,15 +2759,20 @@ wheels = [
 name = "medcat"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.10' and platform_machine == 'arm64' and sys_platform == 'darwin'",
+    "python_full_version < '3.10' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version < '3.10' and platform_machine != 'arm64' and sys_platform == 'darwin') or (python_full_version < '3.10' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.10' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+    "python_full_version < '3.10' and sys_platform == 'win32'",
+]
 dependencies = [
-    { name = "dill" },
+    { name = "dill", marker = "python_full_version < '3.10'" },
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "pandas" },
-    { name = "pydantic" },
-    { name = "tqdm" },
-    { name = "typing-extensions" },
-    { name = "xxhash" },
+    { name = "pandas", marker = "python_full_version < '3.10'" },
+    { name = "pydantic", marker = "python_full_version < '3.10'" },
+    { name = "tqdm", marker = "python_full_version < '3.10'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.10'" },
+    { name = "xxhash", marker = "python_full_version < '3.10'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/38/d1/94a5e71823236db214bd76ef4cccfb67c15a688c4dd0490a54ca3530e2ec/medcat-2.1.0.tar.gz", hash = "sha256:6b9668313beea6692c37058f48821e6dff62bfd10c4456f617ee558a64bd6171", size = 237028, upload-time = "2025-09-01T14:03:42.969Z" }
 wheels = [
@@ -2777,26 +2781,81 @@ wheels = [
 
 [package.optional-dependencies]
 deid = [
-    { name = "datasets" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "torch" },
-    { name = "transformers" },
+    { name = "datasets", marker = "python_full_version < '3.10'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.10'" },
+    { name = "scipy", marker = "python_full_version < '3.10'" },
+    { name = "torch", marker = "python_full_version < '3.10'" },
+    { name = "transformers", marker = "python_full_version < '3.10'" },
 ]
 meta-cat = [
-    { name = "peft" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "torch" },
-    { name = "transformers" },
+    { name = "peft", marker = "python_full_version < '3.10'" },
+    { name = "scikit-learn", marker = "python_full_version < '3.10'" },
+    { name = "scipy", marker = "python_full_version < '3.10'" },
+    { name = "torch", marker = "python_full_version < '3.10'" },
+    { name = "transformers", marker = "python_full_version < '3.10'" },
 ]
 rel-cat = [
-    { name = "scikit-learn" },
-    { name = "torch" },
-    { name = "transformers" },
+    { name = "scikit-learn", marker = "python_full_version < '3.10'" },
+    { name = "torch", marker = "python_full_version < '3.10'" },
+    { name = "transformers", marker = "python_full_version < '3.10'" },
 ]
 spacy = [
     { name = "spacy", version = "3.8.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+]
+
+[[package]]
+name = "medcat"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version > '3.11' and sys_platform == 'darwin'",
+    "python_full_version > '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version > '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version > '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+    "python_full_version == '3.11' and sys_platform == 'darwin'",
+    "python_full_version == '3.11' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version == '3.11' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version == '3.11' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+    "python_full_version == '3.10.*' and sys_platform == 'darwin'",
+    "python_full_version == '3.10.*' and platform_machine == 'aarch64' and sys_platform == 'linux'",
+    "(python_full_version == '3.10.*' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version == '3.10.*' and sys_platform != 'darwin' and sys_platform != 'linux' and sys_platform != 'win32')",
+    "python_full_version > '3.11' and sys_platform == 'win32'",
+    "python_full_version == '3.11' and sys_platform == 'win32'",
+    "python_full_version == '3.10.*' and sys_platform == 'win32'",
+]
+dependencies = [
+    { name = "dill", marker = "python_full_version >= '3.10'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pandas", marker = "python_full_version >= '3.10'" },
+    { name = "pydantic", marker = "python_full_version >= '3.10'" },
+    { name = "tqdm", marker = "python_full_version >= '3.10'" },
+    { name = "typing-extensions", marker = "python_full_version >= '3.10'" },
+    { name = "xxhash", marker = "python_full_version >= '3.10'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8b/44/478ee61c9b8f532694a3ae2cabc3615fb437f6ef96a9ec3612c112a6a104/medcat-2.2.0.tar.gz", hash = "sha256:39c15bf33ccfc50003ac6e8a7b244e6b16399e174e454c50899071a4f1a30a68", size = 255603, upload-time = "2025-10-20T09:55:03.173Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/bb/7f492fa92333e69f5812aa88360889c338d97e7d6455cd6dc5460ced9d64/medcat-2.2.0-py3-none-any.whl", hash = "sha256:1dcf7e9315180c74e88b18452361643c476a6e894a3e26d94fade59d2e456e04", size = 292542, upload-time = "2025-10-20T09:55:01.329Z" },
+]
+
+[package.optional-dependencies]
+deid = [
+    { name = "datasets", marker = "python_full_version >= '3.10'" },
+    { name = "scikit-learn", marker = "python_full_version >= '3.10'" },
+    { name = "scipy", marker = "python_full_version >= '3.10'" },
+    { name = "torch", marker = "python_full_version >= '3.10'" },
+    { name = "transformers", marker = "python_full_version >= '3.10'" },
+]
+meta-cat = [
+    { name = "peft", marker = "python_full_version >= '3.10'" },
+    { name = "scikit-learn", marker = "python_full_version >= '3.10'" },
+    { name = "scipy", marker = "python_full_version >= '3.10'" },
+    { name = "torch", marker = "python_full_version >= '3.10'" },
+    { name = "transformers", marker = "python_full_version >= '3.10'" },
+]
+rel-cat = [
+    { name = "scikit-learn", marker = "python_full_version >= '3.10'" },
+    { name = "torch", marker = "python_full_version >= '3.10'" },
+    { name = "transformers", marker = "python_full_version >= '3.10'" },
+]
+spacy = [
     { name = "spacy", version = "3.8.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
 
