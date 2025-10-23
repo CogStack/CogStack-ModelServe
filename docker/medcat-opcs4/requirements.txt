@@ -12,7 +12,7 @@ click<8.2.0
 typer~=0.15.1
 prometheus-fastapi-instrumentator~=7.0.0
 sentencepiece~=0.2.0
-slowapi~=0.1.
+slowapi~=0.1.7
 graypy~=2.1.0
 fastapi-users~=13.0.0
 fastapi-users-db-sqlalchemy~=5.0.0
