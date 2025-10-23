@@ -29,7 +29,7 @@ def test_get_records_from_doc(medcat_snomed_model):
             "0": {
                 "pretty_name": "pretty_name",
                 "cui": "cui",
-                "types": ["type"],
+                "type_ids": ["type"],
                 "athena_ids": [{"name": "name_1", "code": "code_1"}, {"name": "name_2", "code": "code_2"}],
                 "meta_anns": {}
             }
@@ -51,8 +51,10 @@ def test_init_model(medcat_snomed_model):
     medcat_snomed_model.init_model()
     target_tuis = medcat_snomed_model._config.TYPE_UNIQUE_ID_WHITELIST.split(",")
     target_cuis = {cui for tui in target_tuis for cui in medcat_snomed_model.model.cdb.addl_info.get("type_id2cuis").get(tui, {})}
+    mapped_ontologies = medcat_snomed_model._config.MEDCAT2_MAPPED_ONTOLOGIES.split(",")
     assert medcat_snomed_model.model is not None
-    assert medcat_snomed_model.model.cdb.config.linking.filters.get("cuis") == target_cuis
+    assert medcat_snomed_model.model.config.components.linking.filters.cuis == target_cuis
+    assert medcat_snomed_model.model.config.general.map_to_other_ontologies == mapped_ontologies
 
 
 @pytest.mark.skipif(
@@ -64,7 +66,7 @@ def test_init_model_with_no_tui_filter(medcat_snomed_model):
     medcat_snomed_model._whitelisted_tuis = set([""])
     medcat_snomed_model.init_model()
     assert medcat_snomed_model.model is not None
-    assert medcat_snomed_model.model.cdb.config.linking.filters.get("cuis") == original.cdb.config.linking.filters.get("cuis")
+    assert medcat_snomed_model.model.config.components.linking.filters.cuis == original.config.components.linking.filters.cuis
 
 
 @pytest.mark.skipif(

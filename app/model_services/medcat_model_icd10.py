@@ -57,11 +57,12 @@ class MedCATModelIcd10(MedCATModel):
             ModelCard: A card containing information about the MedCAT ICD-10 model.
         """
 
+        assert self.model is not None, "Model is not initialised"
         return ModelCard(
             model_description=self.model_name,
             model_type=ModelType.MEDCAT_ICD10,
             api_version=self.api_version,
-            model_card=self.model.get_model_card(as_dict=True),
+            model_card=dict(self.model.get_model_card(as_dict=True)),
         )
 
     def get_records_from_doc(self, doc: Dict) -> List[Dict]:
@@ -101,7 +102,7 @@ class MedCATModelIcd10(MedCATModel):
                     new_rows.append(output_row)
             if new_rows:
                 df = pd.DataFrame(new_rows)
-                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", self.ICD10_KEY: "label_id", "type_ids": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
                 df = self._retrieve_meta_annotations(df)
             else:
                 df = pd.DataFrame(columns=["label_name", "label_id", "start", "end", "accuracy"])

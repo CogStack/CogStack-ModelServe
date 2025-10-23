@@ -30,12 +30,14 @@ RUN addgroup --gid $CMS_GID cms || true && \
 COPY app /app
 COPY pyproject.toml /pyproject.toml
 COPY uv.lock /uv.lock
+COPY uv-requirements.txt /uv-requirements.txt
 COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
-RUN pip install --no-cache-dir uv==0.7.20 && \
+RUN pip install --require-hashes -r /uv-requirements.txt --no-cache-dir && \
     uv sync --locked && \
+    /.venv/bin/python -m ensurepip && \
     chown -R $CMS_UID:$CMS_GID /.venv && \
     chmod +x /app/entrypoint.sh
 

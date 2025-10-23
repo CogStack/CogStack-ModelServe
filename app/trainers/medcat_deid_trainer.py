@@ -15,10 +15,18 @@ from typing import Dict, TextIO, Any, Optional, List, final
 from evaluate.visualization import radar_plot
 from transformers import pipeline
 from medcat import __version__ as medcat_version
-from medcat.ner.transformers_ner import TransformersNER
+from medcat.components.types import CoreComponentType
+from medcat.components.ner.trf.transformers_ner import TransformersNERComponent
+import json
 from transformers import TrainerCallback, TrainingArguments, TrainerState, TrainerControl, PreTrainedModel, Trainer
 from app.domain import TrainerBackend
-from app.utils import get_settings, non_default_device_is_available, get_hf_pipeline_device_id, get_model_data_package_extension
+from app.utils import (
+    get_settings,
+    non_default_device_is_available,
+    get_hf_pipeline_device_id,
+    get_model_data_package_extension,
+    dump_pydantic_object_to_dict,
+)
 from app.management.tracker_client import TrackerClient
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer
 from app.processors.metrics_collector import get_stats_from_trainer_export
@@ -62,14 +70,14 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
                 model = self._model_service.load_model(copied_model_pack_path)
-                ner = model._addl_ner[0]
+                ner = model.pipe.get_component(CoreComponentType.ner)._component    # type: ignore
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
                 ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(ner.tokenizer.hf_tokenizer, "split_special_tokens", False)
                 _save_pretrained = ner.model.save_pretrained
                 if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
                     ner.model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
-                ner_config = {f"transformers.cat_config.{arg}": str(val) for arg, val in ner.config.general.dict().items()}
+                ner_config = {f"transformers.cat_config.{arg}": str(val) for arg, val in dump_pydantic_object_to_dict(ner.config.general).items()}
                 ner_config.update({f"transformers.training.{arg}": str(val) for arg, val in ner.training_arguments.to_dict().items()})
                 for key, val in ner_config.items():
                     ner_config[key] = "<EMPTY>" if val == "" else val
@@ -90,7 +98,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 # ner.training_arguments.evaluation_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1
                 logger.info("Performing supervised training...")
-                model.config.version.description = description or model.config.version.description
+                model.config.meta.description = description or model.config.meta.description
                 ner.config.general.description = description or ner.config.general.description
                 dataset = None
 
@@ -145,7 +153,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                                 "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
                                 "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
                             })
-                            cui2names[row["cui"]] = model.cdb.get_name(row["cui"])
+                            cui2names[row["cui"]] = model.cdb.get_name(row["cui"]) if model.cdb is not None else ""
                         MedcatDeIdentificationSupervisedTrainer._save_metrics_plot(
                             aggregated_metrics,
                             list(cui2names.values()),
@@ -175,7 +183,8 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         get_model_data_package_extension(model_pack_path),
                         "_config.json",
                     )
-                    model.cdb.config.save(cdb_config_path)
+                    with open(cdb_config_path, "w") as f:
+                        json.dump(dump_pydantic_object_to_dict(model.config), f)
                     model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
                     self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
@@ -215,9 +224,10 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
         else:
             try:
                 logger.info("Evaluating the running model...")
-                self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
+                if self._model_service._model is not None:
+                    self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
                 self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
-                ner = self._model_service._model._addl_ner[0]
+                ner = self._model.pipe.get_component(CoreComponentType.ner)._component  # type: ignore
                 ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
                 ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
                 ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(ner.tokenizer.hf_tokenizer, "split_special_tokens", False)
@@ -236,7 +246,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         "per_concept_p_merged": row["p_merged"] if row["p_merged"] is not None else 0.0,
                         "per_concept_r_merged": row["r_merged"] if row["r_merged"] is not None else 0.0,
                     })
-                    cui2names[row["cui"]] = self._model_service._model.cdb.get_name(row["cui"])
+                    cui2names[row["cui"]] = self._model_service._model.cdb.get_name(row["cui"]) if self._model_service._model and self._model_service._model.cdb else ""
                 self._tracker_client.send_batched_model_stats(aggregated_metrics, run_id)
                 self._save_examples(examples, ["tp", "tn"])
                 self._tracker_client.log_classes_and_names(cui2names)
@@ -273,7 +283,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
             logger.exception(e)
 
     @staticmethod
-    def _customise_training_device(ner: TransformersNER, device_name: str) -> TransformersNER:
+    def _customise_training_device(ner: TransformersNERComponent, device_name: str) -> TransformersNERComponent:
         if non_default_device_is_available(device_name):
             ner.model.to(torch.device(device_name))
             ner.ner_pipe = pipeline(

@@ -31,10 +31,11 @@ COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
     chown -R $CMS_UID:$CMS_GID /app
-RUN pip install --no-cache-dir -U pip &&\
-    pip install --no-cache-dir -r /app/requirements.txt && \
-    python -m spacy download en_core_web_md
-RUN chmod +x /app/entrypoint.sh
+RUN python -m venv .venv && \
+    /.venv/bin/pip install --no-cache-dir -U pip &&\
+    /.venv/bin/pip install --no-cache-dir -r /app/requirements.txt &&\
+    chown -R $CMS_UID:$CMS_GID /.venv && \
+    chmod +x /app/entrypoint.sh
 
 WORKDIR /app
 EXPOSE 8000

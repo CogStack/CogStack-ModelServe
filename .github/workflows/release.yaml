@@ -17,11 +17,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-            version: "0.6.10"
+            version: "0.8.10"
             python-version: "3.10"
       - name: Install dependencies
         run: |
-          uv sync --group dev --group docs --group vllm
+          uv sync --extra dev --extra docs --extra vllm
       - name: Run unit tests
         run: |
           uv run pytest -v tests/app --cov --cov-report=html:coverage_reports #--random-order

@@ -1,16 +1,16 @@
 import os
+import json
 import logging
 import shutil
 import gc
-from typing import Dict, TextIO, Optional, List
-
 import pandas as pd
+from typing import Dict, TextIO, Optional, List, cast
 from medcat import __version__ as medcat_version
-from medcat.meta_cat import MetaCAT
+from medcat.components.addons.meta_cat.meta_cat import MetaCAT, MetaCATAddon
 from app.domain import TrainerBackend
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer
 from app.exception import TrainingFailedException, TrainingCancelledException
-from app.utils import non_default_device_is_available, get_model_data_package_extension
+from app.utils import non_default_device_is_available, get_model_data_package_extension, dump_pydantic_object_to_dict
 
 logger = logging.getLogger("cms")
 
@@ -24,7 +24,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
     """
 
     @staticmethod
-    def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:
+    def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:  # type: ignore
         """
         Flattens the configuration of a MetaCAT model into a dictionary with string values.
 
@@ -80,21 +80,35 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 logger.info("Loading a new model copy for training...")
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
                 if non_default_device_is_available(self._config.DEVICE):
-                    model = self._model_service.load_model(
-                        copied_model_pack_path,
-                        meta_cat_config_dict={"general": {"device": self._config.DEVICE}},
-                    )
-                    model.config.general["device"] = self._config.DEVICE
+                    model = self._model_service.load_model(copied_model_pack_path)
+                    model.config.general.device = self._config.DEVICE   # type: ignore
                 else:
                     model = self._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
-                model.config.version.description = description or model.config.version.description
-                for meta_cat in model._meta_cats:
+                model.config.meta.description = description or model.config.meta.description
+                meta_cat_addons = [
+                    addon for addon in model.get_addons()
+                    if addon.addon_type == MetaCATAddon.addon_type
+                ]
+                for meta_cat_addon in meta_cat_addons:
                     if self._cancel_event.is_set():
                         self._cancel_event.clear()
                         raise TrainingCancelledException("Training was cancelled by the user")
 
-                    category_name = meta_cat.config.general["category_name"]
+                    meta_cat = cast(MetaCATAddon, meta_cat_addon).mc
+                    category_name = meta_cat.config.general.category_name
+                    assert category_name is not None, "Category name should not be None"
+                    if meta_cat.config.general.alternative_class_names == [[]]:
+                        class_name_mapping =  {
+                            "Temporality": [["Past"], ["Recent", "Present"], ["Future"]],
+                            "Time": [["Past"], ["Recent", "Present"], ["Future"]],
+                            "Experiencer": [["Family"], ["Other"], ["Patient"]],
+                            "Subject": [["Family"], ["Other"], ["Patient"]],
+                            "Presence": [["Hypothetical (N/A)", "Hypothetical"], ["Not present (False)", "False"], ["Present (True)", "True"]],
+                            "Status": [["Affirmed", "Confirmed"], ["Other"]],
+                        }
+                        meta_cat.config.general.alternative_class_names = class_name_mapping[category_name]
+
                     if training_params.get("lr_override") is not None:
                         meta_cat.config.train.lr = training_params["lr_override"]
                     if training_params.get("test_size") is not None:
@@ -106,6 +120,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
 
                     try:
                         mp_ext = get_model_data_package_extension(copied_model_pack_path)
+                        if non_default_device_is_available(self._config.DEVICE):
+                            meta_cat.config.general.device = self._config.DEVICE
                         winner_report = meta_cat.train_from_json(
                             data_file.name,
                             os.path.join(copied_model_pack_path.replace(mp_ext, ""),f"meta_{category_name}"),
@@ -144,7 +160,8 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                         get_model_data_package_extension(model_pack_path),
                         "_config.json",
                     )
-                    model.cdb.config.save(cdb_config_path)
+                    with open(cdb_config_path, "w") as f:
+                        json.dump(dump_pydantic_object_to_dict(model.config), f)
                     model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
                     self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
@@ -185,8 +202,14 @@ class MetacatTrainer(MedcatSupervisedTrainer):
             try:
                 logger.info("Evaluating the running model...")
                 metrics: List[Dict] = []
-                for meta_cat in self._model_service._model._meta_cats:
-                    category_name = meta_cat.config.general["category_name"]
+                assert self._model_service.model is not None, "Model should not be None"
+                meta_cat_addons = [
+                    addon for addon in self._model_service.model.get_addons()
+                    if addon.addon_type == MetaCATAddon.addon_type
+                ]
+                for meta_cat_addon in meta_cat_addons:
+                    meta_cat = cast(MetaCATAddon, meta_cat_addon).mc
+                    category_name = meta_cat.config.general.category_name
                     self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
                     self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                     result = meta_cat.eval(data_file.name)
