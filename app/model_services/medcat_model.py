@@ -3,8 +3,9 @@ import logging
 import pandas as pd
 
 from multiprocessing import cpu_count
-from typing import Dict, List, Optional, TextIO, Tuple, Any, Set
+from typing import Dict, List, Optional, TextIO, Tuple, Any, Set, Union
 from medcat.cat import CAT
+from medcat.data.entities import Entities, OnlyCUIEntities
 from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
@@ -142,7 +143,7 @@ class MedCATModel(AbstractModelService):
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
                 self._metacat_trainer = MetacatTrainer(self)
-            self._model.config.general.map_to_other_ontologies = [  # type: ignore # await new MedCAT release
+            self._model.config.general.map_to_other_ontologies = [
                 tui.strip() for tui in self._config.MEDCAT2_MAPPED_ONTOLOGIES.split(",")
             ]
 
@@ -172,7 +173,7 @@ class MedCATModel(AbstractModelService):
 
         assert self.model is not None, "Model is not initialised"
         doc = self.model.get_entities(text)
-        return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)] # type: ignore
+        return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         """
@@ -197,7 +198,7 @@ class MedCATModel(AbstractModelService):
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc) # type: ignore
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)
             ])
         return annotations_list
 
@@ -342,12 +343,12 @@ class MedCATModel(AbstractModelService):
             **hyperparams,
         )
 
-    def get_records_from_doc(self, doc: Dict) -> List[Dict]:
+    def get_records_from_doc(self, doc: Union[Dict, Entities, OnlyCUIEntities]) -> List[Dict]:
         """
         Extracts and formats entity records from a document dictionary.
 
         Args:
-            doc (Dict): The document dictionary containing extracted named entities.
+            doc (Union[Dict, Entities, OnlyCUIEntities]): The document dictionary containing extracted named entities.
 
         Returns:
             List[Dict]: A list of formatted entity records.

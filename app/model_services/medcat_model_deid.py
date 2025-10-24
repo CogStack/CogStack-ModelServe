@@ -2,7 +2,7 @@ import logging
 import inspect
 import threading
 import torch
-from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable
+from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable, cast
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
@@ -91,7 +91,7 @@ class MedCATModelDeIdentification(MedCATModel):
             for _, entity in doc["entities"].items():
                 entity["type_ids"] = ["PII"]
 
-        records = self.get_records_from_doc({"entities": doc["entities"]})  # type: ignore
+        records = self.get_records_from_doc({"entities": doc["entities"]})
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
@@ -176,9 +176,10 @@ class MedCATModelDeIdentification(MedCATModel):
         entities_list = self.model.get_entities_multi_texts(texts)
         for _, entities in entities_list:
             for _, entity in entities["entities"].items():
-                entity["type_ids"] = ["PII"]    # type: ignore
+                entity = cast(Dict[str, Any], entity)
+                entity["type_ids"] = ["PII"]
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)    # type: ignore
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)
             ])
 
         return annotations_list

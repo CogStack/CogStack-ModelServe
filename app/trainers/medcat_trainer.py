@@ -8,7 +8,7 @@ import ijson
 import datasets
 import pandas as pd
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING
+from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING, cast, Any
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from medcat.stats.stats import get_stats
@@ -179,7 +179,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                         "per_concept_fn": fns.get(cui, 0),
                         "per_concept_tp": tps.get(cui, 0),
                         "per_concept_counts": cc.get(cui, 0),
-                        "per_concept_count_train": model.cdb.cui2info.get(cui, {}).get("count_train", 0),  # type: ignore
+                        "per_concept_count_train": cast(Dict[str, Any], model.cdb.cui2info.get(cui, {})).get("count_train", 0),
                         "per_concept_acc_fp": fp_accumulated,
                         "per_concept_acc_fn": fn_accumulated,
                         "per_concept_acc_tp": tp_accumulated,
@@ -266,8 +266,11 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         return set(training_concepts.keys()).intersection(set(model.cdb.cui2info.keys()))
 
     def _glean_and_log_metrics(self, log: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
-                                  re.IGNORECASE)
+        metric_lines = re.findall(
+            r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)",
+            log,
+            re.IGNORECASE
+        )
         for step, metric in enumerate(metric_lines):
             metrics = {
                 "precision": float(metric[1]),

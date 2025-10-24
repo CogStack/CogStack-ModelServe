@@ -1,6 +1,7 @@
 import logging
 import pandas as pd
-from typing import Dict, Optional, final, List
+from typing import Dict, Optional, final, List, Union
+from medcat.data.entities import Entities, OnlyCUIEntities
 from app import __version__ as app_version
 from app.model_services.medcat_model import MedCATModel
 from app.config import Settings
@@ -65,12 +66,12 @@ class MedCATModelIcd10(MedCATModel):
             model_card=dict(self.model.get_model_card(as_dict=True)),
         )
 
-    def get_records_from_doc(self, doc: Dict) -> List[Dict]:
+    def get_records_from_doc(self, doc: Union[Dict, Entities, OnlyCUIEntities]) -> List[Dict]:
         """
         Extracts and formats entity records from a document dictionary.
 
         Args:
-            doc (Dict): The document dictionary containing extracted named entities.
+            doc (Union[Dict, Entities, OnlyCUIEntities]): The document dictionary containing extracted named entities.
 
         Returns:
             List[Dict]: A list of formatted entity records.

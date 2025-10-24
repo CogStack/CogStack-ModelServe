@@ -217,7 +217,8 @@ def generate_chat_completions(
             yield f"data: {json.dumps(data)}\n\n"
         yield "data: [DONE]\n\n"
 
-    prompt = get_prompt_from_messages(model_service.tokenizer, messages)    # type: ignore
+    assert hasattr(model_service, "tokenizer"), "Model service doesn't have a tokenizer"
+    prompt = get_prompt_from_messages(model_service.tokenizer, messages)
     if stream:
         return StreamingResponse(
             _stream(prompt, max_tokens, temperature),

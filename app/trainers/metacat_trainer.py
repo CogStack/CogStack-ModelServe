@@ -24,7 +24,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
     """
 
     @staticmethod
-    def get_flattened_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:  # type: ignore
+    def get_flattened_metacat_config(model: MetaCAT, prefix: Optional[str] = None) -> Dict:
         """
         Flattens the configuration of a MetaCAT model into a dictionary with string values.
 
@@ -114,7 +114,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     if training_params.get("test_size") is not None:
                         meta_cat.config.train.test_size = training_params["test_size"]
                     meta_cat.config.train.nepochs = training_params["nepochs"]
-                    self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
+                    self._tracker_client.log_model_config(self.get_flattened_metacat_config(meta_cat, category_name))
                     self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                     logger.info('Performing supervised training on category "%s"...', category_name)
 
@@ -210,7 +210,7 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 for meta_cat_addon in meta_cat_addons:
                     meta_cat = cast(MetaCATAddon, meta_cat_addon).mc
                     category_name = meta_cat.config.general.category_name
-                    self._tracker_client.log_model_config(self.get_flattened_config(meta_cat, category_name))
+                    self._tracker_client.log_model_config(self.get_flattened_metacat_config(meta_cat, category_name))
                     self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                     result = meta_cat.eval(data_file.name)
                     metrics.append({"precision": result.get("precision"), "recall": result.get("recall"), "f1": result.get("f1")})

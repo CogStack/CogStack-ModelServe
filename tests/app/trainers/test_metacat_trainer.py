@@ -19,12 +19,12 @@ metacat_trainer.model_name = "metacat_trainer"
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
 
-def test_get_flattened_config():
+def test_get_flattened_metacat_config():
     model = Mock()
     model.config.general = General()
     model.config.model = Model()
     model.config.train = Train()
-    config = metacat_trainer.get_flattened_config(model, "prefix")
+    config = metacat_trainer.get_flattened_metacat_config(model, "prefix")
     for key, val in config.items():
         assert "prefix.general." in key or "prefix.model." in key or "prefix.train" in key
 

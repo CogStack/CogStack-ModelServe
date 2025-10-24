@@ -8,7 +8,7 @@ import sys
 import copy
 import functools
 import warnings
-import requests     # type: ignore
+import requests
 import time
 import torch
 import tarfile
@@ -671,9 +671,9 @@ def load_pydantic_object_from_dict(model: Type[T], obj: Dict) -> T:
     """
 
     if hasattr(model, "parse_obj"):
-        return model.parse_obj(obj)     # type: ignore
+        return model.parse_obj(obj)
     elif hasattr(model, "model_validate"):
-        return model.model_validate(obj)    # type: ignore
+        return model.model_validate(obj)
     else:
         raise TypeError("Model must have a known method for parsing objects.")
 
@@ -690,9 +690,9 @@ def dump_pydantic_object_to_dict(model: BaseModel) -> Dict:
     """
 
     if hasattr(model, "model_dump"):
-        return model.model_dump(mode="json")    # type: ignore
+        return model.model_dump(mode="json")
     elif hasattr(model, "dict"):
-        return model.dict()    # type: ignore
+        return model.dict()
     else:
         raise TypeError("Model must have a known method for dumping objects.")
 
