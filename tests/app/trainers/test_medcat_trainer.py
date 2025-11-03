@@ -45,7 +45,7 @@ def test_save_model_pack():
         "model.zip",
         "model description",
     )
-    model.save_model_pack.called_once_with("retrained_models_dir", "model")
+    model.save_model_pack.assert_called_once_with("retrained_models_dir", "model")
     assert model.config.meta.description == "model description"
 
 

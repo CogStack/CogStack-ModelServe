@@ -143,7 +143,7 @@ class MedCATModel(AbstractModelService):
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
                 self._metacat_trainer = MetacatTrainer(self)
-            self._model.config.general.map_to_other_ontologies = [
+            self._model.config.general.map_to_other_ontologies = [  # type: ignore
                 tui.strip() for tui in self._config.MEDCAT2_MAPPED_ONTOLOGIES.split(",")
             ]
 

@@ -366,8 +366,8 @@ async def init_vllm_engine(app: FastAPI,
 
         params = SamplingParams(max_tokens=max_tokens)
 
-        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")
-        prompt_tokens = apply_hf_chat_template(
+        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")   # type: ignore
+        prompt_tokens = apply_hf_chat_template( # type: ignore
             tokenizer,
             conversation=conversation,
             tools=None,
@@ -376,7 +376,7 @@ async def init_vllm_engine(app: FastAPI,
             chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
             tokenize=True,
         )
-        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)
+        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)   # type: ignore
 
         async def _stream() -> AsyncGenerator[bytes, None]:
             start = 0
