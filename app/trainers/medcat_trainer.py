@@ -8,7 +8,7 @@ import ijson
 import datasets
 import pandas as pd
 from contextlib import redirect_stdout
-from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING, cast, Any
+from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
 from medcat.stats.stats import get_stats
@@ -174,12 +174,13 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     fn_accumulated += fns.get(cui, 0)
                     tp_accumulated += tps.get(cui, 0)
                     cc_accumulated += cc.get(cui, 0)
+                    cui_info = model.cdb.cui2info.get(cui)
                     aggregated_metrics.append({
                         "per_concept_fp": fps.get(cui, 0),
                         "per_concept_fn": fns.get(cui, 0),
                         "per_concept_tp": tps.get(cui, 0),
                         "per_concept_counts": cc.get(cui, 0),
-                        "per_concept_count_train": cast(Dict[str, Any], model.cdb.cui2info.get(cui, {})).get("count_train", 0),
+                        "per_concept_count_train": cui_info.get("count_train", 0) if cui_info is not None else 0,
                         "per_concept_acc_fp": fp_accumulated,
                         "per_concept_acc_fn": fn_accumulated,
                         "per_concept_acc_tp": tp_accumulated,
@@ -309,8 +310,9 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             annotation_ignorance_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
-                train_count.append(model.cdb.cui2info.get(c, {}).get("count_train", 0))  # type: ignore
-                concept_names.append(model.cdb.cui2info.get(c, {}).get("preferred_name", ""))  # type: ignore
+                cui_info = model.cdb.cui2info.get(c)
+                train_count.append(cui_info.get("count_train", 0) if cui_info is not None else 0)
+                concept_names.append(model.cdb.get_name(c))
                 annotation_count.append(training_concepts[c])
                 annotation_unique_count.append(training_unique_concepts[c])
                 annotation_ignorance_count.append(training_ignorance_counts[c])
@@ -421,7 +423,7 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             logger.info("Performing unsupervised training...")
             step = 0
             self._tracker_client.send_model_stats(dict(model.cdb.get_basic_info()), step)
-            before_cui2count_train = {c: info["count_train"] for c, info in model.cdb.cui2info.items()}
+            before_cui2count_train = model.cdb.get_cui2count_train()
             num_of_docs = 0
             train_unsupervised_params = get_func_params_as_dict(model.trainer.train_unsupervised)
             train_unsupervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_unsupervised_params.items()}
@@ -437,13 +439,14 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
 
             self._tracker_client.log_document_size(num_of_docs)
             after_cui2count_train = {
-                c: info["count_train"]
-                for c, info in sorted(
-                    model.cdb.cui2info.items(),
-                    key=lambda item: item[1]["count_train"],
+                c: ct
+                for c, ct in sorted(
+                    model.cdb.get_cui2count_train().items(),
+                    key=lambda item: item[1],
                     reverse=True,
                 )
             }
+
             aggregated_metrics = []
             cui_step = 0
             for cui, train_count in after_cui2count_train.items():

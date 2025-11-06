@@ -4,7 +4,7 @@ import logging
 import shutil
 import gc
 import pandas as pd
-from typing import Dict, TextIO, Optional, List, cast
+from typing import Dict, TextIO, Optional, List
 from medcat import __version__ as medcat_version
 from medcat.components.addons.meta_cat.meta_cat import MetaCAT, MetaCATAddon
 from app.domain import TrainerBackend
@@ -86,16 +86,13 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                     model = self._model_service.load_model(copied_model_pack_path)
                 is_retrained = False
                 model.config.meta.description = description or model.config.meta.description
-                meta_cat_addons = [
-                    addon for addon in model.get_addons()
-                    if addon.addon_type == MetaCATAddon.addon_type
-                ]
+                meta_cat_addons = model.get_addons_of_type(MetaCATAddon)
                 for meta_cat_addon in meta_cat_addons:
                     if self._cancel_event.is_set():
                         self._cancel_event.clear()
                         raise TrainingCancelledException("Training was cancelled by the user")
 
-                    meta_cat = cast(MetaCATAddon, meta_cat_addon).mc
+                    meta_cat = meta_cat_addon.mc
                     category_name = meta_cat.config.general.category_name
                     assert category_name is not None, "Category name should not be None"
                     if meta_cat.config.general.alternative_class_names == [[]]:
@@ -203,12 +200,9 @@ class MetacatTrainer(MedcatSupervisedTrainer):
                 logger.info("Evaluating the running model...")
                 metrics: List[Dict] = []
                 assert self._model_service.model is not None, "Model should not be None"
-                meta_cat_addons = [
-                    addon for addon in self._model_service.model.get_addons()
-                    if addon.addon_type == MetaCATAddon.addon_type
-                ]
+                meta_cat_addons = self._model_service.model.get_addons_of_type(MetaCATAddon)
                 for meta_cat_addon in meta_cat_addons:
-                    meta_cat = cast(MetaCATAddon, meta_cat_addon).mc
+                    meta_cat = meta_cat_addon.mc
                     category_name = meta_cat.config.general.category_name
                     self._tracker_client.log_model_config(self.get_flattened_metacat_config(meta_cat, category_name))
                     self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
