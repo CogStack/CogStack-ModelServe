@@ -6,11 +6,10 @@ build-backend = "setuptools.build_meta"
 name = "cogstack-model-serve"
 authors = [{name = "Xi Bai", email = "baixiac@gmail.com"}]
 description = "A model serving and governance system for CogStack NLP solutions"
-requires-python = ">3.9,<3.13"
+requires-python = ">3.10,<3.13"
 dynamic = ["version"]
 dependencies = [
     "medcat[spacy,meta-cat,deid,rel-cat]~=2.2.0; python_version>='3.10'",
-    "medcat[spacy,meta-cat,deid,rel-cat]~=2.1.0; python_version<'3.10'",
     "datasets>=2.21.0",
     "fastapi~=0.115.0",
     "uvicorn~=0.29.0",
@@ -43,9 +42,9 @@ license = {text = "Elastic License 2.0"}
 classifiers=[
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Framework :: FastAPI",
 ]
 
