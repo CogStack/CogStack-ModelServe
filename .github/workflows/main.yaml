@@ -12,7 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.8', '3.9', '3.10', '3.11' ]
+        python-version: [
+          '3.9',
+          '3.10',
+          '3.11',
+          '3.12',
+        ]
       max-parallel: 4
 
     steps:
@@ -20,11 +25,12 @@ jobs:
       - name: Install uv and set Python to ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v6
         with:
-          version: "0.7.20"
+          version: "0.8.10"
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          uv sync --group dev --group docs
+          uv sync --extra dev --extra docs --extra vllm
+          uv run python -m ensurepip
       - name: Check types
         run: |
           uv run mypy app

@@ -6,7 +6,7 @@ import numpy as np
 from typing import Tuple, List, Dict, Iterable, Optional, final, Any
 from scipy.special import softmax
 from transformers import AutoModelForTokenClassification, PreTrainedModel
-from medcat.tokenizers.transformers_ner import TransformersTokenizerNER
+from medcat.components.ner.trf.tokenizer import TransformersTokenizer
 from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.domain import ModelCard, ModelType, Annotation
@@ -41,7 +41,7 @@ class TransformersModelDeIdentification(AbstractModelService):
             self._device = torch.device(config.DEVICE)
         self.model_name = model_name or "De-identification model"
         self._model: PreTrainedModel
-        self._tokenizer: TransformersTokenizerNER
+        self._tokenizer: TransformersTokenizer
         self._id2cui: Dict[str, str]
 
     @property
@@ -73,14 +73,14 @@ class TransformersModelDeIdentification(AbstractModelService):
         model_file_path: str,
         *args: Tuple,
         **kwargs: Dict[str, Any],
-    ) -> Tuple[TransformersTokenizerNER, PreTrainedModel]:
+    ) -> Tuple[TransformersTokenizer, PreTrainedModel]:
         model_file_dir = os.path.dirname(model_file_path)
         model_file_name = os.path.basename(model_file_path).replace(".zip", "")
         unpacked_model_dir = os.path.join(model_file_dir, model_file_name)
         if not os.path.isdir(unpacked_model_dir):
             shutil.unpack_archive(model_file_path, extract_dir=unpacked_model_dir)
         tokenizer_path = os.path.join(unpacked_model_dir, "tokenizer.dat")
-        tokenizer = TransformersTokenizerNER.load(tokenizer_path)
+        tokenizer = TransformersTokenizer.load(tokenizer_path)
         logger.info("Tokenizer loaded from %s", tokenizer_path)
         model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
         logger.info("Model loaded from %s", unpacked_model_dir)
@@ -91,7 +91,7 @@ class TransformersModelDeIdentification(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._tokenizer, self._model = self.load_model(self._model_file_path)
-            self._id2cui = {cui_id: cui for cui, cui_id in self._tokenizer.label_map.items()}
+            self._id2cui = {str(cui_id): cui for cui, cui_id in self._tokenizer.label_map.items()}
             self._model.to(self._device)
 
     def annotate(self, text: str) -> List[Annotation]:
@@ -123,13 +123,13 @@ class TransformersModelDeIdentification(AbstractModelService):
             input_ids = dataset["input_ids"]
             for t_idx, cur_cui_id in enumerate(predictions):
                 if cur_cui_id not in [0, -100]:
-                    t_text = self._tokenizer.hf_tokenizer.decode(input_ids[t_idx])
+                    t_text = self._tokenizer.hf_tokenizer.decode(input_ids[t_idx])  # type: ignore
                     if t_text.strip() in ["", "[PAD]"]:
                         continue
                     annotation = load_pydantic_object_from_dict(
                         Annotation,
                         {
-                            "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),
+                            "label_name": self._tokenizer.cui2name.get(self._id2cui[cur_cui_id]),   # type: ignore
                             "label_id": self._id2cui[cur_cui_id],
                             "start": offset_mappings[t_idx][0],
                             "end": offset_mappings[t_idx][1],
@@ -138,9 +138,9 @@ class TransformersModelDeIdentification(AbstractModelService):
                     if ist:
                         annotation.text = t_text
                     if annotations:
-                        token_type = self._tokenizer.id2type.get(input_ids[t_idx])
+                        token_type = self._tokenizer.id2type.get(input_ids[t_idx])  # type: ignore
                         if any([
-                            self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),
+                            self._should_expand_with_partial(cur_cui_id, token_type, annotation, annotations),  # type: ignore
                             self._should_expand_with_whole(cas, annotation, annotations),
                         ]):
                             annotations[-1].end = annotation.end
@@ -159,9 +159,9 @@ class TransformersModelDeIdentification(AbstractModelService):
         return annotations
 
     def _get_chunked_tokens(self, text: str) -> Iterable[Tuple[Dict, List[Tuple]]]:
-        tokens = self._tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)
+        tokens = self._tokenizer.hf_tokenizer(text, return_offsets_mapping=True, add_special_tokens=False)  # type: ignore
         model_max_length = self._tokenizer.max_len
-        pad_token_id = self._tokenizer.hf_tokenizer.pad_token_id
+        pad_token_id = self._tokenizer.hf_tokenizer.pad_token_id    # type: ignore
         partial = len(tokens["input_ids"]) % model_max_length
         for i in range(0, len(tokens["input_ids"]) - partial, model_max_length):
             dataset = {

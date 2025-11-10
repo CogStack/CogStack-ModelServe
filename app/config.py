@@ -36,6 +36,7 @@ class Settings(BaseSettings):   # type: ignore
     TRAINING_CACHE_DIR: str = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cms_cache")           # the directory to cache the intermediate files created during training
     HF_PIPELINE_AGGREGATION_STRATEGY: str = "simple"  # the strategy used for aggregating the predictions of the Hugging Face NER model
     LOG_PER_CONCEPT_ACCURACIES: str = "false"         # if "true", per-concept accuracies will be exposed to the metrics scrapper. Switch this on with caution due to the potentially high number of concepts
+    MEDCAT2_MAPPED_ONTOLOGIES: str = ""               # the comma-separated names of ontologies for MedCAT2 to map to
     DEBUG: str = "false"                              # if "true", the debug mode is switched on
 
     class Config:

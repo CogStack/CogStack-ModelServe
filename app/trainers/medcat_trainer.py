@@ -1,16 +1,17 @@
 import gc
+import json
 import logging
 import os
 import re
 import tempfile
 import ijson
 import datasets
+import pandas as pd
 from contextlib import redirect_stdout
 from typing import TextIO, Dict, Optional, Set, List, Union, final, TYPE_CHECKING
-
-import pandas as pd
 from medcat import __version__ as medcat_version
 from medcat.cat import CAT
+from medcat.stats.stats import get_stats
 from app.management.log_captor import LogCaptor
 from app.management.model_manager import ModelManager
 from app.trainers.base import SupervisedTrainer, UnsupervisedTrainer
@@ -21,6 +22,7 @@ from app.utils import (
     non_default_device_is_available,
     get_model_data_package_extension,
     create_model_data_package,
+    dump_pydantic_object_to_dict,
 )
 from app.domain import DatasetSplit, TrainerBackend
 from app.exception import TrainingCancelledException
@@ -36,21 +38,18 @@ class _MedcatTrainerCommon(object):
     def get_flattened_config(model: CAT, prefix: Optional[str] = None) -> Dict:
         params = {}
         prefix = "" if prefix is None else f"{prefix}."
-        for key, val in model.cdb.config.general.__dict__.items():
+        for key, val in model.config.general.__dict__.items():
             params[f"{prefix}general.{key}"] = str(val)
-        for key, val in model.cdb.config.cdb_maker.__dict__.items():
+        for key, val in model.config.cdb_maker.__dict__.items():
             params[f"{prefix}cdb_maker.{key}"] = str(val)
-        for key, val in model.cdb.config.annotation_output.__dict__.items():
+        for key, val in model.config.annotation_output.__dict__.items():
             params[f"{prefix}annotation_output.{key}"] = str(val)
-        for key, val in model.cdb.config.preprocessing.__dict__.items():
+        for key, val in model.config.preprocessing.__dict__.items():
             params[f"{prefix}preprocessing.{key}"] = str(val)
-        for key, val in model.cdb.config.ner.__dict__.items():
-            params[f"{prefix}ner.{key}"] = str(val)
-        for key, val in model.cdb.config.linking.__dict__.items():
-            params[f"{prefix}linking.{key}"] = str(val)
-        params[f"{prefix}word_skipper"] = str(model.cdb.config.word_skipper)
-        params[f"{prefix}punct_checker"] = str(model.cdb.config.punct_checker)
-        params.pop(f"{prefix}linking.filters", None)  # deal with the length value in the older model
+        for key, val in model.config.components.ner.__dict__.items():
+            params[f"{prefix}components.ner.{key}"] = str(val)
+        for key, val in model.config.components.linking.__dict__.items():
+            params[f"{prefix}components.linking.{key}"] = str(val)
         for key, val in params.items():
             if val == "":
                 params[key] = "<EMPTY>"
@@ -61,9 +60,10 @@ class _MedcatTrainerCommon(object):
         model_service: "MedCATModel",
         model: CAT,
         skip_save_model: bool,
+        description: Optional[str] = None,
     ) -> None:
         if skip_save_model:
-            model._versioning()
+            model._versioning(change_description=description)
         if hasattr(model_service, "model"):
             del model_service.model
         gc.collect()
@@ -73,8 +73,8 @@ class _MedcatTrainerCommon(object):
     @staticmethod
     def save_model_pack(model: CAT, model_dir: str, base_model_file: str, description: Optional[str] = None) -> str:
         logger.info("Saving retrained model to %s...", model_dir)
-        model.config.version.description = description or model.config.version.description
-        model_pack_name = model.create_model_pack(model_dir, "model")
+        model.config.meta.description = description or model.config.meta.description
+        model_pack_name = model.save_model_pack(model_dir, "model")
         if get_model_data_package_extension(base_model_file) == ".tar.gz":
             model_pack_path = f"{os.path.join(model_dir, model_pack_name)}.tar.gz"
             create_model_data_package(model_dir, model_pack_path)
@@ -137,11 +137,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
 
                 if non_default_device_is_available(self._config.DEVICE):
-                    model = self._model_service.load_model(
-                        copied_model_pack_path,
-                        meta_cat_config_dict={"general": {"device": self._config.DEVICE}},
-                    )
-                    model.config.general["device"] = self._config.DEVICE
+                    model = self._model_service.load_model(copied_model_pack_path)
+                    model.config.general.device = self._config.DEVICE   # type: ignore
                 else:
                     model = self._model_service.load_model(copied_model_pack_path)
                 self._tracker_client.log_model_config(self.get_flattened_config(model))
@@ -150,12 +147,18 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                 self._tracker_client.log_document_size(num_of_docs)
                 training_params.update({"extra_cui_filter": self._get_concept_filter(cui_counts, model)})
                 logger.info("Performing supervised training...")
-                train_supervised_params = get_func_params_as_dict(model.train_supervised_from_json)
+                with open(data_file.name, "r") as f:
+                    training_data = json.load(f)
+                train_supervised_params = get_func_params_as_dict(model.trainer.train_supervised_raw)
                 train_supervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_supervised_params.items()}
-                model.config.version.description = description or model.config.version.description
+                model.config.meta.description = description or model.config.meta.description
 
                 with redirect_stdout(LogCaptor(self._glean_and_log_metrics)):    # type: ignore
-                    fps, fns, tps, p, r, f1, cc, examples = model.train_supervised_from_json(data_file.name, **train_supervised_params)
+                    fps, fns, tps, p, r, f1, cc, examples = model.trainer.train_supervised_raw(training_data, **train_supervised_params)
+
+                # This can be removed after the returned values are fixed in medcat trainer's train_supervised_raw()
+                fps, fns, tps, p, r, f1, cc, examples = get_stats(model, training_data, training_params["nepochs"])
+
                 self._save_examples(examples, ["tp", "tn"])
                 del examples
                 gc.collect()
@@ -171,12 +174,13 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     fn_accumulated += fns.get(cui, 0)
                     tp_accumulated += tps.get(cui, 0)
                     cc_accumulated += cc.get(cui, 0)
+                    cui_info = model.cdb.cui2info.get(cui)
                     aggregated_metrics.append({
                         "per_concept_fp": fps.get(cui, 0),
                         "per_concept_fn": fns.get(cui, 0),
                         "per_concept_tp": tps.get(cui, 0),
                         "per_concept_counts": cc.get(cui, 0),
-                        "per_concept_count_train": model.cdb.cui2count_train.get(cui, 0),
+                        "per_concept_count_train": cui_info.get("count_train", 0) if cui_info is not None else 0,
                         "per_concept_acc_fp": fp_accumulated,
                         "per_concept_acc_fn": fn_accumulated,
                         "per_concept_acc_tp": tp_accumulated,
@@ -205,14 +209,15 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                         get_model_data_package_extension(model_pack_path),
                         "_config.json",
                     )
-                    model.cdb.config.save(cdb_config_path)
+                    with open(cdb_config_path, "w") as f:
+                        json.dump(dump_pydantic_object_to_dict(model.config), f)
                     model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                     logger.info("Retrained model saved: %s", model_uri)
                     self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
                 else:
                     logger.info("Skipped saving on the retrained model")
                 if redeploy:
-                    self.deploy_model(self._model_service, model, skip_save_model)
+                    self.deploy_model(self._model_service, model, skip_save_model, description)
                 else:
                     del model
                     gc.collect()
@@ -240,7 +245,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
         else:
             try:
                 logger.info("Evaluating the running model...")
-                self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
+                if self._model_service._model is not None:
+                    self._tracker_client.log_model_config(self.get_flattened_config(self._model_service._model))
                 self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
                 cui_counts, cui_unique_counts, cui_ignorance_counts, num_of_docs = get_stats_from_trainer_export(data_file.name)
                 self._tracker_client.log_document_size(num_of_docs)
@@ -258,11 +264,14 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
 
     @staticmethod
     def _get_concept_filter(training_concepts: Dict, model: CAT) -> Set[str]:
-        return set(training_concepts.keys()).intersection(set(model.cdb.cui2names.keys()))
+        return set(training_concepts.keys()).intersection(set(model.cdb.cui2info.keys()))
 
     def _glean_and_log_metrics(self, log: str) -> None:
-        metric_lines = re.findall(r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)", log,
-                                  re.IGNORECASE)
+        metric_lines = re.findall(
+            r"Epoch: (\d+), Prec: (\d+\.\d+), Rec: (\d+\.\d+), F1: (\d+\.\d+)",
+            log,
+            re.IGNORECASE
+        )
         for step, metric in enumerate(metric_lines):
             metrics = {
                 "precision": float(metric[1]),
@@ -282,7 +291,7 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             model: CAT,
     ) -> None:
         if len(training_concepts.keys()) != 0:
-            unknown_concepts = set(training_concepts.keys()) - set(model.cdb.cui2names.keys())
+            unknown_concepts = set(training_concepts.keys()) - set(model.cdb.cui2info.keys())
             unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
             self._tracker_client.send_model_stats({
                 "unknown_concept_count": len(unknown_concepts),
@@ -301,7 +310,8 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
             annotation_ignorance_count = []
             concepts = list(training_concepts.keys())
             for c in concepts:
-                train_count.append(model.cdb.cui2count_train[c] if c in model.cdb.cui2count_train else 0)
+                cui_info = model.cdb.cui2info.get(c)
+                train_count.append(cui_info.get("count_train", 0) if cui_info is not None else 0)
                 concept_names.append(model.cdb.get_name(c))
                 annotation_count.append(training_concepts[c])
                 annotation_unique_count.append(training_unique_concepts[c])
@@ -404,21 +414,18 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
             logger.info("Loading a new model copy for training...")
             copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
             if non_default_device_is_available(self._config.DEVICE):
-                model = self._model_service.load_model(
-                    copied_model_pack_path,
-                    meta_cat_config_dict={"general": {"device": self._config.DEVICE}},
-                )
-                model.config.general["device"] = self._config.DEVICE
+                model = self._model_service.load_model(copied_model_pack_path)
+                model.config.general.device = self._config.DEVICE  # type: ignore
             else:
                 model = self._model_service.load_model(copied_model_pack_path)
             self._tracker_client.log_model_config(self.get_flattened_config(model))
-            self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, medcat_version)
+            self._tracker_client.log_trainer_version(TrainerBackend.MEDCAT, medcat_version)
             logger.info("Performing unsupervised training...")
             step = 0
-            self._tracker_client.send_model_stats(model.cdb.make_stats(), step)
-            before_cui2count_train = dict(model.cdb.cui2count_train)
+            self._tracker_client.send_model_stats(dict(model.cdb.get_basic_info()), step)
+            before_cui2count_train = model.cdb.get_cui2count_train()
             num_of_docs = 0
-            train_unsupervised_params = get_func_params_as_dict(model.train)
+            train_unsupervised_params = get_func_params_as_dict(model.trainer.train_unsupervised)
             train_unsupervised_params = {p_key: training_params[p_key] if p_key in training_params else p_val for p_key, p_val in train_unsupervised_params.items()}
 
             for batch in mini_batch(texts, batch_size=log_frequency):
@@ -426,19 +433,20 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                     self._cancel_event.clear()
                     raise TrainingCancelledException("Training cancelled by the user")
                 step += 1
-                model.train(batch, **train_unsupervised_params)
+                model.trainer.train_unsupervised(batch, **train_unsupervised_params)
                 num_of_docs += len(batch)
-                self._tracker_client.send_model_stats(model.cdb.make_stats(), step)
+                self._tracker_client.send_model_stats(dict(model.cdb.get_basic_info()), step)
 
             self._tracker_client.log_document_size(num_of_docs)
             after_cui2count_train = {
                 c: ct
                 for c, ct in sorted(
-                    model.cdb.cui2count_train.items(),
+                    model.cdb.get_cui2count_train().items(),
                     key=lambda item: item[1],
                     reverse=True,
                 )
             }
+
             aggregated_metrics = []
             cui_step = 0
             for cui, train_count in after_cui2count_train.items():
@@ -462,14 +470,15 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                     get_model_data_package_extension(model_pack_path),
                     "_config.json",
                 )
-                model.cdb.config.save(cdb_config_path)
+                with open(cdb_config_path, "w") as f:
+                    json.dump(dump_pydantic_object_to_dict(model.config), f)
                 model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
                 logger.info(f"Retrained model saved: {model_uri}")
                 self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
             else:
                 logger.info("Skipped saving on the retrained model")
             if redeploy:
-                self.deploy_model(self._model_service, model, skip_save_model)
+                self.deploy_model(self._model_service, model, skip_save_model, description)
             else:
                 del model
                 gc.collect()

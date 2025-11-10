@@ -2,10 +2,11 @@ import logging
 import inspect
 import threading
 import torch
-from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable
+from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable, cast
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
+from medcat.components.types import CoreComponentType
 from app import __version__ as app_version
 from app.config import Settings
 from app.model_services.medcat_model import MedCATModel
@@ -62,14 +63,15 @@ class MedCATModelDeIdentification(MedCATModel):
             ModelCard: A card containing information about the MedCAT De-Identification (AnonCAT) model.
         """
 
+        assert self.model is not None, "Model is not initialised"
         model_card = self.model.get_model_card(as_dict=True)
         model_card["Basic CDB Stats"]["Average training examples per concept"] = 0
         return ModelCard(
             model_description=self.model_name,
             model_type=ModelType.ANONCAT,
             api_version=self.api_version,
-            model_card=model_card,
-            labels=self.model.cdb.cui2preferred_name,
+            model_card=dict(model_card),
+            labels={cui: info['preferred_name'] for cui, info in self.model.cdb.cui2info.items()},
         )
 
     def annotate(self, text: str) -> List[Annotation]:
@@ -83,10 +85,11 @@ class MedCATModelDeIdentification(MedCATModel):
             List[Annotation]: A list of annotations containing the extracted PII entities.
         """
 
+        assert self.model is not None, "Model is not initialised"
         doc = self.model.get_entities(text)
         if doc["entities"]:
             for _, entity in doc["entities"].items():
-                entity["types"] = ["PII"]
+                entity["type_ids"] = ["PII"]
 
         records = self.get_records_from_doc({"entities": doc["entities"]})
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
@@ -102,7 +105,8 @@ class MedCATModelDeIdentification(MedCATModel):
             List[Annotation]: A list of annotation containing the extracted PII entities.
         """
 
-        tokenizer = self.model._addl_ner[0].tokenizer.hf_tokenizer
+        assert self.model is not None, "Model is not initialised"
+        tokenizer = self.model.pipe.get_component(CoreComponentType.ner)._component.tokenizer.hf_tokenizer # type: ignore
         leading_ws_len = len(text) - len(text.lstrip())
         text = text.lstrip()
         tokenized = self._with_lock(tokenizer, text, return_offsets_mapping=True, add_special_tokens=False)
@@ -134,7 +138,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
-                    entity["types"] = ["PII"]
+                    entity["type_ids"] = ["PII"]
                     aggregated_entities[ent_key] = entity
                     ent_key += 1
                 processed_char_len = chunk[:window_overlap_start_idx][-1][1][1] + leading_ws_len + 1
@@ -146,7 +150,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 for entity in doc["entities"].values():
                     entity["start"] += processed_char_len
                     entity["end"] += processed_char_len
-                    entity["types"] = ["PII"]
+                    entity["type_ids"] = ["PII"]
                     aggregated_entities[ent_key] = entity
                     ent_key += 1
             processed_char_len += len(c_text)
@@ -168,10 +172,12 @@ class MedCATModelDeIdentification(MedCATModel):
         """
 
         annotations_list = []
+        assert self.model is not None, "Model is not initialised"
         entities_list = self.model.get_entities_multi_texts(texts)
-        for entities in entities_list:
+        for _, entities in entities_list:
             for _, entity in entities["entities"].items():
-                entity["types"] = ["PII"]
+                entity = cast(Dict[str, Any], entity)
+                entity["type_ids"] = ["PII"]
             annotations_list.append([
                 load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)
             ])
@@ -190,26 +196,26 @@ class MedCATModelDeIdentification(MedCATModel):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             self._model = self.load_model(self._model_pack_path)
-            self._model._addl_ner[0].tokenizer.hf_tokenizer._in_target_context_manager = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "_in_target_context_manager", False)
-            self._model._addl_ner[0].tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
-            self._model._addl_ner[0].tokenizer.hf_tokenizer.split_special_tokens = getattr(self._model._addl_ner[0].tokenizer.hf_tokenizer, "split_special_tokens", False)
+            ner = self._model.pipe.get_component(CoreComponentType.ner)._component  # type: ignore
+            ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False)
+            ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None)
+            ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(ner.tokenizer.hf_tokenizer, "split_special_tokens", False)
             if non_default_device_is_available(self._config.DEVICE):
-                self._model.config.general["device"] = self._config.DEVICE
-                self._model._addl_ner[0].model.to(torch.device(self._config.DEVICE))
-                self._model._addl_ner[0].ner_pipe = pipeline(
-                    model=self._model._addl_ner[0].model,
+                ner.model.to(torch.device(self._config.DEVICE))
+                ner.ner_pipe = pipeline(
+                    model=ner.model,
                     framework="pt",
                     task="ner",
-                    tokenizer=self._model._addl_ner[0].tokenizer.hf_tokenizer,
+                    tokenizer=ner.tokenizer.hf_tokenizer,
                     device=get_hf_pipeline_device_id(self._config.DEVICE),
                     aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
                 )
             else:
                 if self._config.DEVICE != "default":
                     logger.warning("DEVICE is set to '%s' but it is not available. Using 'default' instead.", self._config.DEVICE)
-            _save_pretrained = self._model._addl_ner[0].model.save_pretrained
+            _save_pretrained = ner.model.save_pretrained
             if ("safe_serialization" in inspect.signature(_save_pretrained).parameters):
-                self._model._addl_ner[0].model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
+                ner.model.save_pretrained = partial(_save_pretrained, safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"))
             if self._enable_trainer:
                 self._supervised_trainer = MedcatDeIdentificationSupervisedTrainer(self)
 

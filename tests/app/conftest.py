@@ -22,7 +22,7 @@ def mlflow_fixture(mocker):
     active_run.info.run_id = "run_id"
     active_run.data = MagicMock()
     active_run.data.metrics = {"precision": 0.9973285610540512, "recall": 0.9896606632947247, "f1": 0.9934285636532457}
-    active_run.data.tags = {"tag": "tag"}
+    active_run.data.tags = {"training.entity.classes": "['concept_1', 'concept_2']"}
     mocker.patch("mlflow.set_tracking_uri")
     mocker.patch("mlflow.get_tracking_uri", return_value="http://localhost:5000")
     mocker.patch("mlflow.get_experiment_by_name", return_value=None)
@@ -49,7 +49,7 @@ def mlflow_fixture(mocker):
 def medcat_snomed_model():
     config = Settings()
     config.BASE_MODEL_FILE = "snomed_model.zip"
-    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
+    config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
     return MedCATModelSnomed(config, MODEL_PARENT_DIR, True)
 
 
@@ -57,7 +57,7 @@ def medcat_snomed_model():
 def medcat_icd10_model():
     config = Settings()
     config.BASE_MODEL_FILE = "icd10_model.zip"
-    config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
+    config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
     return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
 
 

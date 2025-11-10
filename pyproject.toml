@@ -6,14 +6,12 @@ build-backend = "setuptools.build_meta"
 name = "cogstack-model-serve"
 authors = [{name = "Xi Bai", email = "baixiac@gmail.com"}]
 description = "A model serving and governance system for CogStack NLP solutions"
-requires-python = ">=3.8,<3.12"
+requires-python = ">3.9,<3.13"
 dynamic = ["version"]
 dependencies = [
-    "medcat~=1.16.0; python_version >= '3.9'",
-    "medcat~=1.13.1; python_version < '3.9'",
-    "torch<2.5.0; python_version < '3.9'",
+    "medcat[spacy,meta-cat,deid,rel-cat]~=2.2.0; python_version>='3.10'",
+    "medcat[spacy,meta-cat,deid,rel-cat]~=2.1.0; python_version<'3.10'",
     "datasets>=2.21.0",
-    "blis<1.0.0",
     "fastapi~=0.115.0",
     "uvicorn~=0.29.0",
     "python-multipart~=0.0.7",
@@ -30,7 +28,7 @@ dependencies = [
     "graypy~=2.1.0",
     "fastapi-users~=13.0.0",
     "fastapi-users-db-sqlalchemy~=5.0.0",
-    "asyncpg~=0.27.0",
+    "asyncpg~=0.29.0",
     "aiosqlite~=0.19.0",
     "evaluate~=0.4.1",
     "websockets~=12.0",
@@ -45,7 +43,6 @@ license = {text = "Elastic License 2.0"}
 classifiers=[
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -71,6 +68,7 @@ dev = [
     "locust<2.32.0",
     "typer-cli~=0.15.1",
     "types-toml==0.10.8.20240310",
+    "types-requests>=2.31.0.6",
     "openai>=1.84.0",
 ]
 docs = [
@@ -81,7 +79,7 @@ docs = [
 ]
 
 vllm = [
-    "vllm~=0.8.5; python_version >= '3.9'",
+    "vllm~=0.8.5",
     "trl>=0.11.4",
     "bitsandbytes>=0.45.5",
 ]
@@ -101,6 +99,7 @@ dev = [
     "ruff==0.6.9",
     "locust<2.32.0",
     "typer-cli~=0.15.1",
+    "types-requests>=2.31.0.6",
     "types-toml==0.10.8.20240310",
     "openai>=1.84.0",
 ]
@@ -112,7 +111,7 @@ docs = [
 ]
 
 vllm = [
-    "vllm~=0.8.5; python_version >= '3.9'",
+    "vllm~=0.8.5",
     "trl>=0.11.4",
     "bitsandbytes>=0.45.5",
 ]

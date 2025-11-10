@@ -137,7 +137,7 @@ class _LocalStreamingResponse(Response):
         self,
         content: Any,
         status_code: int = 200,
-        max_chunk_size: Optional[int] = 1024,
+        max_chunk_size: int = 1024,
         headers: Optional[Mapping[str, str]] = None,
         media_type: Optional[str] = None,
         background: Optional[BackgroundTask] = None,
@@ -161,8 +161,8 @@ class _LocalStreamingResponse(Response):
                 })
                 response_started = True
             line_bytes = line.encode("utf-8")
-            for i in range(0, len(line_bytes), self.max_chunk_size):    # type: ignore
-                chunk = line_bytes[i:i + self.max_chunk_size]   # type: ignore
+            for i in range(0, len(line_bytes), self.max_chunk_size):
+                chunk = line_bytes[i:i + self.max_chunk_size]
                 await send({
                     "type": "http.response.body",
                     "body": chunk,

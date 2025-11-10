@@ -3,8 +3,9 @@ import logging
 import pandas as pd
 
 from multiprocessing import cpu_count
-from typing import Dict, List, Optional, TextIO, Tuple, Any
+from typing import Dict, List, Optional, TextIO, Tuple, Any, Set, Union
 from medcat.cat import CAT
+from medcat.data.entities import Entities, OnlyCUIEntities
 from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
 from app.trainers.medcat_trainer import MedcatSupervisedTrainer, MedcatUnsupervisedTrainer
@@ -46,7 +47,7 @@ class MedCATModel(AbstractModelService):
             base_model_file (Optional[str]): The model package file name. Defaults to None.
         """
         super().__init__(config)
-        self._model: CAT = None
+        self._model: Optional[CAT] = None
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
         self._model_pack_path = os.path.join(self._model_parent_dir, base_model_file or config.BASE_MODEL_FILE)
@@ -55,7 +56,7 @@ class MedCATModel(AbstractModelService):
         self.model_name = model_name or "MedCAT model"
 
     @property
-    def model(self) -> CAT:
+    def model(self) -> Optional[CAT]:
         """Getter for the MedCAT model."""
 
         return self._model
@@ -113,7 +114,7 @@ class MedCATModel(AbstractModelService):
 
         model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
-            cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), *args, **kwargs)
+            cat = CAT.load_model_pack(model_file_path.replace(".tar.gz", ".zip"), **kwargs)
             logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
             return cat
         else:
@@ -131,11 +132,10 @@ class MedCATModel(AbstractModelService):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
             if non_default_device_is_available(get_settings().DEVICE):
-                self._model = self.load_model(
-                    self._model_pack_path,
-                    meta_cat_config_dict={"general": {"device": get_settings().DEVICE}},
-                )
-                self._model.config.general["device"] = get_settings().DEVICE
+                self._model = self.load_model(self._model_pack_path)
+                for addon in self._model.get_addons():
+                    addon.config.general.device = get_settings().DEVICE # type: ignore
+                self._model.config.general.device = get_settings().DEVICE   # type: ignore
             else:
                 self._model = self.load_model(self._model_pack_path)
             self._set_tuis_filtering()
@@ -143,6 +143,9 @@ class MedCATModel(AbstractModelService):
                 self._supervised_trainer = MedcatSupervisedTrainer(self)
                 self._unsupervised_trainer = MedcatUnsupervisedTrainer(self)
                 self._metacat_trainer = MetacatTrainer(self)
+            self._model.config.general.map_to_other_ontologies = [  # type: ignore
+                tui.strip() for tui in self._config.MEDCAT2_MAPPED_ONTOLOGIES.split(",")
+            ]
 
     def info(self) -> ModelCard:
         """
@@ -168,10 +171,8 @@ class MedCATModel(AbstractModelService):
             List[Annotation]: A list of annotations containing the extracted named entities.
         """
 
-        doc = self.model.get_entities(
-            text,
-            addl_info=["cui2icd10", "cui2opcs4", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
-        )
+        assert self.model is not None, "Model is not initialised"
+        doc = self.model.get_entities(text)
         return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
@@ -187,12 +188,12 @@ class MedCATModel(AbstractModelService):
 
         batch_size_chars = 500000
 
-        docs = self.model.multiprocessing_batch_char_size(
-            self._data_iterator(texts),
+        assert self.model is not None, "Model is not initialised"
+        docs = {i: result for i, (_, result) in enumerate(self.model.get_entities_multi_texts(
+            texts,
             batch_size_chars=batch_size_chars,
-            nproc=max(int(cpu_count() / 2), 1),
-            addl_info=["cui2icd10", "cui2opcs4", "cui2ontologies", "cui2snomed", "cui2athena_ids"],
-        )
+            n_process=max(int(cpu_count() / 2), 1),
+        ))}
         docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []
         for _, doc in docs.items():
@@ -342,12 +343,12 @@ class MedCATModel(AbstractModelService):
             **hyperparams,
         )
 
-    def get_records_from_doc(self, doc: Dict) -> List[Dict]:
+    def get_records_from_doc(self, doc: Union[Dict, Entities, OnlyCUIEntities]) -> List[Dict]:
         """
         Extracts and formats entity records from a document dictionary.
 
         Args:
-            doc (Dict): The document dictionary containing extracted named entities.
+            doc (Union[Dict, Entities, OnlyCUIEntities]): The document dictionary containing extracted named entities.
 
         Returns:
             List[Dict]: A list of formatted entity records.
@@ -362,9 +363,9 @@ class MedCATModel(AbstractModelService):
                 if "athena_ids" in row and row["athena_ids"]:
                     df.loc[idx, "athena_ids"] = [athena_id["code"] for athena_id in row["athena_ids"]]
             if self._config.INCLUDE_SPAN_TEXT == "true":
-                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "source_value": "text", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "source_value": "text", "type_ids": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
             else:
-                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "types": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
+                df.rename(columns={"pretty_name": "label_name", "cui": "label_id", "type_ids": "categories", "acc": "accuracy", "athena_ids": "athena_ids"}, inplace=True)
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
@@ -384,15 +385,19 @@ class MedCATModel(AbstractModelService):
 
     def _set_tuis_filtering(self) -> None:
         # this patching may not be needed after the base 1.4.x model is fixed in the future
+        assert self._model is not None, "Model is not initialised"
         if self._model.cdb.addl_info.get("type_id2name", {}) == {}:
             self._model.cdb.addl_info["type_id2name"] = TYPE_ID_TO_NAME_PATCH
 
-        tuis2cuis = self._model.cdb.addl_info.get("type_id2cuis")
-        model_tuis = set(tuis2cuis.keys())
+        type_id2info = self._model.cdb.type_id2info
+        model_tuis = set(type_id2info.keys())
         if self._whitelisted_tuis == {""}:
             return
         assert self._whitelisted_tuis.issubset(model_tuis), f"Unrecognisable Type Unique Identifier(s): {self._whitelisted_tuis - model_tuis}"
-        whitelisted_cuis = set()
+        whitelisted_cuis: Set = set()
         for tui in self._whitelisted_tuis:
-            whitelisted_cuis.update(tuis2cuis.get(tui, {}))
-        self._model.cdb.config.linking.filters = {"cuis": whitelisted_cuis}
+            type_info = type_id2info.get(tui)
+            if type_info is None:
+                continue
+            whitelisted_cuis.update(type_info.cuis)
+        self._model.config.components.linking.filters.cuis = whitelisted_cuis

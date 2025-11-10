@@ -367,7 +367,7 @@ async def init_vllm_engine(app: FastAPI,
         params = SamplingParams(max_tokens=max_tokens)
 
         conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")   # type: ignore
-        prompt_tokens = apply_hf_chat_template(    # type: ignore
+        prompt_tokens = apply_hf_chat_template( # type: ignore
             tokenizer,
             conversation=conversation,
             tools=None,

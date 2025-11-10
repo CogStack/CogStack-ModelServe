@@ -211,9 +211,9 @@ def _get_app(
         tags = TagsStreamable
     else:
         tags = Tags
-    tags_metadata = [{  # type: ignore
-        "name": tag.name,   # type: ignore
-        "description": tag.value    # type: ignore
+    tags_metadata = [{
+        "name": tag.name,
+        "description": tag.value
     } for tag in tags]
     app = FastAPI(
         title="CogStack ModelServe",
