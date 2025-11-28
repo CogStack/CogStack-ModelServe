@@ -16,7 +16,7 @@ from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_ner_trainer import HuggingFaceNerUnsupervisedTrainer, HuggingFaceNerSupervisedTrainer
-from app.domain import ModelCard, ModelType, Annotation
+from app.domain import ModelCard, ModelType, Annotation, Device, TaggingScheme
 from app.config import Settings
 from app.utils import (
     get_settings,
@@ -27,6 +27,7 @@ from app.utils import (
     get_model_data_package_base_name,
     load_pydantic_object_from_dict,
 )
+from app.processors.tagging import TagProcessor
 
 logger = logging.getLogger("cms")
 
@@ -41,7 +42,7 @@ class HuggingFaceNerModel(AbstractModelService):
         enable_trainer: Optional[bool] = None,
         model_name: Optional[str] = None,
         base_model_file: Optional[str] = None,
-        confidence_threshold: float = 0.5,
+        confidence_threshold: float = 0.7,
     ) -> None:
         """
         Initialises the HuggingFace NER model service with specified configurations.
@@ -52,7 +53,7 @@ class HuggingFaceNerModel(AbstractModelService):
             enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
             model_name (Optional[str]): The name of the model. Defaults to None.
             base_model_file (Optional[str]): The model package file name. Defaults to None.
-            confidence_threshold (float): The threshold for the confidence score. Defaults to 0.5.
+            confidence_threshold (float): The threshold for the confidence score. Defaults to 0.7.
         """
 
         super().__init__(config)
@@ -123,7 +124,8 @@ class HuggingFaceNerModel(AbstractModelService):
             HuggingFaceNerModel: A HuggingFace NER model service.
         """
 
-        model_service = cls(get_settings(), enable_trainer=False)
+        _config = get_settings()
+        model_service = cls(_config, enable_trainer=False)
         model_service.model = model
         model_service.tokenizer = tokenizer
         _pipeline = partial(
@@ -131,11 +133,11 @@ class HuggingFaceNerModel(AbstractModelService):
             task="ner",
             model=model_service.model,
             tokenizer=model_service.tokenizer,
-            stride=10,
-            aggregation_strategy=get_settings().HF_PIPELINE_AGGREGATION_STRATEGY,
+            stride=32,
+            aggregation_strategy=_config.HF_PIPELINE_AGGREGATION_STRATEGY,
         )
-        if non_default_device_is_available(get_settings().DEVICE):
-            model_service._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
+        if non_default_device_is_available(_config.DEVICE):
+            model_service._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(_config.DEVICE))
         else:
             model_service._ner_pipeline = _pipeline()
         return model_service
@@ -160,7 +162,10 @@ class HuggingFaceNerModel(AbstractModelService):
         model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
-                model = AutoModelForTokenClassification.from_pretrained(model_path)
+                if get_settings().DEVICE == Device.DEFAULT.value:
+                    model = AutoModelForTokenClassification.from_pretrained(model_path, device_map="auto")
+                else:
+                    model = AutoModelForTokenClassification.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
@@ -197,7 +202,7 @@ class HuggingFaceNerModel(AbstractModelService):
                 task="ner",
                 model=self._model,
                 tokenizer=self._tokenizer,
-                stride=10,
+                stride=32,
                 aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
             )
             if non_default_device_is_available(get_settings().DEVICE):
@@ -233,12 +238,29 @@ class HuggingFaceNerModel(AbstractModelService):
             List[Annotation]: A list of annotations containing the extracted named entities.
         """
 
-        entities = self._ner_pipeline(text)
+        if TaggingScheme(self._config.TRAINING_HF_TAGGING_SCHEME.lower()) == TaggingScheme.IOBES:
+            entities = self._ner_pipeline(text, aggregation_strategy="none")
+        else:
+            entities = self._ner_pipeline(text)
         df = pd.DataFrame(entities)
 
         if df.empty:
             columns = ["label_name", "label_id", "start", "end", "accuracy"]
             df = pd.DataFrame(columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns)
+        elif TaggingScheme(self._config.TRAINING_HF_TAGGING_SCHEME.lower()) == TaggingScheme.IOBES:
+            aggregated_entities = TagProcessor.aggregate_bioes_predictions(
+                df,
+                text,
+                self._config.INCLUDE_SPAN_TEXT == "true",
+            )
+            df = pd.DataFrame(aggregated_entities)
+            if df.empty:
+                columns = ["label_name", "label_id", "start", "end", "accuracy"]
+                df = pd.DataFrame(
+                    columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns
+                )
+            else:
+                df = df[df["accuracy"] >= self._confidence_threshold]
         else:
             for idx, row in df.iterrows():
                 df.loc[idx, "label_id"] = row["entity_group"]

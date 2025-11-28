@@ -13,6 +13,7 @@ model_service = create_autospec(
     _enable_trainer=True,
     _model_pack_path=os.path.join(model_parent_dir, "model.zip"),
 )
+model_service.model.config.max_position_embeddings = 512
 unsupervised_trainer = HuggingFaceNerUnsupervisedTrainer(model_service)
 unsupervised_trainer.model_name = "unsupervised_trainer"
 supervised_trainer = HuggingFaceNerSupervisedTrainer(model_service)

@@ -528,6 +528,23 @@ def get_hf_pipeline_device_id(device: str) -> int:
     return device_id
 
 
+def get_hf_device_map(device: str) -> Dict:
+    """
+    Retrieves the device map for a Hugging Face model based on the specified device string.
+
+    Args:
+        device (str): The string representation of the device.
+
+    Returns:
+        Dict: The device map for the Hugging Face model.
+    """
+
+    if device.startswith(Device.GPU.value) or device.startswith(Device.MPS.value):
+        return {"": device}
+    else:
+        return {"": "cpu"}
+
+
 def unpack_model_data_package(model_data_file_path: str, model_data_folder_path: str) -> bool:
     """
     Unpacks a model data package from a zip or tar.gz file into the specified folder.

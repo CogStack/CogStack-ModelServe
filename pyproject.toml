@@ -35,6 +35,8 @@ dependencies = [
     "toml~=0.10.2",
     "peft<0.14.0",
     "huggingface-hub~=0.33.0",
+    "spacy>3.8",
+    "seqeval>=1.2.2",
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
