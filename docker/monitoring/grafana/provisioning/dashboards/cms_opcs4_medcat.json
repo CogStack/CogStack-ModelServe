@@ -1698,7 +1698,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]))",
+          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_size_bytes_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "ratio",
           "range": true,
@@ -1877,7 +1877,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "(rate(cms_doc_annotations_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]))",
+          "expr": "(rate(cms_doc_annotations_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(cms_doc_annotations_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "ratio",
           "range": true,
@@ -2080,7 +2080,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]))",
+          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_size_bytes_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "ratio",
           "range": true,
@@ -2283,7 +2283,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "(rate(cms_doc_annotations_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(cms_doc_annotations_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]))",
+          "expr": "(rate(cms_doc_annotations_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / on(job, instance, handler) rate(cms_doc_annotations_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_duration_seconds_count{job=\"cms_medcat-opcs4\", instance=\"medcat-opcs4:8000\", handler=\"/process_bulk\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "ratio",
           "range": true,

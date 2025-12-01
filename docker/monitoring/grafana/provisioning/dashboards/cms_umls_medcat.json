@@ -1698,7 +1698,7 @@
             "uid": "P7A53D3B2E146C92D"
           },
           "editorMode": "code",
-          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_size_bytes_count{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]) / rate(http_request_duration_seconds_count{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]))",
+          "expr": "(rate(http_request_size_bytes_sum{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_size_bytes_count{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval])) / (rate(http_request_duration_seconds_sum{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]) / on(job, instance, handler) rate(http_request_duration_seconds_count{job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", handler=\"/process\"}[$__rate_interval]))",
           "hide": false,
           "legendFormat": "ratio",
           "range": true,
