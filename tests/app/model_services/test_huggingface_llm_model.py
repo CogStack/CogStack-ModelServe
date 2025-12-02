@@ -57,7 +57,9 @@ def test_generate(huggingface_llm_model):
 
     result = huggingface_llm_model.generate(
         prompt="Alright?",
+        min_tokens=50,
         max_tokens=128,
+        num_beams=2,
         temperature=0.5,
         report_tokens=mock_send_metrics
     )
@@ -70,7 +72,9 @@ def test_generate(huggingface_llm_model):
     huggingface_llm_model.model.generate.assert_called_once_with(
         inputs=inputs.input_ids,
         attention_mask=inputs.attention_mask,
+        min_new_tokens=50,
         max_new_tokens=128,
+        num_beams=2,
         do_sample=False,
         temperature=0.5,
         top_p=0.9,
@@ -102,7 +106,9 @@ async def test_generate_async(huggingface_llm_model):
 
     result = await huggingface_llm_model.generate_async(
         prompt="Alright?",
+        min_tokens=50,
         max_tokens=128,
+        num_beams=2,
         temperature=0.5,
         report_tokens=mock_send_metrics
     )
@@ -115,7 +121,9 @@ async def test_generate_async(huggingface_llm_model):
     huggingface_llm_model.model.generate_async.assert_called_once_with(
         inputs=inputs.input_ids,
         attention_mask=inputs.attention_mask,
+        min_new_tokens=50,
         max_new_tokens=128,
+        num_beams=2,
         do_sample=False,
         temperature=0.5,
         top_p=0.9,

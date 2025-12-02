@@ -230,7 +230,9 @@ class HuggingFaceLlmModel(AbstractModelService):
     def generate(
         self,
         prompt: str,
+        min_tokens: int = 100,
         max_tokens: int = 512,
+        num_beams: int = 5,
         temperature: float = 0.7,
         report_tokens: Optional[Callable[[str], None]] = None,
         **kwargs: Any
@@ -240,7 +242,9 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         Args:
             prompt (str): The prompt for the text generation
+            min_tokens (int): The minimum number of tokens to generate. Defaults to 100.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
+            num_beams (int): The number of beams for beam search. Defaults to 5.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
@@ -257,7 +261,9 @@ class HuggingFaceLlmModel(AbstractModelService):
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
+            min_new_tokens=min_tokens,
             max_new_tokens=max_tokens,
+            num_beams=num_beams,
             do_sample=False,
             temperature=temperature,
             top_p=0.9,
