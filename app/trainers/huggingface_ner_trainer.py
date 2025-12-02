@@ -237,6 +237,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                         retrained_model_pack_path,
                         self._model_name,
                         self._model_manager,
+                        model_type=self._model_service.info().model_type.value,
                     )
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:
@@ -664,6 +665,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                         retrained_model_pack_path,
                         self._model_name,
                         self._model_manager,
+                        model_type=self._model_service.info().model_type.value,
                     )
                     logger.info(f"Retrained model saved: {model_uri}")
                 else:

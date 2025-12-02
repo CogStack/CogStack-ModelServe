@@ -3,7 +3,7 @@ import mlflow
 import datasets
 import pytest
 import pandas as pd
-from unittest.mock import Mock, call, ANY
+from unittest.mock import Mock, call, patch, ANY
 from app.management.tracker_client import TrackerClient
 from app.data import doc_dataset
 from app.domain import TrainerBackend
@@ -161,11 +161,23 @@ def test_save_model(mlflow_fixture):
     mlflow_client.search_model_versions.return_value = [version]
     tracker_client.mlflow_client = mlflow_client
 
-    artifact_uri = tracker_client.save_model("path/to/file.zip", "model_name", model_manager, "validation_status")
+    artifact_uri = tracker_client.save_model(
+        "path/to/file.zip", "model_name", model_manager, "validation_status", "model_type"
+    )
 
     assert "artifacts/model_name" in artifact_uri
     model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
-    mlflow_client.set_model_version_tag.assert_called_once_with(name="model_name", version="1", key="validation_status", value="validation_status")
+    mlflow_client.search_model_versions.assert_called_once_with("name='model_name'")
+    assert mlflow_client.set_model_version_tag.call_count == 3
+    mlflow_client.set_model_version_tag.assert_any_call(
+        name="model_name", version="1", key="model_uri", value="models:/model_name/1"
+    )
+    mlflow_client.set_model_version_tag.assert_any_call(
+        name="model_name", version="1", key="model_type", value="model_type"
+    )
+    mlflow_client.set_model_version_tag.assert_any_call(
+        name="model_name", version="1", key="validation_status", value="validation_status"
+    )
     mlflow.set_tag.has_calls(
         [
             call("training.output.package", "file.zip"),
@@ -184,9 +196,15 @@ def test_save_model_local(mlflow_fixture):
     model_manager.save_model.assert_called_once_with("local_dir", "filepath")
 
 
-def test_save_pretrained_model(mlflow_fixture):
+@patch("app.management.tracker_client.MlflowClient")
+def test_save_pretrained_model(mock_mlflow_client_class, mlflow_fixture):
     tracker_client = TrackerClient("")
     model_manager = Mock()
+    mlflow_client = Mock()
+    version = Mock()
+    version.version = "1"
+    mlflow_client.search_model_versions.return_value = [version]
+    mock_mlflow_client_class.return_value = mlflow_client
 
     tracker_client.save_pretrained_model(
         "model_name",
@@ -197,6 +215,7 @@ def test_save_pretrained_model(mlflow_fixture):
         {"param": "value"},
         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
         {"tag_name": "tag_value"},
+        "model_type",
     )
 
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
@@ -211,6 +230,15 @@ def test_save_pretrained_model(mlflow_fixture):
     assert mlflow.set_tags.call_args.args[0]["training.mlflow.run_id"] == "run_id"
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
+
+    mlflow_client.search_model_versions.assert_called_once_with("name='model_name'")
+    assert mlflow_client.set_model_version_tag.call_count == 2
+    mlflow_client.set_model_version_tag.assert_any_call(
+        name="model_name", version="1", key="model_uri", value="models:/model_name/1"
+    )
+    mlflow_client.set_model_version_tag.assert_any_call(
+        name="model_name", version="1", key="model_type", value="model_type"
+    )
 
 
 def test_log_single_exception(mlflow_fixture):
