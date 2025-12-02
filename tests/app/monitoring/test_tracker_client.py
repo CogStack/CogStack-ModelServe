@@ -182,6 +182,7 @@ def test_save_model(mlflow_fixture):
         [
             call("training.output.package", "file.zip"),
             call("training.output.model_uri", artifact_uri),
+            call("training.output.model_type", "model_type"),
         ],
         any_order=False,
     )

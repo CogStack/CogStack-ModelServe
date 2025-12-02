@@ -574,6 +574,7 @@ class TrackerClient(object):
 
         artifact_uri = mlflow.get_artifact_uri(model_name)
         mlflow.set_tag("training.output.model_uri", artifact_uri)
+        mlflow.set_tag("training.output.model_type", model_type)
 
         return artifact_uri
 
