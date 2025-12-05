@@ -34,6 +34,7 @@ class Settings(BaseSettings):   # type: ignore
     TRAINING_METRICS_LOGGING_INTERVAL: int = 5        # the number of steps after which training metrics will be collected
     TRAINING_SAFE_MODEL_SERIALISATION: str = "false"  # if "true", serialise the trained model using safe tensors
     TRAINING_CACHE_DIR: str = os.path.join(os.path.abspath(os.path.dirname(__file__)), "cms_cache")           # the directory to cache the intermediate files created during training
+    TRAINING_HF_TAGGING_SCHEME: str = "flat"          # the tagging scheme during the Hugging Face NER model training, either "flat", "iob" or "iobes"
     HF_PIPELINE_AGGREGATION_STRATEGY: str = "simple"  # the strategy used for aggregating the predictions of the Hugging Face NER model
     LOG_PER_CONCEPT_ACCURACIES: str = "false"         # if "true", per-concept accuracies will be exposed to the metrics scrapper. Switch this on with caution due to the potentially high number of concepts
     MEDCAT2_MAPPED_ONTOLOGIES: str = ""               # the comma-separated names of ontologies for MedCAT2 to map to

@@ -77,6 +77,12 @@ class Device(str, Enum):
     MPS = "mps"
 
 
+class TaggingScheme(str, Enum):
+    FLAT = "flat"
+    IOB = "iob"
+    IOBES = "iobes"
+
+
 class HfTransformerBackbone(Enum):
     ALBERT = "albert"
     BIG_BIRD = "bert"
@@ -110,19 +116,23 @@ class LlmEngine(Enum):
     CMS = "CMS"
     VLLM = "vLLM"
 
+
 class LlmRole(Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
 
+
 class LlmTrainerType(Enum):
     GRPO = "grpo"
     PPO = "ppo"
 
+
 class LlmDatasetType(Enum):
     JSON = "json"
     CSV = "csv"
+
 
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(default=None, description="The name of the document to which the annotation belongs")

@@ -26,6 +26,7 @@ from app.utils import (
     safetensors_to_pytorch,
     non_default_device_is_available,
     get_hf_pipeline_device_id,
+    get_hf_device_map,
     get_model_data_package_extension,
     unpack_model_data_package,
     create_model_data_package,
@@ -251,6 +252,13 @@ def test_get_hf_pipeline_device_id():
     assert get_hf_pipeline_device_id("cuda") == 0
     assert get_hf_pipeline_device_id("cuda:0") == 0
     assert get_hf_pipeline_device_id("mps:1") == 1
+
+
+def test_get_hf_device_map():
+    assert get_hf_device_map("cuda") == {"": "cuda"}
+    assert get_hf_device_map("mps") == {"": "mps"}
+    assert get_hf_device_map("cpu") == {"": "cpu"}
+    assert get_hf_device_map("unknown") == {"": "cpu"}
 
 
 def test_get_model_data_package_extension():
