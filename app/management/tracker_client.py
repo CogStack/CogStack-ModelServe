@@ -351,7 +351,7 @@ class TrackerClient(object):
         client: MlflowClient,
         model_name: str,
         version: str,
-        model_type: Optional[str] = None,
+        model_type: str,
         validation_status: Optional[str] = None,
     ) -> None:
         """
@@ -361,17 +361,14 @@ class TrackerClient(object):
             client (MlflowClient): The MLflow client to use for setting tags.
             model_name (str): The name of the registered model.
             version (str): The version of the model.
-            model_type (Optional[str]): The type of the model (e.g., "medcat_snomed").
+            model_type (str): The type of the model (e.g., "medcat_snomed").
             validation_status (Optional[str]): The status of the model validation (e.g., "pending").
         """
         try:
             client.set_model_version_tag(
                 name=model_name, version=version, key="model_uri", value=f"models:/{model_name}/{version}"
             )
-            if model_type is not None:
-                client.set_model_version_tag(
-                    name=model_name, version=version, key="model_type", value=model_type
-                )
+            client.set_model_version_tag(name=model_name, version=version, key="model_type", value=model_type)
             if validation_status is not None:
                 client.set_model_version_tag(
                     name=model_name, version=version, key="validation_status", value=validation_status
@@ -414,12 +411,12 @@ class TrackerClient(object):
         model_name: str,
         model_path: str,
         model_manager: ModelManager,
+        model_type: str,
         training_type: Optional[str] = "",
         run_name: Optional[str] = "",
         model_config: Optional[Dict] = None,
         model_metrics: Optional[List[Dict]] = None,
         model_tags: Optional[Dict] = None,
-        model_type: Optional[str] = None,
     ) -> None:
         """
         Saves a pretrained model to the tracking backend and associated metadata.
@@ -428,12 +425,12 @@ class TrackerClient(object):
             model_name (str): The name of the model.
             model_path (str): The path to the pretrained model.
             model_manager (ModelManager): The instance of ModelManager used for model saving.
+            model_type (str): The type of the model (e.g., "medcat_snomed").
             training_type (Optional[str]): The type of training used for the model.
             run_name (Optional[str]): The name of the run for identification purposes.
             model_config (Optional[Dict]): The configuration of the model to save.
             model_metrics (Optional[List[Dict]]): The list of dictionaries containing model metrics to save.
             model_tags (Optional[Dict]): The dictionary of tags to set for the model.
-            model_type (Optional[str]): The type of the model (e.g., "medcat_snomed").
         """
 
         experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
@@ -541,8 +538,8 @@ class TrackerClient(object):
         filepath: str,
         model_name: str,
         model_manager: ModelManager,
+        model_type: str,
         validation_status: str = "pending",
-        model_type: Optional[str] = None,
     ) -> str:
         """
         Saves a model and its information to the tracking backend.
@@ -551,8 +548,8 @@ class TrackerClient(object):
             filepath (str): The artifact path of the model to save.
             model_name (str): The name of the model.
             model_manager (ModelManager): The instance of ModelManager used for model saving.
+            model_type (str): The type of the model (e.g., "medcat_snomed").
             validation_status (str): The status of the model validation (default: "pending").
-            model_type (Optional[str]): The type of the model (e.g., "medcat_snomed").
 
         Returns:
             str: The artifact URI of the saved model.

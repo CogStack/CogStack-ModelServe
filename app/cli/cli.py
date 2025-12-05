@@ -299,12 +299,12 @@ def register_model(
         model_name=model_name,
         model_path=model_path,
         model_manager=ModelManager(model_service_type, config),
+        model_type=model_type.value,
         training_type=t_type,
         run_name=run_name,
         model_config=m_config,
         model_metrics=m_metrics,
         model_tags=m_tags,
-        model_type=model_type.value,
     )
     typer.echo(f"Pushed {model_path} as a new model version ({run_name})")
 

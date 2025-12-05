@@ -189,7 +189,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                         model_pack_path,
                         self._model_name,
                         self._model_manager,
-                        model_type=self._model_service.info().model_type.value,
+                        self._model_service.info().model_type.value,
                     )
                     logger.info("Retrained model saved: %s", model_uri)
                     self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)

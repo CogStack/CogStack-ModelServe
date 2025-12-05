@@ -162,7 +162,7 @@ def test_save_model(mlflow_fixture):
     tracker_client.mlflow_client = mlflow_client
 
     artifact_uri = tracker_client.save_model(
-        "path/to/file.zip", "model_name", model_manager, "validation_status", "model_type"
+        "path/to/file.zip", "model_name", model_manager, "model_type", "validation_status"
     )
 
     assert "artifacts/model_name" in artifact_uri
@@ -213,12 +213,12 @@ def test_save_pretrained_model(mock_mlflow_client_class, mlflow_fixture):
         "model_name",
         "model_path",
         model_manager,
+        "model_type",
         "training_type",
         "run_name",
         {"param": "value"},
         [{"p": 0.8, "r": 0.8}, {"p": 0.9, "r": 0.9}],
         {"tag_name": "tag_value"},
-        "model_type",
     )
 
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
