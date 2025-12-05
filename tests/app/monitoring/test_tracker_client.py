@@ -167,7 +167,9 @@ def test_save_model(mlflow_fixture):
 
     assert "artifacts/model_name" in artifact_uri
     model_manager.log_model.assert_called_once_with("model_name", "path/to/file.zip", "model_name")
-    mlflow_client.search_model_versions.assert_called_once_with("name='model_name'")
+    mlflow_client.search_model_versions.assert_called_once_with(
+        "name='model_name'", order_by=["version_number DESC"]
+    )
     assert mlflow_client.set_model_version_tag.call_count == 3
     mlflow_client.set_model_version_tag.assert_any_call(
         name="model_name", version="1", key="model_uri", value="models:/model_name/1"
@@ -232,7 +234,9 @@ def test_save_pretrained_model(mock_mlflow_client_class, mlflow_fixture):
     assert len(mlflow.set_tags.call_args.args[0]["mlflow.source.name"]) > 0
     assert mlflow.set_tags.call_args.args[0]["tag_name"] == "tag_value"
 
-    mlflow_client.search_model_versions.assert_called_once_with("name='model_name'")
+    mlflow_client.search_model_versions.assert_called_once_with(
+        "name='model_name'", order_by=["version_number DESC"]
+    )
     assert mlflow_client.set_model_version_tag.call_count == 2
     mlflow_client.set_model_version_tag.assert_any_call(
         name="model_name", version="1", key="model_uri", value="models:/model_name/1"

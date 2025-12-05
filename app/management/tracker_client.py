@@ -459,7 +459,7 @@ class TrackerClient(object):
             model_name = model_name.replace(" ", "_")
             TrackerClient.log_model(model_name, model_path, model_manager, model_name)
             client = MlflowClient()
-            versions = client.search_model_versions(f"name='{model_name}'")
+            versions = client.search_model_versions(f"name='{model_name}'", order_by=["version_number DESC"])
             if versions:
                 TrackerClient._set_model_version_tags(client, model_name, versions[0].version, model_type)
             TrackerClient.end_with_success()
@@ -564,7 +564,9 @@ class TrackerClient(object):
 
         if not mlflow.get_tracking_uri().startswith("file:/"):
             TrackerClient.log_model(model_name, filepath, model_manager, model_name)
-            versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
+            versions = self.mlflow_client.search_model_versions(
+                f"name='{model_name}'", order_by=["version_number DESC"]
+            )
             if versions:
                 TrackerClient._set_model_version_tags(
                     self.mlflow_client, model_name, versions[0].version, model_type, validation_status
