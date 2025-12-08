@@ -96,6 +96,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ env.DOCKER_IMAGE_NAME }}
           readme-filepath: ./README.md
+        continue-on-error: true # This step requires DockerHub delete scope which is not guaranteed.
 
   smoke-test:
     needs: build-and-push

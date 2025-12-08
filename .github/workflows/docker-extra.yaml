@@ -108,3 +108,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ env.DOCKER_IMAGE_NAME }}
           readme-filepath: ./docker/mlflow/server/README.md
+        continue-on-error: true # This step requires DockerHub delete scope which is not guaranteed.
