@@ -211,7 +211,12 @@ class MedcatSupervisedTrainer(SupervisedTrainer, _MedcatTrainerCommon):
                     )
                     with open(cdb_config_path, "w") as f:
                         json.dump(dump_pydantic_object_to_dict(model.config), f)
-                    model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
+                    model_uri = self._tracker_client.save_model(
+                        model_pack_path,
+                        self._model_name,
+                        self._model_manager,
+                        self._model_service.info().model_type.value,
+                    )
                     logger.info("Retrained model saved: %s", model_uri)
                     self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
                 else:
@@ -472,7 +477,12 @@ class MedcatUnsupervisedTrainer(UnsupervisedTrainer, _MedcatTrainerCommon):
                 )
                 with open(cdb_config_path, "w") as f:
                     json.dump(dump_pydantic_object_to_dict(model.config), f)
-                model_uri = self._tracker_client.save_model(model_pack_path, self._model_name, self._model_manager)
+                model_uri = self._tracker_client.save_model(
+                    model_pack_path,
+                    self._model_name,
+                    self._model_manager,
+                    self._model_service.info().model_type.value,
+                )
                 logger.info(f"Retrained model saved: {model_uri}")
                 self._tracker_client.save_model_artifact(cdb_config_path, self._model_name)
             else:

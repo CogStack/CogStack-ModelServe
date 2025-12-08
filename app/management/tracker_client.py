@@ -347,6 +347,36 @@ class TrackerClient(object):
         mlflow.log_params(config)
 
     @staticmethod
+    def _set_model_version_tags(
+        client: MlflowClient,
+        model_name: str,
+        version: str,
+        model_type: str,
+        validation_status: Optional[str] = None,
+    ) -> None:
+        """
+        Sets standard tags on a model version for serving and discovery.
+
+        Args:
+            client (MlflowClient): The MLflow client to use for setting tags.
+            model_name (str): The name of the registered model.
+            version (str): The version of the model.
+            model_type (str): The type of the model (e.g., "medcat_snomed").
+            validation_status (Optional[str]): The status of the model validation (e.g., "pending").
+        """
+        try:
+            client.set_model_version_tag(
+                name=model_name, version=version, key="model_uri", value=f"models:/{model_name}/{version}"
+            )
+            client.set_model_version_tag(name=model_name, version=version, key="model_type", value=model_type)
+            if validation_status is not None:
+                client.set_model_version_tag(
+                    name=model_name, version=version, key="validation_status", value=validation_status
+            )
+        except Exception:
+            logger.warning("Failed to set tags on version %s of model %s", version, model_name)
+
+    @staticmethod
     def log_model(
             model_name: str,
             model_path: str,
@@ -381,6 +411,7 @@ class TrackerClient(object):
         model_name: str,
         model_path: str,
         model_manager: ModelManager,
+        model_type: str,
         training_type: Optional[str] = "",
         run_name: Optional[str] = "",
         model_config: Optional[Dict] = None,
@@ -394,6 +425,7 @@ class TrackerClient(object):
             model_name (str): The name of the model.
             model_path (str): The path to the pretrained model.
             model_manager (ModelManager): The instance of ModelManager used for model saving.
+            model_type (str): The type of the model (e.g., "medcat_snomed").
             training_type (Optional[str]): The type of training used for the model.
             run_name (Optional[str]): The name of the run for identification purposes.
             model_config (Optional[Dict]): The configuration of the model to save.
@@ -423,6 +455,10 @@ class TrackerClient(object):
             mlflow.set_tags(tags)
             model_name = model_name.replace(" ", "_")
             TrackerClient.log_model(model_name, model_path, model_manager, model_name)
+            client = MlflowClient()
+            versions = client.search_model_versions(f"name='{model_name}'", order_by=["version_number DESC"])
+            if versions:
+                TrackerClient._set_model_version_tags(client, model_name, versions[0].version, model_type)
             TrackerClient.end_with_success()
         except KeyboardInterrupt:
             TrackerClient.end_with_interruption()
@@ -502,6 +538,7 @@ class TrackerClient(object):
         filepath: str,
         model_name: str,
         model_manager: ModelManager,
+        model_type: str,
         validation_status: str = "pending",
     ) -> str:
         """
@@ -511,6 +548,7 @@ class TrackerClient(object):
             filepath (str): The artifact path of the model to save.
             model_name (str): The name of the model.
             model_manager (ModelManager): The instance of ModelManager used for model saving.
+            model_type (str): The type of the model (e.g., "medcat_snomed").
             validation_status (str): The status of the model validation (default: "pending").
 
         Returns:
@@ -523,18 +561,19 @@ class TrackerClient(object):
 
         if not mlflow.get_tracking_uri().startswith("file:/"):
             TrackerClient.log_model(model_name, filepath, model_manager, model_name)
-            versions = self.mlflow_client.search_model_versions(f"name='{model_name}'")
-            self.mlflow_client.set_model_version_tag(
-                name=model_name,
-                version=versions[0].version,
-                key="validation_status",
-                value=validation_status,
+            versions = self.mlflow_client.search_model_versions(
+                f"name='{model_name}'", order_by=["version_number DESC"]
             )
+            if versions:
+                TrackerClient._set_model_version_tags(
+                    self.mlflow_client, model_name, versions[0].version, model_type, validation_status
+                )
         else:
             TrackerClient.log_model(model_name, filepath, model_manager)
 
         artifact_uri = mlflow.get_artifact_uri(model_name)
         mlflow.set_tag("training.output.model_uri", artifact_uri)
+        mlflow.set_tag("training.output.model_type", model_type)
 
         return artifact_uri
 
