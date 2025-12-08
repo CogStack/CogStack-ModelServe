@@ -16,7 +16,7 @@ from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
-from app.domain import ModelCard, ModelType, Annotation
+from app.domain import ModelCard, ModelType, Annotation, Device
 from app.config import Settings
 from app.utils import (
     get_settings,
@@ -157,9 +157,19 @@ class HuggingFaceLlmModel(AbstractModelService):
                         bnb_4bit_compute_dtype=torch.bfloat16,
                         bnb_4bit_use_double_quant=True,
                     )
-                    model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                    if get_settings().DEVICE == Device.DEFAULT.value:
+                        model = AutoModelForCausalLM.from_pretrained(
+                            model_path,
+                            quantization_config=bnb_config,
+                            device_map="auto",
+                        )
+                    else:
+                        model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
                 else:
-                    model = AutoModelForCausalLM.from_pretrained(model_path)
+                    if get_settings().DEVICE == Device.DEFAULT.value:
+                        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+                    else:
+                        model = AutoModelForCausalLM.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
@@ -242,8 +252,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         self.model.eval()
 
         inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
-        if non_default_device_is_available(self._config.DEVICE):
-            inputs.to(get_settings().DEVICE)
+        inputs.to(self.model.device)
 
         generation_kwargs = dict(
             inputs=inputs.input_ids,
@@ -291,8 +300,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         self.model.eval()
 
         inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
-        if non_default_device_is_available(self._config.DEVICE):
-            inputs.to(get_settings().DEVICE)
+        inputs.to(self.model.device)
 
         streamer = TextIteratorStreamer(
             self.tokenizer,
@@ -363,8 +371,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             truncation=True,
         )
 
-        if non_default_device_is_available(self._config.DEVICE):
-            inputs.to(get_settings().DEVICE)
+        inputs.to(self.model.device)
 
         with torch.no_grad():
             outputs = self.model(**inputs, output_hidden_states=True)

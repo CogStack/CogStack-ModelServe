@@ -14,7 +14,9 @@ from functools import partial
 from typing import final, Dict, TextIO, Optional, Any, List, Iterable, Tuple, Union, cast, TYPE_CHECKING
 from torch import nn
 from tqdm import tqdm
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score as sklearn_accuracy_score
+from sklearn.utils.class_weight import compute_class_weight
+from seqeval.metrics import classification_report, accuracy_score as seqeval_accuracy_score
 from scipy.special import softmax
 from transformers import __version__ as transformers_version
 from transformers import (
@@ -45,7 +47,8 @@ from app.utils import (
     get_model_data_package_base_name,
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
-from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend
+from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend, TaggingScheme
+from app.processors.tagging import TagProcessor
 from app.exception import AnnotationException, TrainingCancelledException, DatasetException
 if TYPE_CHECKING:
     from app.model_services.huggingface_ner_model import HuggingFaceNerModel
@@ -121,6 +124,8 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         reset_random_seed()
 
         eval_mode = training_params["nepochs"] == 0
+        window_size = max(self._max_length - 2, 1)
+        stride = max(window_size // 2, 1)
         self._tracker_client.log_trainer_mode(not eval_mode)
         if not eval_mode:
             try:
@@ -131,7 +136,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     os.path.dirname(copied_model_pack_path),
                     get_model_data_package_base_name(copied_model_pack_path),
                 )
-                mlm_model = self._get_mlm_model(model, copied_model_directory)
+                mlm_model = self._get_mlm_model(model, copied_model_directory, self._config.DEVICE)
 
                 if non_default_device_is_available(self._config.DEVICE):
                     mlm_model.to(self._config.DEVICE)
@@ -165,13 +170,25 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 train_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"texts": train_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                    gen_kwargs={
+                        "texts": train_texts,
+                        "tokenizer": tokenizer,
+                        "max_length": self._max_length,
+                        "window_size": window_size,
+                        "stride": stride,
+                    },
                     cache_dir=self._model_service._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"texts": eval_texts, "tokenizer": tokenizer, "max_length": self._max_length},
+                    gen_kwargs={
+                        "texts": eval_texts,
+                        "tokenizer": tokenizer,
+                        "max_length": self._max_length,
+                        "window_size": window_size,
+                        "stride": stride,
+                    },
                     cache_dir = self._model_service._config.TRAINING_CACHE_DIR,
                 )
                 train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
@@ -280,7 +297,11 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 self._tracker_client.log_model_config(self._model_service._model.config.to_dict())
                 self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
 
-                mlm_model = self._get_mlm_model(self._model_service._model, os.path.splitext(self._model_pack_path)[0])
+                mlm_model = self._get_mlm_model(
+                    self._model_service._model,
+                    os.path.splitext(self._model_pack_path)[0],
+                    self._config.DEVICE,
+                )
 
                 if non_default_device_is_available(self._config.DEVICE):
                     mlm_model.to(self._config.DEVICE)
@@ -316,8 +337,6 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 
                 self._model_service._model.eval()
 
-                window_size = 256
-                stride = 128
                 batch_size = 32
 
                 def _create_iterative_masking(input_id: List[int], mask_token: int, pad_token_id: int) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -346,8 +365,8 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 
                     for input_ids in batch_input_ids:
                         input_ids = torch.tensor(input_ids, dtype=torch.long).unsqueeze(0)  # Ensure 2D shape
-                        n = input_ids.size(-1)  # 512
-                        n_windows = (n - 1) // stride + 1  # 4
+                        n = input_ids.size(-1)
+                        n_windows = (n - 1) // stride + 1
 
                         input_ids_out = torch.full(
                             (n_windows, window_size),
@@ -430,8 +449,11 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 
 
     @staticmethod
-    def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str) -> PreTrainedModel:
-        mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
+    def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str, device: str) -> PreTrainedModel:
+        if device.lower() == Device.DEFAULT.value:
+            mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory, device_map="auto")
+        else:
+            mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
         ensure_tensor_contiguity(mlm_model)
         backbone_found = False
         for backbone in HfTransformerBackbone:
@@ -460,6 +482,8 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
         texts: Iterable[str],
         tokenizer: PreTrainedTokenizerBase,
         max_length: int,
+        window_size: int,
+        stride: int,
     ) -> Iterable[Dict[str, Any]]:
         for text in texts:
             encoded = tokenizer(
@@ -469,14 +493,15 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 return_special_tokens_mask=True,
             )
 
-            for i in range(0, len(encoded["input_ids"]), max_length):
-                chunked_input_ids = encoded["input_ids"][i:i + max_length]
+            for start in range(0, len(encoded["input_ids"]), stride):
+                end = min(start + window_size, len(encoded["input_ids"]))
+                chunked_input_ids = encoded["input_ids"][start:end]
                 padding_length = max(0, max_length - len(chunked_input_ids))
 
                 chunked_input_ids += [tokenizer.pad_token_id] * padding_length
-                chunked_attention_mask = encoded["attention_mask"][i:i + max_length] + [0] * padding_length
+                chunked_attention_mask = encoded["attention_mask"][start:end] + [0] * padding_length
                 chunked_special_tokens = tokenizer.get_special_tokens_mask(chunked_input_ids,
-                                                                           already_has_special_tokens=True)
+                                                                            already_has_special_tokens=True)
                 token_type_ids = [0] * len(chunked_input_ids)
 
                 yield {
@@ -560,7 +585,10 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         logs_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "logs"))
         reset_random_seed()
         eval_mode = training_params["nepochs"] == 0
+        window_size = max(self._max_length - 2, 1)
+        stride = max(window_size // 2, 1)
         self._tracker_client.log_trainer_mode(not eval_mode)
+        tagging_scheme = TaggingScheme(self._model_service._config.TRAINING_HF_TAGGING_SCHEME.lower())
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
@@ -576,8 +604,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
 
                 filtered_training_data, filtered_concepts = self._filter_training_data_and_concepts(data_file)
                 logger.debug(f"Filtered concepts: {filtered_concepts}")
-                model = self._update_model_with_concepts(model, filtered_concepts)
-
+                model = self._update_model_with_concepts(model, filtered_concepts, tagging_scheme)
 
                 test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
                 if test_size < 0:
@@ -599,16 +626,33 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     "labels": datasets.Sequence(datasets.Value("int32")),
                     "attention_mask": datasets.Sequence(datasets.Value("int32")),
                 })
+
                 train_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": train_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
+                    gen_kwargs={
+                        "documents": train_documents,
+                        "tokenizer": tokenizer,
+                        "max_length": self._max_length,
+                        "model": model,
+                        "tagging_scheme": tagging_scheme,
+                        "window_size": window_size,
+                        "stride": stride,
+                    },
                     cache_dir=self._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": eval_documents, "tokenizer": tokenizer, "max_length": self._max_length, "model": model},
+                    gen_kwargs={
+                        "documents": eval_documents,
+                        "tokenizer": tokenizer,
+                        "max_length": self._max_length,
+                        "model": model,
+                        "tagging_scheme": tagging_scheme,
+                        "window_size": window_size,
+                        "stride": stride,
+                    },
                     cache_dir = self._config.TRAINING_CACHE_DIR,
                 )
                 train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
@@ -626,13 +670,44 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 if early_stopping_patience > 0:
                     trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
 
+                train_labels = []
+                weights = torch.ones(model.num_labels, dtype=torch.float)
+                for example in train_dataset:
+                    train_labels.extend([label for label in example["labels"] if label != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID])
+                unique_labels = np.unique(train_labels)
+                class_weight_vect = compute_class_weight("balanced", classes=unique_labels, y=train_labels)
+                for label_id, weight in zip(unique_labels, class_weight_vect):
+                    weights[label_id] = weight
+
+                if non_default_device_is_available(self._config.DEVICE):
+                    weights = weights.to(self._config.DEVICE)
+                else:
+                    weights = weights.to(model.device)
+
+                def _compute_loss(
+                    outputs: Dict[str, Any],
+                    labels: torch.Tensor,
+                    num_items_in_batch: Optional[torch.Tensor] = None,
+                ) -> torch.Tensor:
+                    logits = outputs.get("logits")
+                    loss_func = nn.CrossEntropyLoss(weight=weights, ignore_index=HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
+                    loss = loss_func(logits.view(-1, model.num_labels), labels.view(-1))    # type: ignore
+                    return loss
+
                 hf_trainer = Trainer(
                     model=model,
                     args=training_args,
                     data_collator=data_collator,
                     train_dataset=train_dataset,
                     eval_dataset=eval_dataset,
-                    compute_metrics=partial(self._compute_token_level_metrics, id2label=model.config.id2label, tracker_client=self._tracker_client, model_name=self._model_name),
+                    compute_metrics=partial(
+                        self._compute_metrics,
+                        id2label=model.config.id2label,
+                        tracker_client=self._tracker_client,
+                        model_name=self._model_name,
+                        token_level=True if tagging_scheme == TaggingScheme.FLAT else False,
+                    ),
+                    compute_loss_func=_compute_loss,
                     callbacks=trainer_callbacks,
                 )
 
@@ -711,19 +786,34 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 eval_dataset = datasets.Dataset.from_generator(
                     self._tokenize_and_chunk,
                     features=dataset_features,
-                    gen_kwargs={"documents": eval_documents, "tokenizer": self._model_service.tokenizer, "max_length": self._max_length, "model": self._model_service._model},
+                    gen_kwargs={
+                        "documents": eval_documents,
+                        "tokenizer": self._model_service.tokenizer,
+                        "max_length": self._max_length,
+                        "model": self._model_service._model,
+                        "tagging_scheme": tagging_scheme,
+                        "window_size": window_size,
+                        "stride": stride,
+                    },
                     cache_dir=self._config.TRAINING_CACHE_DIR,
                 )
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=self._model_service.tokenizer.pad_token_id)
                 training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency)
+                training_args.eval_strategy = "no"
                 hf_trainer = Trainer(
                     model=self._model_service.model,
                     args=training_args,
                     data_collator=data_collator,
                     train_dataset=None,
                     eval_dataset=None,
-                    compute_metrics=partial(self._compute_token_level_metrics, id2label=self._model_service.model.config.id2label, tracker_client=self._tracker_client, model_name=self._model_name),
+                    compute_metrics=partial(
+                        self._compute_metrics,
+                        id2label=self._model_service.model.config.id2label,
+                        tracker_client=self._tracker_client,
+                        model_name=self._model_name,
+                        token_level=False,
+                    ),
                     tokenizer=None,
                 )
                 eval_metrics = hf_trainer.evaluate(eval_dataset)
@@ -758,22 +848,16 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             return filtered_training_data, filtered_concepts
 
     @staticmethod
-    def _update_model_with_concepts(model: PreTrainedModel, concepts: List[str]) -> PreTrainedModel:
+    def _update_model_with_concepts(
+        model: PreTrainedModel,
+        concepts: List[str],
+        tagging_scheme: TaggingScheme,
+    ) -> PreTrainedModel:
         if model.config.label2id == {"LABEL_0": 0, "LABEL_1": 1}:
             logger.debug("Cannot find existing labels and IDs, creating new ones...")
             model.config.label2id = {"O": HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID, "X": HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID}
             model.config.id2label = {HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID: "O", HuggingFaceNerSupervisedTrainer.CONTINUING_TOKEN_LABEL_ID: "X"}
-        avg_weight = torch.mean(model.classifier.weight, dim=0, keepdim=True)
-        avg_bias = torch.mean(model.classifier.bias, dim=0, keepdim=True)
-        for concept in concepts:
-            if concept not in model.config.label2id.keys():
-                model.config.label2id[concept] = len(model.config.label2id)
-                model.config.id2label[len(model.config.id2label)] = concept
-                model.classifier.weight = nn.Parameter(torch.cat((model.classifier.weight, avg_weight), 0))
-                model.classifier.bias = nn.Parameter(torch.cat((model.classifier.bias, avg_bias), 0))
-                model.classifier.out_features += 1
-                model.num_labels += 1
-        return model
+        return TagProcessor.update_model_by_tagging_scheme(model, concepts, tagging_scheme)
 
     @staticmethod
     def _tokenize_and_chunk(
@@ -781,6 +865,9 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         tokenizer: PreTrainedTokenizerBase,
         max_length: int,
         model: PreTrainedModel,
+        tagging_scheme: TaggingScheme,
+        window_size: int,
+        stride: int,
     ) -> Iterable[Dict[str, Any]]:
         for document in documents:
             encoded = tokenizer(
@@ -790,31 +877,27 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 return_offsets_mapping=True,
             )
             document["annotations"] = sorted(document["annotations"], key=lambda annotation: annotation["start"])
-            for i in range(0, len(encoded["input_ids"]), max_length):
-                chunked_input_ids = encoded["input_ids"][i:i + max_length]
-                chunked_offsets_mapping = encoded["offset_mapping"][i:i + max_length]
-                chunked_labels = [0] * len(chunked_input_ids)
-                for annotation in document["annotations"]:
-                    start = annotation["start"]
-                    end = annotation["end"]
-                    label_id = model.config.label2id.get(annotation["cui"], HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)
-                    for idx, offset_mapping in enumerate(chunked_offsets_mapping):
-                        if start <= offset_mapping[0] and offset_mapping[1] <= end:
-                            chunked_labels[idx] = label_id
-                chunked_attention_mask = encoded["attention_mask"][i:i + max_length]
 
-                yield {
-                    "input_ids": chunked_input_ids,
-                    "labels": chunked_labels,
-                    "attention_mask": chunked_attention_mask,
-                }
+            yield from TagProcessor.generate_chuncks_by_tagging_scheme(
+                annotations=document["annotations"],
+                tokenized=encoded,
+                delfault_label_id=HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID,
+                pad_token_id=tokenizer.pad_token_id,
+                pad_label_id=HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID,
+                max_length=max_length,
+                model=model,
+                tagging_scheme=tagging_scheme,
+                window_size=window_size,
+                stride=stride,
+            )
 
     @staticmethod
-    def _compute_token_level_metrics(
+    def _compute_metrics(
         eval_pred: EvalPrediction,
         id2label: Dict[int, str],
         tracker_client: TrackerClient,
         model_name: str,
+        token_level: bool,
     ) -> Dict[str, Any]:
         predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
         label_ids = eval_pred.label_ids
@@ -822,40 +905,91 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         non_padding_predictions = predictions[non_padding_indices].flatten()
         non_padding_label_ids = label_ids[non_padding_indices].flatten()
         labels = list(id2label.values())
-        precision, recall, f1, support = precision_recall_fscore_support(non_padding_label_ids, non_padding_predictions, labels=list(id2label.keys()), average=None)
-        filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
-        accuracy = accuracy_score(filtered_label_ids, filtered_predictions)
-        metrics = {
-            "accuracy": accuracy,
-            "f1_avg": np.average(f1[2:]),
-            "precision_avg": np.average(precision[2:]),
-            "recall_avg": np.average(recall[2:]),
-            "support_avg": np.average(support[2:]),
-        }
-        aggregated_labels = []
-        aggregated_metrics = []
 
-        # limit the number of labels to avoid excessive metrics logging
-        for idx, (label, precision, recall, f1, support) in enumerate(zip(labels[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                          precision[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                          recall[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                          f1[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                          support[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2])):
-            if support == 0:  # the concept has no true labels
-                continue
-            metrics[f"{label}/precision"] = precision if precision is not None else 0.0
-            metrics[f"{label}/recall"] = recall if recall is not None else 0.0
-            metrics[f"{label}/f1"] = f1 if f1 is not None else 0.0
-            metrics[f"{label}/support"] = support if support is not None else 0.0
+        if token_level:
+            # Get token level metrics
+            precision, recall, f1, support = precision_recall_fscore_support(non_padding_label_ids, non_padding_predictions, labels=list(id2label.keys()), average=None)
+            filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
+            accuracy = sklearn_accuracy_score(filtered_label_ids, filtered_predictions)
+            metrics = {
+                "accuracy": accuracy,
+                "f1_avg": np.average(f1[2:]),
+                "precision_avg": np.average(precision[2:]),
+                "recall_avg": np.average(recall[2:]),
+                "support_avg": np.average(support[2:]),
+            }
+            aggregated_labels = []
+            aggregated_metrics = []
 
-            aggregated_labels.append(label)
-            aggregated_metrics.append({
-                "per_concept_p": metrics[f"{label}/precision"],
-                "per_concept_r": metrics[f"{label}/recall"],
-                "per_concept_f1": metrics[f"{label}/f1"],
-            })
+            # Limit the number of labels to avoid excessive metrics logging
+            for idx, (label, precision, recall, f1, support) in enumerate(zip(labels[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                            precision[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                            recall[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                            f1[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
+                                                                            support[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2])):
+                if support == 0:  # The concept has no true labels
+                    continue
+                metrics[f"{label}/precision"] = precision if precision is not None else 0.0
+                metrics[f"{label}/recall"] = recall if recall is not None else 0.0
+                metrics[f"{label}/f1"] = f1 if f1 is not None else 0.0
+                metrics[f"{label}/support"] = support if support is not None else 0.0
 
-        HuggingFaceNerSupervisedTrainer._save_metrics_plot(aggregated_metrics, aggregated_labels, tracker_client, model_name)
+                aggregated_labels.append(label)
+                aggregated_metrics.append({
+                    "per_concept_p": metrics[f"{label}/precision"],
+                    "per_concept_r": metrics[f"{label}/recall"],
+                    "per_concept_f1": metrics[f"{label}/f1"],
+                })
+        else:
+            # Get entity level metrics
+            y_true = []
+            y_pred = []
+            for i in range(label_ids.shape[0]):
+                true_labels = []
+                pred_labels = []
+                for j in range(label_ids.shape[1]):
+                    if label_ids[i, j] != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID:
+                        true_labels.append(id2label[label_ids[i, j]])
+                        pred_labels.append(id2label[predictions[i, j]])
+                    else:
+                        break
+                y_true.append(true_labels)
+                y_pred.append(pred_labels)
+            report = classification_report(y_true, y_pred, output_dict=True)
+            accuracy = seqeval_accuracy_score(y_true, y_pred)
+            metrics = {
+                "accuracy": accuracy,
+                "f1_avg": np.mean([report[label]["f1-score"] for label in report]),
+                "precision_avg": np.mean([report[label]["precision"] for label in report]),
+                "recall_avg": np.mean([report[label]["recall"] for label in report]),
+                "support_avg": np.mean([report[label]["support"] for label in report]),
+            }
+            aggregated_labels = []
+            aggregated_metrics = []
+
+            # Limit the number of labels to avoid excessive metrics logging
+            label_keys = [k for k in report.keys() if k not in ['weighted avg', 'macro avg', 'micro avg']]
+            for _, label in enumerate(label_keys[:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK]):
+                if label not in report or report[label]['support'] == 0:  # The label has no true labels
+                    continue
+                metrics[f"{label}/precision"] = report[label]["precision"]
+                metrics[f"{label}/recall"] = report[label]["recall"]
+                metrics[f"{label}/f1"] = report[label]["f1-score"]
+                metrics[f"{label}/support"] = report[label]["support"]
+
+                aggregated_labels.append(label)
+                aggregated_metrics.append({
+                    "per_concept_p": metrics[f"{label}/precision"],
+                    "per_concept_r": metrics[f"{label}/recall"],
+                    "per_concept_f1": metrics[f"{label}/f1"],
+                })
+
+        HuggingFaceNerSupervisedTrainer._save_metrics_plot(
+            aggregated_metrics,
+            aggregated_labels,
+            tracker_client,
+            model_name,
+        )
         logger.debug("Evaluation metrics: %s", metrics)
         return metrics
 

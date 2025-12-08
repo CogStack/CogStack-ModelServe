@@ -105,6 +105,7 @@ def huggingface_ner_model():
 def huggingface_llm_model():
     config = Settings()
     config.BASE_MODEL_FILE = "huggingface_llm_model.tar.gz"
+    config.TRAINING_HF_TAGGING_SCHEME = "flat"
     model_service = HuggingFaceLlmModel(config, MODEL_PARENT_DIR)
     model_service.init_model()
     return model_service
