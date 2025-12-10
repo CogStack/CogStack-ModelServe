@@ -144,7 +144,7 @@ async def generate_text_stream(
 
 @router.post(
     PATH_OPENAI_COMPLETIONS,
-    tags=[Tags.OpenAICompatible.name],
+    tags=[Tags.OpenAICompatible],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Generate chat response based on messages, similar to OpenAI's /v1/chat/completions",
@@ -253,7 +253,7 @@ def generate_chat_completions(
 
 @router.post(
     PATH_OPENAI_EMBEDDINGS,
-    tags=[Tags.OpenAICompatible.name],
+    tags=[Tags.OpenAICompatible],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
