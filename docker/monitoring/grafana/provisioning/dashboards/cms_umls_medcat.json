@@ -117,6 +117,30 @@
           "legendFormat": "/process",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "round(increase(http_requests_total{handler=\"/redact\", job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", method=\"POST\", status=\"2xx\"}[10y]))",
+          "hide": false,
+          "legendFormat": "/redact",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "P7A53D3B2E146C92D"
+          },
+          "editorMode": "code",
+          "expr": "round(increase(http_requests_total{handler=\"/process_bulk\", job=\"cms_medcat-umls\", instance=\"medcat-umls:8000\", method=\"POST\", status=\"2xx\"}[10y]))",
+          "hide": false,
+          "legendFormat": "/process_bulk",
+          "range": true,
+          "refId": "C"
         }
       ],
       "title": "Number of Processed Docs",
