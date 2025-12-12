@@ -323,8 +323,8 @@ async def init_vllm_engine(app: FastAPI,
         )
         from vllm import SamplingParams, TokensPrompt
     except ImportError:
-        logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
-        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install cms[vllm]`.")
+        logger.error("Cannot import the vLLM engine. Please install it with `pip install cms[llm]`.")
+        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install cms[llm]`.")
 
     parser = FlexibleArgumentParser()
     parser = make_arg_parser(parser)

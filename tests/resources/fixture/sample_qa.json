@@ -1,0 +1,22 @@
+[
+    {
+        "question": "What is high blood pressure?",
+        "answer": "High blood pressure is a condition where the force at which your heart pumps blood around your body is high. It is recorded with 2 numbers, the systolic pressure and the diastolic pressure, both measured in millimetres of mercury (mmHg)."
+    },
+    {
+        "question": "What are the risks of high blood pressure?",
+        "answer": "Persistent high blood pressure can put extra strain on your blood vessels, heart, and other organs, such as the brain, kidneys, and eyes. It can increase your risk of serious and potentially life-threatening health conditions, such as heart disease, heart attacks, strokes, heart failure, peripheral arterial disease, aortic aneurysms, kidney disease, and vascular dementia."
+    },
+    {
+        "question": "How is high blood pressure diagnosed?",
+        "answer": "The only way of knowing whether you have high blood pressure is to have a blood pressure test, which can be done at your GP surgery, some pharmacies, as part of your NHS Health Check, or in some workplaces. All adults over 40 are advised to have their blood pressure checked at least every 5 years."
+    },
+    {
+        "question": "What are the lifestyle changes that can help reduce blood pressure?",
+        "answer": "Lifestyle changes that can help prevent and lower high blood pressure include reducing the amount of salt you eat and having a generally healthy diet, cutting back on alcohol, losing weight if you're overweight, exercising regularly, cutting down on caffeine, and stopping smoking."
+    },
+    {
+        "question": "What are the medicines used to control high blood pressure?",
+        "answer": "Common blood pressure medicines include ACE inhibitors, angiotensin-2 receptor blockers (ARBs), calcium channel blockers, diuretics, beta blockers, alpha blockers, and other diuretics. The medicine recommended for you will depend on factors like how high your blood pressure is, your age, and your ethnicity."
+    }
+]

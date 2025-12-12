@@ -252,7 +252,7 @@ embeddings = client.embeddings.create(
 ```
 Note that to enable quantization and training features, you need to install the extra dependencies:
 ```commandline
-pip install '.[vllm]'
+pip install '.[llm]'
 ```
 #### Chat with served models
 You can also "chat" with the running model using the `/stream/ws` endpoint. For example:

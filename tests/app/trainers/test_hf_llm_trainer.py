@@ -6,6 +6,14 @@ from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
 from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
 from app.config import Settings
 
+
+def _triton_installed():
+    try:
+        import triton
+        return True
+    except ImportError:
+        return False
+
 model_parent_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 config = Settings()
 config.MLFLOW_TRACKING_URI = "http://localhost:5000"
@@ -40,11 +48,12 @@ def test_deploy_model():
     assert model_service.tokenizer == tokenizer
 
 
+@skipIf(not _triton_installed(), "This requires triton to be installed")
 def test_huggingface_llm_supervised_trainer(mlflow_fixture):
     with patch.object(supervised_trainer, "run", wraps=supervised_trainer.run) as run:
         supervised_trainer._tracker_client = Mock()
         supervised_trainer._tracker_client.start_tracking = Mock(return_value=("experiment_id", "run_id"))
-        with open(os.path.join(data_dir, "trainer_export.json"), "r") as f:
+        with open(os.path.join(data_dir, "sample_qa.json"), "r") as f:
             supervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
     supervised_trainer._tracker_client.start_tracking.assert_called_once()
     run.assert_called_once()
@@ -52,5 +61,5 @@ def test_huggingface_llm_supervised_trainer(mlflow_fixture):
 
 @skipIf(config.DEVICE != "cuda", "This requires a CUDA device to run")
 def test_huggingface_llm_supervised_run(mlflow_fixture):
-    with open(os.path.join(data_dir, "trainer_export.json"), "r") as data_file:
+    with open(os.path.join(data_dir, "sample_qa.json"), "r") as data_file:
         HuggingFaceLlmSupervisedTrainer.run(supervised_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")

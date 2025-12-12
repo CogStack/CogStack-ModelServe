@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          uv sync --extra dev --extra docs --extra vllm
+          uv sync --extra dev --extra docs --extra llm
           uv run python -m ensurepip
       - name: Check types
         run: |
