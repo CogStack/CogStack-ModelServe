@@ -15,7 +15,6 @@ from transformers import (
     TrainingArguments,
     PreTrainedModel,
     PreTrainedTokenizerBase,
-    PreTrainedTokenizerFast,
     TrainerCallback,
     TrainerState,
     TrainerControl,
@@ -81,9 +80,6 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
     CONTINUING_TOKEN_LABEL_ID = 1
 
     def __init__(self, model_service: "HuggingFaceLlmModel") -> None:
-        if not isinstance(model_service.tokenizer, PreTrainedTokenizerFast):
-            logger.error("The supervised trainer requires a fast tokenizer to function correctly")
-            raise ManagedModelException("The supervised trainer requires a fast tokenizer to function correctly")
         SupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
         self._model_service = model_service
         self._model_name = model_service.model_name

@@ -4,7 +4,7 @@ import time
 import uuid
 import app.api.globals as cms_globals
 
-from typing import Union, Iterable, AsyncGenerator
+from typing import Union, Iterable, AsyncGenerator, List
 from typing_extensions import Annotated
 from functools import partial
 from fastapi import APIRouter, Depends, Request, Body, Query
@@ -51,7 +51,9 @@ def generate_text(
     request: Request,
     prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
     max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512,
-    temperature: Annotated[float, Query(description="The temperature of the generated text", gt=0.0, lt=1.0)] = 0.7,
+    temperature: Annotated[float, Query(description="The temperature of the generated text", ge=0.0)] = 0.7,
+    top_p: Annotated[float, Query(description="The Top-P value for nucleus sampling", ge=0.0, le=1.0)] = 0.9,
+    stop_sequences: Annotated[List[str], Query(description="The list of sequences used to stop the generation")] = [],
     tracking_id: Union[str, None] = Depends(validate_tracking_id),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> PlainTextResponse:
@@ -63,6 +65,8 @@ def generate_text(
         prompt (str): The prompt to be sent to the model.
         max_tokens (int): The maximum number of tokens to generate.
         temperature (float): The temperature of the generated text.
+        top_p (float): The Top-P value for nucleus sampling.
+        stop_sequences (List[str]): The list of sequences used to stop the generation.
         tracking_id (Union[str, None]): An optional tracking ID of the requested task.
         model_service (AbstractModelService): The model service dependency.
 
@@ -77,6 +81,8 @@ def generate_text(
                 prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                top_p=top_p,
+                stop_sequences=stop_sequences,
                 report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE),
             ),
             headers={"x-cms-tracking-id": tracking_id},
@@ -101,7 +107,9 @@ async def generate_text_stream(
     request: Request,
     prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
     max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512,
-    temperature: Annotated[float, Query(description="The temperature of the generated text", gt=0.0, lt=1.0)] = 0.7,
+    temperature: Annotated[float, Query(description="The temperature of the generated text", ge=0.0)] = 0.7,
+    top_p: Annotated[float, Query(description="The Top-P value for nucleus sampling", ge=0.0, le=1.0)] = 0.9,
+    stop_sequences: Annotated[List[str], Query(description="The list of sequences used to stop the generation")] = [],
     tracking_id: Union[str, None] = Depends(validate_tracking_id),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> StreamingResponse:
@@ -113,6 +121,8 @@ async def generate_text_stream(
         prompt (str): The prompt to be sent to the model.
         max_tokens (int): The maximum number of tokens to generate.
         temperature (float): The temperature of the generated text.
+        top_p (float): The Top-P value for nucleus sampling.
+        stop_sequences (List[str]): The list of sequences used to stop the generation.
         tracking_id (Union[str, None]): An optional tracking ID of the requested task.
         model_service (AbstractModelService): The model service dependency.
 
@@ -127,6 +137,8 @@ async def generate_text_stream(
                 prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                top_p=top_p,
+                stop_sequences=stop_sequences,
                 report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE_ASYNC),
             ),
             media_type="text/event-stream",
@@ -162,7 +174,7 @@ def generate_chat_completions(
 
     Args:
         request (Request): The request object.
-        request_data (OpenAIChatRequest): The request data containing model, messages, and stream.
+        request_data (OpenAIChatRequest): The request data containing model, messages, stream, temperature, top_p, and stop_sequences.
         tracking_id (Union[str, None]): An optional tracking ID of the requested task.
         model_service (AbstractModelService): The model service dependency.
 
@@ -176,6 +188,8 @@ def generate_chat_completions(
     stream = request_data.stream
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
+    top_p = request_data.top_p
+    stop_sequences = request_data.stop_sequences
     tracking_id = tracking_id or str(uuid.uuid4())
 
     if not messages:
@@ -193,7 +207,7 @@ def generate_chat_completions(
             headers={"x-cms-tracking-id": tracking_id},
         )
 
-    async def _stream(prompt: str, max_tokens: int, temperature: float) -> AsyncGenerator:
+    async def _stream(prompt: str, max_tokens: int, temperature: float, top_p: float, stop_sequences: List[str]) -> AsyncGenerator:
         data = {
             "id": tracking_id,
             "object": "chat.completion.chunk",
@@ -204,6 +218,8 @@ def generate_chat_completions(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
+            top_p=top_p,
+            stop_sequences=stop_sequences,
             report_tokens=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS)
         ):
             data = {
@@ -221,7 +237,7 @@ def generate_chat_completions(
     prompt = get_prompt_from_messages(model_service.tokenizer, messages)
     if stream:
         return StreamingResponse(
-            _stream(prompt, max_tokens, temperature),
+            _stream(prompt, max_tokens, temperature, top_p, stop_sequences or []),
             media_type="text/event-stream",
             headers={"x-cms-tracking-id": tracking_id},
         )
@@ -230,6 +246,8 @@ def generate_chat_completions(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
+            top_p=top_p,
+            stop_sequences=stop_sequences or [],
             send_metrics=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS),
         )
         completion = OpenAIChatResponse(

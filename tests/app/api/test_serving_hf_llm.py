@@ -43,7 +43,7 @@ def client(llm_model_service):
 
 def test_generate(client):
     response = client.post(
-        "/generate?max_tokens=128&temperature=0.7",
+        "/generate?max_tokens=128&temperature=0.7&top_p=0.9&stop_sequences=end",
         data="Alright?",
         headers={"Content-Type": "text/plain"},
     )
@@ -59,7 +59,7 @@ async def test_stream_generate(llm_model_service, llm_app):
     llm_model_service.generate_async.return_value = "Fine."
     async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
         response = await ac.post(
-            "/stream/generate?max_tokens=32&temperature=0.7",
+            "/stream/generate?max_tokens=32&temperature=0.7&top_p=0.9&stop_sequences=end",
             data="How are you doing?",
             headers={"Content-Type": "text/plain"},
         )

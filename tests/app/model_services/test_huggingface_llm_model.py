@@ -61,6 +61,8 @@ def test_generate(huggingface_llm_model):
         max_tokens=128,
         num_beams=2,
         temperature=0.5,
+        top_p=0.8,
+        stop_sequences=["end"],
         report_tokens=mock_send_metrics
     )
 
@@ -75,9 +77,11 @@ def test_generate(huggingface_llm_model):
         min_new_tokens=50,
         max_new_tokens=128,
         num_beams=2,
-        do_sample=False,
+        do_sample=True,
         temperature=0.5,
-        top_p=0.9,
+        top_p=0.8,
+        repetition_penalty=1.2,
+        no_repeat_ngram_size=3,
     )
     huggingface_llm_model.tokenizer.decode.assert_called_once_with(
         outputs[0],
@@ -110,6 +114,8 @@ async def test_generate_async(huggingface_llm_model):
         max_tokens=128,
         num_beams=2,
         temperature=0.5,
+        top_p=0.8,
+        stop_sequences=["end"],
         report_tokens=mock_send_metrics
     )
 
@@ -124,9 +130,11 @@ async def test_generate_async(huggingface_llm_model):
         min_new_tokens=50,
         max_new_tokens=128,
         num_beams=2,
-        do_sample=False,
+        do_sample=True,
         temperature=0.5,
-        top_p=0.9,
+        top_p=0.8,
+        repetition_penalty=1.2,
+        no_repeat_ngram_size=3,
     )
     huggingface_llm_model.tokenizer.decode.assert_called_once_with(
         outputs[0],

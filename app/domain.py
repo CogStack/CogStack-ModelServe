@@ -217,6 +217,8 @@ class OpenAIChatRequest(BaseModel):
     max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
     model: str = Field(..., description="The name of the model used for generating the completion")
     temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
+    top_p: float = Field(0.9, description="The top-p value for nucleus sampling", ge=0.0, le=1.0)
+    stop_sequences: Optional[List[str]] = Field(default=None, description="The list of sequences used to stop the generation")
 
 
 class OpenAIChatResponse(BaseModel):
