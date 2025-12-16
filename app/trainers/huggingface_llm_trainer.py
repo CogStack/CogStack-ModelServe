@@ -36,7 +36,6 @@ from app.trainers.base import SupervisedTrainer
 from app.domain import ModelType, TrainerBackend, LlmRole, LlmTrainerType, LlmDatasetType, PromptMessage, Device
 from app.exception import (
     TrainingCancelledException,
-    ManagedModelException,
     DatasetException,
     ConfigurationException,
     DeviceNotAvailableError,
