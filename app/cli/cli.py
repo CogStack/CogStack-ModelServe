@@ -90,6 +90,8 @@ def serve_model(
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
+    _display_info_table(model_type, model_name, model_path, mlflow_model_uri, host, port)
+
     model_name = model_name or "CMS model"
     logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
@@ -111,6 +113,7 @@ def serve_model(
         except Exception:
             logger.exception("$GELF_INPUT_URI is set to \"%s\" but it's not ready to receive logs", os.environ['GELF_INPUT_URI'])
 
+    logging.info("Preparing the model service for %s...", model_name)
     model_service_dep = ModelServiceDep(model_type, config, model_name)
     cms_globals.model_service_dep = model_service_dep
 
@@ -691,18 +694,91 @@ def generate_api_doc(
 
 @cmd_app.callback()
 # ruff: noqa
-def show_banner() -> None:
-    banner = f"""
-       _____             _____ _             _       __  __           _      _  _____
-      / ____|           / ____| |           | |     |  \/  |         | |    | |/ ____|
-     | |     ___   __ _| (___ | |_ __ _  ___| | __  | \  / | ___   __| | ___| | (___   ___ _ ____   _____
-     | |    / _ \ / _` |\___ \| __/ _` |/ __| |/ /  | |\/| |/ _ \ / _` |/ _ \ |\___ \ / _ \ '__\ \ / / _ \\
-     | |___| (_) | (_| |____) | || (_| | (__|   <   | |  | | (_) | (_| |  __/ |____) |  __/ |   \ V /  __/
-      \_____\___/ \__, |_____/ \__\__,_|\___|_|\_\  |_|  |_|\___/ \__,_|\___|_|_____/ \___|_|    \_/ \___|  (v{__version__})
-                   __/ |
-                  |___/
-    """
-    typer.echo(banner)
+def show_banner(
+    model_type: Optional[ModelType] = None,
+    host: Optional[str] = None,
+    port: Optional[str] = None
+) -> None:
+    from rich.console import Console, Group
+    from rich.align import Align
+    from rich.text import Text
+
+    os.environ["COLORTERM"] = "truecolor"
+    console = Console()
+    banner_lines = [
+     r"  _____             _____ _             _       __  __           _      _  _____",
+     r" / ____|           / ____| |           | |     |  \/  |         | |    | |/ ____|",
+     r"| |     ___   __ _| (___ | |_ __ _  ___| | __  | \  / | ___   __| | ___| | (___   ___ _ ____   _____",
+     r"| |    / _ \ / _` |\___ \| __/ _` |/ __| |/ /  | |\/| |/ _ \ / _` |/ _ \ |\___ \ / _ \ '__\ \ / / _ \ ",
+     r"| |___| (_) | (_| |____) | || (_| | (__|   <   | |  | | (_) | (_| |  __/ |____) |  __/ |   \ V /  __/",
+     r" \_____\___/ \__, |_____/ \__\__,_|\___|_|\_\  |_|  |_|\___/ \__,_|\___|_|_____/ \___|_|    \_/ \___|",
+     r"              __/ |",
+     r"             |___/",
+    ]
+
+    colors = [
+        "#00d9ff",   # Bright cyan
+        "#00c5f0",   # Cyan-blue
+        "#00b1e0",   # Light blue
+        "#009dd0",   # Mid-light blue
+        "#0089c0",   # Mid blue
+        "#0075b0",   # Mid-dark blue
+        "#0061a0",   # Dark blue
+        "#004d90",   # Deep blue
+    ]
+    console.print()
+    banner_lines_with_styles = []
+    for i, line in enumerate(banner_lines):
+        styled_line = Text(line, style=f"bold {colors[i]}")
+        banner_lines_with_styles.append(styled_line)
+
+    banner_group = Group(*banner_lines_with_styles)
+    console.print(Align.center(banner_group))
+    console.print()
+
+def _display_info_table(
+    model_type: ModelType,
+    model_name: Optional[str],
+    model_path: Optional[str],
+    mlflow_model_uri: Optional[str],
+    host: str,
+    port: str,
+) -> None:
+    from rich.align import Align
+    from rich.console import Console, Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+    title_text = Text(f"Welcome to CMS {__version__}", style="bold blue")
+
+    display_model_type = model_type.value
+    server_url = f"http://{host}:{port}"
+    info_table = Table.grid(padding=(0, 1))
+    info_table.add_column(style="bold", justify="center")
+    info_table.add_column(style="cyan", justify="left")
+    info_table.add_column(style="dim", justify="left")
+
+    info_table.add_row("🤖", "Model Name:", model_name or "CMS model")
+    info_table.add_row("📦", "Model Type:", display_model_type)
+    info_table.add_row("📂", "Model Path:", model_path or mlflow_model_uri)
+    info_table.add_row("🔗", "Base URL:", server_url)
+    info_table.add_row("📚", "Docs:", f"{server_url}/docs")
+
+    panel_content = Group(
+        Align.center(title_text),
+        "",
+        "",
+        Align.center(info_table),
+    )
+
+    panel = Panel(
+        panel_content,
+        border_style="dim",
+        padding=(1, 4),
+        width=80,
+    )
+    console = Console(stderr=True)
+    console.print(Group("\n", Align.center(panel), "\n"))
 
 
 def _ensure_dst_model_path(model_path: str, parent_dir: str, config: Settings) -> str:
