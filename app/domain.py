@@ -27,7 +27,7 @@ class Tags(str, Enum):
     Evaluating = "Evaluate the deployed model with trainer export"
     Authentication = "Authenticate registered users"
     Generative = "Generate text based on the input prompt"
-    OpenAICompatible = "Compatible with OpenAI APIs"
+    OpenAICompatible = "Operations compatible with OpenAI APIs"
 
 
 class TagsStreamable(str, Enum):
