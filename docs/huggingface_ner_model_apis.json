@@ -1958,7 +1958,7 @@
         },
         {
             "name": "OpenAICompatible",
-            "description": "Compatible with OpenAI APIs"
+            "description": "Operations compatible with OpenAI APIs"
         }
     ]
 }

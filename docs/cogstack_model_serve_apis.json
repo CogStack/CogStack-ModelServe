@@ -2111,7 +2111,7 @@
         "/v1/chat/completions": {
             "post": {
                 "tags": [
-                    "OpenAICompatible"
+                    "Operations compatible with OpenAI APIs"
                 ],
                 "summary": "Generate Chat Completions",
                 "description": "Generate chat response based on messages, similar to OpenAI's /v1/chat/completions",
@@ -2180,7 +2180,7 @@
         "/v1/embeddings": {
             "post": {
                 "tags": [
-                    "OpenAICompatible"
+                    "Operations compatible with OpenAI APIs"
                 ],
                 "summary": "Embed Texts",
                 "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
@@ -3075,7 +3075,7 @@
         },
         {
             "name": "OpenAICompatible",
-            "description": "Compatible with OpenAI APIs"
+            "description": "Operations compatible with OpenAI APIs"
         }
     ]
 }
