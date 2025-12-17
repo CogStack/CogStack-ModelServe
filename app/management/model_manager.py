@@ -293,7 +293,7 @@ class ModelManager(PythonModel):
             for _, item in df.iterrows():
                 yield item.to_dict()
 
-    @staticmethod   # type: ignore
-    @func_deprecated
+    @staticmethod
+    @func_deprecated()
     def _get_pip_requirements() -> str:
         return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))

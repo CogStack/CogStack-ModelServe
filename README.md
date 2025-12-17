@@ -230,6 +230,30 @@ curl -N -X 'POST' 'http://127.0.0.1:8000/stream/generate?max_tokens=512' \
     -d 'What is hypertension?'
 ```
 
+CMS also provides APIs that are compatible with the OpenAI client. For example, using its Python SDK, you can generate text and retrieve embeddings with the following snippet:
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key="dummy", base_url="http://localhost:8000/v1")
+completion = client.chat.completions.create(
+    model="Huggingface LLM Model",
+    messages=[
+        {"role": "system", "content": "You are bot answering questions from the user"},
+        {"role": "user", "content": "What is hypertension?"},
+    ],
+    max_tokens=256,
+    temperature=0.7,
+    stream=False
+)
+print(f"CMS => {completion.choices[0].message.content}")
+embeddings = client.embeddings.create(
+    model="Huggingface LLM Model", input="What is hypertension?"
+)
+```
+Note that to enable quantization and training features, you need to install the extra dependencies:
+```commandline
+pip install '.[llm]'
+```
 #### Chat with served models
 You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
 ```html

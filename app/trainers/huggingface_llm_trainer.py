@@ -15,7 +15,6 @@ from transformers import (
     TrainingArguments,
     PreTrainedModel,
     PreTrainedTokenizerBase,
-    PreTrainedTokenizerFast,
     TrainerCallback,
     TrainerState,
     TrainerControl,
@@ -34,13 +33,11 @@ from app.utils import (
     get_model_data_package_base_name,
 )
 from app.trainers.base import SupervisedTrainer
-from app.domain import ModelType, TrainerBackend, LlmRole, LlmTrainerType, LlmDatasetType, PromptMessage, Device
+from app.domain import ModelType, TrainerBackend, LlmRole, LlmTrainerType, LlmDatasetType, PromptMessage
 from app.exception import (
     TrainingCancelledException,
-    ManagedModelException,
     DatasetException,
     ConfigurationException,
-    DeviceNotAvailableError,
     ExtraDependencyRequiredException,
 )
 if TYPE_CHECKING:
@@ -81,9 +78,6 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
     CONTINUING_TOKEN_LABEL_ID = 1
 
     def __init__(self, model_service: "HuggingFaceLlmModel") -> None:
-        if not isinstance(model_service.tokenizer, PreTrainedTokenizerFast):
-            logger.error("The supervised trainer requires a fast tokenizer to function correctly")
-            raise ManagedModelException("The supervised trainer requires a fast tokenizer to function correctly")
         SupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
         self._model_service = model_service
         self._model_name = model_service.model_name
@@ -299,15 +293,12 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             run_id (str): The run ID of the training job.
             description (Optional[str]): The optional description of the training or change logs.
         """
-
-        if self._config.DEVICE is not Device.GPU.value:
-            raise DeviceNotAvailableError("This trainer currently requires a CUDA device")
-
         try:
             from trl import GRPOConfig, GRPOTrainer  # , PPOConfig, PPOTrainer
-        except ImportError:
-            logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
-            raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install cms[vllm]`.")
+        except ImportError as e:
+            logger.exception(e)
+            logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[llm]`.")
+            raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install cms[llm]`.")
 
         trained_model_pack_path = None
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"

@@ -230,8 +230,12 @@ class HuggingFaceLlmModel(AbstractModelService):
     def generate(
         self,
         prompt: str,
+        min_tokens: int = 100,
         max_tokens: int = 512,
+        num_beams: int = 5,
         temperature: float = 0.7,
+        top_p: float = 0.9,
+        stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[[str], None]] = None,
         **kwargs: Any
     ) -> str:
@@ -240,8 +244,12 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         Args:
             prompt (str): The prompt for the text generation
+            min_tokens (int): The minimum number of tokens to generate. Defaults to 100.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
+            num_beams (int): The number of beams for beam search. Defaults to 5.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
+            top_p (float): The Top-P value for nucleus sampling. Defaults to 0.9.
+            stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
@@ -257,14 +265,25 @@ class HuggingFaceLlmModel(AbstractModelService):
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
+            min_new_tokens=min_tokens,
             max_new_tokens=max_tokens,
-            do_sample=False,
+            num_beams=num_beams,
+            do_sample=True,
             temperature=temperature,
-            top_p=0.9,
+            top_p=top_p,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=3,
         )
 
         outputs = self.model.generate(**generation_kwargs)
         generated_text = self.tokenizer.decode(outputs[0], skip_prompt=True, skip_special_tokens=True)
+
+        if stop_sequences:
+            for stop_seq in stop_sequences:
+                if stop_seq in generated_text:
+                    generated_text = generated_text.split(stop_seq)[0]
+                    break
+
         logger.debug("Response generation completed")
 
         if report_tokens:
@@ -280,6 +299,8 @@ class HuggingFaceLlmModel(AbstractModelService):
         prompt: str,
         max_tokens: int = 512,
         temperature: float = 0.7,
+        top_p: float = 0.9,
+        stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[[str], None]] = None,
         **kwargs: Any
     ) -> AsyncIterable:
@@ -290,6 +311,8 @@ class HuggingFaceLlmModel(AbstractModelService):
             prompt (str): The prompt for the text generation.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
+            top_p (float): The Top-P value for nucleus sampling. Defaults to 0.9.
+            stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             **kwargs (Any): Additional keyword arguments to be passed to the model loader.
 
@@ -314,15 +337,25 @@ class HuggingFaceLlmModel(AbstractModelService):
             max_new_tokens=max_tokens,
             do_sample=True,
             temperature=temperature,
-            top_p=0.9,
+            top_p=top_p,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=3,
         )
 
         try:
             _ = self._text_generator.submit(self.model.generate, **generation_kwargs)
             output = ""
             for content in streamer:
-                yield content
+                prev_output = output
                 output += content
+                if stop_sequences:
+                    for stop_seq in stop_sequences:
+                        if stop_seq in output:
+                            remaining = output[len(prev_output):output.find(stop_seq)]
+                            if remaining:
+                                yield remaining
+                            return
+                yield content
                 await asyncio.sleep(0.01)
             if report_tokens:
                 report_tokens(

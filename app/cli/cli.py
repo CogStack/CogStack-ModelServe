@@ -490,7 +490,7 @@ def package_model(
         raise typer.Exit(code=1)
 
     if output_model_package == "":
-        typer.echo("ERROR: The model package path is not passed in.")
+        typer.echo("ERROR: The output model package path is not passed in.")
         raise typer.Exit(code=1)
 
     model_package_archive = os.path.abspath(os.path.expanduser(output_model_package))

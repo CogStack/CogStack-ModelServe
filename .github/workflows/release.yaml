@@ -41,7 +41,7 @@ jobs:
             python-version: "3.10"
       - name: Install dependencies
         run: |
-          uv sync --extra dev --extra docs --extra vllm
+          uv sync --extra dev --extra docs --extra llm
       - name: Run unit tests
         run: |
           uv run pytest -v tests/app --cov --cov-report=html:coverage_reports #--random-order
