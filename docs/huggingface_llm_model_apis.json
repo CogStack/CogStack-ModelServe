@@ -56,13 +56,41 @@
                         "required": false,
                         "schema": {
                             "type": "number",
-                            "exclusiveMaximum": 1.0,
-                            "exclusiveMinimum": 0.0,
+                            "minimum": 0.0,
                             "description": "The temperature of the generated text",
                             "default": 0.7,
                             "title": "Temperature"
                         },
                         "description": "The temperature of the generated text"
+                    },
+                    {
+                        "name": "top_p",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "maximum": 1.0,
+                            "minimum": 0.0,
+                            "description": "The Top-P value for nucleus sampling",
+                            "default": 0.9,
+                            "title": "Top P"
+                        },
+                        "description": "The Top-P value for nucleus sampling"
+                    },
+                    {
+                        "name": "stop_sequences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "The list of sequences used to stop the generation",
+                            "default": [],
+                            "title": "Stop Sequences"
+                        },
+                        "description": "The list of sequences used to stop the generation"
                     },
                     {
                         "name": "tracking_id",
@@ -147,13 +175,41 @@
                         "required": false,
                         "schema": {
                             "type": "number",
-                            "exclusiveMaximum": 1.0,
-                            "exclusiveMinimum": 0.0,
+                            "minimum": 0.0,
                             "description": "The temperature of the generated text",
                             "default": 0.7,
                             "title": "Temperature"
                         },
                         "description": "The temperature of the generated text"
+                    },
+                    {
+                        "name": "top_p",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "number",
+                            "maximum": 1.0,
+                            "minimum": 0.0,
+                            "description": "The Top-P value for nucleus sampling",
+                            "default": 0.9,
+                            "title": "Top P"
+                        },
+                        "description": "The Top-P value for nucleus sampling"
+                    },
+                    {
+                        "name": "stop_sequences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            },
+                            "description": "The list of sequences used to stop the generation",
+                            "default": [],
+                            "title": "Stop Sequences"
+                        },
+                        "description": "The list of sequences used to stop the generation"
                     },
                     {
                         "name": "tracking_id",
@@ -449,6 +505,29 @@
                         "title": "Temperature",
                         "description": "The temperature of the generated text",
                         "default": 0.7
+                    },
+                    "top_p": {
+                        "type": "number",
+                        "maximum": 1.0,
+                        "minimum": 0.0,
+                        "title": "Top P",
+                        "description": "The top-p value for nucleus sampling",
+                        "default": 0.9
+                    },
+                    "stop_sequences": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stop Sequences",
+                        "description": "The list of sequences used to stop the generation"
                     }
                 },
                 "type": "object",
