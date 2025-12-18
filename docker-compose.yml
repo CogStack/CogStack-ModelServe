@@ -5,7 +5,7 @@ name: cms
 services:
 
   medcat-snomed:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=medcat_snomed
       - org.cogstack.model-name=SNOMED MedCAT model
@@ -40,6 +40,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -52,7 +53,7 @@ services:
       start_period: 60s
 
   medcat-icd10:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=medcat_icd10
       - org.cogstack.model-name=ICD-10 MedCAT model
@@ -87,6 +88,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -99,7 +101,7 @@ services:
       start_period: 60s
 
   medcat-opcs4:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=medcat_opcs4
       - org.cogstack.model-name=OPCS-4 MedCAT model
@@ -134,6 +136,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -146,7 +149,7 @@ services:
       start_period: 60s
 
   medcat-deid:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=medcat_deid
       - org.cogstack.model-name=De-Identification MedCAT model
@@ -181,6 +184,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -193,7 +197,7 @@ services:
       start_period: 60s
 
   medcat-umls:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=medcat_umls
       - org.cogstack.model-name=UMLS MedCAT model
@@ -228,6 +232,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -240,7 +245,7 @@ services:
       start_period: 60s
 
   huggingface-ner:
-    image: cogstacksystems/cogstack-modelserve:0.1.1
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=huggingface_ner
       - org.cogstack.model-name=HuggingFace NER model
@@ -275,6 +280,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:
@@ -287,7 +293,7 @@ services:
       start_period: 60s
 
   huggingface-llm:
-    image: cogstacksystems/cogstack-modelserve:0.1.0
+    image: cogstacksystems/cogstack-modelserve:0.2.0
     labels:
       - org.cogstack.model-serve=huggingface_llm
       - org.cogstack.model-name=HuggingFace LLM model
@@ -301,8 +307,8 @@ services:
       - ./docker/huggingface-llm/.env:/app/envs/.env:ro
     environment:
       - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
-      - CMS_MODEL_TYPE=huggingface_ner
-      - CMS_MODEL_NAME=HuggingFace NER model
+      - CMS_MODEL_TYPE=huggingface_llm
+      - CMS_MODEL_NAME=HuggingFace LLM model
       - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
@@ -322,6 +328,7 @@ services:
       - http_proxy=$HTTP_PROXY
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
+      - COLUMNS=200
     expose:
       - 8000
     ports:

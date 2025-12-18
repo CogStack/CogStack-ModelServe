@@ -34,7 +34,7 @@ cms train --help
 
 ## Download models:
 
-CMS runs the NLP model packaged in a ZIP file or a Gzipped tarball. To download pretrained GA models, please follow the [instructions](https://github.com/CogStack/MedCAT#available-models). Contact [Cogstack](contact@cogstack.org)
+CMS runs the NLP model packaged in a ZIP file or a Gzipped tarball. To download pretrained GA models, please follow the [instructions](https://medcat.readthedocs.io/en/latest/main.html#models). Contact [Cogstack](contact@cogstack.org)
 if you are interested in trying out Alpha release such as the de-identification model. To serve or train existing HuggingFace NER models, you can
 package the model, either downloaded from the Hugging Face Hub or cached locally, as a ZIP or Gzipped tarball by running:
 ```commandline
