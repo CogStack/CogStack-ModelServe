@@ -1,6 +1,6 @@
 server {
-    listen                    28181 ssl http2 default_server;
-    listen                    [::]:28181 ssl http2 default_server;
+    listen                    28182 ssl http2 default_server;
+    listen                    [::]:28182 ssl http2 default_server;
     server_name               localhost;
 
     add_header                Strict-Transport-Security "max-age=31536000" always;
