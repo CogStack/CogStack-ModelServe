@@ -1,10 +1,15 @@
 import os
 import logging
+import torch
+import numpy as np
 import pandas as pd
 
 from multiprocessing import cpu_count
 from typing import Dict, List, Optional, TextIO, Tuple, Any, Set, Union
 from medcat.cat import CAT
+from medcat.components.linking.embedding_linker import Linker
+from medcat.components.linking.vector_context_model import PerDocumentTokenCache
+from medcat.components.types import CoreComponentType
 from medcat.data.entities import Entities, OnlyCUIEntities
 from app import __version__ as app_version
 from app.model_services.base import AbstractModelService
@@ -20,7 +25,7 @@ from app.utils import (
     get_model_data_package_base_name,
     load_pydantic_object_from_dict,
 )
-from app.exception import ConfigurationException
+from app.exception import ConfigurationException, ManagedModelException
 
 logger = logging.getLogger("cms")
 
@@ -198,7 +203,7 @@ class MedCATModel(AbstractModelService):
         annotations_list = []
         for _, doc in docs.items():
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc) # type: ignore
             ])
         return annotations_list
 
@@ -369,6 +374,79 @@ class MedCATModel(AbstractModelService):
             df = self._retrieve_meta_annotations(df)
         records = df.to_dict("records")
         return records
+
+    def create_embeddings(
+        self,
+        text: Union[str, List[str]],
+        *args: Any,
+        model_name: Optional[str] = None,
+        max_length: Optional[int] = None,
+        **kwargs: Any
+    ) -> Union[List[float], List[List[float]]]:
+        """
+        Creates embeddings for a given text or list of texts using MedCAT's embedding linker.
+
+        Args:
+            text (Union[str, List[str]]): The text(s) to be embedded.
+            model_name (Optional[str]): The name of the embedding model to use.
+            max_length (Optional[int]): Maximum sequence length for tokenization.
+            *args (Any): Additional positional arguments.
+            **kwargs (Any): Additional keyword arguments.
+
+        Returns:
+            Union[List[float], List[List[float]]]: The embedding vector(s) for the text(s).
+        """
+
+        assert self._model is not None, "Model is not initialised"
+        texts = [text] if isinstance(text, str) else text
+        linker = self._model.pipe.get_component(CoreComponentType.linking)
+
+        if isinstance(linker, Linker):
+            embedding_model_name = getattr(linker.cnf_l, "embedding_model_name", None)
+            if embedding_model_name is None:
+                raise ManagedModelException("Embedding linker present but no embedding_model_name found in config.")
+            linker._load_transformers(embedding_model_name)
+            with torch.no_grad():
+                emb_tensor = linker._embed(texts, linker.device)
+            embeddings = emb_tensor.cpu().numpy().tolist()
+            return embeddings[0] if isinstance(text, str) else embeddings
+        else:
+            all_embeddings = []
+            ctx_model = getattr(linker, "context_model", None)
+            if ctx_model is None:
+                raise ManagedModelException(
+                    "Linker does not expose context_model so cannot compute context-based embeddings."
+                )
+            tokenizer = self._model.pipe.tokenizer
+            for txt in texts:
+                doc = tokenizer(txt)
+                if hasattr(tokenizer, "entity_from_tokens"):
+                    entity = tokenizer.entity_from_tokens(list(doc))
+                else:
+                    raise ManagedModelException(
+                        "Tokenizer does not support entity_from_tokens so cannot build entity for context model"
+                    )
+
+                cache = PerDocumentTokenCache()
+                vectors = ctx_model.get_context_vectors(entity, doc, cache)
+                weights = getattr(linker.config.components.linking, "context_vector_weights", None) # type: ignore
+                if not weights:
+                    weights = {k: 1.0 for k in vectors.keys()}
+
+                combined = None
+                for size, vec in vectors.items():
+                    w = weights.get(size, 1.0)
+                    if combined is None:
+                        combined = w * vec
+                    else:
+                        combined = combined + w * vec
+                if combined is not None:
+                    norm = np.linalg.norm(combined)
+                    if norm > 0:
+                        combined = combined / norm
+                    all_embeddings.append(combined.tolist())
+
+            return all_embeddings[0] if isinstance(text, str) else all_embeddings
 
     @staticmethod
     def _retrieve_meta_annotations(df: pd.DataFrame) -> pd.DataFrame:

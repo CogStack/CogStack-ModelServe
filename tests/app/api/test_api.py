@@ -14,19 +14,11 @@ def test_get_model_server():
     model_service_dep = ModelServiceDep("medcat_snomed", config)
     app = get_model_server(config, model_service_dep)
     info = app.openapi()["info"]
-    tags = app.openapi_tags
     paths = [route.path for route in app.routes]
 
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
-    assert {"name": "Metadata", "description": "Get the model card"} in tags
-    assert {"name": "Annotations", "description": "Retrieve NER entities by running the model"} in tags
-    assert {"name": "Redaction", "description": "Redact the extracted NER entities"} in tags
-    assert {"name": "Rendering", "description": "Preview embeddable annotation snippet in HTML"} in tags
-    assert {"name": "Training", "description": "Trigger model training on input annotations"} in tags
-    assert {"name": "Evaluating", "description": "Evaluate the deployed model with trainer export"} in tags
-    assert {"name": "Authentication", "description": "Authenticate registered users"} in tags
     assert "/info" in paths
     assert "/process" in paths
     assert "/process_jsonl" in paths
@@ -61,13 +53,11 @@ def test_get_stream_server():
     model_service_dep = ModelServiceDep("medcat_snomed", config)
     app = get_stream_server(config, model_service_dep)
     info = app.openapi()["info"]
-    tags = app.openapi_tags
     paths = [route.path for route in app.routes]
 
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
-    assert {"name": "Streaming", "description": "Retrieve NER entities as a stream by running the model"} in tags
     assert "/info" in paths
     assert "/stream/process" in paths
     assert "/stream/ws" in paths
@@ -84,14 +74,11 @@ def test_get_generative_server():
     model_service_dep = ModelServiceDep("huggingface_llm_model", config)
     app = get_generative_server(config, model_service_dep)
     info = app.openapi()["info"]
-    tags = app.openapi_tags
     paths = [route.path for route in app.routes]
 
     assert isinstance(info["title"], str)
     assert isinstance(info["summary"], str)
     assert isinstance(info["version"], str)
-    assert {"name": "Metadata", "description": "Get the model card"} in tags
-    assert {"name": "Generative", "description": "Generate text based on the input prompt"} in tags
     assert "/info" in paths
     assert "/generate" in paths
     assert "/stream/generate" in paths

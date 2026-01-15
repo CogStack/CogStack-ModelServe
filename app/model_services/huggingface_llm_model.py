@@ -15,7 +15,7 @@ from transformers import (
 from app import __version__ as app_version
 from app.exception import ConfigurationException
 from app.model_services.base import AbstractModelService
-from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
+from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer, HuggingFaceLlmUnsupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation, Device
 from app.config import Settings
 from app.utils import (
@@ -62,6 +62,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         self._multi_label_threshold = 0.5
         self._text_generator = ThreadPoolExecutor(max_workers=50)
         self.model_name = model_name or "HuggingFace LLM model"
+        self.is_4bit_quantised = False
 
     @property
     def model(self) -> PreTrainedModel:
@@ -206,6 +207,8 @@ class HuggingFaceLlmModel(AbstractModelService):
                 self._model.to(get_settings().DEVICE)
             if self._enable_trainer:
                 self._supervised_trainer = HuggingFaceLlmSupervisedTrainer(self)
+                self._unsupervised_trainer = HuggingFaceLlmUnsupervisedTrainer(self)
+            self.is_4bit_quantised = load_in_4bit
 
     def info(self) -> ModelCard:
         """
@@ -396,29 +399,47 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         self.model.eval()
 
-        inputs = self.tokenizer(
-            text,
-            add_special_tokens=False,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-        )
+        texts = [text] if isinstance(text, str) else text
+        all_embeddings = []
 
-        inputs.to(self.model.device)
+        for txt in texts:
+            inputs = self.tokenizer(txt, add_special_tokens=False, truncation=False, padding=False)
+            input_ids = inputs["input_ids"]
+            attention_mask = inputs["attention_mask"]
+            window_size = max(self.model.config.max_position_embeddings - 2, 1)
+            stride = window_size
+            chunk_embeddings = []
 
-        with torch.no_grad():
-            outputs = self.model(**inputs, output_hidden_states=True)
+            for start in range(0, len(input_ids), stride):
+                end = min(start + window_size, len(input_ids))
+                chunk_inputs = {
+                    "input_ids": torch.tensor(
+                        [input_ids[start:end]], dtype=torch.long
+                    ).to(self.model.device),
+                    "attention_mask": torch.tensor(
+                        [attention_mask[start:end]], dtype=torch.long
+                    ).to(self.model.device),
+                }
 
-        last_hidden_state = outputs.hidden_states[-1]
-        attention_mask = inputs["attention_mask"]
-        masked_hidden_states = last_hidden_state * attention_mask.unsqueeze(-1)
-        sum_hidden_states = masked_hidden_states.sum(dim=1)
-        num_tokens = attention_mask.sum(dim=1, keepdim=True)
-        embeddings = sum_hidden_states / num_tokens
-        l2_normalised = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+                with torch.no_grad():
+                    outputs = self.model(**chunk_inputs, output_hidden_states=True)
 
-        results = l2_normalised.cpu().numpy().tolist()
-        return results[0] if isinstance(text, str) else results
+                last_hidden_state = outputs.hidden_states[-1]
+                chunk_attention_mask = chunk_inputs["attention_mask"]
+                masked_hidden_states = last_hidden_state * chunk_attention_mask.unsqueeze(-1)
+                sum_hidden_states = masked_hidden_states.sum(dim=1)
+                num_tokens = chunk_attention_mask.sum(dim=1, keepdim=True)
+                chunk_embedding = sum_hidden_states / num_tokens
+                chunk_embeddings.append(chunk_embedding)
+
+                if end >= len(input_ids):
+                    break
+
+            final_embedding = torch.mean(torch.cat(chunk_embeddings, dim=0), dim=0, keepdim=True)
+            l2_normalised = torch.nn.functional.normalize(final_embedding, p=2, dim=1)
+            all_embeddings.append(l2_normalised.cpu().numpy().tolist()[0])
+
+        return all_embeddings[0] if isinstance(text, str) else all_embeddings
 
     def train_supervised(
         self,
@@ -455,6 +476,52 @@ class HuggingFaceLlmModel(AbstractModelService):
         if self._supervised_trainer is None:
             raise ConfigurationException("The supervised trainer is not enabled")
         return self._supervised_trainer.train(
+            data_file,
+            epochs,
+            log_frequency,
+            training_id,
+            input_file_name,
+            raw_data_files,
+            description,
+            synchronised,
+            **hyperparams,
+        )
+
+    def train_unsupervised(
+        self,
+        data_file: TextIO,
+        epochs: int,
+        log_frequency: int,
+        training_id: str,
+        input_file_name: str,
+        raw_data_files: Optional[List[TextIO]] = None,
+        description: Optional[str] = None,
+        synchronised: bool = False,
+        **hyperparams: Dict[str, Any],
+    ) -> Tuple[bool, str, str]:
+        """
+        Initiates unsupervised training on the model.
+
+        Args:
+            data_file (TextIO): The file containing a JSON list of texts.
+            epochs (int): The number of training epochs.
+            log_frequency (int): The number of epochs after which training metrics will be logged.
+            training_id (str): A unique identifier for the training process.
+            input_file_name (str): The name of the input file to be logged.
+            raw_data_files (Optional[List[TextIO]]): Additional raw data files to be logged. Defaults to None.
+            description (Optional[str]): The description of the training or change logs. Defaults to empty.
+            synchronised (bool): Whether to wait for the training to complete.
+            **hyperparams (Dict[str, Any]): Additional hyperparameters for training.
+
+        Returns:
+            Tuple[bool, str, str]:  A tuple with the first element indicating success or failure.
+
+        Raises:
+            ConfigurationException: If the unsupervised trainer is not enabled.
+        """
+        if self._unsupervised_trainer is None:
+            raise ConfigurationException("The unsupervised trainer is not enabled")
+        return self._unsupervised_trainer.train(
             data_file,
             epochs,
             log_frequency,
