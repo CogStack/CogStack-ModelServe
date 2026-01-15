@@ -148,101 +148,107 @@ async def test_generate_async(huggingface_llm_model):
     assert result == "Yeah."
 
 
-def test_create_embeddings_single_text(huggingface_llm_model):
-    """Test create_embeddings with single text input."""
+@patch("torch.nn.functional.normalize")
+@patch("torch.mean")
+@patch("torch.cat")
+@patch("torch.tensor")
+def test_create_embeddings_single_text(mock_tensor, mock_cat, mock_mean, mock_normalise, huggingface_llm_model):
+    def tensor_side_effect(*args, **kwargs):
+        result = MagicMock()
+        result.to.return_value = result
+        return result
+
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.model.config.max_position_embeddings = 10
     huggingface_llm_model.tokenizer = MagicMock()
-    mock_hidden_states = [MagicMock(), MagicMock(), MagicMock()]
+    long_input_ids = list(range(25))
+    long_attention_mask = [1] * 25
+    huggingface_llm_model.tokenizer.return_value = {
+        "input_ids": long_input_ids,
+        "attention_mask": long_attention_mask
+    }
     mock_outputs = MagicMock()
-    mock_outputs.hidden_states = mock_hidden_states
-    mock_last_hidden_state = MagicMock()
-    mock_last_hidden_state.shape = [1, 3, 768]
-    mock_hidden_states[-1] = mock_last_hidden_state
-    mock_attention_mask = MagicMock()
-    mock_attention_mask.shape = [1, 3]
-    mock_attention_mask.sum.return_value = MagicMock()
-    mock_attention_mask.sum.return_value.unsqueeze.return_value = MagicMock()
-    mock_inputs = MagicMock()
-    mock_inputs.__getitem__.side_effect = lambda key: mock_attention_mask if key == "attention_mask" else MagicMock()
-    huggingface_llm_model.tokenizer.return_value = mock_inputs
+    mock_hidden_state = MagicMock()
+    mock_outputs.hidden_states = [None, None, mock_hidden_state]
     huggingface_llm_model.model.return_value = mock_outputs
-    expected_result = [0.1, 0.2, 0.3]
-    mock_embeddings_batch = MagicMock()
-    mock_first_embedding = MagicMock()
-    mock_cpu_tensor = MagicMock()
-    mock_numpy_array = MagicMock()
-    mock_numpy_array.tolist.return_value = expected_result    
-    mock_embeddings_batch.__getitem__.return_value = mock_first_embedding
-    mock_first_embedding.cpu.return_value = mock_cpu_tensor
-    mock_cpu_tensor.numpy.return_value = mock_numpy_array
-    mock_masked_hidden_states = MagicMock()
-    mock_sum_hidden_states = MagicMock()
-    mock_num_tokens = MagicMock()
-    mock_last_hidden_state.__mul__.return_value = mock_masked_hidden_states
-    mock_masked_hidden_states.sum.return_value = mock_sum_hidden_states
-    mock_attention_mask.sum.return_value = mock_num_tokens
-    mock_sum_hidden_states.__truediv__.return_value = mock_embeddings_batch
-    
-    result = huggingface_llm_model.create_embeddings("Alright")
-    
-    huggingface_llm_model.model.eval.assert_called_once()    
-    huggingface_llm_model.tokenizer.assert_called_once_with(
-        "Alright",
-        add_special_tokens=False,
-        return_tensors="pt",
-        padding=True,
-        truncation=True
-    )    
-    huggingface_llm_model.model.assert_called_once_with(
-        **mock_inputs,
-        output_hidden_states=True
+    mock_chunk_embedding = MagicMock()
+    mock_final_embedding = MagicMock()
+    mock_normalised = MagicMock()
+    mock_concatenated = MagicMock()
+    mock_cat.return_value = mock_concatenated
+    mock_mean.return_value = mock_final_embedding
+    mock_normalise.return_value = mock_normalised
+    mock_normalised.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
+    mock_tensor.side_effect = tensor_side_effect
+    mock_masked = MagicMock()
+    mock_summed = MagicMock()
+    mock_hidden_state.__mul__.return_value = mock_masked
+    mock_masked.sum.return_value = mock_summed
+    mock_summed.__truediv__.return_value = mock_chunk_embedding
+
+    result = huggingface_llm_model.create_embeddings(
+        "This is a long text that should be chunked into multiple pieces"
     )
-    
-    assert result is not None
+
+    assert huggingface_llm_model.model.call_count >= 3
+    mock_cat.assert_called_once()
+    mock_mean.assert_called_once()
+    assert result == [0.1, 0.2, 0.3]
 
 
-def test_create_embeddings_list_text(huggingface_llm_model):
+@patch("torch.nn.functional.normalize")
+@patch("torch.mean")
+@patch("torch.cat")
+@patch("torch.tensor")
+def test_create_embeddings_list_text(mock_tensor, mock_cat, mock_mean, mock_normalise, huggingface_llm_model):
+    def tokenizer_side_effect(text, **kwargs):
+        if isinstance(text, list):
+            return {
+                "input_ids": [list(range(10)), list(range(15))],
+                "attention_mask": [[1]*10, [1]*15]
+            }
+        else:
+            return {
+                "input_ids": list(range(len(text.split()))),
+                "attention_mask": [1] * len(text.split())
+            }
+
+    def tensor_side_effect(*args, **kwargs):
+        result = MagicMock()
+        result.to.return_value = result
+        return result
+
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.model.config.max_position_embeddings = 6
     huggingface_llm_model.tokenizer = MagicMock()
-    mock_hidden_states = [MagicMock(), MagicMock(), MagicMock()]
+    huggingface_llm_model.tokenizer.side_effect = tokenizer_side_effect
     mock_outputs = MagicMock()
-    mock_outputs.hidden_states = mock_hidden_states
-    mock_last_hidden_state = MagicMock()
-    mock_last_hidden_state.shape = [2, 3, 768]
-    mock_hidden_states[-1] = mock_last_hidden_state
-    mock_attention_mask = MagicMock()
-    mock_attention_mask.shape = [2, 3]
-    mock_attention_mask.sum.return_value = MagicMock()
-    mock_attention_mask.sum.return_value.unsqueeze.return_value = MagicMock()
-    mock_inputs = MagicMock()
-    mock_inputs.__getitem__.side_effect = lambda key: mock_attention_mask if key == "attention_mask" else MagicMock()
-    huggingface_llm_model.tokenizer.return_value = mock_inputs
-    huggingface_llm_model.model.return_value = mock_outputs    
-    mock_embeddings_batch = MagicMock()
-    mock_first_embedding = MagicMock()
-    mock_cpu_tensor = MagicMock()
-    mock_numpy_array = MagicMock()
-    mock_numpy_array.tolist.return_value = [[0.1, 0.2, 0.3],[0.1, 0.2, 0.3]]
-    mock_embeddings_batch.__getitem__.return_value = mock_first_embedding
-    mock_first_embedding.cpu.return_value = mock_cpu_tensor
-    mock_cpu_tensor.numpy.return_value = mock_numpy_array
-    mock_masked_hidden_states = MagicMock()
-    mock_sum_hidden_states = MagicMock()
-    mock_num_tokens = MagicMock()
-    mock_last_hidden_state.__mul__.return_value = mock_masked_hidden_states
-    mock_masked_hidden_states.sum.return_value = mock_sum_hidden_states
-    mock_attention_mask.sum.return_value = mock_num_tokens
-    mock_sum_hidden_states.__truediv__.return_value = mock_embeddings_batch
-    
-    result = huggingface_llm_model.create_embeddings(["Alright", "Alright"])
-    
-    huggingface_llm_model.tokenizer.assert_called_once_with(
-        ["Alright", "Alright"],
-        add_special_tokens=False,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-    )    
-    assert result is not None
+    mock_hidden_state = MagicMock()
+    mock_outputs.hidden_states = [None, None, mock_hidden_state]
+    huggingface_llm_model.model.return_value = mock_outputs
+    mock_chunk_embedding = MagicMock()
+    mock_final_embedding = MagicMock()
+    mock_normalised = MagicMock()
+    mock_concatenated = MagicMock()
+    mock_cat.return_value = mock_concatenated
+    mock_mean.return_value = mock_final_embedding
+    mock_normalise.return_value = mock_normalised
+    mock_normalised.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
+    mock_tensor.side_effect = tensor_side_effect
+    mock_masked = MagicMock()
+    mock_summed = MagicMock()
+    mock_hidden_state.__mul__.return_value = mock_masked
+    mock_masked.sum.return_value = mock_summed
+    mock_summed.__truediv__.return_value = mock_chunk_embedding
+
+    result = huggingface_llm_model.create_embeddings([
+        "Alright?",
+        "This is a long text that should be chunked into multiple pieces",
+    ])
+
+    assert huggingface_llm_model.model.call_count >= 4
+    assert mock_cat.call_count == 2
+    assert mock_mean.call_count == 2
+    assert result == [[0.1, 0.2, 0.3], [0.1, 0.2, 0.3]]

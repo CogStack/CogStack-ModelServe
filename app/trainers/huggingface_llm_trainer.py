@@ -1,10 +1,12 @@
 import os
 import logging
 import math
+import tempfile
 import torch
 import gc
 import datasets
 import re
+import random
 import threading
 import json
 import inspect
@@ -18,6 +20,8 @@ from transformers import (
     TrainerCallback,
     TrainerState,
     TrainerControl,
+    DataCollatorForLanguageModeling,
+    Trainer,
 )
 from peft import LoraConfig, get_peft_model # type: ignore
 from app.management.model_manager import ModelManager
@@ -32,13 +36,22 @@ from app.utils import (
     get_default_system_prompt,
     get_model_data_package_base_name,
 )
-from app.trainers.base import SupervisedTrainer
-from app.domain import ModelType, TrainerBackend, LlmRole, LlmTrainerType, LlmDatasetType, PromptMessage
+from app.trainers.base import SupervisedTrainer, UnsupervisedTrainer
+from app.domain import (
+    ModelType,
+    TrainerBackend,
+    LlmRole,
+    LlmTrainerType,
+    LlmDatasetType,
+    PromptMessage,
+    DatasetSplit,
+)
 from app.exception import (
     TrainingCancelledException,
     DatasetException,
     ConfigurationException,
     ExtraDependencyRequiredException,
+    ManagedModelException,
 )
 if TYPE_CHECKING:
     from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
@@ -717,6 +730,325 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
         reward_avgs["reward_overall_mean"] = reward_overall_mean
         reward_avgs["reward_samples"] = float(count)
         return reward_avgs
+
+
+@final
+class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrainerCommon):
+    """
+    An unsupervised trainer class for HuggingFace LLM models.
+
+    Args:
+        model_service (HuggingFaceLlmModel): An instance of the HuggingFace LLM model service.
+    """
+
+    def __init__(self, model_service: "HuggingFaceLlmModel") -> None:
+        UnsupervisedTrainer.__init__(self, model_service._config, model_service.model_name)
+        self._model_service = model_service
+        self._model_name = model_service.model_name
+        self._model_pack_path = model_service._model_pack_path
+        self._retrained_models_dir = os.path.join(
+            model_service._model_parent_dir,
+            "retrained",
+            self._model_name.replace(" ", "_"),
+        )
+        self._model_manager = ModelManager(type(model_service), model_service._config)
+        self._max_length = model_service.model.config.max_position_embeddings
+        os.makedirs(self._retrained_models_dir, exist_ok=True)
+
+    def run(
+        self,
+        training_params: Dict,
+        data_file: TextIO,
+        log_frequency: int,
+        run_id: str,
+        description: Optional[str] = None,
+    ) -> None:
+        """
+        Runs the unsupervised training loop for HuggingFace LLM models.
+
+        Args:
+            training_params (Dict): A dictionary containing parameters for the training.
+            data_file (TextIO): The file-like object containing the training data.
+            log_frequency (int): The frequency at which logs should be recorded.
+            run_id (str): The run ID of the training job.
+            description (Optional[str]): The optional description of the training.
+        """
+        eval_mode = training_params["nepochs"] == 0
+        trained_model_pack_path = None
+        redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"
+        skip_save_model = self._config.SKIP_SAVE_MODEL == "true"
+        results_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "results"))
+        logs_path = os.path.abspath(os.path.join(self._config.TRAINING_CACHE_DIR, "logs"))
+        reset_random_seed()
+        trainer = None
+
+        if not eval_mode:
+            try:
+                copied_model_directory = None
+                if self._model_service.is_4bit_quantised:
+                    logger.info("Use the LoRA adaptor for the quantised model...")
+                    lora_config = LoraConfig(
+                        task_type="CAUSAL_LM",
+                        r=8,
+                        lora_alpha=32,
+                        lora_dropout=0.1,
+                        target_modules=[
+                            "q_proj", "k_proj", "v_proj", "o_proj",
+                            "gate_proj", "up_proj", "down_proj",
+                        ],
+                    )
+                    model = get_peft_model(self._model_service.model, lora_config)
+                    tokenizer = self._model_service.tokenizer
+                else:
+                    logger.info("Loading a new model copy for training...")
+                    copied_model_pack_path = self._make_model_file_copy(self._model_pack_path, run_id)
+                    model, tokenizer = self._model_service.load_model(copied_model_pack_path)
+                    copied_model_directory = os.path.join(
+                        os.path.dirname(copied_model_pack_path),
+                        get_model_data_package_base_name(copied_model_pack_path),
+                    )
+
+                if non_default_device_is_available(self._config.DEVICE):
+                    model.to(self._config.DEVICE)
+
+                test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
+                if isinstance(data_file, tempfile.TemporaryDirectory):
+                    raw_dataset = datasets.load_from_disk(data_file.name)
+                    if DatasetSplit.VALIDATION.value in raw_dataset.keys():
+                        train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
+                    elif DatasetSplit.TEST.value in raw_dataset.keys():
+                        train_texts = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+                    else:
+                        lines = raw_dataset[DatasetSplit.TRAIN.value]["text"]
+                        random.shuffle(lines)
+                        train_texts = [line.strip() for line in lines[:int(len(lines) * (1 - test_size))]]
+                        eval_texts = [line.strip() for line in lines[int(len(lines) * (1 - test_size)):]]
+                else:
+                    with open(data_file.name, "r") as f:
+                        lines = json.load(f)
+                        random.shuffle(lines)
+                        train_texts = [line.strip() for line in lines[:int(len(lines) * (1 - test_size))]]
+                        eval_texts = [line.strip() for line in lines[int(len(lines) * (1 - test_size)):]]
+
+                train_dataset = datasets.Dataset.from_dict({"text": train_texts})
+                eval_dataset = datasets.Dataset.from_dict({"text": eval_texts})
+
+                train_dataset = train_dataset.map(
+                    lambda examples: tokenizer(examples["text"], truncation=True, max_length=self._max_length),
+                    batched=True,
+                    remove_columns=["text"],
+                )
+                eval_dataset = eval_dataset.map(
+                    lambda examples: tokenizer(examples["text"], truncation=True, max_length=self._max_length),
+                    batched=True,
+                    remove_columns=["text"],
+                )
+
+                data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+
+                training_args = TrainingArguments(
+                    output_dir=results_path,
+                    logging_dir=logs_path,
+                    logging_steps=log_frequency,
+                    num_train_epochs=training_params["nepochs"],
+                    per_device_train_batch_size=4,
+                    gradient_accumulation_steps=4,
+                    learning_rate=5e-5,
+                    weight_decay=0.01,
+                    warmup_steps=500,
+                    save_steps=1000,
+                    eval_steps=1000,
+                    report_to="none",
+                )
+
+                mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
+                trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
+
+                trainer = Trainer(
+                    model=model,
+                    args=training_args,
+                    train_dataset=train_dataset,
+                    eval_dataset=eval_dataset,
+                    data_collator=data_collator,
+                    callbacks=trainer_callbacks,
+                )
+
+                self._tracker_client.log_trainer_version(TrainerBackend.TRANSFORMERS, transformers_version)
+
+                logger.info("Performing unsupervised training...")
+                trainer.train()
+
+                if cancel_event_check_callback.training_cancelled:
+                    raise TrainingCancelledException("Training was cancelled by the user")
+
+                if not skip_save_model:
+                    model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
+                    model_pack_file_name = f"{ModelType.HUGGINGFACE_LLM.value}_{run_id}{model_pack_file_ext}"
+                    retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
+                    trained_model_directory = os.path.join(
+                        os.path.dirname(retrained_model_pack_path),
+                        get_model_data_package_base_name(retrained_model_pack_path),
+                    )
+                    if hasattr(model, "merge_and_unload"):
+                        model = model.merge_and_unload()
+                        model.save_pretrained(
+                            trained_model_directory,
+                            safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
+                        )
+                        tokenizer.save_pretrained(trained_model_directory)
+                        create_model_data_package(trained_model_directory, retrained_model_pack_path)
+                    else:
+                        model.save_pretrained(
+                            copied_model_directory, # type: ignore
+                            safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
+                        )
+                        create_model_data_package(copied_model_directory, retrained_model_pack_path)    # type: ignore
+
+                    self._tracker_client.log_model_config(model.config.to_dict())   # type: ignore
+
+                    model_uri = self._tracker_client.save_model(
+                        retrained_model_pack_path,
+                        self._model_name,
+                        self._model_manager,
+                        self._model_service.info().model_type.value,
+                    )
+                    logger.info(f"Retrained model saved: {model_uri}")
+                else:
+                    logger.info("Skipped saving the retrained model")
+
+                if redeploy:
+                    self.deploy_model(self._model_service, model, tokenizer)
+                else:
+                    del model
+                    del tokenizer
+                    gc.collect()
+                    logger.info("Skipped deployment of the retrained model")
+
+                logger.info("Unsupervised training finished")
+                self._tracker_client.end_with_success()
+
+            except TrainingCancelledException as e:
+                logger.exception(e)
+                logger.info("Unsupervised training was cancelled")
+                self._tracker_client.end_with_interruption()
+            except torch.OutOfMemoryError as e:
+                logger.exception("Unsupervised training failed on CUDA OOM")
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
+                        torch.cuda.synchronize()
+                except Exception:
+                    pass
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            except Exception as e:
+                logger.exception("Unsupervised training failed")
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._clean_up_training_cache()
+                self._housekeep_file(trained_model_pack_path)
+                if trainer is not None:
+                    del trainer
+                    gc.collect()
+                    torch.cuda.empty_cache()
+        else:
+            try:
+                logger.info("Evaluating the running model...")
+                model, tokenizer = self._model_service.model, self._model_service.tokenizer
+
+                if self._model_service.is_4bit_quantised:
+                    logger.error("Cannot evaluate against a quantised model")
+                    raise ManagedModelException("Cannot evaluate against a quantised model")
+
+                if non_default_device_is_available(self._config.DEVICE):
+                    model.to(self._config.DEVICE)
+
+                if isinstance(data_file, tempfile.TemporaryDirectory):
+                    raw_dataset = datasets.load_from_disk(data_file.name)
+                    if DatasetSplit.TEST.value in raw_dataset.keys():
+                        eval_texts = raw_dataset[DatasetSplit.TEST.value]["text"]
+                    elif DatasetSplit.VALIDATION.value in raw_dataset.keys():
+                        eval_texts = raw_dataset[DatasetSplit.VALIDATION.value]["text"]
+                    else:
+                        raise DatasetException("No test or validation split found in the input dataset file")
+
+                else:
+                    with open(data_file.name, "r") as f:
+                        eval_texts = [line.strip() for line in json.load(f)]
+
+                eval_dataset = datasets.Dataset.from_dict({"text": eval_texts})
+                eval_dataset = eval_dataset.map(
+                    lambda examples: tokenizer(examples["text"], truncation=True, max_length=self._max_length),
+                    batched=True,
+                    remove_columns=["text"],
+                )
+
+                data_collator = DataCollatorForLanguageModeling(
+                    tokenizer=tokenizer,
+                    mlm=False,
+                )
+
+                training_args = TrainingArguments(
+                    output_dir=results_path,
+                    logging_dir=logs_path,
+                    logging_steps=log_frequency,
+                    per_device_eval_batch_size=4,
+                    report_to="none",
+                    do_train=False,
+                    do_eval=True,
+                )
+
+                mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
+                cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
+                trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
+
+                trainer = Trainer(
+                    model=model,
+                    args=training_args,
+                    eval_dataset=eval_dataset,
+                    data_collator=data_collator,
+                    callbacks=trainer_callbacks,
+                )
+
+                eval_metrics = trainer.evaluate()
+                if "perplexity" not in eval_metrics and "eval_loss" in eval_metrics:
+                    eval_metrics.update({"perplexity": math.exp(eval_metrics["eval_loss"])})
+                logger.info(f"Evaluation metrics: {eval_metrics}")
+                self._tracker_client.send_hf_metrics_logs(eval_metrics, 0)
+                self._tracker_client.end_with_success()
+                logger.info("Model evaluation finished")
+            except torch.OutOfMemoryError as e:
+                logger.exception("Evaluation failed on CUDA OOM")
+                try:
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.ipc_collect()
+                        torch.cuda.synchronize()
+                except Exception:
+                    pass
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            except Exception as e:
+                logger.exception("Evaluation failed")
+                self._tracker_client.log_exceptions(e)
+                self._tracker_client.end_with_failure()
+            finally:
+                data_file.close()
+                with self._training_lock:
+                    self._training_in_progress = False
+                self._clean_up_training_cache()
+                if trainer is not None:
+                    del trainer
+                    gc.collect()
+                    torch.cuda.empty_cache()
 
 
 @final

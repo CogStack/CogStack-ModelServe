@@ -99,3 +99,20 @@ def test_train_supervised(huggingface_ner_model):
     with tempfile.TemporaryFile("r+") as f:
         huggingface_ner_model.train_supervised(f, 1, 1, "training_id", "input_file_name")
     huggingface_ner_model._supervised_trainer.train.assert_called()
+
+
+def test_create_embeddings(huggingface_ner_model):
+    huggingface_ner_model.init_model()
+
+    text = "Spinal stenosis"
+    embedding = huggingface_ner_model.create_embeddings(text)
+    assert isinstance(embedding, list)
+    assert len(embedding) > 0
+    assert all(isinstance(x, float) for x in embedding)
+
+    texts = ["Spinal stenosis", "Diabetes"]
+    embeddings = huggingface_ner_model.create_embeddings(texts)
+    assert isinstance(embeddings, list)
+    assert len(embeddings) == 2
+    assert all(isinstance(emb, list) for emb in embeddings)
+    assert all(len(emb) > 0 for emb in embeddings)

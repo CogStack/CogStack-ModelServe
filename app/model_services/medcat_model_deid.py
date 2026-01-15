@@ -2,7 +2,7 @@ import logging
 import inspect
 import threading
 import torch
-from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable, cast
+from typing import Dict, List, TextIO, Tuple, Optional, Any, final, Callable, cast, Union
 from functools import partial
 from transformers import pipeline
 from medcat.cat import CAT
@@ -91,7 +91,7 @@ class MedCATModelDeIdentification(MedCATModel):
             for _, entity in doc["entities"].items():
                 entity["type_ids"] = ["PII"]
 
-        records = self.get_records_from_doc({"entities": doc["entities"]})
+        records = self.get_records_from_doc({"entities": doc["entities"]})  # type: ignore
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
@@ -179,10 +179,100 @@ class MedCATModelDeIdentification(MedCATModel):
                 entity = cast(Dict[str, Any], entity)
                 entity["type_ids"] = ["PII"]
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)
+                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)    # type: ignore
             ])
 
         return annotations_list
+
+    def create_embeddings(
+        self,
+        text: Union[str, List[str]],
+        *args: Any,
+        **kwargs: Any
+    ) -> Union[List[float], List[List[float]]]:
+        """
+        Creates embeddings for a given text or list of texts using the model's hidden states.
+
+        Args:
+            text (Union[str, List[str]]): The text(s) to be embedded.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            List[float], List[List[float]]: The embedding vector(s) for the text(s).
+
+        Raises:
+            NotImplementedError: If the model doesn't support embeddings.
+        """
+
+        assert self.model is not None, "Model is not initialised"
+        ner = self.model.pipe.get_component(CoreComponentType.ner)._component  # type: ignore
+        ner.tokenizer.hf_tokenizer._in_target_context_manager = getattr(
+            ner.tokenizer.hf_tokenizer, "_in_target_context_manager", False
+        )
+        ner.tokenizer.hf_tokenizer.clean_up_tokenization_spaces = getattr(
+            ner.tokenizer.hf_tokenizer, "clean_up_tokenization_spaces", None
+        )
+        ner.tokenizer.hf_tokenizer.split_special_tokens = getattr(
+            ner.tokenizer.hf_tokenizer, "split_special_tokens", False
+        )
+        tokenizer = ner.tokenizer.hf_tokenizer
+        model = ner.model
+        model.eval()
+
+        texts = [text] if isinstance(text, str) else text
+        all_embeddings = []
+
+        max_len = model.config.max_position_embeddings
+
+        for txt in texts:
+            encoded = tokenizer(
+                txt,
+                add_special_tokens=True,
+                truncation=False,
+                return_attention_mask=True,
+            )
+
+            input_ids = encoded["input_ids"]
+            chunk_embeddings = []
+            window_size = max_len - 2
+            stride = window_size
+
+            for start in range(0, len(input_ids), stride):
+                end = min(start + window_size, len(input_ids))
+
+                chunk = tokenizer.prepare_for_model(
+                    input_ids[start:end],
+                    add_special_tokens=True,
+                    return_attention_mask=True,
+                    truncation=True,
+                    max_length=max_len,
+                    padding="max_length",
+                )
+
+                chunk_inputs = {
+                    "input_ids": torch.tensor([chunk["input_ids"]], device=model.device),
+                    "attention_mask": torch.tensor([chunk["attention_mask"]], device=model.device),
+                }
+
+                with torch.no_grad():
+                    outputs = model(**chunk_inputs, output_hidden_states=True)
+
+                last_hidden_state = outputs.hidden_states[-1]
+                mask = chunk_inputs["attention_mask"].unsqueeze(-1)
+                summed = (last_hidden_state * mask).sum(dim=1)
+                counts = mask.sum(dim=1).clamp(min=1)
+                chunk_embedding = summed / counts
+                chunk_embeddings.append(chunk_embedding)
+
+                if end >= len(input_ids):
+                    break
+
+            final_embedding = torch.mean(torch.cat(chunk_embeddings, dim=0), dim=0, keepdim=True)
+            final_embedding = torch.nn.functional.normalize(final_embedding, p=2, dim=1)
+            all_embeddings.append(final_embedding.cpu().numpy()[0].tolist())
+
+        return all_embeddings[0] if isinstance(text, str) else all_embeddings
 
     def init_model(self, *args: Any, **kwargs: Any) -> None:
         """Initializes the MedCAT De-Identification (AnonCAT) model based on the configuration.

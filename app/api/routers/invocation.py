@@ -7,12 +7,14 @@ import uuid
 import hashlib
 import logging
 import pandas as pd
+from fastapi.encoders import jsonable_encoder
+
 import app.api.globals as cms_globals
 
 from typing import Dict, List, Union, Iterator, Any
 from collections import defaultdict
 from io import BytesIO
-from starlette.status import HTTP_400_BAD_REQUEST
+from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
 from typing_extensions import Annotated
 from fastapi import APIRouter, Depends, Body, UploadFile, File, Request, Query, Response
 from fastapi.responses import StreamingResponse, PlainTextResponse, JSONResponse
@@ -22,7 +24,7 @@ from app.domain import (
     TextWithAnnotations,
     TextWithPublicKey,
     TextStreamItem,
-    Tags,
+    Tags, OpenAIEmbeddingsRequest, OpenAIEmbeddingsResponse,
 )
 from app.model_services.base import AbstractModelService
 from app.utils import get_settings, load_pydantic_object_from_dict
@@ -43,6 +45,7 @@ PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
 PATH_REDACT_WITH_ENCRYPTION = "/redact_with_encryption"
+PATH_OPENAI_EMBEDDINGS = "/v1/embeddings"
 
 router = APIRouter()
 config = get_settings()
@@ -353,6 +356,93 @@ def get_redacted_text_with_encryption(
         content = {"redacted_text": redacted_text, "encryptions": encryptions}
         logger.debug(content)
         return JSONResponse(content=content)
+
+
+@router.post(
+    PATH_OPENAI_EMBEDDINGS,
+    tags=[Tags.OpenAICompatible.name],
+    response_model=None,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+)
+def embed_texts(
+    request: Request,
+    request_data: Annotated[OpenAIEmbeddingsRequest, Body(
+        description="Text(s) to be embedded", media_type="application/json"
+    )],
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> JSONResponse:
+    """
+    Embeds text or a list of texts, mimicking OpenAI's /v1/embeddings endpoint.
+
+    Args:
+        request (Request): The request object.
+        request_data (OpenAIEmbeddingsRequest): The request data containing model and input text(s).
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A response containing the embeddings of the text(s).
+    """
+    tracking_id = tracking_id or str(uuid.uuid4())
+
+    if not hasattr(model_service, "create_embeddings"):
+        error_response = {
+            "error": {
+                "message": "Model does not support embeddings",
+                "type": "invalid_request_error",
+                "param": "model",
+                "code": "model_not_supported",
+            }
+        }
+        return JSONResponse(
+            content=error_response,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    input_text = request_data.input
+    model = model_service.model_name if request_data.model != model_service.model_name else request_data.model
+
+    if isinstance(input_text, str):
+        input_texts = [input_text]
+    else:
+        input_texts = input_text
+
+    try:
+        embeddings_data = []
+
+        for i, embedding in enumerate(model_service.create_embeddings(input_texts)):
+            embeddings_data.append({
+                "object": "embedding",
+                "embedding": embedding,
+                "index": i,
+            })
+
+        response = OpenAIEmbeddingsResponse(object="list", data=embeddings_data, model=model)
+
+        return JSONResponse(
+            content=jsonable_encoder(response),
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    except Exception as e:
+        logger.error("Failed to create embeddings")
+        logger.exception(e)
+        error_response = {
+            "error": {
+                "message": f"Failed to create embeddings: {str(e)}",
+                "type": "server_error",
+                "code": "internal_error",
+            }
+        }
+        return JSONResponse(
+            content=error_response,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
 
 
 def _send_annotation_num_metric(annotation_num: int, handler: str) -> None:

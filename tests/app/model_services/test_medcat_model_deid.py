@@ -186,3 +186,27 @@ def test_train_supervised(medcat_deid_model):
     with tempfile.TemporaryFile("r+") as f:
         medcat_deid_model.train_supervised(f, 1, 1, "training_id", "input_file_name")
     medcat_deid_model._supervised_trainer.train.assert_called()
+
+
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
+def test_create_embeddings(medcat_umls_model):
+    medcat_umls_model.init_model()
+
+    embedding = medcat_umls_model.create_embeddings("This is a post code NW1 2DA")
+    assert isinstance(embedding, list)
+    assert len(embedding) > 0
+    assert all(isinstance(x, float) for x in embedding)
+
+    embeddings = medcat_umls_model.create_embeddings([
+        "This is a post code NW1 2DA",
+        "This is a post code NW1 2DB",
+    ])
+    assert isinstance(embeddings, list)
+    assert len(embeddings) == 2
+    for emb in embeddings:
+        assert isinstance(emb, list)
+        assert len(emb) > 0
+        assert all(isinstance(x, float) for x in emb)

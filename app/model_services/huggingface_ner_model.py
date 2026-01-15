@@ -1,9 +1,10 @@
 import os
 import logging
+import torch
 import pandas as pd
 
 from functools import partial
-from typing import Dict, List, Optional, Tuple, Any, TextIO
+from typing import Dict, List, Optional, Tuple, Any, TextIO, Union
 from transformers import (
     AutoModelForTokenClassification,
     AutoTokenizer,
@@ -275,6 +276,83 @@ class HuggingFaceNerModel(AbstractModelService):
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace NER models")
+
+    def create_embeddings(
+        self,
+        text: Union[str, List[str]],
+        *args: Any,
+        **kwargs: Any
+    ) -> Union[List[float], List[List[float]]]:
+        """
+        Creates embeddings for a given text or list of texts using the model's hidden states.
+
+        Args:
+            text (Union[str, List[str]]): The text(s) to be embedded.
+            *args (Any): Additional positional arguments to be passed to this method.
+            **kwargs (Any): Additional keyword arguments to be passed to this method.
+
+        Returns:
+            List[float], List[List[float]]: The embedding vector(s) for the text(s).
+
+        Raises:
+            NotImplementedError: If the model doesn't support embeddings.
+        """
+
+        self.model.eval()
+
+        texts = [text] if isinstance(text, str) else text
+        all_embeddings = []
+
+        max_len = self.model.config.max_position_embeddings
+
+        for txt in texts:
+            encoded = self.tokenizer(
+                txt,
+                add_special_tokens=True,
+                truncation=False,
+                return_attention_mask=True,
+            )
+
+            input_ids = encoded["input_ids"]
+            chunk_embeddings = []
+            window_size = max_len - 2
+            stride = window_size
+
+            for start in range(0, len(input_ids), stride):
+                end = min(start + window_size, len(input_ids))
+
+                chunk = self.tokenizer.prepare_for_model(
+                    input_ids[start:end],
+                    add_special_tokens=True,
+                    return_attention_mask=True,
+                    truncation=True,
+                    max_length=max_len,
+                    padding="max_length",
+                )
+
+                chunk_inputs = {
+                    "input_ids": torch.tensor([chunk["input_ids"]], device=self.model.device),
+                    "attention_mask": torch.tensor([chunk["attention_mask"]], device=self.model.device),
+                }
+
+                with torch.no_grad():
+                    outputs = self.model(**chunk_inputs, output_hidden_states=True)
+
+                last_hidden_state = outputs.hidden_states[-1]
+                mask = chunk_inputs["attention_mask"].unsqueeze(-1)
+                summed = (last_hidden_state * mask).sum(dim=1)
+                counts = mask.sum(dim=1).clamp(min=1)
+                chunk_embedding = summed / counts
+                chunk_embeddings.append(chunk_embedding)
+
+                if end >= len(input_ids):
+                    break
+
+            final_embedding = torch.mean(torch.cat(chunk_embeddings, dim=0), dim=0, keepdim=True)
+            final_embedding = torch.nn.functional.normalize(final_embedding, p=2, dim=1)
+            all_embeddings.append(final_embedding.cpu().numpy()[0].tolist())
+
+        return all_embeddings[0] if isinstance(text, str) else all_embeddings
 
     def train_supervised(
         self,

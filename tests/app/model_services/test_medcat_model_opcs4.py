@@ -101,7 +101,7 @@ def test_annotate(medcat_opcs4_model):
     medcat_opcs4_model.init_model()
     annotations = medcat_opcs4_model.annotate("Spinal tap")
     assert len(annotations) == 1
-    assert type(annotations[0]["label_name"]) is str
+    assert type(annotations[0].label_name) is str
     assert annotations[0].start == 0
     assert annotations[0].end == 10
     assert annotations[0].accuracy > 0
@@ -133,3 +133,24 @@ def test_train_unsupervised(medcat_opcs4_model):
     with tempfile.TemporaryFile("r+") as f:
         medcat_opcs4_model.train_unsupervised(f, 1, 1, "training_id", "input_file_name")
     medcat_opcs4_model._unsupervised_trainer.train.assert_called()
+
+
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "opcs4_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
+def test_create_embeddings(medcat_umls_model):
+    medcat_umls_model.init_model()
+
+    embedding = medcat_umls_model.create_embeddings("Spinal stenosis")
+    assert isinstance(embedding, list)
+    assert len(embedding) > 0
+    assert all(isinstance(x, float) for x in embedding)
+
+    embeddings = medcat_umls_model.create_embeddings(["Spinal stenosis", "Diabetes"])
+    assert isinstance(embeddings, list)
+    assert len(embeddings) == 2
+    for emb in embeddings:
+        assert isinstance(emb, list)
+        assert len(emb) > 0
+        assert all(isinstance(x, float) for x in emb)
