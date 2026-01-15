@@ -5,7 +5,7 @@ name: cms
 services:
 
   mongodb:
-    image: mongo:5.0
+    image: mongo:5.0.23
     volumes:
       - mongodb_data:/data/db
     restart: always
