@@ -11,7 +11,7 @@ from typing import Any, Mapping, Optional, AsyncGenerator
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
 from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from app.domain import Tags, TextStreamItem
 from app.model_services.base import AbstractModelService
 from app.utils import get_settings
@@ -20,7 +20,6 @@ from app.api.auth.users import get_user_manager, CmsUserManager
 
 PATH_STREAM_PROCESS = "/process"
 PATH_WS = "/ws"
-PATH_GENERATE= "/generate"
 
 router = APIRouter()
 config = get_settings()
@@ -56,6 +55,22 @@ async def get_entities_stream_from_jsonlines_stream(
     annotation_stream = _annotation_async_gen(request, model_service)
     return _LocalStreamingResponse(annotation_stream, media_type="application/x-ndjson; charset=utf-8")
 
+
+@router.get(
+    PATH_WS,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="WebSocket info endpoint for real-time NER entity extraction. Use ws://host:port/stream/ws to establish an actual WebSocket connection.",
+    include_in_schema=True,
+)
+async def get_inline_annotations_from_websocket_info() -> "_WebSocketInfo":
+    """
+    Information about the WebSocket endpoint for real-time NER entity extraction.
+
+    This endpoint provides documentation for the WebSocket connection available at the same path.
+    Connect to ws://host:port/stream/ws and send texts to retrieve annotated results.
+    """
+    return _WebSocketInfo()
 
 @router.websocket(PATH_WS)
 # @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
@@ -187,6 +202,28 @@ class _LocalStreamingResponse(Response):
 
         if self.background is not None:
             await self.background()
+
+
+class _WebSocketInfo(BaseModel):
+    message: str = "WebSocket endpoint for real-time NER entity extraction"
+    example: str = """<form action="" onsubmit="send_doc(event)">
+    <input type="text" id="cms-input" autocomplete="off"/>
+    <button>Send</button>
+</form>
+<ul id="cms-output"></ul>
+<script>
+    var ws = new WebSocket("ws://localhost:8000/stream/ws");
+    ws.onmessage = function(event) {
+        document.getElementById("cms-output").appendChild(
+            Object.assign(document.createElement('li'), { textContent: event.data })
+        );
+    };
+    function send_doc(event) {
+        ws.send(document.getElementById("cms-input").value);
+        event.preventDefault();
+    };
+</script>"""
+    protocol: str = "WebSocket"
 
 
 async def _annotation_async_gen(request: Request, model_service: AbstractModelService) -> AsyncGenerator:
