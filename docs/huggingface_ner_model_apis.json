@@ -391,6 +391,67 @@
                 }
             }
         },
+        "/v1/embeddings": {
+            "post": {
+                "tags": [
+                    "OpenAICompatible"
+                ],
+                "summary": "Embed Texts",
+                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+                "operationId": "embed_texts",
+                "parameters": [
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OpenAIEmbeddingsRequest",
+                                "description": "Text(s) to be embedded"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/train_supervised": {
             "post": {
                 "tags": [
@@ -1844,6 +1905,36 @@
                     "huggingface_llm"
                 ],
                 "title": "ModelType"
+            },
+            "OpenAIEmbeddingsRequest": {
+                "properties": {
+                    "input": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Input",
+                        "description": "Input text or list of texts to embed"
+                    },
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The name of the model used for creating the embeddings"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "input",
+                    "model"
+                ],
+                "title": "OpenAIEmbeddingsRequest"
             },
             "TextWithAnnotations": {
                 "properties": {

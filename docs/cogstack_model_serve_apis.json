@@ -645,6 +645,75 @@
                 }
             }
         },
+        "/v1/embeddings": {
+            "post": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "Embed Texts",
+                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+                "operationId": "embed_texts",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OpenAIEmbeddingsRequest",
+                                "description": "Text(s) to be embedded"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/train_supervised": {
             "post": {
                 "tags": [
@@ -1917,6 +1986,36 @@
                 ]
             }
         },
+        "/stream/ws": {
+            "get": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Get Inline Annotations From Websocket Info",
+                "description": "WebSocket info endpoint for real-time NER entity extraction. Use ws://host:port/stream/ws to establish an actual WebSocket connection.",
+                "operationId": "get_inline_annotations_from_websocket_info",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/_WebSocketInfo"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
         "/generate": {
             "post": {
                 "tags": [
@@ -2207,75 +2306,6 @@
                             "schema": {
                                 "$ref": "#/components/schemas/OpenAIChatRequest",
                                 "description": "OpenAI-like completion request"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Successful Response",
-                        "content": {
-                            "application/json": {
-                                "schema": {}
-                            }
-                        }
-                    },
-                    "422": {
-                        "description": "Validation Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HTTPValidationError"
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/embeddings": {
-            "post": {
-                "tags": [
-                    "Operations compatible with OpenAI APIs"
-                ],
-                "summary": "Embed Texts",
-                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
-                "operationId": "embed_texts",
-                "security": [
-                    {
-                        "OAuth2PasswordBearer": []
-                    },
-                    {
-                        "APIKeyCookie": []
-                    }
-                ],
-                "parameters": [
-                    {
-                        "name": "tracking_id",
-                        "in": "query",
-                        "required": false,
-                        "schema": {
-                            "anyOf": [
-                                {
-                                    "type": "string"
-                                },
-                                {
-                                    "type": "null"
-                                }
-                            ],
-                            "description": "The tracking ID of the requested task",
-                            "title": "Tracking Id"
-                        },
-                        "description": "The tracking ID of the requested task"
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/OpenAIEmbeddingsRequest",
-                                "description": "Text(s) to be embedded"
                             }
                         }
                     }
@@ -3100,6 +3130,27 @@
                     "type"
                 ],
                 "title": "ValidationError"
+            },
+            "_WebSocketInfo": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "title": "Message",
+                        "default": "WebSocket endpoint for real-time NER entity extraction"
+                    },
+                    "example": {
+                        "type": "string",
+                        "title": "Example",
+                        "default": "<form action=\"\" onsubmit=\"send_doc(event)\">\n    <input type=\"text\" id=\"cms-input\" autocomplete=\"off\"/>\n    <button>Send</button>\n</form>\n<ul id=\"cms-output\"></ul>\n<script>\n    var ws = new WebSocket(\"ws://localhost:8000/stream/ws\");\n    ws.onmessage = function(event) {\n        document.getElementById(\"cms-output\").appendChild(\n            Object.assign(document.createElement('li'), { textContent: event.data })\n        );\n    };\n    function send_doc(event) {\n        ws.send(document.getElementById(\"cms-input\").value);\n        event.preventDefault();\n    };\n</script>"
+                    },
+                    "protocol": {
+                        "type": "string",
+                        "title": "Protocol",
+                        "default": "WebSocket"
+                    }
+                },
+                "type": "object",
+                "title": "_WebSocketInfo"
             }
         },
         "securitySchemes": {
