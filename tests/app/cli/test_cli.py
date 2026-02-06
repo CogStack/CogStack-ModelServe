@@ -106,3 +106,15 @@ def test_generate_api_doc():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--api-title", "TestAPIs"])
     assert result.exit_code == 0
     assert "OpenAPI doc exported to testapis.json" in result.output
+
+
+def test_mcp_help():
+    result = runner.invoke(cmd_app, ["mcp", "--help"])
+    assert result.exit_code == 0
+    assert "Run the MCP server for accessing CMS capabilities" in result.output
+
+
+def test_mcp_run_help():
+    result = runner.invoke(cmd_app, ["mcp", "run", "--help"])
+    assert result.exit_code == 0
+    assert "Run the MCP server for accessing CMS capabilities" in result.output

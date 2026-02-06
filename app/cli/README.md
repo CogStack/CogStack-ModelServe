@@ -10,6 +10,9 @@ $ cms [OPTIONS] COMMAND [ARGS]...
 
 **Options**:
 
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner|huggingface_llm]`
+* `--host TEXT`
+* `--port TEXT`
 * `--install-completion`: Install completion for the current shell.
 * `--show-completion`: Show completion for the current shell, to copy it or customize the installation.
 * `--help`: Show this message and exit.
@@ -24,6 +27,7 @@ $ cms [OPTIONS] COMMAND [ARGS]...
 * `export-openapi-spec`: This generates an API document for all...
 * `stream`: This groups various stream operations
 * `package`: This groups various package operations
+* `mcp`: Run the MCP server for accessing CMS...
 
 ## `cms serve`
 
@@ -37,14 +41,17 @@ $ cms serve [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
-* `--model-path TEXT`: The file path to the model package
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner|huggingface_llm]`: The type of the model to serve  [required]
+* `--model-path TEXT`: Either the file path to the local model package or the URL to the remote one
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to serve
 * `--host TEXT`: The hostname of the server  [default: 127.0.0.1]
 * `--port TEXT`: The port of the server  [default: 8000]
 * `--model-name TEXT`: The string representation of the model name
 * `--streamable / --no-streamable`: Serve the streamable endpoints only  [default: no-streamable]
 * `--device [default|cpu|cuda|mps]`: The device to serve the model on  [default: default]
+* `--llm-engine [CMS|vLLM]`: The engine to use for text generation  [default: CMS]
+* `--load-in-4bit / --no-load-in-4bit`: Load the model in 4-bit precision, used by &#x27;huggingface_llm&#x27; models  [default: no-load-in-4bit]
+* `--load-in-8bit / --no-load-in-8bit`: Load the model in 8-bit precision, used by &#x27;huggingface_llm&#x27; models  [default: no-load-in-8bit]
 * `--debug / --no-debug`: Run in the debug mode
 * `--help`: Show this message and exit.
 
@@ -60,7 +67,7 @@ $ cms train [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to train  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner|huggingface_llm]`: The type of the model to train  [required]
 * `--base-model-path TEXT`: The file path to the base model package to be trained on
 * `--mlflow-model-uri models:/MODEL_NAME/ENV`: The URI of the MLflow model to train
 * `--training-type [supervised|unsupervised|meta_supervised]`: The type of training  [required]
@@ -71,6 +78,8 @@ $ cms train [OPTIONS]
 * `--description TEXT`: The description of the training or change logs
 * `--model-name TEXT`: The string representation of the model name
 * `--device [default|cpu|cuda|mps]`: The device to train the model on  [default: default]
+* `--load-in-4bit / --no-load-in-4bit`: Load the model in 4-bit precision, used by &#x27;huggingface_llm&#x27; models  [default: no-load-in-4bit]
+* `--load-in-8bit / --no-load-in-8bit`: Load the model in 8-bit precision, used by &#x27;huggingface_llm&#x27; models  [default: no-load-in-8bit]
 * `--debug / --no-debug`: Run in the debug mode
 * `--help`: Show this message and exit.
 
@@ -86,7 +95,7 @@ $ cms register [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to register  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner|huggingface_llm]`: The type of the model to register  [required]
 * `--model-path TEXT`: The file path to the model package  [required]
 * `--model-name TEXT`: The string representation of the registered model  [required]
 * `--training-type [supervised|unsupervised|meta_supervised]`: The type of training the model went through
@@ -108,7 +117,7 @@ $ cms export-model-apis [OPTIONS]
 
 **Options**:
 
-* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner]`: The type of the model to serve  [required]
+* `--model-type [medcat_snomed|medcat_umls|medcat_icd10|medcat_opcs4|medcat_deid|anoncat|transformers_deid|huggingface_ner|huggingface_llm]`: The type of the model to serve  [required]
 * `--add-training-apis / --no-add-training-apis`: Add training APIs to the doc  [default: no-add-training-apis]
 * `--add-evaluation-apis / --no-add-evaluation-apis`: Add evaluation APIs to the doc  [default: no-add-evaluation-apis]
 * `--add-previews-apis / --no-add-previews-apis`: Add preview APIs to the doc  [default: no-add-previews-apis]
@@ -268,4 +277,48 @@ $ cms package hf-dataset [OPTIONS]
 * `--archive-format [zip|gztar]`: The archive format of the dataset package, e.g., &#x27;zip&#x27; or &#x27;gztar&#x27;  [default: zip]
 * `--remove-cached / --no-remove-cached`: Whether to remove the downloaded cache after the dataset package is saved  [default: no-remove-cached]
 * `--trust-remote-code / --no-trust-remote-code`: Whether to trust and use the remote script of the dataset  [default: no-trust-remote-code]
+* `--help`: Show this message and exit.
+
+## `cms mcp`
+
+Run the MCP server for accessing CMS capabilities
+
+**Usage**:
+
+```console
+$ cms mcp [OPTIONS] COMMAND [ARGS]...
+```
+
+**Options**:
+
+* `--help`: Show this message and exit.
+
+**Commands**:
+
+* `run`: Run the MCP server for accessing CMS...
+
+### `cms mcp run`
+
+Run the MCP server for accessing CMS capabilities
+
+**Usage**:
+
+```console
+$ cms mcp run [OPTIONS]
+```
+
+**Options**:
+
+* `--host TEXT`: The hostname of the MCP server  [default: 127.0.0.1]
+* `--port INTEGER`: The port of the MCP server  [default: 8080]
+* `--transport TEXT`: The transport type (either &#x27;stdio&#x27;, &#x27;sse&#x27; or &#x27;http&#x27;)  [default: http]
+* `--cms-base-url TEXT`: The base URL of the CMS API  [default: http://localhost:8000]
+* `--cms-api-key TEXT`: The API key for authenticating with the CMS API
+* `--mcp-api-keys TEXT`: Comma-separated API keys for authenticating MCP clients
+* `--cms-mcp-oauth-enabled / --no-cms-mcp-oauth-enabled`: Whether to enable OAuth2 authentication for MCP clients
+* `--github-client-id TEXT`: The GitHub OAuth2 client ID
+* `--github-client-secret TEXT`: The GitHub OAuth2 client secret
+* `--google-client-id TEXT`: The Google OAuth2 client ID
+* `--google-client-secret TEXT`: The Google OAuth2 client secret
+* `--debug / --no-debug`: Run in debug mode
 * `--help`: Show this message and exit.
