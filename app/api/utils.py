@@ -347,10 +347,10 @@ async def init_vllm_engine(app: FastAPI,
     )
 
     tokenizer = await engine.get_tokenizer()
-    vllm_config = await engine.get_vllm_config()
-    model_config = await engine.get_model_config()
+    vllm_config = await engine.get_vllm_config()    # type: ignore
+    model_config = await engine.get_model_config()  # type: ignore
 
-    await init_app_state(engine, vllm_config, app.state, args)
+    await init_app_state(engine, vllm_config, app.state, args)  # type: ignore
 
     async def generate_text(
         request: Request,

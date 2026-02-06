@@ -9,23 +9,23 @@ description = "A model serving and governance system for CogStack NLP solutions"
 requires-python = ">3.10,<3.13"
 dynamic = ["version"]
 dependencies = [
-    "medcat[spacy,meta-cat,deid,rel-cat]~=2.2.0; python_version>='3.10'",
+    "medcat[spacy,meta-cat,deid,rel-cat]~=2.3.0",
     "datasets>=2.21.0",
     "fastapi~=0.115.0",
-    "uvicorn~=0.29.0",
+    "uvicorn~=0.31.1",
     "python-multipart~=0.0.7",
     "ijson~=3.1.4",
-    "python-dotenv~=0.20.0",
+    "python-dotenv~=1.0.0",
     "mlflow~=2.16.2",
     "psycopg2-binary~=2.9.4",
-    "boto3~=1.28.84",
+    "boto3~=1.41.1",
     "click<8.2.0",
-    "typer~=0.15.1",
+    "typer~=0.16.0",
     "prometheus-fastapi-instrumentator~=7.0.0",
     "sentencepiece~=0.2.0",
-    "slowapi~=0.1.7",
+    "slowapi~=0.1.9",
     "graypy~=2.1.0",
-    "fastapi-users~=13.0.0",
+    "fastapi-users~=15.0.3",
     "fastapi-users-db-sqlalchemy~=5.0.0",
     "asyncpg~=0.29.0",
     "aiosqlite~=0.19.0",
@@ -34,9 +34,10 @@ dependencies = [
     "pynvml~=11.5.3",
     "toml~=0.10.2",
     "peft<0.14.0",
-    "huggingface-hub~=0.33.0",
+    "huggingface-hub~=0.34.0",
     "spacy>3.8",
     "seqeval>=1.2.2",
+    "transformers~=4.56.2",
 ]
 readme = "README.md"
 keywords = ["natural-language-processing", "electronic-health-records", "clinical-data"]
@@ -63,11 +64,11 @@ dev = [
     "pytest-asyncio~=0.23.7",
     "pytest-cov~=4.1.0",
     "pytest-bdd~=7.2.0",
-    "httpx~=0.24.1",
+    "httpx~=0.27.1",
     "mypy~=1.18.0",
     "ruff==0.6.9",
     "locust<2.32.0",
-    "typer-cli~=0.15.1",
+    "typer-cli~=0.16.0",
     "types-toml==0.10.8.20240310",
     "types-requests>=2.31.0.6",
     "openai>=1.84.0",
@@ -79,9 +80,16 @@ docs = [
     "sphinx-rtd-theme~=3.0.2",
 ]
 llm = [
-    "vllm~=0.8.5",
+    "vllm>=0.9.0",
     "trl~=0.15.0",
     "bitsandbytes==0.49.0",
+    "triton~=3.5.0",
+    "kernels~=0.11.7",
+]
+mcp = [
+    "mcp[cli]==1.26.0",
+    "cms-client==0.0.1",
+    "loguru~=0.7.3"
 ]
 
 # For pip versions not supporting PEP 735
@@ -94,11 +102,11 @@ dev = [
     "pytest-asyncio~=0.23.7",
     "pytest-cov~=4.1.0",
     "pytest-bdd~=7.2.0",
-    "httpx~=0.24.1",
+    "httpx~=0.27.1",
     "mypy~=1.18.0",
     "ruff==0.6.9",
     "locust<2.32.0",
-    "typer-cli~=0.15.1",
+    "typer-cli~=0.16.0",
     "types-requests>=2.31.0.6",
     "types-toml==0.10.8.20240310",
     "openai>=1.84.0",
@@ -111,9 +119,16 @@ docs = [
 ]
 
 llm = [
-    "vllm~=0.8.5",
+    "vllm>=0.9.0",
     "trl>=0.11.4",
     "bitsandbytes>=0.45.5",
+    "triton~=3.5.0",
+    "kernels~=0.11.7",
+]
+mcp = [
+    "mcp[cli]==1.26.0",
+    "cms-client==0.0.1",
+    "loguru~=0.7.3",
 ]
 
 [tool.setuptools]
@@ -175,6 +190,7 @@ check_untyped_defs = true
 no_implicit_reexport = true
 disallow_untyped_defs = true
 disable_error_code = "method-assign"
+exclude = "app/model/"
 plugins = [
   "pydantic.mypy"
 ]
