@@ -7,6 +7,7 @@ import sys
 import uuid
 import inspect
 import warnings
+import multiprocessing
 import subprocess
 
 current_frame = inspect.currentframe()
@@ -52,9 +53,11 @@ from app.management.tracker_client import TrackerClient  # noqa
 
 cmd_app = typer.Typer(name="cms", help="CLI for various CogStack ModelServe operations", add_completion=True)
 stream_app = typer.Typer(name="stream", help="This groups various stream operations", add_completion=True)
-cmd_app.add_typer(stream_app, name="stream")
+mcp_app = typer.Typer(name="mcp", help="Run the MCP server for accessing CMS capabilities", add_completion=True)
 package_app = typer.Typer(name="package", help="This groups various package operations", add_completion=True)
+cmd_app.add_typer(stream_app, name="stream")
 cmd_app.add_typer(package_app, name="package")
+cmd_app.add_typer(mcp_app, name="mcp")
 logging.config.fileConfig(os.path.join(parent_dir, "logging.ini"), disable_existing_loggers=False)
 
 @cmd_app.command("serve", help="This serves various CogStack NLP models")
@@ -69,6 +72,7 @@ def serve_model(
     device: Device = typer.Option(Device.DEFAULT.value, help="The device to serve the model on"),
     llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS.value, help="The engine to use for text generation"),
     load_in_4bit: Optional[bool] = typer.Option(False, help="Load the model in 4-bit precision, used by 'huggingface_llm' models"),
+    load_in_8bit: Optional[bool] = typer.Option(False, help="Load the model in 8-bit precision, used by 'huggingface_llm' models"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -87,6 +91,7 @@ def serve_model(
         device (Device): The device to serve the model on. Defaults to Device.DEFAULT.
         llm_engine (LlmEngine): The inference engine to use. Defaults to LlmEngine.CMS.
         load_in_4bit (bool): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
+        load_in_8bit (bool): Load the model in 8-bit precision, used by 'huggingface_llm' models. Defaults to False.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -138,7 +143,7 @@ def serve_model(
         if model_path:
             model_service = model_service_dep()
             model_service.model_name = model_name
-            model_service.init_model(load_in_4bit=load_in_4bit)
+            model_service.init_model(load_in_4bit=load_in_4bit, load_in_8bit=load_in_8bit)
             cms_globals.model_manager_dep = ModelManagerDep(model_service)
         elif mlflow_model_uri:
             model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
@@ -191,6 +196,7 @@ def train_model(
     model_name: Optional[str] = typer.Option(None, help="The string representation of the model name"),
     device: Device = typer.Option(Device.DEFAULT.value, help="The device to train the model on"),
     load_in_4bit: Optional[bool] = typer.Option(False, help="Load the model in 4-bit precision, used by 'huggingface_llm' models"),
+    load_in_8bit: Optional[bool] = typer.Option(False, help="Load the model in 8-bit precision, used by 'huggingface_llm' models"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -211,6 +217,7 @@ def train_model(
         model_name (Optional[str]): The optional string representation of the model name.
         device (Device): The device to train the model on. Defaults to Device.DEFAULT.
         load_in_4bit (bool): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
+        load_in_8bit (bool): Load the model in 8-bit precision, used by 'huggingface_llm' models. Defaults to False.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -232,7 +239,7 @@ def train_model(
             pass
         model_service = model_service_dep()
         model_service.model_name = model_name if model_name is not None else "CMS model"
-        model_service.init_model(load_in_4bit=load_in_4bit)
+        model_service.init_model(load_in_4bit=load_in_4bit, load_in_8bit=load_in_8bit)
     elif mlflow_model_uri:
         model_service = ModelManager.retrieve_model_service_from_uri(mlflow_model_uri, config, dst_model_path)
         model_service.model_name = model_name if model_name is not None else "CMS model"
@@ -495,6 +502,7 @@ def package_model(
 
     model_package_archive = os.path.abspath(os.path.expanduser(output_model_package))
     if hf_repo_id:
+        download_path = None
         try:
             with tempfile.TemporaryDirectory() as tmp_dir:
                 if not hf_repo_revision:
@@ -510,15 +518,14 @@ def package_model(
                         local_dir=tmp_dir,
                         local_dir_use_symlinks=False,
                     )
-
-                shutil.make_archive(model_package_archive, archive_format.value, download_path)
+                _make_archive_file(model_package_archive, archive_format.value, download_path)
         finally:
-            if remove_cached:
+            if remove_cached and download_path:
                 cached_model_path = os.path.abspath(os.path.join(download_path, "..", ".."))
                 shutil.rmtree(cached_model_path)
     elif cached_model_dir:
         cached_model_path = os.path.abspath(os.path.expanduser(cached_model_dir))
-        shutil.make_archive(model_package_archive, archive_format.value, cached_model_path)
+        _make_archive_file(model_package_archive, archive_format.value, cached_model_path)
 
     typer.echo(f"Model package saved to {model_package_archive}.{'zip' if archive_format == ArchiveFormat.ZIP else 'tar.gz'}")
 
@@ -583,6 +590,73 @@ def package_dataset(
         shutil.make_archive(dataset_package_archive, archive_format.value, cached_dataset_path)
 
     typer.echo(f"Dataset package saved to {dataset_package_archive}.{'zip' if archive_format == ArchiveFormat.ZIP else 'tar.gz'}")
+
+
+@mcp_app.command("run", help="Run the MCP server for accessing CMS capabilities")
+def run_mcp_server(
+    host: str = typer.Option("127.0.0.1", help="The hostname of the MCP server"),
+    port: int = typer.Option(8080, help="The port of the MCP server"),
+    transport: str = typer.Option("http", help="The transport type (either 'stdio', 'sse' or 'http')"),
+    cms_base_url: str = typer.Option("http://127.0.0.1:8000", help="The base URL of the CMS API"),
+    cms_api_key: str = typer.Option("Bearer", help="The API key for authenticating with the CMS API"),
+    mcp_api_keys: str = typer.Option("", help="Comma-separated API keys for authenticating MCP clients"),
+    cms_mcp_oauth_enabled: Optional[bool] = typer.Option(None, help="Whether to enable OAuth2 authentication for MCP clients"),
+    github_client_id: str = typer.Option("", help="The GitHub OAuth2 client ID"),
+    github_client_secret: str = typer.Option("", help="The GitHub OAuth2 client secret"),
+    google_client_id: str = typer.Option("", help="The Google OAuth2 client ID"),
+    google_client_secret: str = typer.Option("", help="The Google OAuth2 client secret"),
+    debug: Optional[bool] = typer.Option(None, help="Run in debug mode"),
+) -> None:
+    """
+    Runs the CogStack ModelServe MCP server.
+
+    This function starts an MCP server that provides AI assistants with tools to interact
+    with deployed CMS models through the Model Context Protocol interface.
+
+    Args:
+        host (str): The hostname of the MCP server. Defaults to "127.0.0.1".
+        port (int): The port of the MCP server. Defaults to 8080.
+        transport (str): The transport type for the MCP server. Can be "stdio" or "http". Defaults to "stdio".
+        cms_base_url (str): The base URL of the CMS API endpoint. Defaults to "http://localhost:8000".
+        debug (Optional[bool]): Run in debug mode if set to True.
+    """
+
+    logger = _get_logger(debug)
+    logger.info("Starting CMS MCP server...")
+
+    os.environ["CMS_BASE_URL"] = cms_base_url
+    os.environ["CMS_MCP_SERVER_HOST"] = host
+    os.environ["CMS_MCP_SERVER_PORT"] = str(port)
+    os.environ["CMS_MCP_TRANSPORT"] = transport.lower()
+    os.environ["CMS_API_KEY"] = cms_api_key
+    os.environ["MCP_API_KEYS"] = mcp_api_keys
+    os.environ["CMS_MCP_OAUTH_ENABLED"] = "true" if cms_mcp_oauth_enabled else "false"
+    os.environ["GITHUB_CLIENT_ID"] = github_client_id
+    os.environ["GITHUB_CLIENT_SECRET"] = github_client_secret
+    os.environ["GOOGLE_CLIENT_ID"] = google_client_id
+    os.environ["GOOGLE_CLIENT_SECRET"] = google_client_secret
+
+    if debug:
+        os.environ["CMS_MCP_DEV"] = "1"
+
+    try:
+        from app.mcp.server import main
+        logger.info(f"MCP server starting with transport: {transport}")
+        logger.info(f"Connected to CMS API at {cms_base_url}")
+        main()
+    except ImportError as e:
+        logger.error(f"Cannot import MCP. Please install it with `pip install cms[mcp]`: {e}")
+        typer.echo(f"ERROR: Cannot import MCP: {e}")
+        typer.echo("Please install it with `pip install cms[mcp]`.")
+        raise typer.Exit(code=1)
+    except KeyboardInterrupt:
+        logger.info("MCP server stopped by the user")
+        typer.echo("MCP server stopped.")
+        raise typer.Exit(code=0)
+    except Exception as e:
+        logger.error(f"Failed to start MCP server: {e}")
+        typer.echo(f"ERROR: Failed to start MCP server: {e}")
+        raise typer.Exit(code=1)
 
 
 @cmd_app.command("build", help="This builds an OCI-compliant image to containerise CMS")
@@ -796,6 +870,24 @@ def _ensure_dst_model_path(model_path: str, parent_dir: str, config: Settings) -
     if dst_model_path.endswith(".tar.gz") and os.path.exists(dst_model_path.replace(".tar.gz", ".zip")):
         os.remove(dst_model_path.replace(".tar.gz", ".zip"))
     return dst_model_path
+
+
+def _make_archive_file(base_name: str, format: str, root_dir: str) -> None:
+    if format == ArchiveFormat.TAR_GZ.value:
+        try:
+            result = subprocess.run(["which", "pigz"], capture_output=True, text=True, check=True)
+            if result.returncode == 0:
+                num_cores = max(1, multiprocessing.cpu_count() - 1)
+                compress_program = f"pigz -p {num_cores}"
+                subprocess.run(
+                    ["tar", f"--use-compress-program={compress_program}", "-cf", f"{base_name}.tar.gz", "-C", root_dir, "."],
+                    check=True
+                )
+                return
+        except subprocess.CalledProcessError:
+            typer.echo("Use non-parallel compression...")
+
+    shutil.make_archive(base_name, format, root_dir)
 
 
 def _get_logger(
