@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Successful</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .success-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+        }
+        .user-info {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+        .token-info {
+            background: #e8f5e9;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div style="font-size: 64px;">✅</div>
+        <h1>Authentication Successful!</h1>
+        <div class="user-info">
+            <p><strong>Welcome, {{ user_name }}!</strong></p>
+            <p>Email: {{ user_email }}</p>
+            <p>Provider: {{ provider.title() }}</p>
+        </div>
+        <div class="token-info">
+            <p><strong>Session ID:</strong></p>
+            <p>{{ session_id }}</p>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+            You can now use the MCP server with your authenticated session.
+        </p>
+        <a href="/oauth/status" class="btn">Check Session Status</a>
+    </div>
+</body>
+</html>

@@ -4,15 +4,16 @@ import httpx
 from typing import Optional, Dict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from starlette.responses import HTMLResponse, RedirectResponse
+from starlette.responses import HTMLResponse, RedirectResponse, Response
+from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 from starlette.routing import Route
-from starlette.responses import Response
 from app.mcp.logger import get_logger
 
 
 logger = get_logger(__name__)
 
+templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 @dataclass
 class OAuthConfig:
@@ -270,86 +271,7 @@ class OAuthManager:
 
     def create_oauth_routes(self) -> list:
         async def oauth_login(request: Request) -> Response:
-            html_content = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>CMS MCP Server - Login</title>
-                <style>
-                    body {
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                        margin: 0;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    }
-                    .login-container {
-                        background: white;
-                        padding: 2rem;
-                        border-radius: 10px;
-                        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-                        text-align: center;
-                        max-width: 400px;
-                        width: 90%;
-                        box-sizing: border-box;
-                    }
-                    h1 {
-                        color: #333;
-                        margin-bottom: 0.5rem;
-                    }
-                    p {
-                        color: #666;
-                        margin-bottom: 2rem;
-                    }
-                    .btn-oauth {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 100%;
-                        padding: 12px 20px;
-                        margin: 10px 0;
-                        border: none;
-                        border-radius: 5px;
-                        font-size: 16px;
-                        font-weight: 500;
-                        cursor: pointer;
-                        text-decoration: none;
-                        transition: transform 0.2s, box-shadow 0.2s;
-                        box-sizing: border-box;
-                    }
-                    .btn-oauth:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                    }
-                    .btn-google {
-                        background: #4285f4;
-                        color: white;
-                    }
-                    .btn-github {
-                        background: #24292e;
-                        color: white;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="login-container">
-                    <h1>🔐 CMS MCP Server</h1>
-                    <p>Sign in to access the MCP server</p>
-
-                    <a href="/oauth/authorize/google" class="btn-oauth btn-google">
-                        Continue with Google
-                    </a>
-
-                    <a href="/oauth/authorize/github" class="btn-oauth btn-github">
-                        Continue with GitHub
-                    </a>
-                </div>
-            </body>
-            </html>
-            """
-            return HTMLResponse(content=html_content)
+            return templates.TemplateResponse("login.html", {"request": request})
 
         async def oauth_authorize(request: Request) -> Response:
             provider = request.path_params['provider']
@@ -412,81 +334,16 @@ class OAuthManager:
                 user_email = user_info.get("email", "N/A")
                 user_name = user_info.get("name") or user_info.get("login", "User")
 
-                html_content = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Authentication Successful</title>
-                    <style>
-                        body {{
-                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            min-height: 100vh;
-                            margin: 0;
-                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        }}
-                        .success-container {{
-                            background: white;
-                            padding: 2rem;
-                            border-radius: 10px;
-                            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-                            text-align: center;
-                            max-width: 500px;
-                        }}
-                        h1 {{
-                            color: #333;
-                        }}
-                        .user-info {{
-                            background: #f5f5f5;
-                            padding: 1rem;
-                            border-radius: 5px;
-                            margin: 1rem 0;
-                        }}
-                        .token-info {{
-                            background: #e8f5e9;
-                            padding: 1rem;
-                            border-radius: 5px;
-                            margin: 1rem 0;
-                            word-break: break-all;
-                            font-family: monospace;
-                            font-size: 12px;
-                        }}
-                        .btn {{
-                            display: inline-block;
-                            padding: 10px 20px;
-                            background: #667eea;
-                            color: white;
-                            text-decoration: none;
-                            border-radius: 5px;
-                            margin-top: 1rem;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <div class="success-container">
-                        <div style="font-size: 64px;">✅</div>
-                        <h1>Authentication Successful!</h1>
-                        <div class="user-info">
-                            <p><strong>Welcome, {user_name}!</strong></p>
-                            <p>Email: {user_email}</p>
-                            <p>Provider: {provider.title()}</p>
-                        </div>
-                        <div class="token-info">
-                            <p><strong>Session ID:</strong></p>
-                            <p>{session_id}</p>
-                        </div>
-                        <p style="color: #666; font-size: 14px;">
-                            You can now use the MCP server with your authenticated session.
-                        </p>
-                        <a href="/oauth/status" class="btn">Check Session Status</a>
-                    </div>
-                </body>
-                </html>
-                """
-
-                response = HTMLResponse(content=html_content)
+                response = templates.TemplateResponse(
+                    "callback.html",
+                    {
+                        "request": request,
+                        "user_name": user_name,
+                        "user_email": user_email,
+                        "provider": provider,
+                        "session_id": session_id,
+                    }
+                )
                 response.set_cookie(
                     key="cms_mcp_session",
                     value=session_id,
@@ -518,60 +375,14 @@ class OAuthManager:
             if not token:
                 return HTMLResponse(content="<h1>⏰ Session Expired</h1><p>Please login again.</p>")
 
-            html_content = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Session Status</title>
-                <style>
-                    body {{
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        min-height: 100vh;
-                        margin: 0;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    }}
-                    .status-container {{
-                        background: white;
-                        padding: 2rem;
-                        border-radius: 10px;
-                        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-                        max-width: 500px;
-                    }}
-                    h1 {{
-                        color: #333;
-                    }}
-                    .info-row {{
-                        display: flex;
-                        justify-content: space-between;
-                        padding: 0.5rem 0;
-                        border-bottom: 1px solid #eee;
-                    }}
-                </style>
-            </head>
-            <body>
-                <div class="status-container">
-                    <h1>✅ Active Session</h1>
-                    <div class="info-row">
-                        <strong>Session ID:</strong>
-                        <span>{session_id[:16]}...</span>
-                    </div>
-                    <div class="info-row">
-                        <strong>Token Valid:</strong>
-                        <span>Yes</span>
-                    </div>
-                    <div class="info-row">
-                        <strong>Expires In:</strong>
-                        <span>{token.expires_in} seconds</span>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-
-            return HTMLResponse(content=html_content)
+            return templates.TemplateResponse(
+                "status.html",
+                {
+                    "request": request,
+                    "session_id": session_id,
+                    "expires_in": token.expires_in,
+                }
+            )
 
         async def oauth_logout(request: Request) -> Response:
             session_id = request.cookies.get("cms_mcp_session")
