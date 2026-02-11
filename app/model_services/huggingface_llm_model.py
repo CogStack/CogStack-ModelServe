@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Call
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
+    AutoConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
     TextIteratorStreamer,
@@ -24,6 +25,8 @@ from app.utils import (
     unpack_model_data_package,
     ensure_tensor_contiguity,
     get_model_data_package_base_name,
+    get_default_chat_template,
+    utilise_local_chat_template,
 )
 
 logger = logging.getLogger("cms")
@@ -61,8 +64,9 @@ class HuggingFaceLlmModel(AbstractModelService):
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
         self._multi_label_threshold = 0.5
         self._text_generator = ThreadPoolExecutor(max_workers=50)
+        self._sentence_endings = ".。!！?？:：;；\n"
         self.model_name = model_name or "HuggingFace LLM model"
-        self.is_4bit_quantised = False
+        self.is_quantised = False
 
     @property
     def model(self) -> PreTrainedModel:
@@ -130,6 +134,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         model_file_path: str,
         *args: Tuple,
         load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
         **kwargs: Dict[str, Any]
     ) -> Tuple[PreTrainedModel, PreTrainedTokenizerBase]:
         """
@@ -139,6 +144,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             model_file_path (str): The path to the model package file.
             *args (Tuple): Additional positional arguments.
             load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
+            load_in_8bit (bool): Whether to load the model in 8-bit precision. Defaults to False.
             **kwargs (Dict[str, Any]): Additional keyword arguments.
 
         Returns:
@@ -151,26 +157,49 @@ class HuggingFaceLlmModel(AbstractModelService):
         model_path = os.path.join(os.path.dirname(model_file_path), get_model_data_package_base_name(model_file_path))
         if unpack_model_data_package(model_file_path, model_path):
             try:
-                if load_in_4bit:
-                    bnb_config = BitsAndBytesConfig(
-                        load_in_4bit=True,
-                        bnb_4bit_quant_type="nf4",
-                        bnb_4bit_compute_dtype=torch.bfloat16,
-                        bnb_4bit_use_double_quant=True,
-                    )
-                    if get_settings().DEVICE == Device.DEFAULT.value:
-                        model = AutoModelForCausalLM.from_pretrained(
-                            model_path,
-                            quantization_config=bnb_config,
-                            device_map="auto",
-                        )
-                    else:
-                        model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
-                else:
+                config = AutoConfig.from_pretrained(model_path)
+
+                if "quantization_config" in config.to_dict():
+                    logger.info("Model already quantised, loading by ignoring 'load_in_4bit' or 'load_in_8bit' flag")
                     if get_settings().DEVICE == Device.DEFAULT.value:
                         model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
                     else:
                         model = AutoModelForCausalLM.from_pretrained(model_path)
+                else:
+                    if load_in_4bit:
+                        bnb_config = BitsAndBytesConfig(
+                            load_in_4bit=True,
+                            bnb_4bit_quant_type="nf4",
+                            bnb_4bit_compute_dtype=torch.bfloat16,
+                            bnb_4bit_use_double_quant=True,
+                        )
+                        if get_settings().DEVICE == Device.DEFAULT.value:
+                            model = AutoModelForCausalLM.from_pretrained(
+                                model_path,
+                                quantization_config=bnb_config,
+                                device_map="auto",
+                            )
+                        else:
+                            model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                    elif load_in_8bit:
+                        bnb_config = BitsAndBytesConfig(
+                            load_in_8bit=True,
+                            llm_int8_threshold=6.0,
+                            llm_int8_enable_fp32_cpu_offload=False
+                        )
+                        if get_settings().DEVICE == Device.DEFAULT.value:
+                            model = AutoModelForCausalLM.from_pretrained(
+                                model_path,
+                                quantization_config=bnb_config,
+                                device_map="auto",
+                            )
+                        else:
+                            model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                    else:
+                        if get_settings().DEVICE == Device.DEFAULT.value:
+                            model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+                        else:
+                            model = AutoModelForCausalLM.from_pretrained(model_path)
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
@@ -185,11 +214,17 @@ class HuggingFaceLlmModel(AbstractModelService):
         else:
             raise ConfigurationException(f"Model package archive format is not supported: {model_file_path}")
 
-    def init_model(self, load_in_4bit: bool = False, *args: Any, **kwargs: Any) -> None:
+    def init_model(self,
+        load_in_4bit: bool = False,
+        load_in_8bit: bool = False,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """Initialises the HuggingFace model and its tokenizer based on the configuration.
 
         Args:
             load_in_4bit (bool): Whether to load the model in 4-bit precision. Defaults to False.
+            load_in_8bit (bool): Whether to load the model in 8-bit precision. Defaults to False.
             *args (Any): Additional positional arguments to be passed to this method.
             **kwargs (Any): Additional keyword arguments to be passed to this method.
         """
@@ -202,13 +237,20 @@ class HuggingFaceLlmModel(AbstractModelService):
         ]):
             logger.warning("Model service is already initialised and can be initialised only once")
         else:
-            self._model, self._tokenizer = self.load_model(self._model_pack_path, load_in_4bit=load_in_4bit)
-            if non_default_device_is_available(get_settings().DEVICE):
+            self._model, self._tokenizer = self.load_model(
+                self._model_pack_path, load_in_4bit=load_in_4bit, load_in_8bit=load_in_8bit
+            )
+
+            if (non_default_device_is_available(get_settings().DEVICE) and
+                not (
+                    getattr(self._model, "is_loaded_in_8bit", False) or
+                    getattr(self._model, "is_loaded_in_4bit", False)
+                )
+            ):
                 self._model.to(get_settings().DEVICE)
             if self._enable_trainer:
                 self._supervised_trainer = HuggingFaceLlmSupervisedTrainer(self)
                 self._unsupervised_trainer = HuggingFaceLlmUnsupervisedTrainer(self)
-            self.is_4bit_quantised = load_in_4bit
 
     def info(self) -> ModelCard:
         """
@@ -233,28 +275,28 @@ class HuggingFaceLlmModel(AbstractModelService):
     def generate(
         self,
         prompt: str,
-        min_tokens: int = 100,
+        min_tokens: int = 64,
         max_tokens: int = 512,
-        num_beams: int = 5,
+        num_beams: int = 1,
         temperature: float = 0.7,
         top_p: float = 0.9,
         stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[[str], None]] = None,
-        **kwargs: Any
+        ensure_full_sentences: bool = False,
     ) -> str:
         """
         Generates text based on the prompt.
 
         Args:
             prompt (str): The prompt for the text generation
-            min_tokens (int): The minimum number of tokens to generate. Defaults to 100.
+            min_tokens (int): The minimum number of tokens to generate. Defaults to 64.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
-            num_beams (int): The number of beams for beam search. Defaults to 5.
+            num_beams (int): The number of beams for beam search. Defaults to 1.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
             top_p (float): The Top-P value for nucleus sampling. Defaults to 0.9.
             stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
-            **kwargs (Any): Additional keyword arguments to be passed to this method.
+            ensure_full_sentences (bool): Whether to generate full sentences only. Defaults to False.
 
         Returns:
             Any: The string containing the generated text.
@@ -262,16 +304,32 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         self.model.eval()
 
-        inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
+        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template is None:
+            logger.warning("The tokenizer does not have a chat template. Using the default one.")
+            self.tokenizer.chat_template = get_default_chat_template()
+        else:
+            if utilise_local_chat_template(self.model.config.model_type, self.tokenizer):
+                logger.debug("Chat template overwritten by the prompt factory for %s", self.model.config.model_type)
+            else:
+                logger.debug(f"Found a chat template in the tokenizer:\n {self.tokenizer.chat_template}")
+
+        prompt_text = self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        inputs = self.tokenizer(prompt_text, add_special_tokens=False, return_tensors="pt")
         inputs.to(self.model.device)
 
+        max_tokens = max(min_tokens, max_tokens)
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
             min_new_tokens=min_tokens,
             max_new_tokens=max_tokens,
+            use_cache=True,
             num_beams=num_beams,
-            do_sample=True,
+            do_sample=(num_beams == 1),
             temperature=temperature,
             top_p=top_p,
             repetition_penalty=1.2,
@@ -279,7 +337,9 @@ class HuggingFaceLlmModel(AbstractModelService):
         )
 
         outputs = self.model.generate(**generation_kwargs)
-        generated_text = self.tokenizer.decode(outputs[0], skip_prompt=True, skip_special_tokens=True)
+        prompt_len = inputs.input_ids.shape[-1]
+        completion_ids = outputs[0][prompt_len:]
+        generated_text = self.tokenizer.decode(completion_ids, skip_special_tokens=True)
 
         if stop_sequences:
             for stop_seq in stop_sequences:
@@ -287,12 +347,25 @@ class HuggingFaceLlmModel(AbstractModelService):
                     generated_text = generated_text.split(stop_seq)[0]
                     break
 
+        if ensure_full_sentences and generated_text and generated_text[-1] not in self._sentence_endings:
+            last_pos = -1
+            for ending in self._sentence_endings:
+                pos = generated_text.rfind(ending)
+                if pos > last_pos:
+                    last_pos = pos
+            if last_pos != -1:
+                generated_text = generated_text[:last_pos + 1]
+
         logger.debug("Response generation completed")
 
         if report_tokens:
             report_tokens(
-                prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
-                completion_token_num=outputs[0].shape[-1],  # type: ignore
+                prompt_token_num=prompt_len,  # type: ignore
+                completion_token_num=self.tokenizer(    # type: ignore
+                    generated_text,
+                    add_special_tokens=False,
+                    return_tensors="pt"
+                ).input_ids.shape[-1],
             )
 
         return generated_text
@@ -300,12 +373,14 @@ class HuggingFaceLlmModel(AbstractModelService):
     async def generate_async(
         self,
         prompt: str,
+        min_tokens: int = 64,
         max_tokens: int = 512,
+        num_beams: int = 1,
         temperature: float = 0.7,
         top_p: float = 0.9,
         stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[[str], None]] = None,
-        **kwargs: Any
+        ensure_full_sentences: bool = False,
     ) -> AsyncIterable:
         """
         Asynchronously generates text stream based on the prompt.
@@ -313,11 +388,13 @@ class HuggingFaceLlmModel(AbstractModelService):
         Args:
             prompt (str): The prompt for the text generation.
             max_tokens (int): The maximum number of tokens to generate. Defaults to 512.
+            min_tokens (int): The minimum number of tokens to generate. Defaults to 64.
+            num_beams (int): The number of beams for beam search. Defaults to 1.
             temperature (float): The temperature for the text generation. Defaults to 0.7.
             top_p (float): The Top-P value for nucleus sampling. Defaults to 0.9.
             stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
-            **kwargs (Any): Additional keyword arguments to be passed to the model loader.
+            ensure_full_sentences (bool): Whether to generate full sentences only. Defaults to False.
 
         Returns:
             AsyncIterable: The stream containing the generated text.
@@ -325,7 +402,21 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         self.model.eval()
 
-        inputs = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt")
+        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template is None:
+            logger.warning("The tokenizer does not have a chat template. Using the default one.")
+            self.tokenizer.chat_template = get_default_chat_template()
+        else:
+            if utilise_local_chat_template(self.model.config.model_type, self.tokenizer):
+                logger.debug("Chat template overwritten by the prompt factory for %s", self.model.config.model_type)
+            else:
+                logger.debug(f"Found a chat template in the tokenizer:\n {self.tokenizer.chat_template}")
+
+        prompt_text = self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        inputs = self.tokenizer(prompt_text, add_special_tokens=False, return_tensors="pt")
         inputs.to(self.model.device)
 
         streamer = TextIteratorStreamer(
@@ -333,12 +424,16 @@ class HuggingFaceLlmModel(AbstractModelService):
             skip_prompt=True,
             skip_special_tokens=True
         )
+        max_tokens = max(min_tokens, max_tokens)
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=inputs.attention_mask,
             streamer=streamer,
+            min_new_tokens=min_tokens,
             max_new_tokens=max_tokens,
-            do_sample=True,
+            use_cache=True,
+            num_beams=num_beams,
+            do_sample=(num_beams == 1),
             temperature=temperature,
             top_p=top_p,
             repetition_penalty=1.2,
@@ -347,24 +442,59 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         try:
             _ = self._text_generator.submit(self.model.generate, **generation_kwargs)
-            output = ""
-            for content in streamer:
-                prev_output = output
-                output += content
-                if stop_sequences:
-                    for stop_seq in stop_sequences:
-                        if stop_seq in output:
-                            remaining = output[len(prev_output):output.find(stop_seq)]
-                            if remaining:
-                                yield remaining
-                            return
-                yield content
-                await asyncio.sleep(0.01)
+            buffer = ""
+            full_output = ""
+
+            if not ensure_full_sentences:
+                for content in streamer:
+                    prev_output = full_output
+                    full_output += content
+                    if stop_sequences:
+                        for stop_seq in stop_sequences:
+                            if stop_seq in full_output:
+                                remaining = full_output[len(prev_output):full_output.find(stop_seq)]
+                                if remaining:
+                                    yield remaining
+                                return
+                    yield content
+                    await asyncio.sleep(0.01)
+            else:
+                for content in streamer:
+                    buffer += content
+
+                    if stop_sequences:
+                        stop_triggered = False
+                        for stop_sequence in stop_sequences:
+                            if stop_sequence in buffer:
+                                remaining = buffer[:buffer.find(stop_sequence)]
+                                if remaining:
+                                    yield remaining
+                                    full_output += remaining
+                                stop_triggered = True
+                                break
+
+                        if stop_triggered:
+                            break
+
+                    last_sentence_ending = -1
+                    for ending in self._sentence_endings:
+                        pos = buffer.rfind(ending)
+                        if pos > last_sentence_ending:
+                            last_sentence_ending = pos
+
+                    if last_sentence_ending != -1:
+                        new_sentences = buffer[:last_sentence_ending + 1]
+                        buffer = buffer[last_sentence_ending + 1:]
+                        yield new_sentences
+                        full_output += new_sentences
+
+                    await asyncio.sleep(0.01)
+
             if report_tokens:
                 report_tokens(
                     prompt_token_num=inputs.input_ids.shape[-1],    # type: ignore
                     completion_token_num=self.tokenizer(    # type: ignore
-                        output,
+                        full_output,
                         add_special_tokens=False,
                         return_tensors="pt"
                     ).input_ids.shape[-1],
@@ -437,7 +567,7 @@ class HuggingFaceLlmModel(AbstractModelService):
 
             final_embedding = torch.mean(torch.cat(chunk_embeddings, dim=0), dim=0, keepdim=True)
             l2_normalised = torch.nn.functional.normalize(final_embedding, p=2, dim=1)
-            all_embeddings.append(l2_normalised.cpu().numpy().tolist()[0])
+            all_embeddings.append(l2_normalised.float().cpu().numpy().tolist()[0])
 
         return all_embeddings[0] if isinstance(text, str) else all_embeddings
 

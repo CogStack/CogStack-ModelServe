@@ -34,8 +34,8 @@ from app.utils import (
     pyproject_dependencies_to_pip_requirements,
     get_model_data_package_base_name,
     load_pydantic_object_from_dict,
-    dump_pydantic_object_to_dict,
     get_prompt_from_messages,
+    utilise_local_chat_template,
 )
 from app.domain import Annotation, Entity, PromptMessage, PromptRole
 
@@ -406,7 +406,7 @@ class _DummyModel(torch.nn.Module):
 
 
 def test_get_prompt_with_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
+    with patch("transformers.PreTrainedTokenizer") as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = "Mock chat template"
         mock_tokenizer.apply_chat_template.return_value = "Mock chat template applied"
@@ -421,7 +421,7 @@ def test_get_prompt_with_chat_template():
 
 
 def test_get_prompt_with_default_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
+    with patch("transformers.PreTrainedTokenizer") as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = None
         mock_tokenizer.default_chat_template = "Mock default chat template"
@@ -436,8 +436,24 @@ def test_get_prompt_with_default_chat_template():
         assert prompt == "Mock default chat template applied"
 
 
+def test_utilise_local_chat_template_if_exists():
+    tokenizer = MagicMock()
+    tokenizer.chat_template = "chat template"
+    result = utilise_local_chat_template("default", tokenizer)
+    assert result is True
+    assert tokenizer.chat_template != "chat template"
+
+
+def test_utilise_local_chat_template_if_missing():
+    tokenizer = MagicMock()
+    tokenizer.chat_template = "chat template"
+    result = utilise_local_chat_template("invalid", tokenizer)
+    assert result is False
+    assert tokenizer.chat_template == "chat template"
+
+
 def test_get_prompt_without_chat_template():
-    with patch('transformers.PreTrainedTokenizer') as tok:
+    with patch("transformers.PreTrainedTokenizer") as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = None
         mock_tokenizer.default_chat_template = None
@@ -454,7 +470,7 @@ def test_get_prompt_without_chat_template():
 
 
 def test_get_prompt_with_no_messages():
-    with patch('transformers.PreTrainedTokenizer') as tok:
+    with patch("transformers.PreTrainedTokenizer") as tok:
         mock_tokenizer = tok.return_value
         mock_tokenizer.chat_template = None
         mock_tokenizer.default_chat_template = None

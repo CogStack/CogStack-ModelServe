@@ -14,8 +14,10 @@ from starlette.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_500_INTERNA
 from app.domain import (
     Tags,
     TagsGenerative,
-    OpenAIChatRequest,
-    OpenAIChatResponse,
+    OpenAIChatCompletionsRequest,
+    OpenAIChatCompletionsResponse,
+    OpenAICompletionsRequest,
+    OpenAICompletionsResponse,
     OpenAIEmbeddingsRequest,
     OpenAIEmbeddingsResponse,
     PromptMessage,
@@ -29,8 +31,10 @@ from app.management.prometheus_metrics import cms_prompt_tokens, cms_completion_
 
 PATH_GENERATE = "/generate"
 PATH_GENERATE_ASYNC = "/stream/generate"
-PATH_OPENAI_COMPLETIONS = "/v1/chat/completions"
-PATH_OPENAI_EMBEDDINGS = "/v1/embeddings"
+PATH_GENERATE_SSE = "/events/generate"
+PATH_CHAT_COMPLETIONS = "/v1/chat/completions"
+PATH_COMPLETIONS = "/v1/completions"
+PATH_EMBEDDINGS = "/v1/embeddings"
 
 router = APIRouter()
 config = get_settings()
@@ -54,6 +58,7 @@ def generate_text(
     temperature: Annotated[float, Query(description="The temperature of the generated text", ge=0.0)] = 0.7,
     top_p: Annotated[float, Query(description="The Top-P value for nucleus sampling", ge=0.0, le=1.0)] = 0.9,
     stop_sequences: Annotated[List[str], Query(description="The list of sequences used to stop the generation")] = [],
+    ensure_full_sentences: Annotated[bool, Query(description="Whether to generate full sentences only")] = False,
     tracking_id: Union[str, None] = Depends(validate_tracking_id),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> PlainTextResponse:
@@ -67,7 +72,7 @@ def generate_text(
         temperature (float): The temperature of the generated text.
         top_p (float): The Top-P value for nucleus sampling.
         stop_sequences (List[str]): The list of sequences used to stop the generation.
-        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        ensure_full_sentences (bool): Whether to generate full sentences only.
         model_service (AbstractModelService): The model service dependency.
 
     Returns:
@@ -84,6 +89,7 @@ def generate_text(
                 top_p=top_p,
                 stop_sequences=stop_sequences,
                 report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE),
+                ensure_full_sentences=ensure_full_sentences,
             ),
             headers={"x-cms-tracking-id": tracking_id},
             status_code=HTTP_200_OK,
@@ -110,6 +116,7 @@ async def generate_text_stream(
     temperature: Annotated[float, Query(description="The temperature of the generated text", ge=0.0)] = 0.7,
     top_p: Annotated[float, Query(description="The Top-P value for nucleus sampling", ge=0.0, le=1.0)] = 0.9,
     stop_sequences: Annotated[List[str], Query(description="The list of sequences used to stop the generation")] = [],
+    ensure_full_sentences: Annotated[bool, Query(description="Whether to generate full sentences only")] = False,
     tracking_id: Union[str, None] = Depends(validate_tracking_id),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> StreamingResponse:
@@ -123,6 +130,7 @@ async def generate_text_stream(
         temperature (float): The temperature of the generated text.
         top_p (float): The Top-P value for nucleus sampling.
         stop_sequences (List[str]): The list of sequences used to stop the generation.
+        ensure_full_sentences (bool): Whether to generate full sentences only.
         tracking_id (Union[str, None]): An optional tracking ID of the requested task.
         model_service (AbstractModelService): The model service dependency.
 
@@ -140,6 +148,7 @@ async def generate_text_stream(
                 top_p=top_p,
                 stop_sequences=stop_sequences,
                 report_tokens=partial(_send_usage_metrics, handler=PATH_GENERATE_ASYNC),
+                ensure_full_sentences=ensure_full_sentences,
             ),
             media_type="text/event-stream",
             headers={"x-cms-tracking-id": tracking_id},
@@ -155,7 +164,7 @@ async def generate_text_stream(
 
 
 @router.post(
-    PATH_OPENAI_COMPLETIONS,
+    PATH_CHAT_COMPLETIONS,
     tags=[Tags.OpenAICompatible],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
@@ -163,9 +172,10 @@ async def generate_text_stream(
 )
 def generate_chat_completions(
     request: Request,
-    request_data: Annotated[OpenAIChatRequest, Body(
+    request_data: Annotated[OpenAIChatCompletionsRequest, Body(
         description="OpenAI-like completion request", media_type="application/json"
     )],
+    ensure_full_sentences: Annotated[bool, Query(description="Whether to generate full sentences only")] = False,
     tracking_id: Union[str, None] = Depends(validate_tracking_id),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> Union[StreamingResponse, JSONResponse]:
@@ -175,6 +185,7 @@ def generate_chat_completions(
     Args:
         request (Request): The request object.
         request_data (OpenAIChatRequest): The request data containing model, messages, stream, temperature, top_p, and stop_sequences.
+        ensure_full_sentences (bool): Whether to generate full sentences only.
         tracking_id (Union[str, None]): An optional tracking ID of the requested task.
         model_service (AbstractModelService): The model service dependency.
 
@@ -207,7 +218,14 @@ def generate_chat_completions(
             headers={"x-cms-tracking-id": tracking_id},
         )
 
-    async def _stream(prompt: str, max_tokens: int, temperature: float, top_p: float, stop_sequences: List[str]) -> AsyncGenerator:
+    async def _stream(
+        prompt: str,
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        stop_sequences: List[str],
+        ensure_full_sentences: bool,
+    ) -> AsyncGenerator:
         data = {
             "id": tracking_id,
             "object": "chat.completion.chunk",
@@ -220,7 +238,8 @@ def generate_chat_completions(
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
-            report_tokens=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS)
+            report_tokens=partial(_send_usage_metrics, handler=PATH_CHAT_COMPLETIONS),
+            ensure_full_sentences=ensure_full_sentences,
         ):
             data = {
                 "choices": [
@@ -237,20 +256,31 @@ def generate_chat_completions(
     prompt = get_prompt_from_messages(model_service.tokenizer, messages)
     if stream:
         return StreamingResponse(
-            _stream(prompt, max_tokens, temperature, top_p, stop_sequences or []),
+            _stream(prompt, max_tokens, temperature, top_p, stop_sequences or [], ensure_full_sentences),
             media_type="text/event-stream",
             headers={"x-cms-tracking-id": tracking_id},
         )
     else:
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        def _report_tokens(prompt_token_num: int, completion_token_num: int) -> None:
+            usage["prompt_tokens"] = prompt_token_num
+            usage["completion_tokens"] = completion_token_num
+            usage["total_tokens"] = prompt_token_num + completion_token_num
+            _send_usage_metrics(
+                handler=PATH_CHAT_COMPLETIONS,
+                prompt_token_num=prompt_token_num,
+                completion_token_num=completion_token_num,
+            )
         generated_text = model_service.generate(
             prompt,
             max_tokens=max_tokens,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences or [],
-            send_metrics=partial(_send_usage_metrics, handler=PATH_OPENAI_COMPLETIONS),
+            report_tokens=_report_tokens,
+            ensure_full_sentences=ensure_full_sentences,
         )
-        completion = OpenAIChatResponse(
+        completion = OpenAIChatCompletionsResponse(
             id=tracking_id,
             object="chat.completion",
             created=int(time.time()),
@@ -265,12 +295,161 @@ def generate_chat_completions(
                     "finish_reason": "stop",
                 }
             ],
+            usage=usage,
         )
         return JSONResponse(content=jsonable_encoder(completion), headers={"x-cms-tracking-id": tracking_id})
 
 
 @router.post(
-    PATH_OPENAI_EMBEDDINGS,
+    PATH_COMPLETIONS,
+    tags=[Tags.OpenAICompatible],
+    response_model=None,
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Generate completion based on prompt, similar to OpenAI's /v1/completions",
+)
+def generate_text_completions(
+    request: Request,
+    request_data: Annotated[OpenAICompletionsRequest, Body(
+        description="OpenAI-like completion request", media_type="application/json"
+    )],
+    ensure_full_sentences: Annotated[bool, Query(description="Whether to generate full sentences only")] = False,
+    tracking_id: Union[str, None] = Depends(validate_tracking_id),
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> Union[StreamingResponse, JSONResponse]:
+    """
+    Generates completion response based on prompt, mimicking OpenAI's /v1/completions endpoint.
+
+    Args:
+        request (Request): The request object.
+        request_data (OpenAICompletionsRequest): The request data containing model, prompt, stream, temperature, top_p, and stop.
+        ensure_full_sentences (bool): Whether to generate full sentences only.
+        tracking_id (Union[str, None]): An optional tracking ID of the requested task.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        StreamingResponse: An OpenAI-like streaming response.
+        JSONResponse: A response containing the generated text or an error message.
+    """
+
+    tracking_id = tracking_id or str(uuid.uuid4())
+    model = model_service.model_name if request_data.model != model_service.model_name else request_data.model
+    stream = request_data.stream
+    max_tokens = request_data.max_tokens
+    temperature = request_data.temperature
+    top_p = request_data.top_p
+    stop = request_data.stop
+
+    if isinstance(stop, str):
+        stop_sequences = [stop]
+    elif isinstance(stop, list):
+        stop_sequences = stop
+    else:
+        stop_sequences = []
+
+    if isinstance(request_data.prompt, str):
+        prompt = request_data.prompt
+    else:
+        prompt = "\n".join(request_data.prompt)
+
+    if not prompt:
+        error_response = {
+            "error": {
+                "message": "No prompt provided",
+                "type": "invalid_request_error",
+                "param": "prompt",
+                "code": "missing_field",
+            }
+        }
+        return JSONResponse(
+            content=error_response,
+            status_code=HTTP_400_BAD_REQUEST,
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    async def _stream(
+        prompt: str,
+        max_tokens: int,
+        temperature: float,
+        top_p: float,
+        stop_sequences: List[str],
+        ensure_full_sentences: bool,
+    ) -> AsyncGenerator:
+        data = {
+            "id": tracking_id,
+            "object": "text_completion",
+            "choices": [{"text": "", "index": 0, "logprobs": None, "finish_reason": None}],
+        }
+        yield f"data: {json.dumps(data)}\n\n"
+        async for chunk in model_service.generate_async(
+            prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            stop_sequences=stop_sequences,
+            report_tokens=partial(_send_usage_metrics, handler=PATH_COMPLETIONS),
+            ensure_full_sentences=ensure_full_sentences,
+        ):
+            data = {
+                "object": "text_completion",
+                "choices": [
+                    {
+                        "text": chunk,
+                        "index": 0,
+                        "logprobs": None,
+                        "finish_reason": None,
+                    }
+                ],
+            }
+            yield f"data: {json.dumps(data)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    if stream:
+        return StreamingResponse(
+            _stream(prompt, max_tokens, temperature, top_p, stop_sequences, ensure_full_sentences),
+            media_type="text/event-stream",
+            headers={"x-cms-tracking-id": tracking_id},
+        )
+
+    usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+    def _report_tokens(prompt_token_num: int, completion_token_num: int) -> None:
+        usage["prompt_tokens"] = prompt_token_num
+        usage["completion_tokens"] = completion_token_num
+        usage["total_tokens"] = prompt_token_num + completion_token_num
+        _send_usage_metrics(
+            handler=PATH_COMPLETIONS,
+            prompt_token_num=prompt_token_num,
+            completion_token_num=completion_token_num,
+        )
+    generated_text = model_service.generate(
+        prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        stop_sequences=stop_sequences,
+        report_tokens=_report_tokens,
+        ensure_full_sentences=ensure_full_sentences,
+    )
+
+    completion = OpenAICompletionsResponse(
+        id=tracking_id,
+        object="text_completion",
+        created=int(time.time()),
+        model=model,
+        choices=[
+            {
+                "index": 0,
+                "text": generated_text,
+                "logprobs": None,
+                "finish_reason": "stop",
+            }
+        ],
+        usage=usage,
+    )
+    return JSONResponse(content=jsonable_encoder(completion), headers={"x-cms-tracking-id": tracking_id})
+
+
+@router.post(
+    PATH_EMBEDDINGS,
     tags=[Tags.OpenAICompatible],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],

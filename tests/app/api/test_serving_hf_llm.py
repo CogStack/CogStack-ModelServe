@@ -72,6 +72,42 @@ async def test_stream_generate(llm_model_service, llm_app):
 
 @pytest.mark.asyncio
 async def test_generate_chat_completions(llm_model_service, llm_app):
+    llm_model_service.model_name = "HuggingFace LLM model"
+    llm_model_service.generate.return_value = "I'm a chat bot."
+    request_data = {
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a chat bot."
+        },
+        {
+          "role": "user",
+          "content": "Who are you?"
+        }
+      ],
+      "model": "HuggingFace LLM model",
+      "stream": False,
+      "max_tokens": 128,
+      "temperature": 0.7
+    }
+
+    async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/v1/chat/completions?max_tokens=128&temperature=0.7",
+            data=json.dumps(request_data),
+            headers={"Content-Type": "application/json"},
+        )
+
+    response_json = response.json()
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response_json["object"] == "chat.completion"
+    assert response_json["model"] == "HuggingFace LLM model"
+    assert response_json["choices"][0]["message"]["content"] == "I'm a chat bot."
+
+
+@pytest.mark.asyncio
+async def test_generate_chat_completions_stream(llm_model_service, llm_app):
     llm_model_service.generate.return_value = "I'm a chat bot."
     request_data = {
       "messages": [
@@ -89,6 +125,7 @@ async def test_generate_chat_completions(llm_model_service, llm_app):
       "max_tokens": 128,
       "temperature": 0.7
     }
+
     async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
         response = await ac.post(
             "/v1/chat/completions?max_tokens=128&temperature=0.7",
@@ -101,6 +138,63 @@ async def test_generate_chat_completions(llm_model_service, llm_app):
     assert response.text.startswith("data:")
     assert "id" in response.text
     assert "chat.completion.chunk" in response.text
+
+
+@pytest.mark.asyncio
+async def test_generate_completions(llm_model_service, llm_app):
+    llm_model_service.model_name = "HuggingFace LLM model"
+    llm_model_service.generate.return_value = "I'm a chat bot."
+    request_data = {
+        "model": "HuggingFace LLM model",
+        "prompt": "Who are you?",
+        "max_tokens": 128,
+        "temperature": 0.7,
+        "stream": False,
+    }
+
+    async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/v1/completions",
+            data=json.dumps(request_data),
+            headers={"Content-Type": "application/json"},
+        )
+
+    response_json = response.json()
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    assert response_json["object"] == "text_completion"
+    assert response_json["model"] == "HuggingFace LLM model"
+    assert response_json["choices"][0]["text"] == "I'm a chat bot."
+
+
+@pytest.mark.asyncio
+async def test_generate_completions_stream(llm_model_service, llm_app):
+    llm_model_service.model_name = "HuggingFace LLM model"
+
+    async def async_gen():
+        yield "I'm a chat bot."
+
+    llm_model_service.generate_async.return_value = async_gen()
+    request_data = {
+        "model": "HuggingFace LLM model",
+        "prompt": "Who are you?",
+        "max_tokens": 128,
+        "temperature": 0.7,
+        "stream": True,
+    }
+    async with httpx.AsyncClient(app=llm_app, base_url="http://test") as ac:
+        response = await ac.post(
+            "/v1/completions",
+            data=json.dumps(request_data),
+            headers={"Content-Type": "application/json"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+    assert response.text.startswith("data:")
+    assert "id" in response.text
+    assert "text_completion" in response.text
+    assert "[DONE]" in response.text
 
 
 def test_create_embeddings(client):

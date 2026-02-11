@@ -786,6 +786,24 @@ def get_default_chat_template() -> str:
     )
 
 
+def utilise_local_chat_template(hf_model_type: str, tokenizer: PreTrainedTokenizer) -> bool:
+    """Sets the chat template for the tokenizer if a local template is available.
+
+    Args:
+        hf_model_type (str): The model type in the model config.
+        tokenizer (PreTrainedTokenizer): The tokenizer to set the chat template for.
+
+    Returns:
+        bool: True if the local chat template was detected and utilised, False otherwise.
+
+    """
+    try:
+        tokenizer.chat_template = PromptFactory.create_chat_template(hf_model_type)
+        return True
+    except ValueError:
+        return False
+
+
 def get_default_system_prompt() -> str:
     """
     Gets the default system prompt.
@@ -849,7 +867,7 @@ def get_prompt_from_messages(
                 prompt = "\n".join(prompt_parts)
             prompt += "\n<|assistant|>\n"
     else:
-        tokenizer.chat_template = PromptFactory.create_chat_template(name=override_template)
+        tokenizer.chat_template = PromptFactory.create_chat_template(tmpl_name=override_template)
         prompt = tokenizer.apply_chat_template(
             [dump_pydantic_object_to_dict(message) for message in messages],
             tokenize=False,
