@@ -89,7 +89,7 @@ llm = [
 mcp = [
     "mcp[cli]==1.26.0",
     "cms-client==0.0.1",
-    "loguru~=0.7.3"
+    "loguru~=0.7.3",
 ]
 
 # For pip versions not supporting PEP 735

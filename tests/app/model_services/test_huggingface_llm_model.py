@@ -1,7 +1,8 @@
 import os
+import pytest
 from unittest.mock import MagicMock, patch
 from tests.app.conftest import MODEL_PARENT_DIR
-from transformers import PreTrainedModel, PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerBase, TextIteratorStreamer
 from app import __version__
 from app.domain import ModelType
 from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
@@ -42,7 +43,11 @@ def test_info(huggingface_llm_model):
     assert model_card.model_type == ModelType.HUGGINGFACE_LLM
 
 
-def test_generate(huggingface_llm_model):
+@pytest.mark.parametrize("ensure_full_sentences, expected_output", [
+    (False, "Yeah. Hmm"),
+    (True, "Yeah."),
+])
+def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output):
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
@@ -53,7 +58,11 @@ def test_generate(huggingface_llm_model):
     huggingface_llm_model.tokenizer.return_value = inputs
     outputs = [MagicMock(shape=[2])]
     huggingface_llm_model.model.generate.return_value = outputs
-    huggingface_llm_model.tokenizer.decode.return_value = "Yeah."
+    completion_ids = MagicMock()
+    completion_ids.shape = [2]
+    outputs[0].__getitem__.return_value = completion_ids
+    huggingface_llm_model.tokenizer.decode.return_value = "Yeah. Hmm"
+    huggingface_llm_model.tokenizer.apply_chat_template.return_value = "chat template text"
 
     result = huggingface_llm_model.generate(
         prompt="Alright?",
@@ -63,11 +72,12 @@ def test_generate(huggingface_llm_model):
         temperature=0.5,
         top_p=0.8,
         stop_sequences=["end"],
-        report_tokens=mock_send_metrics
+        report_tokens=mock_send_metrics,
+        ensure_full_sentences=ensure_full_sentences,
     )
 
-    huggingface_llm_model.tokenizer.assert_called_once_with(
-        "Alright?",
+    huggingface_llm_model.tokenizer.assert_any_call(
+        "chat template text",
         add_special_tokens=False,
         return_tensors="pt",
     )
@@ -76,26 +86,31 @@ def test_generate(huggingface_llm_model):
         attention_mask=inputs.attention_mask,
         min_new_tokens=50,
         max_new_tokens=128,
+        use_cache=True,
         num_beams=2,
-        do_sample=True,
+        do_sample=False,
         temperature=0.5,
         top_p=0.8,
         repetition_penalty=1.2,
         no_repeat_ngram_size=3,
     )
     huggingface_llm_model.tokenizer.decode.assert_called_once_with(
-        outputs[0],
-        skip_prompt=True,
+        outputs[0][2:],
         skip_special_tokens=True,
     )
     mock_send_metrics.assert_called_once_with(
         prompt_token_num=2,
         completion_token_num=2,
     )
-    assert result == "Yeah."
+    assert result == expected_output
 
 
-async def test_generate_async(huggingface_llm_model):
+@pytest.mark.parametrize("ensure_full_sentences, expected_output", [
+    (False, "Yeah. Hmm"),
+    (True, "Yeah."),
+])
+@pytest.mark.asyncio
+async def test_generate_async(huggingface_llm_model, ensure_full_sentences, expected_output):
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
@@ -103,49 +118,46 @@ async def test_generate_async(huggingface_llm_model):
     inputs = MagicMock()
     inputs.input_ids = MagicMock(shape=[1, 2])
     inputs.attention_mask = MagicMock()
-    huggingface_llm_model.tokenizer.return_value = inputs
-    outputs = [MagicMock(shape=[2])]
-    huggingface_llm_model.model.generate.return_value = outputs
-    huggingface_llm_model.tokenizer.decode.return_value = "Yeah."
+    
+    def mock_tokenizer_call(*args, **kwargs):
+        if args and args[0] == "Alright?":
+            return inputs
+        mock_result = MagicMock()
+        mock_result.input_ids = MagicMock(shape=[1, 2])
+        return mock_result
+    
+    huggingface_llm_model.tokenizer.side_effect = mock_tokenizer_call
+    streamer = TextIteratorStreamer(huggingface_llm_model.tokenizer, skip_special_tokens=True)
+    
+    for char in "Yeah. Hmm":
+        streamer.text_queue.put(char)
+    streamer.text_queue.put(streamer.stop_signal)
+    
+    with patch("app.model_services.huggingface_llm_model.TextIteratorStreamer", return_value=streamer):
+        huggingface_llm_model.model.generate.return_value = MagicMock(shape=[2])
+        mock_future = MagicMock()
+        huggingface_llm_model._text_generator.submit = MagicMock(return_value=mock_future)
 
-    result = await huggingface_llm_model.generate_async(
-        prompt="Alright?",
-        min_tokens=50,
-        max_tokens=128,
-        num_beams=2,
-        temperature=0.5,
-        top_p=0.8,
-        stop_sequences=["end"],
-        report_tokens=mock_send_metrics
-    )
+        results = []
+        async for chunk in huggingface_llm_model.generate_async(
+            prompt="Alright?",
+            min_tokens=50,
+            max_tokens=128,
+            num_beams=2,
+            temperature=0.5,
+            top_p=0.8,
+            stop_sequences=["end"],
+            report_tokens=mock_send_metrics,
+            ensure_full_sentences=ensure_full_sentences,
+        ):
+            results.append(chunk)
+        result = "".join(results)
 
-    huggingface_llm_model.tokenizer.assert_called_once_with(
-        "Alright?",
-        add_special_tokens=False,
-        return_tensors="pt",
-    )
-    huggingface_llm_model.model.generate_async.assert_called_once_with(
-        inputs=inputs.input_ids,
-        attention_mask=inputs.attention_mask,
-        min_new_tokens=50,
-        max_new_tokens=128,
-        num_beams=2,
-        do_sample=True,
-        temperature=0.5,
-        top_p=0.8,
-        repetition_penalty=1.2,
-        no_repeat_ngram_size=3,
-    )
-    huggingface_llm_model.tokenizer.decode.assert_called_once_with(
-        outputs[0],
-        skip_prompt=True,
-        skip_special_tokens=True,
-    )
     mock_send_metrics.assert_called_once_with(
         prompt_token_num=2,
         completion_token_num=2,
     )
-    assert result == "Yeah."
+    assert result == expected_output
 
 
 @patch("torch.nn.functional.normalize")
@@ -179,7 +191,7 @@ def test_create_embeddings_single_text(mock_tensor, mock_cat, mock_mean, mock_no
     mock_cat.return_value = mock_concatenated
     mock_mean.return_value = mock_final_embedding
     mock_normalise.return_value = mock_normalised
-    mock_normalised.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
+    mock_normalised.float.return_value.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
     mock_tensor.side_effect = tensor_side_effect
     mock_masked = MagicMock()
     mock_summed = MagicMock()
@@ -235,7 +247,7 @@ def test_create_embeddings_list_text(mock_tensor, mock_cat, mock_mean, mock_norm
     mock_cat.return_value = mock_concatenated
     mock_mean.return_value = mock_final_embedding
     mock_normalise.return_value = mock_normalised
-    mock_normalised.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
+    mock_normalised.float.return_value.cpu.return_value.numpy.return_value.tolist.return_value = [[0.1, 0.2, 0.3]]
     mock_tensor.side_effect = tensor_side_effect
     mock_masked = MagicMock()
     mock_summed = MagicMock()
@@ -252,3 +264,88 @@ def test_create_embeddings_list_text(mock_tensor, mock_cat, mock_mean, mock_norm
     assert mock_cat.call_count == 2
     assert mock_mean.call_count == 2
     assert result == [[0.1, 0.2, 0.3], [0.1, 0.2, 0.3]]
+
+
+def test_load_model_quantization_check():
+    mock_config = MagicMock()
+    mock_config.to_dict.return_value = {"quantization_config": {}}
+    mock_model = MagicMock(spec=PreTrainedModel)
+    mock_model.config = MagicMock()
+    mock_model.config.max_position_embeddings = 512
+    mock_tokenizer = MagicMock(spec=PreTrainedTokenizerBase)
+
+    with patch("app.model_services.huggingface_llm_model.unpack_model_data_package", return_value=True), \
+         patch("app.model_services.huggingface_llm_model.AutoConfig.from_pretrained", return_value=mock_config), \
+         patch("app.model_services.huggingface_llm_model.AutoModelForCausalLM.from_pretrained", return_value=mock_model), \
+         patch("app.model_services.huggingface_llm_model.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("app.model_services.huggingface_llm_model.BitsAndBytesConfig", return_value=MagicMock()), \
+         patch("app.model_services.huggingface_llm_model.get_settings") as mock_get_settings, \
+         patch("app.model_services.huggingface_llm_model.logger") as mock_logger:
+
+        mock_settings = MagicMock()
+        mock_settings.DEVICE = "cpu"
+        mock_get_settings.return_value = mock_settings
+
+        model, tokenizer = HuggingFaceLlmModel.load_model("dummy_path", load_in_4bit=True)
+
+        mock_logger.info.assert_any_call("Model already quantised, loading by ignoring 'load_in_4bit' or 'load_in_8bit' flag")
+        assert model == mock_model
+        assert tokenizer == mock_tokenizer
+
+    with patch("app.model_services.huggingface_llm_model.unpack_model_data_package", return_value=True), \
+         patch("app.model_services.huggingface_llm_model.AutoConfig.from_pretrained", return_value=mock_config), \
+         patch("app.model_services.huggingface_llm_model.AutoModelForCausalLM.from_pretrained", return_value=mock_model), \
+         patch("app.model_services.huggingface_llm_model.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("app.model_services.huggingface_llm_model.BitsAndBytesConfig", return_value=MagicMock()), \
+         patch("app.model_services.huggingface_llm_model.get_settings") as mock_get_settings, \
+         patch("app.model_services.huggingface_llm_model.logger") as mock_logger:
+
+        mock_settings = MagicMock()
+        mock_settings.DEVICE = "cpu"
+        mock_get_settings.return_value = mock_settings
+        mock_config.to_dict.return_value = {"quantization_config": {}}
+
+        model, tokenizer = HuggingFaceLlmModel.load_model("dummy_path", load_in_8bit=True)
+
+        mock_logger.info.assert_any_call("Model already quantised, loading by ignoring 'load_in_4bit' or 'load_in_8bit' flag")
+        assert model == mock_model
+        assert tokenizer == mock_tokenizer
+
+    with patch("app.model_services.huggingface_llm_model.unpack_model_data_package", return_value=True), \
+         patch("app.model_services.huggingface_llm_model.AutoConfig.from_pretrained", return_value=mock_config), \
+         patch("app.model_services.huggingface_llm_model.AutoModelForCausalLM.from_pretrained", return_value=mock_model), \
+         patch("app.model_services.huggingface_llm_model.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("app.model_services.huggingface_llm_model.BitsAndBytesConfig", return_value=MagicMock()), \
+         patch("app.model_services.huggingface_llm_model.get_settings") as mock_get_settings, \
+         patch("app.model_services.huggingface_llm_model.logger") as mock_logger:
+
+        mock_settings = MagicMock()
+        mock_settings.DEVICE = "cpu"
+        mock_get_settings.return_value = mock_settings
+        mock_config.to_dict.return_value = {}
+
+        model, tokenizer = HuggingFaceLlmModel.load_model("dummy_path", load_in_4bit=True)
+
+        mock_logger.info.assert_called_once_with("Model package loaded from %s", "dummy_path")
+        assert model == mock_model
+        assert tokenizer == mock_tokenizer
+
+    with patch("app.model_services.huggingface_llm_model.unpack_model_data_package", return_value=True), \
+         patch("app.model_services.huggingface_llm_model.AutoConfig.from_pretrained", return_value=mock_config), \
+         patch("app.model_services.huggingface_llm_model.AutoModelForCausalLM.from_pretrained", return_value=mock_model), \
+         patch("app.model_services.huggingface_llm_model.AutoTokenizer.from_pretrained", return_value=mock_tokenizer), \
+         patch("app.model_services.huggingface_llm_model.BitsAndBytesConfig", return_value=MagicMock()), \
+         patch("app.model_services.huggingface_llm_model.get_settings") as mock_get_settings, \
+         patch("app.model_services.huggingface_llm_model.logger") as mock_logger:
+
+        mock_settings = MagicMock()
+        mock_settings.DEVICE = "cpu"
+        mock_get_settings.return_value = mock_settings
+        mock_config.to_dict.return_value = {}
+
+        model, tokenizer = HuggingFaceLlmModel.load_model("dummy_path", load_in_8bit=True)
+
+        mock_logger.info.assert_called_once_with("Model package loaded from %s", "dummy_path")
+        assert model == mock_model
+        assert tokenizer == mock_tokenizer
+

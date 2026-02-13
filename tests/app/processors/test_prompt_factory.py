@@ -1,4 +1,5 @@
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from unittest.mock import Mock
 from app.processors.prompt_factory import PromptFactory
 
 

@@ -211,7 +211,7 @@ class PromptMessage(BaseModel):
     content: str = Field(description="The actual text of the message")
 
 
-class OpenAIChatRequest(BaseModel):
+class OpenAIChatCompletionsRequest(BaseModel):
     messages: List[PromptMessage] = Field(..., description="A list of messages to be sent to the model")
     stream: bool = Field(..., description="Whether to stream the response")
     max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
@@ -221,12 +221,41 @@ class OpenAIChatRequest(BaseModel):
     stop_sequences: Optional[List[str]] = Field(default=None, description="The list of sequences used to stop the generation")
 
 
-class OpenAIChatResponse(BaseModel):
+class OpenAIChatCompletionsResponse(BaseModel):
     id: str = Field(..., description="The unique identifier for the chat completion request")
     object: str = Field(..., description="The type of the response")
     created: int = Field(..., description="The timestamp when the completion was generated")
     model: str = Field(..., description="The name of the model used for generating the completion")
     choices: List = Field(..., description="The generated messages and their metadata")
+    usage: Optional[Dict[str, int]] = Field(
+        default=None,
+        description="Token usage information",
+    )
+
+
+class OpenAICompletionsRequest(BaseModel):
+    prompt: Union[str, List[str]] = Field(..., description="Prompt text or list of prompts")
+    stream: bool = Field(False, description="Whether to stream the response")
+    max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
+    model: str = Field(..., description="The name of the model used for generating the completion")
+    temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
+    top_p: float = Field(0.9, description="The top-p value for nucleus sampling", ge=0.0, le=1.0)
+    stop: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="The list of sequences used to stop the generation",
+    )
+
+
+class OpenAICompletionsResponse(BaseModel):
+    id: str = Field(..., description="The unique identifier for the completion request")
+    object: str = Field(..., description="The type of the response")
+    created: int = Field(..., description="The timestamp when the completion was generated")
+    model: str = Field(..., description="The name of the model used for generating the completion")
+    choices: List = Field(..., description="The generated texts and their metadata")
+    usage: Optional[Dict[str, int]] = Field(
+        default=None,
+        description="Token usage information",
+    )
 
 
 class OpenAIEmbeddingsRequest(BaseModel):

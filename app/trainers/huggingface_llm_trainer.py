@@ -338,7 +338,12 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     get_model_data_package_base_name(trained_model_pack_path),
                 )
 
-                if non_default_device_is_available(self._config.DEVICE):
+                if (non_default_device_is_available(self._config.DEVICE) and
+                    not (
+                        getattr(self._model_service._model, "is_loaded_in_8bit", False) or
+                        getattr(self._model_service._model, "is_loaded_in_4bit", False)
+                    )
+                ):
                     model.to(self._config.DEVICE)
 
                 train_dataset, test_dataset = self._load_dataset_from_config(data_file, training_params)
@@ -346,7 +351,7 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 train_dataset = train_dataset.map(make_conversation)
                 test_dataset = test_dataset.map(make_conversation)
 
-                if hasattr(tokenizer, "chat_template") and tokenizer.chat_template is not None:
+                if hasattr(tokenizer, "chat_template") and tokenizer.chat_template is None:
                     logger.warning("The tokenizer does not have a chat template. Using the default one.")
                     tokenizer.chat_template = get_default_chat_template()
                 else:
@@ -785,7 +790,7 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
         if not eval_mode:
             try:
                 copied_model_directory = None
-                if self._model_service.is_4bit_quantised:
+                if self._model_service.is_quantised:
                     logger.info("Use the LoRA adaptor for the quantised model...")
                     lora_config = LoraConfig(
                         task_type="CAUSAL_LM",
@@ -964,7 +969,7 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
                 logger.info("Evaluating the running model...")
                 model, tokenizer = self._model_service.model, self._model_service.tokenizer
 
-                if self._model_service.is_4bit_quantised:
+                if self._model_service.is_quantised:
                     logger.error("Cannot evaluate against a quantised model")
                     raise ManagedModelException("Cannot evaluate against a quantised model")
 

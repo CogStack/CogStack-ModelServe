@@ -3,7 +3,7 @@ from unittest import skipIf
 from unittest.mock import create_autospec, patch, Mock
 from transformers import PreTrainedTokenizerFast
 from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
-from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer
+from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer, HuggingFaceLlmUnsupervisedTrainer
 from app.config import Settings
 
 
@@ -34,9 +34,12 @@ model_service.tokenizer = Mock(spec=PreTrainedTokenizerFast)
 model_service.model = Mock()
 model_service.model.config.max_position_embeddings = 512
 model_service.model_name = "llm_test_model"
+model_service.is_4bit_quantised = False
 
 supervised_trainer = HuggingFaceLlmSupervisedTrainer(model_service)
 supervised_trainer.model_name = "supervised_trainer"
+unsupervised_trainer = HuggingFaceLlmUnsupervisedTrainer(model_service)
+unsupervised_trainer.model_name = "unsupervised_trainer"
 
 data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture")
 
@@ -59,7 +62,22 @@ def test_huggingface_llm_supervised_trainer(mlflow_fixture):
     run.assert_called_once()
 
 
-@skipIf(config.DEVICE != "cuda", "This requires a CUDA device to run")
+def test_huggingface_llm_unsupervised_trainer(mlflow_fixture):
+    with patch.object(unsupervised_trainer, "run", wraps=unsupervised_trainer.run) as run:
+        unsupervised_trainer._tracker_client = Mock()
+        unsupervised_trainer._tracker_client.start_tracking = Mock(return_value=("experiment_id", "run_id"))
+        with open(os.path.join(data_dir, "sample_texts.json"), "r") as f:
+            unsupervised_trainer.train(f, 1, 1, "training_id", "input_file_name")
+    unsupervised_trainer._tracker_client.start_tracking.assert_called_once()
+    run.assert_called_once()
+
+
+@skipIf((not _triton_installed()) or (config.DEVICE != "cuda"), "This requires triton to be installed and a CUDA device to run")
 def test_huggingface_llm_supervised_run(mlflow_fixture):
     with open(os.path.join(data_dir, "sample_qa.json"), "r") as data_file:
         HuggingFaceLlmSupervisedTrainer.run(supervised_trainer, {"nepochs": 1, "print_stats": 1}, data_file, 1, "run_id")
+
+
+def test_huggingface_llm_unsupervised_run(mlflow_fixture):
+    with open(os.path.join(data_dir, "sample_texts.json"), "r") as data_file:
+        HuggingFaceLlmUnsupervisedTrainer.run(unsupervised_trainer, {"nepochs": 1}, data_file, 1, "run_id")
