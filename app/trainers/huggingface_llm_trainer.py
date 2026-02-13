@@ -310,8 +310,8 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             from trl import GRPOConfig, GRPOTrainer  # , PPOConfig, PPOTrainer
         except ImportError as e:
             logger.exception(e)
-            logger.error("Cannot import the GRPO Trainer. Please install it with `pip install cms[llm]`.")
-            raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install cms[llm]`.")
+            logger.error("Cannot import the GRPO Trainer. Please install it with `pip install '.[llm]'`.")
+            raise ExtraDependencyRequiredException("Cannot import the GRPO Trainer. Please install it with `pip install '.[llm]'`.")
 
         trained_model_pack_path = None
         redeploy = self._config.REDEPLOY_TRAINED_MODEL == "true"

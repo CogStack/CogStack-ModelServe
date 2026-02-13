@@ -599,7 +599,7 @@ def run_mcp_server(
     transport: str = typer.Option("http", help="The transport type (either 'stdio', 'sse' or 'http')"),
     cms_base_url: str = typer.Option("http://127.0.0.1:8000", help="The base URL of the CMS API"),
     cms_api_key: str = typer.Option("Bearer", help="The API key for authenticating with the CMS API"),
-    mcp_api_keys: str = typer.Option("", help="Comma-separated API keys for authenticating MCP clients"),
+    cms_mcp_api_keys: str = typer.Option("", help="Comma-separated API keys for authenticating CMS MCP clients"),
     cms_mcp_oauth_enabled: Optional[bool] = typer.Option(None, help="Whether to enable OAuth2 authentication for MCP clients"),
     github_client_id: str = typer.Option("", help="The GitHub OAuth2 client ID"),
     github_client_secret: str = typer.Option("", help="The GitHub OAuth2 client secret"),
@@ -618,6 +618,13 @@ def run_mcp_server(
         port (int): The port of the MCP server. Defaults to 8080.
         transport (str): The transport type for the MCP server. Can be "stdio" or "http". Defaults to "stdio".
         cms_base_url (str): The base URL of the CMS API endpoint. Defaults to "http://localhost:8000".
+        cms_api_key (str): The API key for authenticating with the CMS API. Defaults to "Bearer".
+        cms_mcp_api_keys (str): Comma-separated API keys for authenticating CMS MCP clients. Defaults to "".
+        cms_mcp_oauth_enabled (Optional[bool]): Whether to enable OAuth2 authentication for MCP clients. Defaults to None.
+        github_client_id (str): The GitHub OAuth2 client ID, required if cms_mcp_oauth_enabled is True. Defaults to "".
+        github_client_secret (str): The GitHub OAuth2 client secret, required if cms_mcp_oauth_enabled is True. Defaults to an "".
+        google_client_id (str): The Google OAuth2 client ID, required if cms_mcp_oauth_enabled is True. Defaults to an "".
+        google_client_secret (str): The Google OAuth2 client secret, required if cms_mcp_oauth_enabled is True. Defaults to an "".
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -629,7 +636,7 @@ def run_mcp_server(
     os.environ["CMS_MCP_SERVER_PORT"] = str(port)
     os.environ["CMS_MCP_TRANSPORT"] = transport.lower()
     os.environ["CMS_API_KEY"] = cms_api_key
-    os.environ["MCP_API_KEYS"] = mcp_api_keys
+    os.environ["CMS_MCP_API_KEYS"] = cms_mcp_api_keys
     os.environ["CMS_MCP_OAUTH_ENABLED"] = "true" if cms_mcp_oauth_enabled else "false"
     os.environ["GITHUB_CLIENT_ID"] = github_client_id
     os.environ["GITHUB_CLIENT_SECRET"] = github_client_secret
@@ -645,9 +652,9 @@ def run_mcp_server(
         logger.info(f"Connected to CMS API at {cms_base_url}")
         main()
     except ImportError as e:
-        logger.error(f"Cannot import MCP. Please install it with `pip install cms[mcp]`: {e}")
+        logger.error(f"Cannot import MCP. Please install it with `pip install '.[mcp]'`: {e}")
         typer.echo(f"ERROR: Cannot import MCP: {e}")
-        typer.echo("Please install it with `pip install cms[mcp]`.")
+        typer.echo("Please install it with `pip install '.[mcp]'`.")
         raise typer.Exit(code=1)
     except KeyboardInterrupt:
         logger.info("MCP server stopped by the user")

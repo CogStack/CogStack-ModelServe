@@ -2,6 +2,12 @@
 
 Cogstack ModelServe (CMS) is a model-serving and model-governance system created for a range of CogStack NLP tasks. Targeting language models with NER and entity linking capabilities, CMS provides a one-stop shop for serving and fine-tuning models, training lifecycle management, as well as monitoring and end-to-end observability.
 
+[![build](https://img.shields.io/github/actions/workflow/status/CogStack/CogStack-ModelServe/main.yaml)](https://github.com/CogStack/CogStack-ModelServe/actions)
+[![release](https://img.shields.io/github/v/release/CogStack/CogStack-ModelServe)](https://github.com/CogStack/CogStack-ModelServe/releases)
+[![docker](https://img.shields.io/docker/v/cogstacksystems/cogstack-modelserve?sort=semver&label=docker)](https://hub.docker.com/r/cogstacksystems/cogstack-modelserve)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![license](https://img.shields.io/badge/license-Apache%20License%202.0-blue)](https://github.com/CogStack/CogStack-ModelServe/blob/main/LICENSE)
+
 ## Install Dependencies
 A virtual environment is highly recommended prior to installation. To install the dependencies, run:
 ```commandline
@@ -254,6 +260,15 @@ Note that to enable quantization and training features, you need to install the 
 ```commandline
 pip install '.[llm]'
 ```
+
+### CMS MCP server
+You can run an MCP server to expose local or remote CMS capabilities to your preferred MCP client.
+To that end, install the following extra dependencies:
+```commandline
+pip install '.[mcp]'
+```
+For detailed configuration, please refer to the [CMS MCP Server docs](./app/mcp/README.md).
+
 #### Chat with served models
 You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
 ```html
