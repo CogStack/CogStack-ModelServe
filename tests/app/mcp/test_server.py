@@ -19,16 +19,16 @@ class TestMpcServer:
 
     @patch.dict(
         os.environ,
-        {"MCP_API_KEYS": "key1,key2,key3", "CMS_MCP_TRANSPORT": "http"},
+        {"CMS_MCP_API_KEYS": "key1,key2,key3", "CMS_MCP_TRANSPORT": "http"},
         clear=True
     )
     def test_create_server_with_api_keys(self):
         app = create_server()
         assert app is not None
-        assert os.environ.get("MCP_API_KEYS") == "key1,key2,key3"
+        assert os.environ.get("CMS_MCP_API_KEYS") == "key1,key2,key3"
 
     @patch.dict(os.environ, {"CMS_MCP_TRANSPORT": "http"}, clear=True)
     def test_create_server_without_api_keys(self):
         app = create_server()
         assert app is not None
-        assert os.environ.get("MCP_API_KEYS") is None
+        assert os.environ.get("CMS_MCP_API_KEYS") is None

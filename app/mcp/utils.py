@@ -15,7 +15,7 @@ def require_api_key(tool_fn: Callable[..., Union[Any, Awaitable[Any]]]) -> Calla
             )
         else:
             api_key = None
-        api_keys_env = os.environ.get("MCP_API_KEYS")
+        api_keys_env = os.environ.get("CMS_MCP_API_KEYS")
 
         if not api_keys_env:    # No API-key-based authentication required
             return tool_fn(*args, **kwargs)
