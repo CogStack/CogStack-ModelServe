@@ -2089,6 +2089,18 @@
                         "description": "The list of sequences used to stop the generation"
                     },
                     {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
                         "name": "tracking_id",
                         "in": "query",
                         "required": false,
@@ -2216,6 +2228,18 @@
                         "description": "The list of sequences used to stop the generation"
                     },
                     {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
                         "name": "tracking_id",
                         "in": "query",
                         "required": false,
@@ -2281,6 +2305,18 @@
                 ],
                 "parameters": [
                     {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
                         "name": "tracking_id",
                         "in": "query",
                         "required": false,
@@ -2304,7 +2340,88 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/OpenAIChatRequest",
+                                "$ref": "#/components/schemas/OpenAIChatCompletionsRequest",
+                                "description": "OpenAI-like completion request"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/completions": {
+            "post": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "Generate Text Completions",
+                "description": "Generate completion based on prompt, similar to OpenAI's /v1/completions",
+                "operationId": "generate_text_completions",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OpenAICompletionsRequest",
                                 "description": "OpenAI-like completion request"
                             }
                         }
@@ -2929,7 +3046,7 @@
                 ],
                 "title": "ModelType"
             },
-            "OpenAIChatRequest": {
+            "OpenAIChatCompletionsRequest": {
                 "properties": {
                     "messages": {
                         "items": {
@@ -2994,7 +3111,84 @@
                     "stream",
                     "model"
                 ],
-                "title": "OpenAIChatRequest"
+                "title": "OpenAIChatCompletionsRequest"
+            },
+            "OpenAICompletionsRequest": {
+                "properties": {
+                    "prompt": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Prompt",
+                        "description": "Prompt text or list of prompts"
+                    },
+                    "stream": {
+                        "type": "boolean",
+                        "title": "Stream",
+                        "description": "Whether to stream the response",
+                        "default": false
+                    },
+                    "max_tokens": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Max Tokens",
+                        "description": "The maximum number of tokens to generate",
+                        "default": 512
+                    },
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The name of the model used for generating the completion"
+                    },
+                    "temperature": {
+                        "type": "number",
+                        "maximum": 1.0,
+                        "minimum": 0.0,
+                        "title": "Temperature",
+                        "description": "The temperature of the generated text",
+                        "default": 0.7
+                    },
+                    "top_p": {
+                        "type": "number",
+                        "maximum": 1.0,
+                        "minimum": 0.0,
+                        "title": "Top P",
+                        "description": "The top-p value for nucleus sampling",
+                        "default": 0.9
+                    },
+                    "stop": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stop",
+                        "description": "The list of sequences used to stop the generation"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "prompt",
+                    "model"
+                ],
+                "title": "OpenAICompletionsRequest"
             },
             "OpenAIEmbeddingsRequest": {
                 "properties": {
