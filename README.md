@@ -86,6 +86,23 @@ Gzipped tarball), and pass the file path to the above `cms serve` command using 
 
 ## Run ModelServe in the container environment:
 
+### Component / feature summary
+
+The core functionality is provided by services defined in `docker-compose.yml`.
+Additional features generally require running services in extra compose files.
+Most additional services (as well as the core services) require specific environment variables to be set before running.
+See the relevant sections below for details.
+
+| Feature        | Category  |  Additional compose file    |     Feature description                                      |
+|:--------------:|:---------:|:---------------------------:|:------------------------------------------------------------:|
+| Serving        |  Core     |                N/A          | Enables serving the model for inference                      |
+| Evaluating     |  Core     |                N/A          | Enables evaluating model performance                         |
+| Training       |  Core     |                N/A          | Enables model training and lifecycle tracking through MLFlow |
+| Monitoring     | Auxiliary | `docker-compose-mon.yml`    | Enables monitoring the HTTP API usage                        |
+| Logging        | Auxiliary | `docker-compose-log.yml`    | Enable centralised logging and log analysis                  |
+| Proxying       | Auxiliary | `docker-compose-proxy.yml`  | Reverse proxy service                                        |
+| Authentication | Auxiliary | `docker-compose-auth.yml`   | Enable user authentication                                   |
+
 ### Configuration:
 Default configuration properties can be found and customised in `./docker/<MODEL-TYPE>/.envs`
 
@@ -95,6 +112,8 @@ To serve NLP models through a container, run the following commands:
 export MODEL_PACKAGE_FULL_PATH=<PATH/TO/MODEL_PACKAGE.zip>
 export CMS_UID=$(id -u $USER)
 export CMS_GID=$(id -g $USER)
+# NOTE: use if you wish to save models locally (i.e run without the mlflow component)
+# export export MLFLOW_TRACKING_URI="file:///tmp/mlruns/"
 docker compose -f docker-compose.yml up -d <model-service>
 ```
 Then the API docs will be accessible at localhost on the mapped port specified in `docker-compose.yml`. The container runs
