@@ -9,7 +9,7 @@ ARG CMS_UID=1000
 ARG CMS_GID=1000
 
 ENV CMS_MODEL_NAME=$CMS_MODEL_NAME
-ENV CMS_MODEL_TYPE=huggingface_ner
+ENV CMS_MODEL_TYPE=huggingface_llm
 ENV HTTP_PROXY=$HTTP_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 ENV NO_PROXY=$NO_PROXY
@@ -26,7 +26,7 @@ RUN addgroup --gid $CMS_GID cms || true && \
     echo "cms ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 COPY app /app
-COPY docker/huggingface-ner/requirements.txt /app/requirements.txt
+COPY docker/huggingface-llm/requirements.txt /app/requirements.txt
 COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \

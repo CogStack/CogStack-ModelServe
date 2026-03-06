@@ -38,6 +38,7 @@ class Settings(BaseSettings):   # type: ignore
     HF_PIPELINE_AGGREGATION_STRATEGY: str = "simple"  # the strategy used for aggregating the predictions of the Hugging Face NER model
     LOG_PER_CONCEPT_ACCURACIES: str = "false"         # if "true", per-concept accuracies will be exposed to the metrics scrapper. Switch this on with caution due to the potentially high number of concepts
     MEDCAT2_MAPPED_ONTOLOGIES: str = ""               # the comma-separated names of ontologies for MedCAT2 to map to
+    ENABLE_SPDA_ATTN: str = "true"                    # if "true", attempt to use SPDA attention for HuggingFace LLM loading
     DEBUG: str = "false"                              # if "true", the debug mode is switched on
 
     class Config:

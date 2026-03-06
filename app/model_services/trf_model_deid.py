@@ -82,7 +82,7 @@ class TransformersModelDeIdentification(AbstractModelService):
         tokenizer_path = os.path.join(unpacked_model_dir, "tokenizer.dat")
         tokenizer = TransformersTokenizer.load(tokenizer_path)
         logger.info("Tokenizer loaded from %s", tokenizer_path)
-        model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir)
+        model = AutoModelForTokenClassification.from_pretrained(unpacked_model_dir, low_cpu_mem_usage=True)
         logger.info("Model loaded from %s", unpacked_model_dir)
         return tokenizer, model
 

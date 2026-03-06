@@ -10,7 +10,12 @@ from functools import partial
 from fastapi import APIRouter, Depends, Request, Body, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import PlainTextResponse, StreamingResponse, JSONResponse
-from starlette.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+    HTTP_404_NOT_FOUND,
+)
 from app.domain import (
     Tags,
     TagsGenerative,
@@ -35,6 +40,7 @@ PATH_GENERATE_SSE = "/events/generate"
 PATH_CHAT_COMPLETIONS = "/v1/chat/completions"
 PATH_COMPLETIONS = "/v1/completions"
 PATH_EMBEDDINGS = "/v1/embeddings"
+PATH_MODELS = "/v1/models"
 
 router = APIRouter()
 config = get_settings()
@@ -200,7 +206,12 @@ def generate_chat_completions(
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
     top_p = request_data.top_p
-    stop_sequences = request_data.stop_sequences
+    if isinstance(request_data.stop, str):
+        stop_sequences = [request_data.stop]
+    elif isinstance(request_data.stop, list):
+        stop_sequences = request_data.stop
+    else:
+        stop_sequences = []
     tracking_id = tracking_id or str(uuid.uuid4())
 
     if not messages:
@@ -337,12 +348,11 @@ def generate_text_completions(
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
     top_p = request_data.top_p
-    stop = request_data.stop
 
-    if isinstance(stop, str):
-        stop_sequences = [stop]
-    elif isinstance(stop, list):
-        stop_sequences = stop
+    if isinstance(request_data.stop, str):
+        stop_sequences = [request_data.stop]
+    elif isinstance(request_data.stop, list):
+        stop_sequences = request_data.stop
     else:
         stop_sequences = []
 
@@ -532,6 +542,81 @@ def embed_texts(
             status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             headers={"x-cms-tracking-id": tracking_id},
         )
+
+
+@router.get(
+    PATH_MODELS,
+    tags=[Tags.OpenAICompatible],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="List available models, similar to OpenAI's /v1/models endpoint",
+)
+def list_models(
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> JSONResponse:
+    """
+    Lists all available models, mimicking OpenAI's /v1/models endpoint.
+
+    Args:
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A response containing the list of models.
+    """
+    response = {
+        "object": "list",
+        "data": [
+            {
+                "id": model_service.model_name.replace(" ", "_"),
+                "object": "model",
+                "created": 0,
+                "owned_by": "cms",
+            }
+        ],
+    }
+    return JSONResponse(content=response)
+
+
+@router.get(
+    PATH_MODELS + "/{model_name}",
+    tags=[Tags.OpenAICompatible],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+    description="Get a specific model, similar to OpenAI's /v1/models/{model_id} endpoint",
+)
+def get_model(
+    model_name: str,
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
+) -> JSONResponse:
+    """
+    Gets a specific model by ID, mimicking OpenAI's /v1/models/{model_id} endpoint.
+
+    Args:
+        model_name (str): The model name to retrieve.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A response containing the model details.
+    """
+    if model_name != model_service.model_name.replace(" ", "_"):
+        error_response = {
+            "error": {
+                "message": f"The model `{model_name}` does not exist",
+                "type": "invalid_request_error",
+                "param": None,
+                "code": "model_not_found",
+            }
+        }
+        return JSONResponse(content=error_response, status_code=HTTP_404_NOT_FOUND
+)
+    response = {
+        "id": model_name,
+        "object": "model",
+        "created": 0,
+        "owned_by": "cms",
+        "permission": [],
+        "root": model_name,
+        "parent": None,
+    }
+    return JSONResponse(content=response)
 
 
 def _empty_prompt_error() -> Iterable[str]:

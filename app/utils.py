@@ -650,6 +650,46 @@ def ensure_tensor_contiguity(model: PreTrainedModel) -> None:
         param.data = param.data.contiguous()
 
 
+def ensure_pad_token(
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizer,
+    padding_side: str = "left",
+) -> None:
+    """
+    Ensures that the Hugging Face model and tokenizer have a pad token set
+
+    Args:
+        model (PreTrainedModel): The model to ensure has a pad token.
+        tokenizer (PreTrainedTokenizer): The tokenizer to ensure has a pad token.
+        padding_side (str): The side to set for padding. Defaults to "left".
+
+    Raises:
+        ManagedModelException: If neither a pad token nor an EOS token is available in the tokenizer to use for padding.
+    """
+
+    if tokenizer is None:
+        return
+
+    if getattr(tokenizer, "pad_token_id", None) is not None:
+        return
+
+    eos_token = getattr(tokenizer, "eos_token", None)
+    eos_token_id = getattr(tokenizer, "eos_token_id", None)
+
+    if eos_token_id is not None:
+        tokenizer.pad_token = eos_token
+        tokenizer.pad_token_id = eos_token_id
+        tokenizer.padding_side = padding_side
+    else:
+        raise ManagedModelException("Tokenizer has no pad_token or eos_token; cannot enable padding.")
+
+    if getattr(model, "config", None) is not None:
+        model.config.pad_token_id = tokenizer.pad_token_id
+
+    if hasattr(model, "generation_config"):
+        model.generation_config.pad_token_id = tokenizer.pad_token_id
+
+
 def pyproject_dependencies_to_pip_requirements(pyproject_dependencies: List[str]) -> List[str]:
     """
     Converts a list of pyproject dependencies to a list of pip requirements.
