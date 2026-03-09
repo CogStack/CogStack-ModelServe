@@ -65,9 +65,9 @@ RUN mkdir -p /app/model/model && \
 
 RUN python3.11 -m pip install --require-hashes -r /uv-requirements.txt --no-cache-dir
 RUN if [ -z "$PIP_EXTRAS" ]; then \
-        uv sync --no-dev --python 3.11; \
+        uv sync --locked --no-dev --python 3.11; \
     else \
-        uv sync --no-dev --python 3.11 $(printf "%s" "$PIP_EXTRAS" | tr ',' ' ' | sed 's/\([^ ]*\)/--extra \1/g'); \
+        uv sync --locked --no-dev --python 3.11 $(printf "%s" "$PIP_EXTRAS" | tr ',' ' ' | sed 's/\([^ ]*\)/--extra \1/g'); \
     fi
 RUN /.venv/bin/python -m ensurepip && \
     chown -R $CMS_UID:$CMS_GID /.venv && \

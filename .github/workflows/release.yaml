@@ -37,11 +37,11 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
-            version: "0.8.10"
+            version: "0.9.30"
             python-version: "3.11"
       - name: Install dependencies
         run: |
-          uv sync --extra dev --extra docs --extra llm
+          uv sync --lock --extra dev --extra docs --extra llm
           uv run python -m ensurepip
       - name: Run unit tests
         run: |
