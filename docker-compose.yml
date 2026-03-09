@@ -1,5 +1,3 @@
-version: "3.6"
-
 name: cms
 
 services:
@@ -9,19 +7,19 @@ services:
     labels:
       - org.cogstack.model-serve=medcat_snomed
       - org.cogstack.model-name=SNOMED MedCAT model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-snomed/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=medcat_snomed
       - CMS_MODEL_NAME=SNOMED MedCAT model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -57,19 +55,19 @@ services:
     labels:
       - org.cogstack.model-serve=medcat_icd10
       - org.cogstack.model-name=ICD-10 MedCAT model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-icd10/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=medcat_icd10
       - CMS_MODEL_NAME=ICD-10 MedCAT model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -105,19 +103,19 @@ services:
     labels:
       - org.cogstack.model-serve=medcat_opcs4
       - org.cogstack.model-name=OPCS-4 MedCAT model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-opcs4/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=medcat_opcs4
       - CMS_MODEL_NAME=OPCS-4 MedCAT model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -153,19 +151,19 @@ services:
     labels:
       - org.cogstack.model-serve=medcat_deid
       - org.cogstack.model-name=De-Identification MedCAT model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-deid/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=anoncat
       - CMS_MODEL_NAME=De-Identification MedCAT model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -201,19 +199,19 @@ services:
     labels:
       - org.cogstack.model-serve=medcat_umls
       - org.cogstack.model-name=UMLS MedCAT model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/medcat-umls/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=medcat_umls
       - CMS_MODEL_NAME=UMLS MedCAT model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -249,19 +247,19 @@ services:
     labels:
       - org.cogstack.model-serve=huggingface_ner
       - org.cogstack.model-name=HuggingFace NER model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/huggingface-ner/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=huggingface_ner
       - CMS_MODEL_NAME=HuggingFace NER model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -297,19 +295,19 @@ services:
     labels:
       - org.cogstack.model-serve=huggingface_llm
       - org.cogstack.model-name=HuggingFace LLM model
-      - org.cogstack.model-path=$MODEL_PACKAGE_FULL_PATH
+      - org.cogstack.model-path=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
     restart: always
     networks:
       - cms
     volumes:
-      - ${MODEL_PACKAGE_FULL_PATH}:/app/model/model.zip:ro
+      - ${MODEL_PACKAGE_FULL_PATH:-/dev/null}:/app/model/model.zip:ro
       - retrained-models:/app/model/retrained:rw
       - ./docker/huggingface-llm/.env:/app/envs/.env:ro
     environment:
-      - BASE_MODEL_FULL_PATH=$MODEL_PACKAGE_FULL_PATH
+      - BASE_MODEL_FULL_PATH=${MODEL_PACKAGE_FULL_PATH:-/dev/null}
       - CMS_MODEL_TYPE=huggingface_llm
       - CMS_MODEL_NAME=HuggingFace LLM model
-      - CMS_STREAMABLE=${CMS_STREAMABLE:-false}
+      - CMS_SERVE_EXTRA_OPTIONS=$CMS_SERVE_EXTRA_OPTIONS
       - AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
       - MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL:-http://minio:9000}
@@ -329,6 +327,7 @@ services:
       - https_proxy=$HTTPS_PROXY
       - no_proxy=mlflow-ui,minio,graylog,auth-db,localhost
       - COLUMNS=200
+      - CMS_SERVE_EXTRA_OPTIONS=--load-in-4bit --device cuda
     expose:
       - 8000
     ports:

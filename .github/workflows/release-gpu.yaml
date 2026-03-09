@@ -1,0 +1,113 @@
+name: release
+
+on:
+  release:
+    types: [published]
+
+env:
+  REGISTRY: docker.io
+  CMS_GPU_IMAGE_NAME: cogstacksystems/cogstack-modelserve-gpu
+
+jobs:
+  ensure-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      is-valid: ${{ steps.ensure-branch.outputs.is-valid }}
+    steps:
+      - name: Ensures release is from the production branch only
+        id: ensure-branch
+        run: |
+          TARGET_BRANCH="${{ github.event.release.target_commitish }}"
+          if [ "$TARGET_BRANCH" != "production" ]; then
+            echo "Only releases from the 'production' branch are allowed but found: $TARGET_BRANCH"
+            echo "is-valid=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "Target release branch is: $TARGET_BRANCH"
+            echo "is-valid=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  qc:
+    runs-on: ubuntu-latest
+    needs: ensure-branch
+    if: needs.ensure-branch.outputs.is-valid == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+            version: "0.8.10"
+            python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          uv sync --extra dev --extra docs --extra llm
+          uv run python -m ensurepip
+      - name: Run unit tests
+        run: |
+          uv run pytest -v tests/app --cov --cov-report=html:coverage_reports #--random-order
+      - name: Run integration tests
+        run: |
+          uv run pytest -s -v tests/integration
+
+  release-gpu:
+      runs-on: ubuntu-latest
+      needs: [ensure-branch, qc]
+      if: needs.ensure-branch.outputs.is-valid == 'true'
+      permissions:
+        contents: read
+        packages: write
+        id-token: write
+        attestations: write
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Set up QEMU
+          uses: docker/setup-qemu-action@v3
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Extract the tag
+          run: |
+            echo "RELEASE_VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+
+        - name: Login to Docker Hub
+          uses: docker/login-action@v3
+          with:
+            registry: ${{ env.REGISTRY }}
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+        - name: Extract CMS meta
+          id: cms_meta
+          uses: docker/metadata-action@v5
+          with:
+            images: ${{ env.REGISTRY }}/${{ env.CMS_GPU_IMAGE_NAME }}
+
+        - name: Build and push CMS image
+          uses: docker/build-push-action@v6
+          id: build_and_push_cms
+          with:
+            platforms: linux/amd64,linux/arm64
+            context: .
+            file: docker/Dockerfile
+            build-args: |
+              IMAGE_TYPE=gpu
+              PIP_EXTRAS=llm
+            push: true
+            github-token: ${{ github.token }}
+            tags: |
+              ${{ env.REGISTRY }}/${{ env.CMS_GPU_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+            labels: ${{ steps.cms_meta.outputs.labels }}
+
+        - name: Attest CMS image artifacts
+          uses: actions/attest-build-provenance@v2
+          with:
+            subject-name: ${{ env.REGISTRY }}/${{ env.CMS_GPU_IMAGE_NAME }}
+            subject-digest: ${{ steps.build_and_push_cms.outputs.digest }}
+            push-to-registry: true
+
+        - name: Inspect the released image
+          run: |
+            docker pull ${{ env.REGISTRY }}/${{ env.CMS_GPU_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
+            docker image inspect ${{ env.REGISTRY }}/${{ env.CMS_GPU_IMAGE_NAME }}:${{ env.RELEASE_VERSION }}
