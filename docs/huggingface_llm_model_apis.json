@@ -6,6 +6,315 @@
         "version": "0.1.0"
     },
     "paths": {
+        "/train_supervised": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Supervised",
+                "description": "Upload one or more trainer export files and trigger the supervised training",
+                "operationId": "train_supervised",
+                "parameters": [
+                    {
+                        "name": "epochs",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "description": "The number of training epochs",
+                            "default": 1,
+                            "title": "Epochs"
+                        },
+                        "description": "The number of training epochs"
+                    },
+                    {
+                        "name": "lr_override",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0.0
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the initial learning rate",
+                            "title": "Lr Override"
+                        },
+                        "description": "The override of the initial learning rate"
+                    },
+                    {
+                        "name": "test_size",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "number"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)",
+                            "default": 0.2,
+                            "title": "Test Size"
+                        },
+                        "description": "The override of the test size in percentage. (For a 'huggingface-ner' model, a negative value can be used to apply the train-validation-test split if implicitly defined in trainer export: 'projects[0]' is used for training, 'projects[1]' for validation, and 'projects[2]' for testing)"
+                    },
+                    {
+                        "name": "early_stopping_patience",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "integer"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)",
+                            "default": -1,
+                            "title": "Early Stopping Patience"
+                        },
+                        "description": "The number of evaluations to wait for improvement before stopping the training. (Non-positive values disable early stopping)"
+                    },
+                    {
+                        "name": "log_frequency",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "The number of processed documents or epochs after which training metrics will be logged",
+                            "default": 1,
+                            "title": "Log Frequency"
+                        },
+                        "description": "The number of processed documents or epochs after which training metrics will be logged"
+                    },
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_train_supervised_train_supervised_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/train_eval_info": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Info",
+                "description": "Get the training or evaluation job information by its ID",
+                "operationId": "train_eval_info",
+                "parameters": [
+                    {
+                        "name": "train_eval_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "The training or evaluation ID",
+                            "title": "Train Eval Id"
+                        },
+                        "description": "The training or evaluation ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/evaluate": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Get Evaluation With Trainer Export",
+                "description": "Evaluate the model being served with a trainer export",
+                "operationId": "get_evaluation_with_trainer_export",
+                "parameters": [
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_get_evaluation_with_trainer_export_evaluate_post"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/cancel_training": {
+            "post": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Cancel Training",
+                "description": "Cancel the in-progress training job (this is experimental and may not work as expected)",
+                "operationId": "cancel_training",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/train_eval_metrics": {
+            "get": {
+                "tags": [
+                    "Training"
+                ],
+                "summary": "Train Eval Metrics",
+                "description": "Get the training or evaluation metrics by its ID (Each metric may contain multiple values for multiple epochs)",
+                "operationId": "train_eval_metrics",
+                "parameters": [
+                    {
+                        "name": "train_eval_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "The training or evaluation ID",
+                            "title": "Train Eval Id"
+                        },
+                        "description": "The training or evaluation ID"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/info": {
             "get": {
                 "tags": [
@@ -489,10 +798,119 @@
                     }
                 }
             }
+        },
+        "/v1/models": {
+            "get": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "List Models",
+                "description": "List available models, similar to OpenAI's /v1/models endpoint",
+                "operationId": "list_models",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/models/{model_name}": {
+            "get": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "Get Model",
+                "description": "Get a specific model, similar to OpenAI's /v1/models/{model_id} endpoint",
+                "operationId": "get_model",
+                "parameters": [
+                    {
+                        "name": "model_name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Model Name"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
         "schemas": {
+            "Body_get_evaluation_with_trainer_export_evaluate_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_get_evaluation_with_trainer_export_evaluate_post"
+            },
+            "Body_train_supervised_train_supervised_post": {
+                "properties": {
+                    "trainer_export": {
+                        "items": {
+                            "type": "string",
+                            "format": "binary"
+                        },
+                        "type": "array",
+                        "title": "Trainer Export",
+                        "description": "One or more trainer export files to be uploaded"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description",
+                        "description": "The description of the training or change logs"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "trainer_export"
+                ],
+                "title": "Body_train_supervised_train_supervised_post"
+            },
             "HTTPValidationError": {
                 "properties": {
                     "detail": {
@@ -623,8 +1041,11 @@
                         "description": "The top-p value for nucleus sampling",
                         "default": 0.9
                     },
-                    "stop_sequences": {
+                    "stop": {
                         "anyOf": [
+                            {
+                                "type": "string"
+                            },
                             {
                                 "items": {
                                     "type": "string"
@@ -635,8 +1056,8 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Stop Sequences",
-                        "description": "The list of sequences used to stop the generation"
+                        "title": "Stop",
+                        "description": "The single sequence or the list of sequences used to stop the generation"
                     }
                 },
                 "type": "object",
@@ -714,7 +1135,7 @@
                             }
                         ],
                         "title": "Stop",
-                        "description": "The list of sequences used to stop the generation"
+                        "description": "The single sequence or the list of sequences used to stop the generation"
                     }
                 },
                 "type": "object",

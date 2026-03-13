@@ -2448,6 +2448,83 @@
                     }
                 }
             }
+        },
+        "/v1/models": {
+            "get": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "List Models",
+                "description": "List available models, similar to OpenAI's /v1/models endpoint",
+                "operationId": "list_models",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/v1/models/{model_name}": {
+            "get": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "Get Model",
+                "description": "Get a specific model, similar to OpenAI's /v1/models/{model_id} endpoint",
+                "operationId": "get_model",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "model_name",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "title": "Model Name"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -3089,8 +3166,11 @@
                         "description": "The top-p value for nucleus sampling",
                         "default": 0.9
                     },
-                    "stop_sequences": {
+                    "stop": {
                         "anyOf": [
+                            {
+                                "type": "string"
+                            },
                             {
                                 "items": {
                                     "type": "string"
@@ -3101,8 +3181,8 @@
                                 "type": "null"
                             }
                         ],
-                        "title": "Stop Sequences",
-                        "description": "The list of sequences used to stop the generation"
+                        "title": "Stop",
+                        "description": "The single sequence or the list of sequences used to stop the generation"
                     }
                 },
                 "type": "object",
@@ -3180,7 +3260,7 @@
                             }
                         ],
                         "title": "Stop",
-                        "description": "The list of sequences used to stop the generation"
+                        "description": "The single sequence or the list of sequences used to stop the generation"
                     }
                 },
                 "type": "object",
