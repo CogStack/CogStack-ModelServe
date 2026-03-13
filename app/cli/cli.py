@@ -451,9 +451,9 @@ def generate_api_doc_per_model(
     config.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
     config.AUTH_USER_ENABLED = "true" if add_user_authentication else "false"
 
-    model_service_dep = ModelServiceDep(model_type, config, model_name or model_type)
+    model_service_dep = ModelServiceDep(model_type, config, model_name or model_type.value)
     cms_globals.model_service_dep = model_service_dep
-    doc_name = f"{model_name or model_type}_model_apis.json"
+    doc_name = f"{model_type.value}_model_apis.json"
 
     if model_type == ModelType.HUGGINGFACE_LLM:
         app = get_generative_server(config)

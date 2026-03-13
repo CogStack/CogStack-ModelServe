@@ -38,7 +38,7 @@ jobs:
           python app/cli/cli.py export-model-apis --model-type anoncat --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
           python app/cli/cli.py export-model-apis --model-type transformers_deid --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training --exclude-unsupervised-training
           python app/cli/cli.py export-model-apis --model-type huggingface_ner --add-training-apis --add-evaluation-apis --add-previews-apis --exclude-metacat-training
-          python app/cli/cli.py export-model-apis --model-type huggingface_llm
+          python app/cli/cli.py export-model-apis --model-type huggingface_llm --add-training-apis --add-evaluation-apis --exclude-metacat-training
           python app/cli/cli.py export-openapi-spec
           git fetch origin gh-pages:gh-pages
           git checkout gh-pages
