@@ -164,9 +164,13 @@ class HuggingFaceNerModel(AbstractModelService):
         if unpack_model_data_package(model_file_path, model_path):
             try:
                 if get_settings().DEVICE == Device.DEFAULT.value:
-                    model = AutoModelForTokenClassification.from_pretrained(model_path, device_map="auto")
+                    model = AutoModelForTokenClassification.from_pretrained(
+                        model_path, device_map="auto", low_cpu_mem_usage=True
+                    )
                 else:
-                    model = AutoModelForTokenClassification.from_pretrained(model_path)
+                    model = AutoModelForTokenClassification.from_pretrained(
+                        model_path, low_cpu_mem_usage=True
+                    )
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,

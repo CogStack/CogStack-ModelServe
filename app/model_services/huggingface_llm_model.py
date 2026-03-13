@@ -1,6 +1,7 @@
 import os
 import logging
-import asyncio
+import time
+import re
 import torch
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Callable, Union
@@ -10,8 +11,10 @@ from transformers import (
     AutoConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
-    TextIteratorStreamer,
+    AsyncTextIteratorStreamer,
     BitsAndBytesConfig,
+    StoppingCriteria,
+    StoppingCriteriaList,
 )
 from app import __version__ as app_version
 from app.exception import ConfigurationException
@@ -19,6 +22,7 @@ from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer, HuggingFaceLlmUnsupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation, Device
 from app.config import Settings
+from app.processors.data_batcher import MicroBatchScheduler
 from app.utils import (
     get_settings,
     non_default_device_is_available,
@@ -27,6 +31,7 @@ from app.utils import (
     get_model_data_package_base_name,
     get_default_chat_template,
     utilise_local_chat_template,
+    ensure_pad_token,
 )
 
 logger = logging.getLogger("cms")
@@ -56,15 +61,29 @@ class HuggingFaceLlmModel(AbstractModelService):
 
         super().__init__(config)
         self._config = config
-        self._model_parent_dir = model_parent_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "model"))
+        self._model_parent_dir = model_parent_dir or os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "model")
+        )
         self._model_pack_path = os.path.join(self._model_parent_dir, base_model_file or config.BASE_MODEL_FILE)
         self._enable_trainer = enable_trainer if enable_trainer is not None else config.ENABLE_TRAINING_APIS == "true"
         self._model: PreTrainedModel = None
         self._tokenizer: PreTrainedTokenizerBase = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
-        self._multi_label_threshold = 0.5
-        self._text_generator = ThreadPoolExecutor(max_workers=50)
+        self._text_generator = ThreadPoolExecutor(max_workers=10)
         self._sentence_endings = ".。!！?？:：;；\n"
+        self._generation_timeout_secs = 180
+        self._micro_batch_scheduler = MicroBatchScheduler(
+            process_batch_fn=self._process_batched_requests,
+            batch_key_fn=lambda request: request["batch_key"],
+            executor=self._text_generator,
+            max_batch_size=8,
+            batch_wait_milliseconds=500,
+            on_start=lambda max_size, wait_ms: logger.debug(
+                "Started micro batch scheduling worker (max_batch_size=%s, batch_wait_milliseconds=%s)",
+                max_size,
+                wait_ms,
+            ),
+        )
         self.model_name = model_name or "HuggingFace LLM model"
         self.is_quantised = False
 
@@ -158,13 +177,23 @@ class HuggingFaceLlmModel(AbstractModelService):
         if unpack_model_data_package(model_file_path, model_path):
             try:
                 config = AutoConfig.from_pretrained(model_path)
+                enable_sdpa_attn = get_settings().ENABLE_SPDA_ATTN == "true"
 
                 if "quantization_config" in config.to_dict():
                     logger.info("Model already quantised, loading by ignoring 'load_in_4bit' or 'load_in_8bit' flag")
                     if get_settings().DEVICE == Device.DEFAULT.value:
-                        model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+                        model = HuggingFaceLlmModel._load_causal_lm(
+                            enable_sdpa_attn=enable_sdpa_attn,
+                            model_path=model_path,
+                            device_map="auto",
+                            low_cpu_mem_usage=True,
+                        )
                     else:
-                        model = AutoModelForCausalLM.from_pretrained(model_path)
+                        model = HuggingFaceLlmModel._load_causal_lm(
+                            enable_sdpa_attn=enable_sdpa_attn,
+                            model_path=model_path,
+                            low_cpu_mem_usage=True,
+                        )
                 else:
                     if load_in_4bit:
                         bnb_config = BitsAndBytesConfig(
@@ -174,13 +203,20 @@ class HuggingFaceLlmModel(AbstractModelService):
                             bnb_4bit_use_double_quant=True,
                         )
                         if get_settings().DEVICE == Device.DEFAULT.value:
-                            model = AutoModelForCausalLM.from_pretrained(
-                                model_path,
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
                                 quantization_config=bnb_config,
                                 device_map="auto",
+                                low_cpu_mem_usage=True,
                             )
                         else:
-                            model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
+                                quantization_config=bnb_config,
+                                low_cpu_mem_usage=True,
+                            )
                     elif load_in_8bit:
                         bnb_config = BitsAndBytesConfig(
                             load_in_8bit=True,
@@ -188,24 +224,39 @@ class HuggingFaceLlmModel(AbstractModelService):
                             llm_int8_enable_fp32_cpu_offload=False
                         )
                         if get_settings().DEVICE == Device.DEFAULT.value:
-                            model = AutoModelForCausalLM.from_pretrained(
-                                model_path,
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
                                 quantization_config=bnb_config,
                                 device_map="auto",
+                                low_cpu_mem_usage=True,
                             )
                         else:
-                            model = AutoModelForCausalLM.from_pretrained(model_path, quantization_config=bnb_config)
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
+                                quantization_config=bnb_config,
+                                low_cpu_mem_usage=True,
+                            )
                     else:
                         if get_settings().DEVICE == Device.DEFAULT.value:
-                            model = AutoModelForCausalLM.from_pretrained(model_path, device_map="auto")
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
+                                device_map="auto",
+                                low_cpu_mem_usage=True,
+                            )
                         else:
-                            model = AutoModelForCausalLM.from_pretrained(model_path)
+                            model = HuggingFaceLlmModel._load_causal_lm(
+                                enable_sdpa_attn=enable_sdpa_attn,
+                                model_path=model_path,
+                                low_cpu_mem_usage=True,
+                            )
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
-                    model_path,
-                    model_max_length=model.config.max_position_embeddings,
-                    do_lower_case=False,
+                    model_path, model_max_length=model.config.max_position_embeddings, do_lower_case=False
                 )
+                ensure_pad_token(model, tokenizer)
                 logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
                 return model, tokenizer
             except ValueError as e:
@@ -272,6 +323,17 @@ class HuggingFaceLlmModel(AbstractModelService):
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace Generative models")
 
+    def close(self) -> None:
+        """Stops background workers owned by this model service."""
+        try:
+            self._micro_batch_scheduler.stop()
+        except Exception:
+            logger.debug("Failed to stop micro batch scheduler cleanly", exc_info=True)
+        try:
+            self._text_generator.shutdown(wait=True, cancel_futures=True)
+        except Exception:
+            logger.debug("Failed to shutdown text generator cleanly", exc_info=True)
+
     def generate(
         self,
         prompt: str,
@@ -301,73 +363,17 @@ class HuggingFaceLlmModel(AbstractModelService):
         Returns:
             Any: The string containing the generated text.
         """
-
-        self.model.eval()
-
-        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template is None:
-            logger.warning("The tokenizer does not have a chat template. Using the default one.")
-            self.tokenizer.chat_template = get_default_chat_template()
-        else:
-            if utilise_local_chat_template(self.model.config.model_type, self.tokenizer):
-                logger.debug("Chat template overwritten by the prompt factory for %s", self.model.config.model_type)
-            else:
-                logger.debug(f"Found a chat template in the tokenizer:\n {self.tokenizer.chat_template}")
-
-        prompt_text = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
-        inputs = self.tokenizer(prompt_text, add_special_tokens=False, return_tensors="pt")
-        inputs.to(self.model.device)
-
         max_tokens = max(min_tokens, max_tokens)
-        generation_kwargs = dict(
-            inputs=inputs.input_ids,
-            attention_mask=inputs.attention_mask,
-            min_new_tokens=min_tokens,
-            max_new_tokens=max_tokens,
-            use_cache=True,
-            num_beams=num_beams,
-            do_sample=(num_beams == 1),
-            temperature=temperature,
-            top_p=top_p,
-            repetition_penalty=1.2,
-            no_repeat_ngram_size=3,
-        )
-
-        outputs = self.model.generate(**generation_kwargs)
-        prompt_len = inputs.input_ids.shape[-1]
-        completion_ids = outputs[0][prompt_len:]
-        generated_text = self.tokenizer.decode(completion_ids, skip_special_tokens=True)
-
-        if stop_sequences:
-            for stop_seq in stop_sequences:
-                if stop_seq in generated_text:
-                    generated_text = generated_text.split(stop_seq)[0]
-                    break
-
-        if ensure_full_sentences and generated_text and generated_text[-1] not in self._sentence_endings:
-            last_pos = -1
-            for ending in self._sentence_endings:
-                pos = generated_text.rfind(ending)
-                if pos > last_pos:
-                    last_pos = pos
-            if last_pos != -1:
-                generated_text = generated_text[:last_pos + 1]
-
+        request = {
+            "prompt": prompt,
+            "stop_sequences": stop_sequences,
+            "ensure_full_sentences": ensure_full_sentences,
+            "report_tokens": report_tokens,
+            "batch_key": (min_tokens, max_tokens, num_beams, temperature, top_p),
+        }
+        future = self._micro_batch_scheduler.submit(request)
+        generated_text = future.result()
         logger.debug("Response generation completed")
-
-        if report_tokens:
-            report_tokens(
-                prompt_token_num=prompt_len,  # type: ignore
-                completion_token_num=self.tokenizer(    # type: ignore
-                    generated_text,
-                    add_special_tokens=False,
-                    return_tensors="pt"
-                ).input_ids.shape[-1],
-            )
-
         return generated_text
 
     async def generate_async(
@@ -401,28 +407,16 @@ class HuggingFaceLlmModel(AbstractModelService):
         """
 
         self.model.eval()
-
-        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template is None:
-            logger.warning("The tokenizer does not have a chat template. Using the default one.")
-            self.tokenizer.chat_template = get_default_chat_template()
-        else:
-            if utilise_local_chat_template(self.model.config.model_type, self.tokenizer):
-                logger.debug("Chat template overwritten by the prompt factory for %s", self.model.config.model_type)
-            else:
-                logger.debug(f"Found a chat template in the tokenizer:\n {self.tokenizer.chat_template}")
-
-        prompt_text = self.tokenizer.apply_chat_template(
-            [{"role": "user", "content": prompt}],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        prompt_text = self._build_prompt_text(prompt)
         inputs = self.tokenizer(prompt_text, add_special_tokens=False, return_tensors="pt")
         inputs.to(self.model.device)
 
-        streamer = TextIteratorStreamer(
+        streamer = AsyncTextIteratorStreamer(
             self.tokenizer,
             skip_prompt=True,
-            skip_special_tokens=True
+            timeout=self._generation_timeout_secs,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
         )
         max_tokens = max(min_tokens, max_tokens)
         generation_kwargs = dict(
@@ -438,6 +432,8 @@ class HuggingFaceLlmModel(AbstractModelService):
             top_p=top_p,
             repetition_penalty=1.2,
             no_repeat_ngram_size=3,
+            pad_token_id=self.tokenizer.pad_token_id,
+            stopping_criteria=StoppingCriteriaList([TimeoutCriteria(float(self._generation_timeout_secs))]),
         )
 
         try:
@@ -446,7 +442,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             full_output = ""
 
             if not ensure_full_sentences:
-                for content in streamer:
+                async for content in streamer:
                     prev_output = full_output
                     full_output += content
                     if stop_sequences:
@@ -454,12 +450,13 @@ class HuggingFaceLlmModel(AbstractModelService):
                             if stop_seq in full_output:
                                 remaining = full_output[len(prev_output):full_output.find(stop_seq)]
                                 if remaining:
-                                    yield remaining
+                                    for out_chunk in self._split_stream_chunk(remaining):
+                                        yield out_chunk
                                 return
-                    yield content
-                    await asyncio.sleep(0.01)
+                    for out_chunk in self._split_stream_chunk(content):
+                        yield out_chunk
             else:
-                for content in streamer:
+                async for content in streamer:
                     buffer += content
 
                     if stop_sequences:
@@ -487,8 +484,6 @@ class HuggingFaceLlmModel(AbstractModelService):
                         buffer = buffer[last_sentence_ending + 1:]
                         yield new_sentences
                         full_output += new_sentences
-
-                    await asyncio.sleep(0.01)
 
             if report_tokens:
                 report_tokens(
@@ -662,3 +657,165 @@ class HuggingFaceLlmModel(AbstractModelService):
             synchronised,
             **hyperparams,
         )
+
+    @staticmethod
+    def _load_causal_lm(
+            enable_sdpa_attn: bool = False,
+            model_path: Optional[str] = None,
+            **kwargs: Any,
+    ) -> PreTrainedModel:
+        if enable_sdpa_attn:
+            try:
+                fa2_kwargs = dict(kwargs)
+                fa2_kwargs.setdefault("dtype", torch.bfloat16)
+                return AutoModelForCausalLM.from_pretrained(
+                    model_path,
+                    attn_implementation="sdpa",
+                    **fa2_kwargs,
+                )
+            except Exception as e:
+                logger.debug(
+                    "SDPA is enabled but unavailable for this model/runtime. Falling back due to error: %s", e
+                )
+        return AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
+
+    def _build_prompt_text(self, prompt: str) -> str:
+        if hasattr(self.tokenizer, "chat_template") and self.tokenizer.chat_template is None:
+            logger.warning("The tokenizer does not have a chat template. Using the default one.")
+            self.tokenizer.chat_template = get_default_chat_template()
+        else:
+            if utilise_local_chat_template(self.model.config.model_type, self.tokenizer):
+                logger.debug(
+                    "Chat template overwritten by the prompt factory for %s", self.model.config.model_type
+                )
+            else:
+                logger.debug(f"Found a chat template in the tokenizer:\n {self.tokenizer.chat_template}")
+        return self.tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+    def _postprocess_generated_text(
+            self,
+            generated_text: str,
+            stop_sequences: Optional[List[str]],
+            ensure_full_sentences: bool,
+    ) -> str:
+        if stop_sequences:
+            for stop_seq in stop_sequences:
+                if stop_seq in generated_text:
+                    generated_text = generated_text.split(stop_seq)[0]
+                    break
+
+        if ensure_full_sentences and generated_text and generated_text[-1] not in self._sentence_endings:
+            last_pos = -1
+            for ending in self._sentence_endings:
+                pos = generated_text.rfind(ending)
+                if pos > last_pos:
+                    last_pos = pos
+            if last_pos != -1:
+                generated_text = generated_text[:last_pos + 1]
+        return generated_text
+
+    def _split_stream_chunk(self, text: str, max_words_per_chunk: int = 4) -> List[str]:
+        """Split text into phrase-like chunks while preserving spaces/newlines."""
+        if not text:
+            return []
+        tokens = re.findall(r"\S+\s*", text)
+        if not tokens:
+            return [text]
+
+        chunks: List[str] = []
+        current: List[str] = []
+        word_count = 0
+        for token in tokens:
+            current.append(token)
+            word_count += 1
+
+            if "\n" in token:
+                chunks.append("".join(current))
+                current = []
+                word_count = 0
+                continue
+
+            if token.rstrip().endswith((".", "!", "?", ";", ":")) and word_count >= 2:
+                chunks.append("".join(current))
+                current = []
+                word_count = 0
+                continue
+
+            if word_count >= max_words_per_chunk:
+                chunks.append("".join(current))
+                current = []
+                word_count = 0
+
+        if current:
+            chunks.append("".join(current))
+        return chunks
+
+    def _process_batched_requests(self, requests: List[Dict[str, Any]]) -> None:
+        try:
+            self.model.eval()
+            prompt_texts = [self._build_prompt_text(req["prompt"]) for req in requests]
+            inputs = self.tokenizer(prompt_texts, add_special_tokens=False, return_tensors="pt", padding=True)
+            inputs.to(self.model.device)
+
+            prompt_lens = [int(x) for x in inputs.attention_mask.sum(dim=1).tolist()]
+            min_tokens, max_tokens, num_beams, temperature, top_p = requests[0]["batch_key"]
+            generation_kwargs = dict(
+                inputs=inputs.input_ids,
+                attention_mask=inputs.attention_mask,
+                min_new_tokens=min_tokens,
+                max_new_tokens=max_tokens,
+                use_cache=True,
+                num_beams=num_beams,
+                do_sample=(num_beams == 1),
+                temperature=temperature,
+                top_p=top_p,
+                repetition_penalty=1.2,
+                no_repeat_ngram_size=3,
+                pad_token_id=self.tokenizer.pad_token_id,
+                stopping_criteria=StoppingCriteriaList([TimeoutCriteria(float(self._generation_timeout_secs))]),
+            )
+
+            outputs = self.model.generate(**generation_kwargs)
+            for idx, req in enumerate(requests):
+                completion_ids = outputs[idx][prompt_lens[idx]:]
+                generated_text = self.tokenizer.decode(completion_ids, skip_special_tokens=True)
+                generated_text = self._postprocess_generated_text(
+                    generated_text,
+                    req["stop_sequences"],
+                    req["ensure_full_sentences"],
+                )
+                if req["report_tokens"]:
+                    req["report_tokens"](
+                        prompt_token_num=prompt_lens[idx],
+                        completion_token_num=self.tokenizer(
+                            generated_text,
+                            add_special_tokens=False,
+                            return_tensors="pt",
+                        ).input_ids.shape[-1],
+                    )
+                if not req["future"].done():
+                    req["future"].set_result(generated_text)
+        except Exception as e:
+            logger.error("Batched generation failed")
+            logger.exception(e)
+            for req in requests:
+                if not req["future"].done():
+                    req["future"].set_exception(e)
+
+
+class TimeoutCriteria(StoppingCriteria):
+    """Stop generation when the timeout is reached."""
+
+    def __init__(self, timeout_in_secs: float) -> None:
+        self._deadline = time.monotonic() + timeout_in_secs
+
+    def __call__(
+        self, input_ids: torch.LongTensor,
+        scores: torch.FloatTensor,
+        **kwargs: Dict[str, Any]
+    ) -> bool:
+        return time.monotonic() >= self._deadline

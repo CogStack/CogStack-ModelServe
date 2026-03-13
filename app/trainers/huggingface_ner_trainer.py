@@ -451,9 +451,13 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
     @staticmethod
     def _get_mlm_model(model: PreTrainedModel, copied_model_directory: str, device: str) -> PreTrainedModel:
         if device.lower() == Device.DEFAULT.value:
-            mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory, device_map="auto")
+            mlm_model = AutoModelForMaskedLM.from_pretrained(
+                copied_model_directory, device_map="auto", low_cpu_mem_usage=True
+            )
         else:
-            mlm_model = AutoModelForMaskedLM.from_pretrained(copied_model_directory)
+            mlm_model = AutoModelForMaskedLM.from_pretrained(
+                copied_model_directory, low_cpu_mem_usage=True
+            )
         ensure_tensor_contiguity(mlm_model)
         backbone_found = False
         for backbone in HfTransformerBackbone:

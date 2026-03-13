@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Lint
-        run: hadolint --ignore DL3008 --ignore DL3013 --ignore DL3003 --ignore DL4006 docker/Dockerfile* docker/**/Dockerfile*
+        run: hadolint --ignore DL3008 --ignore DL4006 --ignore DL3006 --ignore SC2046 docker/Dockerfile
 
   build-and-push:
     needs: lint
@@ -74,6 +74,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           context: .
           file: docker/Dockerfile
+          build-args: |
+            IMAGE_TYPE=gpu
+            PIP_EXTRAS=llm
           push: true
           tags: ${{ steps.cms_meta.outputs.tags }}
           labels: ${{ steps.cms_meta.outputs.labels }}

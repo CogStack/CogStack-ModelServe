@@ -3,7 +3,7 @@ import json
 import pytest
 import app.api.globals as cms_globals
 
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, Mock
 from fastapi.testclient import TestClient
 from app.api.api import get_generative_server
 from app.model_services.huggingface_llm_model import HuggingFaceLlmModel
@@ -20,7 +20,6 @@ config.AUTH_USER_ENABLED = "false"
 @pytest.fixture(scope="function")
 def llm_model_service():
     yield create_autospec(HuggingFaceLlmModel)
-
 
 @pytest.fixture(scope="function")
 def llm_app(llm_model_service):
@@ -214,3 +213,32 @@ def test_create_embeddings(client):
         "data": [{"object": "embedding", "embedding": [1.0, 2.0, 3.0], "index": 0}],
         "model": "HuggingFace LLM model"
     }
+
+
+def test_list_models(client):
+    response = client.get("/v1/models")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    response_json = response.json()
+    assert response_json["object"] == "list"
+    assert len(response_json["data"]) == 1
+    assert response_json["data"][0]["id"] == "HuggingFace_LLM_model"
+    assert response_json["data"][0]["object"] == "model"
+    assert response_json["data"][0]["created"] == 0
+    assert response_json["data"][0]["owned_by"] == "cms"
+
+
+def test_get_model(client):
+    response = client.get("/v1/models/HuggingFace_LLM_model")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/json"
+    response_json = response.json()
+    assert response_json["id"] == "HuggingFace_LLM_model"
+    assert response_json["object"] == "model"
+    assert response_json["created"] == 0
+    assert response_json["owned_by"] == "cms"
+    assert response_json["permission"] == []
+    assert response_json["root"] == "HuggingFace_LLM_model"
+    assert response_json["parent"] is None

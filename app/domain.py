@@ -218,7 +218,10 @@ class OpenAIChatCompletionsRequest(BaseModel):
     model: str = Field(..., description="The name of the model used for generating the completion")
     temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
     top_p: float = Field(0.9, description="The top-p value for nucleus sampling", ge=0.0, le=1.0)
-    stop_sequences: Optional[List[str]] = Field(default=None, description="The list of sequences used to stop the generation")
+    stop: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="The single sequence or the list of sequences used to stop the generation",
+    )
 
 
 class OpenAIChatCompletionsResponse(BaseModel):
@@ -242,7 +245,7 @@ class OpenAICompletionsRequest(BaseModel):
     top_p: float = Field(0.9, description="The top-p value for nucleus sampling", ge=0.0, le=1.0)
     stop: Optional[Union[str, List[str]]] = Field(
         default=None,
-        description="The list of sequences used to stop the generation",
+        description="The single sequence or the list of sequences used to stop the generation",
     )
 
 

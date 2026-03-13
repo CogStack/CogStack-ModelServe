@@ -108,4 +108,5 @@ def huggingface_llm_model():
     config.TRAINING_HF_TAGGING_SCHEME = "flat"
     model_service = HuggingFaceLlmModel(config, MODEL_PARENT_DIR)
     model_service.init_model()
-    return model_service
+    yield model_service
+    model_service.close()

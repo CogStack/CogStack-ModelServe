@@ -5,10 +5,11 @@ import torch
 import shutil
 import zipfile
 import tarfile
+import pytest
 import unittest
 from unittest.mock import MagicMock, patch
 from safetensors.torch import save_file
-from transformers import PreTrainedModel
+from transformers import PreTrainedModel, PreTrainedTokenizer
 from urllib.parse import urlparse
 from app.utils import (
     get_settings,
@@ -36,7 +37,9 @@ from app.utils import (
     load_pydantic_object_from_dict,
     get_prompt_from_messages,
     utilise_local_chat_template,
+    ensure_pad_token,
 )
+from app.exception import ManagedModelException
 from app.domain import Annotation, Entity, PromptMessage, PromptRole
 
 
@@ -283,6 +286,39 @@ def test_ensure_tensor_contiguity():
 
     for param in mock_model.parameters():
         assert param.data.is_contiguous() == True
+
+
+def test_ensure_pad_token():
+    model = MagicMock()
+    model.config = MagicMock()
+    model.generation_config = MagicMock()
+    tokenizer = MagicMock()
+    tokenizer.pad_token_id = None
+    tokenizer.eos_token = "</s>"
+    tokenizer.eos_token_id = 2
+    tokenizer.padding_side = "right"
+
+    ensure_pad_token(model, tokenizer)
+
+    assert tokenizer.pad_token == "</s>"
+    assert tokenizer.pad_token_id == 2
+    assert tokenizer.padding_side == "left"
+    assert model.config.pad_token_id == 2
+    assert model.generation_config.pad_token_id == 2
+
+
+def test_ensure_pad_token_on_missing_eos():
+    model = MagicMock()
+    model.config = MagicMock()
+    model.generation_config = MagicMock()
+    tokenizer_without_eos = MagicMock()
+    tokenizer_without_eos.pad_token_id = None
+    tokenizer_without_eos.eos_token = None
+    tokenizer_without_eos.eos_token_id = None
+
+    with pytest.raises(ManagedModelException) as exc_info:
+        ensure_pad_token(model, tokenizer_without_eos)
+    assert "Tokenizer has no pad_token or eos_token; cannot enable padding." in str(exc_info.value)
 
 
 def test_pyproject_dependencies_to_pip_requirements():

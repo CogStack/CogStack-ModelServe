@@ -92,7 +92,7 @@ cms mcp run --transport sse
         "mcp-remote",
         "http://127.0.0.1:8080/sse",
         "--header",
-        "X-API-Key:${AUTH_HEADER}"
+        "AUTHORIZATION:${AUTH_HEADER}"
       ],
       "env": {
         "AUTH_HEADER": "Bearer <ACCESS_TOKEN>"
@@ -123,7 +123,7 @@ cms mcp run --transport sse
 | `CMS_ACCESS_TOKEN` | Empty | Bearer token for ModelServe API |
 | `CMS_API_KEY` | `Bearer` | API key for ModelServe API |
 | `CMS_MCP_API_KEYS` | None | Comma-separated API keys for authentication |
-| `CMS_MCP_OAUTH_ENABLED` | `false` | Enable OAuth authentication |
+| `CMS_MCP_OAUTH_PROVIDER` | Empty | Enable OAuth authentication if set to "github" or "google" |
 | `CMS_MCP_BASE_URL` | `http://<host>:<port>`  | Base URL for OAuth callback |
 | `CMS_MCP_DEV` | `0` | Run in development mode |
 
@@ -137,7 +137,7 @@ When `CMS_MCP_API_KEYS` is set, clients must authenticate using:
 - **Header**: `X-API-Key: your-key`
 
 ### 2. OAuth Authentication (SSE Transport)
-When `CMS_MCP_OAUTH_ENABLED=true`, the server provides a built-in OAuth 2.0 login flow for SSE transport.
+When `CMS_MCP_OAUTH_PROVIDER` is set, the server provides a built-in OAuth 2.0 login flow for SSE transport.
 
 **OAuth Endpoints:**
 - `/oauth/login` - Login page with Google and GitHub options
