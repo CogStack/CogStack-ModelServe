@@ -94,6 +94,19 @@ def test_info(medcat_snomed_model):
     not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
     reason="requires the model file to be present in the resources folder",
 )
+def test_annotate_with_confidence_threshold(medcat_snomed_model):
+    medcat_snomed_model.init_model()
+    original_threshold = medcat_snomed_model._config.CONFIDENCE_SCORE_THRESHOLD
+    medcat_snomed_model._config.CONFIDENCE_SCORE_THRESHOLD = 1.1
+    annotations = medcat_snomed_model.annotate("Spinal stenosis")
+    assert len(annotations) == 0
+    medcat_snomed_model._config.CONFIDENCE_SCORE_THRESHOLD = original_threshold
+
+
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "snomed_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(medcat_snomed_model):
     medcat_snomed_model.init_model()
     annotations = medcat_snomed_model.annotate("Spinal stenosis")

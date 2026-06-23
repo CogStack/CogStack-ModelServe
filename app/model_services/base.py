@@ -2,7 +2,7 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, List, Iterable, Tuple, final, Optional, Generic, TypeVar, Protocol, AsyncIterable, Union
 from app.config import Settings
-from app.domain import ModelCard, Annotation
+from app.domain import ModelCard, Annotation, GenerationResult
 
 class _TrainerCommon(Protocol):
     """A protocol for defining the common properties and methods that trainers should implement."""
@@ -168,7 +168,7 @@ class AbstractModelService(ABC, Generic[T]):
 
         raise NotImplementedError
 
-    def generate(self, prompt: str, *args: Any, **kwargs: Any) -> str:
+    def generate(self, prompt: str, *args: Any, **kwargs: Any) -> GenerationResult:
         """
         Generates a text based on a given prompt.
 
@@ -178,7 +178,7 @@ class AbstractModelService(ABC, Generic[T]):
             **kwargs (Any): Additional keyword arguments to be passed to this method.
 
         Returns:
-            srt: The string containing the generated text.
+            GenerationResult: The generation result object.
 
         Raises:
             NotImplementedError: If the method is not implemented by the subclass.
@@ -310,3 +310,9 @@ class AbstractModelService(ABC, Generic[T]):
             return self._metacat_trainer.tracker_client
         else:
             return None
+
+    def shutdown(self) -> None:
+        """
+        Shuts down the model service and releases any resources held by it.
+        """
+        pass

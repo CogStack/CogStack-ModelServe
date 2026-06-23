@@ -72,7 +72,9 @@ def test_get_generative_server():
     config.AUTH_USER_ENABLED = "true"
 
     model_service_dep = ModelServiceDep("huggingface_llm_model", config)
-    app = get_generative_server(config, model_service_dep)
+    app = get_generative_server(
+        config, msd_overwritten=model_service_dep
+    )
     info = app.openapi()["info"]
     paths = [route.path for route in app.routes]
 
@@ -82,5 +84,16 @@ def test_get_generative_server():
     assert "/info" in paths
     assert "/generate" in paths
     assert "/stream/generate" in paths
+    assert "/openai/v1/chat/completions" in paths
+    assert "/openai/v1/completions" in paths
+    assert "/openai/v1/embeddings" in paths
+    assert "/openai/v1/models" in paths
+    assert "/ollama/" in paths
+    assert "/ollama/api/tags" in paths
+    assert "/ollama/api/chat" in paths
+    assert "/ollama/api/generate" in paths
+    assert "/ollama/api/show" in paths
+    assert "/ollama/api/version" in paths
+    assert "/ollama/api/embed" in paths
     assert "/healthz" in paths
     assert "/readyz" in paths

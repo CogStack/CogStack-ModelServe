@@ -8,6 +8,7 @@ from pytest_bdd import scenarios, given, when, then, parsers
 from helper import ensure_app_config, get_logger, download_model, data_table, run
 
 
+pytestmark = pytest.mark.timeout(600)
 scenarios("../features/serving.feature")
 ensure_app_config(debug_mode=False)
 logger = get_logger(debug=True)
@@ -228,13 +229,17 @@ def check_response_evaluation_metrics(context):
     assert context["response"].headers["Content-Type"] == "application/json"
     response_json = context["response"].json()
     assert len(response_json) == 1
-    assert "number_of_names" in response_json[0]
-    assert "number_of_seen_training_examples_in_total" in response_json[0]
-    assert "average_training_examples_per_concept" in response_json[0]
+    assert "concepts" in response_json[0]
     assert "per_concept_train_count_after" in response_json[0]
     assert "per_concept_train_count_before" in response_json[0]
-    assert "number_of_concepts_that_received_training" in response_json[0]
-    assert "number_of_concepts" in response_json[0]
+    assert "system/network_receive_megabytes" in response_json[0]
+    assert "system/system_memory_usage_percentage" in response_json[0]
+    assert "system/disk_available_megabytes" in response_json[0]
+    assert "system/system_memory_usage_megabytes" in response_json[0]
+    assert "system/network_transmit_megabytes" in response_json[0]
+    assert "system/cpu_utilization_percentage" in response_json[0]
+    assert "system/disk_usage_megabytes" in response_json[0]
+    assert "system/disk_usage_percentage" in response_json[0]
     context["response"].close()
 
 @then("the response should contain encrypted labels")

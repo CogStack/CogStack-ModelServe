@@ -2,11 +2,12 @@ import inspect
 import json
 import hashlib
 import pandas as pd
-from typing import Tuple, Dict, List, Set, Union, Optional, IO, Any
+from typing import Tuple, Dict, List, Set, Union, Optional, IO, Any, Iterator
 from collections import defaultdict
 from sklearn.metrics import cohen_kappa_score
 from tqdm.autonotebook import tqdm
 from app.model_services.base import AbstractModelService
+from app.domain import Annotation
 from app.exception import AnnotationException
 
 
@@ -73,30 +74,77 @@ def sanity_check_model_with_trainer_export(
         false_positives[project["id"]] = {}
         false_negatives[project["id"]] = {}
 
-        for document in tqdm(documents, desc="Evaluating documents", total=len(documents), leave=False):
-            true_positives[project["id"]][document["id"]] = {}
-            false_positives[project["id"]][document["id"]] = {}
-            false_negatives[project["id"]][document["id"]] = {}
+        texts = [document["text"] for document in documents]
+        use_batch_annotate = False
+        annotations_iter: Optional[Iterator] = None
+        try:
+            batch_probe = model_service.batch_annotate(texts[:1])
+            if (
+                batch_probe
+                and isinstance(batch_probe, list)
+                and len(batch_probe) > 0
+                and isinstance(batch_probe[0], Annotation)
+            ):
+                annotations_iter = iter(model_service.batch_annotate(texts))
+                use_batch_annotate = True
+        except NotImplementedError:
+            use_batch_annotate = False
 
-            annotations = model_service.annotate(document["text"])
-            predictions[document["id"]] = []
-            for annotation in annotations:
-                predictions[document["id"]].append([annotation.start, annotation.end, annotation.label_id])
-                concept_names[annotation.label_id] = annotation.label_name
-                concept_anchors[annotation.label_id] = concept_anchors.get(annotation.label_id, [])
-                concept_anchors[annotation.label_id].append(f"P{project['id']}/D{document['id']}/S{annotation.start}/E{ annotation.end}")
+        if use_batch_annotate:
+            assert annotations_iter is not None
+            for document in documents:
+                true_positives[project["id"]][document["id"]] = {}
+                false_positives[project["id"]][document["id"]] = {}
+                false_negatives[project["id"]][document["id"]] = {}
 
-            predicted = {tuple(x) for x in predictions[document["id"]]}
-            actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
-            doc_tps = list(predicted.intersection(actual))
-            doc_fps = list(predicted.difference(actual))
-            doc_fns = list(actual.difference(predicted))
-            true_positives[project["id"]][document["id"]] = doc_tps
-            false_positives[project["id"]][document["id"]] = doc_fps
-            false_negatives[project["id"]][document["id"]] = doc_fns
-            true_positive_count += len(doc_tps)
-            false_positive_count += len(doc_fps)
-            false_negative_count += len(doc_fns)
+                annotations = next(annotations_iter)
+                predictions[document["id"]] = []
+                for annotation in annotations:
+                    predictions[document["id"]].append([annotation.start, annotation.end, annotation.label_id])
+                    concept_names[annotation.label_id] = annotation.label_name
+                    concept_anchors[annotation.label_id] = concept_anchors.get(annotation.label_id, [])
+                    concept_anchors[annotation.label_id].append(
+                        f"P{project['id']}/D{document['id']}/S{annotation.start}/E{ annotation.end}"
+                    )
+
+                predicted = {tuple(x) for x in predictions[document["id"]]}
+                actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
+                doc_tps = list(predicted.intersection(actual))
+                doc_fps = list(predicted.difference(actual))
+                doc_fns = list(actual.difference(predicted))
+                true_positives[project["id"]][document["id"]] = doc_tps
+                false_positives[project["id"]][document["id"]] = doc_fps
+                false_negatives[project["id"]][document["id"]] = doc_fns
+                true_positive_count += len(doc_tps)
+                false_positive_count += len(doc_fps)
+                false_negative_count += len(doc_fns)
+        else:
+            for document in tqdm(documents, desc="Evaluating documents", total=len(documents), leave=False):
+                true_positives[project["id"]][document["id"]] = {}
+                false_positives[project["id"]][document["id"]] = {}
+                false_negatives[project["id"]][document["id"]] = {}
+
+                annotations = model_service.annotate(document["text"])
+                predictions[document["id"]] = []
+                for annotation in annotations:
+                    predictions[document["id"]].append([annotation.start, annotation.end, annotation.label_id])
+                    concept_names[annotation.label_id] = annotation.label_name
+                    concept_anchors[annotation.label_id] = concept_anchors.get(annotation.label_id, [])
+                    concept_anchors[annotation.label_id].append(
+                        f"P{project['id']}/D{document['id']}/S{annotation.start}/E{ annotation.end}"
+                    )
+
+                predicted = {tuple(x) for x in predictions[document["id"]]}
+                actual = {tuple(x) for x in correct_cuis[project["id"]][document["id"]]}
+                doc_tps = list(predicted.intersection(actual))
+                doc_fps = list(predicted.difference(actual))
+                doc_fns = list(actual.difference(predicted))
+                true_positives[project["id"]][document["id"]] = doc_tps
+                false_positives[project["id"]][document["id"]] = doc_fps
+                false_negatives[project["id"]][document["id"]] = doc_fns
+                true_positive_count += len(doc_tps)
+                false_positive_count += len(doc_fps)
+                false_negative_count += len(doc_fns)
 
     precision = true_positive_count / (true_positive_count + false_positive_count) if (true_positive_count + false_positive_count) != 0 else 0
     recall = true_positive_count / (true_positive_count + false_negative_count) if (true_positive_count + false_negative_count) != 0 else 0
@@ -126,12 +174,19 @@ def sanity_check_model_with_trainer_export(
             for span in spans:
                 tp_counts[span[2]] += 1
 
-    for cui in tp_counts.keys():
-        per_cui_prec[cui] = tp_counts[cui] / (tp_counts[cui] + fp_counts[cui])
-        per_cui_rec[cui] = tp_counts[cui] / (tp_counts[cui] + fn_counts[cui])
-        per_cui_f1[cui] = 2*(per_cui_prec[cui]*per_cui_rec[cui]) / (per_cui_prec[cui] + per_cui_rec[cui])
-        per_cui_name[cui] = concept_names[cui]
-        per_cui_anchors[cui] = ANCHOR_DELIMITER.join(concept_anchors[cui])
+    all_cuis = set(tp_counts.keys()) | set(fp_counts.keys()) | set(fn_counts.keys())
+    for cui in all_cuis:
+        tp = tp_counts.get(cui, 0)
+        fp = fp_counts.get(cui, 0)
+        fn = fn_counts.get(cui, 0)
+        tp_fp_sum = tp + fp
+        tp_fn_sum = tp + fn
+        per_cui_prec[cui] = tp / tp_fp_sum if tp_fp_sum > 0 else 0
+        per_cui_rec[cui] = tp / tp_fn_sum if tp_fn_sum > 0 else 0
+        prec_rec_sum = per_cui_prec[cui] + per_cui_rec[cui]
+        per_cui_f1[cui] = 2 * (per_cui_prec[cui] * per_cui_rec[cui]) / prec_rec_sum if prec_rec_sum > 0 else 0
+        per_cui_name[cui] = concept_names.get(cui, cui)
+        per_cui_anchors[cui] = ANCHOR_DELIMITER.join(concept_anchors.get(cui, []))
 
     if return_df:
         df = pd.DataFrame({

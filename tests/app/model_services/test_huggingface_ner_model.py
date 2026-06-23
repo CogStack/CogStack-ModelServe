@@ -1,8 +1,6 @@
 import os
 import tempfile
 from unittest.mock import Mock
-import pandas as pd
-import pytest
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from app import __version__
@@ -46,6 +44,7 @@ def test_info(huggingface_ner_model):
 
 
 def test_annotate(huggingface_ner_model):
+    huggingface_ner_model._config.TRAINING_HF_NER_TAGGING_SCHEME = "flat"
     huggingface_ner_model._confidence_threshold = 0.01
     annotations = huggingface_ner_model.annotate(
         """The patient is a 60-year-old female, who complained of coughing during meals. """
@@ -79,6 +78,36 @@ def test_annotate(huggingface_ner_model):
     assert annotations[0].end > annotations[0].start
     assert annotations[0].accuracy > 0
     assert len(annotations[0].text) > 0
+
+
+def test_annotate_with_confidence_threshold(huggingface_ner_model):
+    huggingface_ner_model._config.CONFIDENCE_SCORE_THRESHOLD = 1.1
+    annotations = huggingface_ner_model.annotate("This is a test.")
+    assert len(annotations) == 0
+
+
+def test_batch_annotate(huggingface_ner_model):
+    huggingface_ner_model._config.TRAINING_HF_NER_TAGGING_SCHEME = "iob"
+    huggingface_ner_model._config.HF_NER_APPLY_VITERBI_DECODING = "false"
+    huggingface_ner_model._viterbi_decoder = None
+    huggingface_ner_model._config.INCLUDE_SPAN_TEXT = "false"
+    huggingface_ner_model._confidence_threshold = 0.5
+    huggingface_ner_model._ner_pipeline = Mock(return_value=[
+        [
+            {"entity": "B-LABEL", "score": 0.9, "index": 0, "start": 0, "end": 5},
+        ],
+        [
+            {"entity": "I-LABEL", "score": 0.8, "index": 1, "start": 4, "end": 7},
+        ],
+    ])
+    texts = ["hello world", "foo bar"]
+    annotations_batch = huggingface_ner_model.batch_annotate(texts)
+    assert len(annotations_batch) == 2
+    assert len(annotations_batch[0]) == 1
+    assert annotations_batch[0][0].label_name == "Label"
+    assert annotations_batch[0][0].start == 0
+    assert annotations_batch[0][0].end == 5
+    assert len(annotations_batch[1]) == 1
 
 
 def test_train_unsupervised(huggingface_ner_model):

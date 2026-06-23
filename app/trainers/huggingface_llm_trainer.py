@@ -23,9 +23,9 @@ from transformers import (
     DataCollatorForLanguageModeling,
     Trainer,
 )
-from peft import LoraConfig, get_peft_model # type: ignore
 from app.management.model_manager import ModelManager
 from app.management.tracker_client import TrackerClient
+from app.processors.lora_adaptor import LoraAdaptor
 from app.utils import (
     reset_random_seed,
     non_default_device_is_available,
@@ -35,6 +35,7 @@ from app.utils import (
     get_default_chat_template,
     get_default_system_prompt,
     get_model_data_package_base_name,
+    save_model_to_clean_directory,
 )
 from app.trainers.base import SupervisedTrainer, UnsupervisedTrainer
 from app.domain import (
@@ -249,9 +250,10 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 }
             elif "question" in example and "answer" in example:
                 # Question/Answer format
+                instruction = example["instruction"] if "instruction" in example else None
                 return {
                     "prompt": [
-                        {"role": "system", "content": system_prompt},
+                        {"role": "system", "content": instruction if instruction is not None else system_prompt},
                         {"role": "user", "content": example.get("question")},
                     ],
                     "answer": example["answer"],
@@ -357,7 +359,23 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                 else:
                     logger.debug(f"Found a chat template in the tokenizer:\n {tokenizer.chat_template}")
 
-                lora_config = LoraConfig(
+                tokenized_lengths = train_dataset.map(
+                    lambda x: {
+                        "tokens": tokenizer.apply_chat_template(
+                            x["prompt"],
+                            add_generation_prompt=True,
+                            tokenize=True,
+                        )
+                    },
+                    batched=True,
+                ).map(lambda x: {"length": len(x["tokens"])})["length"]
+                max_prompt_length = max(tokenized_lengths) + 1
+                training_token_count = sum(tokenized_lengths)
+                logger.debug(f"Total training tokens: {training_token_count}")
+                self._tracker_client.log_training_token_count(training_token_count)
+
+                peft_model, _ = LoraAdaptor.apply(
+                    model=model,
                     task_type="CAUSAL_LM",
                     r=8,
                     lora_alpha=32,
@@ -368,23 +386,11 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     ],
                 )
 
-                peft_model = get_peft_model(model, lora_config)
-
                 mlflow_logging_callback = MLflowLoggingCallback(self._tracker_client)
                 cancel_event_check_callback = CancelEventCheckCallback(self._cancel_event)
                 trainer_callbacks = [mlflow_logging_callback, cancel_event_check_callback]
 
                 trainer_type = training_params.get("trainer_type", LlmTrainerType.GRPO.value).lower()
-                max_prompt_length = max(train_dataset.map(
-                    lambda x: {
-                        "tokens": tokenizer.apply_chat_template(
-                            x["prompt"],
-                            add_generation_prompt=True,
-                            tokenize=True
-                        )
-                    },
-                    batched=True,
-                ).map(lambda x: {"length": len(x["tokens"])})["length"]) + 1
                 if trainer_type == LlmTrainerType.PPO.value:
                     raise NotImplementedError("PPO training is not yet supported for HuggingFace LLM models")
                 elif trainer_type == LlmTrainerType.GRPO.value:
@@ -435,11 +441,12 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_LLM.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
                     model = peft_model.merge_and_unload()
-                    model.save_pretrained(
+                    save_model_to_clean_directory(
+                        model,
+                        tokenizer,
                         trained_model_directory,
                         safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
                     )
-                    tokenizer.save_pretrained(trained_model_directory)
                     create_model_data_package(trained_model_directory, retrained_model_pack_path)
                     model_uri = self._tracker_client.save_model(
                         retrained_model_pack_path,
@@ -689,7 +696,12 @@ class HuggingFaceLlmSupervisedTrainer(SupervisedTrainer, _HuggingFaceLlmTrainerC
             messages = example["prompt"]
             answer = example.get("answer", "")
 
-            prompt_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            prompt_text = tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=False,
+            )
             inputs = tokenizer(prompt_text, return_tensors="pt")
             input_ids = inputs["input_ids"]
             attention_mask = inputs.get("attention_mask")
@@ -792,7 +804,8 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
                 copied_model_directory = None
                 if self._model_service.is_quantised:
                     logger.info("Use the LoRA adaptor for the quantised model...")
-                    lora_config = LoraConfig(
+                    model, _ = LoraAdaptor.apply(
+                        model=self._model_service.model,
                         task_type="CAUSAL_LM",
                         r=8,
                         lora_alpha=32,
@@ -802,7 +815,6 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
                             "gate_proj", "up_proj", "down_proj",
                         ],
                     )
-                    model = get_peft_model(self._model_service.model, lora_config)
                     tokenizer = self._model_service.tokenizer
                 else:
                     logger.info("Loading a new model copy for training...")
@@ -851,6 +863,10 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
                     remove_columns=["text"],
                 )
 
+                training_token_count = sum(len(example["input_ids"]) for example in train_dataset)
+                logger.debug(f"Total training tokens: {training_token_count}")
+                self._tracker_client.log_training_token_count(training_token_count)
+
                 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
 
                 training_args = TrainingArguments(
@@ -897,20 +913,19 @@ class HuggingFaceLlmUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceLlmTrai
                         os.path.dirname(retrained_model_pack_path),
                         get_model_data_package_base_name(retrained_model_pack_path),
                     )
-                    if hasattr(model, "merge_and_unload"):
+                    use_trained_directory = hasattr(model, "merge_and_unload")
+                    if use_trained_directory:
                         model = model.merge_and_unload()
-                        model.save_pretrained(
-                            trained_model_directory,
-                            safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
-                        )
-                        tokenizer.save_pretrained(trained_model_directory)
-                        create_model_data_package(trained_model_directory, retrained_model_pack_path)
-                    else:
-                        model.save_pretrained(
-                            copied_model_directory, # type: ignore
-                            safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
-                        )
-                        create_model_data_package(copied_model_directory, retrained_model_pack_path)    # type: ignore
+                    save_model_to_clean_directory(
+                        model,
+                        tokenizer,
+                        trained_model_directory if use_trained_directory else copied_model_directory, # type: ignore
+                        safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
+                    )
+                    create_model_data_package(
+                        trained_model_directory if use_trained_directory else copied_model_directory, # type: ignore
+                        retrained_model_pack_path,
+                    )
 
                     self._tracker_client.log_model_config(model.config.to_dict())   # type: ignore
 

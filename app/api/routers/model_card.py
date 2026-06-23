@@ -4,11 +4,9 @@ from fastapi import APIRouter, Depends, Request
 from app.domain import ModelCard, Tags
 from app.model_services.base import AbstractModelService
 from app.utils import get_settings
-from app.api.utils import get_rate_limiter
 
 router = APIRouter()
 config = get_settings()
-limiter = get_rate_limiter(config)
 
 assert cms_globals.props is not None, "Current active user dependency not injected"
 assert cms_globals.model_service_dep is not None, "Model service dependency not injected"

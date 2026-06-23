@@ -178,7 +178,9 @@ class MedCATModel(AbstractModelService):
 
         assert self.model is not None, "Model is not initialised"
         doc = self.model.get_entities(text)
-        return [load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc)]
+        records = self.get_records_from_doc(doc)
+        records = [r for r in records if r.get("accuracy", 0.0) >= self._config.CONFIDENCE_SCORE_THRESHOLD]
+        return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
         """
@@ -202,8 +204,10 @@ class MedCATModel(AbstractModelService):
         docs = dict(sorted(docs.items(), key=lambda x: x[0]))
         annotations_list = []
         for _, doc in docs.items():
+            records = self.get_records_from_doc(doc) # type: ignore
+            records = [r for r in records if r.get("accuracy", 0.0) >= self._config.CONFIDENCE_SCORE_THRESHOLD]
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(doc) # type: ignore
+                load_pydantic_object_from_dict(Annotation, record) for record in records
             ])
         return annotations_list
 

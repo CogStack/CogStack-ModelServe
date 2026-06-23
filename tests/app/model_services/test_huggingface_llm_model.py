@@ -1,11 +1,23 @@
 import os
 import pytest
+import torch
+from concurrent.futures import Future
 from unittest.mock import MagicMock, patch
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from app import __version__
-from app.domain import ModelType
+from app.domain import ModelType, GenerationResult
 from app.model_services.huggingface_llm_model import HuggingFaceLlmModel, TimeoutCriteria
+from app.exception import GenerationException
+
+
+class _TokenBatch:
+    def __init__(self, length: int = 2):
+        self.input_ids = torch.tensor([[0] * length])
+        self.attention_mask = torch.ones((1, length), dtype=torch.long)
+
+    def to(self, _device):
+        return self
 
 
 def test_model_name(huggingface_llm_model):
@@ -27,6 +39,18 @@ def test_init_model(huggingface_llm_model):
     huggingface_llm_model.init_model()
     assert huggingface_llm_model.model is not None
     assert huggingface_llm_model.tokenizer is not None
+
+
+def test_init_model_sets_override_chat_template(huggingface_llm_model):
+    huggingface_llm_model._config.OVERRIDE_CHAT_TEMPLATE = "{{ custom_template }}"
+    huggingface_llm_model.init_model()
+    assert huggingface_llm_model.tokenizer.chat_template == "{{ custom_template }}"
+
+
+def test_init_model_skips_override_chat_template(huggingface_llm_model):
+    huggingface_llm_model._config.OVERRIDE_CHAT_TEMPLATE = ""
+    huggingface_llm_model.init_model()
+    assert huggingface_llm_model.tokenizer.chat_template != ""
 
 
 def test_load_model(huggingface_llm_model):
@@ -52,13 +76,14 @@ def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output)
     huggingface_llm_model._micro_batch_scheduler._batch_wait_milliseconds = 1
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
+    huggingface_llm_model._assistant_model = MagicMock()
+    huggingface_llm_model._assistant_tokenizer = MagicMock()
     mock_send_metrics = MagicMock()
-    inputs = MagicMock()
-    inputs.input_ids = MagicMock(shape=[1, 2])
-    inputs.attention_mask = MagicMock()
-    inputs.attention_mask.sum.return_value.tolist.return_value = [2]
+    inputs = _TokenBatch(length=2)
     huggingface_llm_model.tokenizer.return_value = inputs
     huggingface_llm_model.tokenizer.pad_token_id = 2
+    huggingface_llm_model.tokenizer.vocab_size = 2
+    huggingface_llm_model._assistant_tokenizer.vocab_size = 2
     outputs = [MagicMock(shape=[2])]
     huggingface_llm_model.model.generate.return_value = outputs
     completion_ids = MagicMock()
@@ -80,15 +105,15 @@ def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output)
     )
 
     huggingface_llm_model.tokenizer.assert_any_call(
-        ["chat template text"],
+        ["Alright?"],
         add_special_tokens=False,
         return_tensors="pt",
         padding=True,
     )
     huggingface_llm_model.model.generate.assert_called_once()
     call_kwargs = huggingface_llm_model.model.generate.call_args.kwargs
-    assert call_kwargs["inputs"] == inputs.input_ids
-    assert call_kwargs["attention_mask"] == inputs.attention_mask
+    assert torch.equal(call_kwargs["inputs"], inputs.input_ids)
+    assert torch.equal(call_kwargs["attention_mask"], inputs.attention_mask)
     assert call_kwargs["min_new_tokens"] == 50
     assert call_kwargs["max_new_tokens"] == 128
     assert call_kwargs["use_cache"] is True
@@ -99,17 +124,64 @@ def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output)
     assert call_kwargs["repetition_penalty"] == 1.2
     assert call_kwargs["no_repeat_ngram_size"] == 3
     assert call_kwargs["pad_token_id"] == 2
+    assert call_kwargs["assistant_model"] == huggingface_llm_model._assistant_model
+    assert call_kwargs["assistant_confidence_threshold"] == 0.4
+    assert call_kwargs["num_assistant_tokens"] == 5
     assert "stopping_criteria" in call_kwargs
     huggingface_llm_model.tokenizer.decode.assert_called_once_with(
         outputs[0][2:],
         skip_special_tokens=True,
     )
-    mock_send_metrics.assert_called_once_with(
-        prompt_token_num=2,
-        completion_token_num=2,
+    mock_send_metrics.assert_called_once()
+    metric_kwargs = mock_send_metrics.call_args.kwargs
+    assert metric_kwargs["prompt_token_num"] == 2
+    assert metric_kwargs["completion_token_num"] == 2
+    assert metric_kwargs["ttft_milliseconds"] >= -1
+    assert metric_kwargs["tpot_milliseconds"] >= -1
+    assert result.text == expected_output
+    assert "[STOP]" not in result.text
+
+
+def test_generate_with_structured_output(huggingface_llm_model):
+    huggingface_llm_model.init_model()
+    model = MagicMock()
+    model.generate.return_value = GenerationResult(
+        text="Yeah.",
+        prompt_token_num=1,
+        completion_token_num=1,
     )
-    assert result == expected_output
-    assert "[STOP]" not in result
+    huggingface_llm_model.model = model
+    captured = {}
+    json_schema_parser = MagicMock()
+    huggingface_llm_model._get_schema_hash = MagicMock(return_value="schema_hash")
+    prefix_fn = MagicMock()
+
+    def _submit(request):
+        captured.update(request)
+        future = Future()
+        request["future"] = future
+        with patch.object(
+            huggingface_llm_model,
+            "_build_transformers_prefix_allowed_tokens_fn",
+            return_value=prefix_fn,
+        ):
+            model.generate(prefix_allowed_tokens_fn=prefix_fn)
+        future.set_result(model.generate.return_value)
+        return future
+
+    huggingface_llm_model._micro_batch_scheduler.submit = _submit
+
+    result = huggingface_llm_model.generate(
+        prompt="This is a test prompt",
+        min_tokens=1,
+        max_tokens=2,
+        json_schema_parser=json_schema_parser,
+    )
+
+    assert result.text == "Yeah."
+    assert captured["json_schema_parser"] == json_schema_parser
+    assert captured["batch_key"][-2] == "schema_hash"
+    assert model.generate.call_args.kwargs["prefix_allowed_tokens_fn"] == prefix_fn
 
 
 @pytest.mark.parametrize("ensure_full_sentences, stream_chunks, stop_sequences, expected_output, report_called", [
@@ -128,19 +200,19 @@ async def test_generate_async(
     huggingface_llm_model.init_model()
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
+    huggingface_llm_model._assistant_model = MagicMock()
+    huggingface_llm_model._assistant_tokenizer = MagicMock()
     mock_send_metrics = MagicMock()
-    inputs = MagicMock()
-    inputs.input_ids = MagicMock(shape=[1, 2])
-    inputs.attention_mask = MagicMock()
+    inputs = _TokenBatch(length=2)
     
     def mock_tokenizer_call(*args, **kwargs):
         if args and args[0] == "Alright?":
             return inputs
-        mock_result = MagicMock()
-        mock_result.input_ids = MagicMock(shape=[1, 2])
-        return mock_result
+        return _TokenBatch(length=2)
     
     huggingface_llm_model.tokenizer.side_effect = mock_tokenizer_call
+    huggingface_llm_model.tokenizer.vocab_size = 2
+    huggingface_llm_model._assistant_tokenizer.vocab_size = 2
     streamer = FakeAsyncTextIteratorStreamer(stream_chunks)
     
     with patch("app.model_services.huggingface_llm_model.AsyncTextIteratorStreamer", return_value=streamer):
@@ -160,16 +232,22 @@ async def test_generate_async(
             report_tokens=mock_send_metrics,
             ensure_full_sentences=ensure_full_sentences,
         ):
-            results.append(chunk)
+            if isinstance(chunk, str):
+                results.append(chunk)
         result = "".join(results)
         submit_kwargs = huggingface_llm_model._text_generator.submit.call_args.kwargs
         assert "stopping_criteria" in submit_kwargs
+        assert submit_kwargs["assistant_model"] == huggingface_llm_model._assistant_model
+        assert submit_kwargs["assistant_confidence_threshold"] == 0.4
+        assert submit_kwargs["num_assistant_tokens"] == 5
 
     if report_called:
-        mock_send_metrics.assert_called_once_with(
-            prompt_token_num=2,
-            completion_token_num=2,
-        )
+        mock_send_metrics.assert_called_once()
+        metric_kwargs = mock_send_metrics.call_args.kwargs
+        assert metric_kwargs["prompt_token_num"] == 2
+        assert metric_kwargs["completion_token_num"] == 2
+        assert metric_kwargs["ttft_milliseconds"] >= -1
+        assert metric_kwargs["tpot_milliseconds"] >= -1
     else:
         mock_send_metrics.assert_not_called()
     assert result == expected_output
@@ -183,16 +261,12 @@ async def test_generate_async_with_timeout(huggingface_llm_model):
     huggingface_llm_model._generation_timeout_secs = 2
     huggingface_llm_model.model = MagicMock()
     huggingface_llm_model.tokenizer = MagicMock()
-    inputs = MagicMock()
-    inputs.input_ids = MagicMock(shape=[1, 2])
-    inputs.attention_mask = MagicMock()
+    inputs = _TokenBatch(length=2)
 
     def _mock_tokenizer_call(*args, **kwargs):
         if args and args[0] == "Alright?":
             return inputs
-        mock_result = MagicMock()
-        mock_result.input_ids = MagicMock(shape=[1, 2])
-        return mock_result
+        return _TokenBatch(length=2)
 
     huggingface_llm_model.tokenizer.side_effect = _mock_tokenizer_call
     streamer = FakeAsyncTextIteratorStreamer(["OK"])
@@ -203,7 +277,8 @@ async def test_generate_async_with_timeout(huggingface_llm_model):
         huggingface_llm_model._text_generator.submit = MagicMock(return_value=MagicMock())
         results = []
         async for chunk in huggingface_llm_model.generate_async(prompt="Alright?"):
-            results.append(chunk)
+            if isinstance(chunk, str):
+                results.append(chunk)
 
         submit_kwargs = huggingface_llm_model._text_generator.submit.call_args.kwargs
         mock_streamer.assert_called_once()
@@ -212,6 +287,26 @@ async def test_generate_async_with_timeout(huggingface_llm_model):
         assert "stopping_criteria" in submit_kwargs
         assert len(submit_kwargs["stopping_criteria"]) == 1
         assert isinstance(submit_kwargs["stopping_criteria"][0], TimeoutCriteria)
+
+
+@pytest.mark.asyncio
+async def test_generate_async_with_generation_exception(huggingface_llm_model):
+    huggingface_llm_model.init_model()
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.tokenizer = MagicMock()
+    inputs = _TokenBatch(length=2)
+
+    def _mock_tokenizer_call(*args, **kwargs):
+        if args and args[0] == "Alright?":
+            return inputs
+        return _TokenBatch(length=2)
+
+    huggingface_llm_model.tokenizer.side_effect = _mock_tokenizer_call
+    huggingface_llm_model._text_generator.submit = MagicMock(side_effect=RuntimeError("submit failed"))
+
+    with pytest.raises(GenerationException):
+        async for _ in huggingface_llm_model.generate_async(prompt="Alright?"):
+            pass
 
 
 @patch("torch.nn.functional.normalize")

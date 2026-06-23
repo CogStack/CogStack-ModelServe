@@ -50,7 +50,9 @@ def medcat_snomed_model():
     config = Settings()
     config.BASE_MODEL_FILE = "snomed_model.zip"
     config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
-    return MedCATModelSnomed(config, MODEL_PARENT_DIR, True)
+    model_service = MedCATModelSnomed(config, MODEL_PARENT_DIR, True)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
@@ -58,7 +60,9 @@ def medcat_icd10_model():
     config = Settings()
     config.BASE_MODEL_FILE = "icd10_model.zip"
     config.TYPE_UNIQUE_ID_WHITELIST = "91776366,81102976,28321150,67667581,9090192,27603525"
-    return MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
+    model_service = MedCATModelIcd10(config, MODEL_PARENT_DIR, True)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
@@ -66,14 +70,18 @@ def medcat_opcs4_model():
     config = Settings()
     config.BASE_MODEL_FILE = "opcs4_model.zip"
     config.TYPE_UNIQUE_ID_WHITELIST = "T-9,T-11,T-18,T-39,T-40,T-45"
-    return MedCATModelOpcs4(config, MODEL_PARENT_DIR, True)
+    model_service = MedCATModelOpcs4(config, MODEL_PARENT_DIR, True)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
 def medcat_umls_model():
     config = Settings()
     config.BASE_MODEL_FILE = "umls_model.zip"
-    return MedCATModelUmls(config, MODEL_PARENT_DIR, True)
+    model_service = MedCATModelUmls(config, MODEL_PARENT_DIR, True)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
@@ -81,14 +89,18 @@ def medcat_deid_model():
     config = Settings()
     config.BASE_MODEL_FILE = "deid_model.zip"
     config.INCLUDE_SPAN_TEXT = "true"
-    return MedCATModelDeIdentification(config, MODEL_PARENT_DIR, True)
+    model_service = MedCATModelDeIdentification(config, MODEL_PARENT_DIR, True)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
 def trf_model():
     config = Settings()
     config.BASE_MODEL_FILE = "trf_deid_model.zip"
-    return TransformersModelDeIdentification(config, MODEL_PARENT_DIR)
+    model_service = TransformersModelDeIdentification(config, MODEL_PARENT_DIR)
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
@@ -98,15 +110,16 @@ def huggingface_ner_model():
     config.INCLUDE_SPAN_TEXT = "true"
     model_service = HuggingFaceNerModel(config, MODEL_PARENT_DIR)
     model_service.init_model()
-    return model_service
+    yield model_service
+    model_service.shutdown()
 
 
 @pytest.fixture(scope="function")
 def huggingface_llm_model():
     config = Settings()
     config.BASE_MODEL_FILE = "huggingface_llm_model.tar.gz"
-    config.TRAINING_HF_TAGGING_SCHEME = "flat"
+    config.TRAINING_HF_NER_TAGGING_SCHEME = "flat"
+    config.OVERRIDE_CHAT_TEMPLATE = "{{ custom_template }}"
     model_service = HuggingFaceLlmModel(config, MODEL_PARENT_DIR)
-    model_service.init_model()
     yield model_service
-    model_service.close()
+    model_service.shutdown()

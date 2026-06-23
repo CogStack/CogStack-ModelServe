@@ -7,7 +7,7 @@ import toml
 import pandas as pd
 from typing import Type, Optional, Dict, Any, List, Iterator, final, Union
 from pandas import DataFrame
-from mlflow.pyfunc import PythonModel, PythonModelContext
+from mlflow.pyfunc import PythonModel, PythonModelContext   # type: ignore
 from mlflow.models.signature import ModelSignature
 from mlflow.types import DataType, Schema, ColSpec
 from app.model_services.base import AbstractModelService
@@ -28,20 +28,20 @@ class ModelManager(PythonModel):
     """
 
     input_schema = Schema([
-        ColSpec(DataType.string, "name", optional=True),
-        ColSpec(DataType.string, "text"),
+        ColSpec(DataType.string, "name", required=False),
+        ColSpec(DataType.string, "text", required=True),
     ])
 
     output_schema = Schema([
-        ColSpec(DataType.string, "doc_name"),
-        ColSpec(DataType.integer, "start"),
-        ColSpec(DataType.integer, "end"),
-        ColSpec(DataType.string, "label_name"),
-        ColSpec(DataType.string, "label_id"),
-        ColSpec(DataType.string, "categories", optional=True),
-        ColSpec(DataType.float, "accuracy", optional=True),
-        ColSpec(DataType.string, "text", optional=True),
-        ColSpec(DataType.string, "meta_anns", optional=True)
+        ColSpec(DataType.string, "doc_name", required=True),
+        ColSpec(DataType.integer, "start", required=True),
+        ColSpec(DataType.integer, "end", required=True),
+        ColSpec(DataType.string, "label_name", required=True),
+        ColSpec(DataType.string, "label_id", required=True),
+        ColSpec(DataType.string, "categories", required=False),
+        ColSpec(DataType.float, "accuracy", required=False),
+        ColSpec(DataType.string, "text", required=False),
+        ColSpec(DataType.string, "meta_anns", required=False),
     ])
 
     def __init__(self, model_service_type: Type, config: Settings) -> None:
@@ -58,7 +58,6 @@ class ModelManager(PythonModel):
         self._model_signature = ModelSignature(
             inputs=ModelManager.input_schema,
             outputs=ModelManager.output_schema,
-            params=None,
         )
 
     @property
@@ -114,6 +113,7 @@ class ModelManager(PythonModel):
         """
 
         model_manager = ModelManager.retrieve_python_model_from_uri(mlflow_model_uri, config)
+        assert hasattr(model_manager, "model_service"), "Model manager has no model service initialised."
         model_service = model_manager.model_service
         config.BASE_MODEL_FULL_PATH = mlflow_model_uri
         model_service._config = config
@@ -194,6 +194,19 @@ class ModelManager(PythonModel):
             return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "requirements.txt"))
         else:
             raise ManagedModelException("Cannot find pip requirements.")
+
+    def __getstate__(self) -> dict:
+        return {
+            "_model_service_type": self._model_service_type,
+            "_config": self._config,
+            "_model_signature": self._model_signature,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self._model_service_type = state["_model_service_type"]
+        self._config = state["_config"]
+        self._model_signature = state["_model_signature"]
+        self._model_service = None
 
     def save_model(self, local_dir: str, model_path: str) -> None:
         """

@@ -7,6 +7,7 @@ from app.api.api import get_model_server
 from app.utils import get_settings, load_pydantic_object_from_dict
 from app.model_services.huggingface_ner_model import HuggingFaceNerModel
 from app.domain import ModelCard, ModelType
+from tests.app.helper import disable_rate_limits
 
 config = get_settings()
 config.ENABLE_TRAINING_APIS = "true"
@@ -14,6 +15,7 @@ config.DISABLE_UNSUPERVISED_TRAINING = "false"
 config.ENABLE_EVALUATION_APIS = "true"
 config.ENABLE_PREVIEWS_APIS = "true"
 config.AUTH_USER_ENABLED = "true"
+disable_rate_limits(config)
 
 TRAINER_EXPORT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "trainer_export.json")
 NOTE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "resources", "fixture", "note.txt")

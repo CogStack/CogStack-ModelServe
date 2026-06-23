@@ -1,8 +1,9 @@
 import pytest
 from fastapi import HTTPException
 
-from app.api.dependencies import ModelServiceDep, validate_tracking_id
+from app.api.dependencies import ModelManagerDep, ModelServiceDep, validate_tracking_id
 from app.config import Settings
+from app.exception import ConfigurationException
 from app.model_services.medcat_model import MedCATModel
 from app.model_services.medcat_model_icd10 import MedCATModelIcd10
 from app.model_services.medcat_model_opcs4 import MedCATModelOpcs4
@@ -70,3 +71,30 @@ def test_validate_tracking_id_invalid(run_id):
         validate_tracking_id(run_id)
     assert exc_info.value.status_code == 400
     assert "Invalid tracking ID" in exc_info.value.detail
+
+
+def test_validate_tracking_id_none_returns_none():
+    assert validate_tracking_id(None) is None
+
+
+def test_model_service_dep_returns_cached_instance():
+    model_service_dep = ModelServiceDep("medcat_snomed", Settings())
+    first_instance = model_service_dep()
+    second_instance = model_service_dep()
+    assert first_instance is second_instance
+
+
+def test_model_service_dep_raises_configuration_exception_for_unknown_type():
+    model_service_dep = ModelServiceDep("unknown_model_type", Settings())
+    with pytest.raises(ConfigurationException) as exc_info:
+        model_service_dep()
+    assert "Unknown model type" in str(exc_info.value)
+
+
+def test_model_manager_dep_assigns_model_service():
+    model_service_dep = ModelServiceDep("medcat_snomed", Settings())
+    model_service = model_service_dep()
+    manager_dep = ModelManagerDep(model_service)
+    model_manager = manager_dep()
+    assert model_manager.model_service is model_service
+    assert model_manager._model_service_type == model_service.__class__

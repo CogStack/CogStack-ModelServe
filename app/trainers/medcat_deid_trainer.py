@@ -95,7 +95,7 @@ class MedcatDeIdentificationSupervisedTrainer(MedcatSupervisedTrainer):
                 if training_params.get("test_size") is not None:
                     ner.config.general.test_size = training_params["test_size"]
                 # This default evaluation strategy is "epoch"
-                # ner.training_arguments.evaluation_strategy = "steps"
+                # ner.training_arguments.eval_strategy = "steps"
                 # ner.training_arguments.eval_steps = 1
                 logger.info("Performing supervised training...")
                 model.config.meta.description = description or model.config.meta.description

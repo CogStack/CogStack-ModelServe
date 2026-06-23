@@ -1,5 +1,6 @@
 import time
 import mlflow
+from app.config import Settings
 
 
 def ensure_no_active_run(timeout_seconds: int = 600) -> None:
@@ -15,6 +16,12 @@ def ensure_no_active_run(timeout_seconds: int = 600) -> None:
                 raise TimeoutError(f"Run timed out with ID: {run_id}")
             mlflow.end_run()
             time.sleep(1)
+
+
+def disable_rate_limits(config: Settings):
+    config.PROCESS_RATE_LIMIT = ""
+    config.PROCESS_BULK_RATE_LIMIT = ""
+    config.GENERATION_RATE_LIMIT = ""
 
 
 class StringContains(str):

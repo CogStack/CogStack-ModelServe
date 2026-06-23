@@ -8,9 +8,12 @@ from starlette.requests import ClientDisconnect
 import app.api.globals as cms_globals
 
 from typing import Any, Mapping, Optional, AsyncGenerator
+from typing_extensions import Annotated
 from starlette.types import Receive, Scope, Send
 from starlette.background import BackgroundTask
-from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketException
+from starlette.status import HTTP_202_ACCEPTED
+from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket, WebSocketException, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import ValidationError, BaseModel
 from app.domain import Tags, TextStreamItem
 from app.model_services.base import AbstractModelService
@@ -20,10 +23,16 @@ from app.api.auth.users import get_user_manager, CmsUserManager
 
 PATH_STREAM_PROCESS = "/process"
 PATH_WS = "/ws"
+PATH_SSE_EVENTS = "/sse/events"
+PATH_SSE_PROCESS = "/sse/process"
+SSE_CONNECTION_TIMEOUT_SECONDS = 300
+SSE_CONNECTION_MAX_RETRIES = 10
+
 
 router = APIRouter()
 config = get_settings()
 limiter = get_rate_limiter(config)
+sse_clients: dict[str, asyncio.Queue] = {}
 logger = logging.getLogger("cms")
 
 assert cms_globals.props is not None, "Current active user dependency not injected"
@@ -63,7 +72,7 @@ async def get_entities_stream_from_jsonlines_stream(
     description="WebSocket info endpoint for real-time NER entity extraction. Use ws://host:port/stream/ws to establish an actual WebSocket connection.",
     include_in_schema=True,
 )
-async def get_inline_annotations_from_websocket_info() -> "_WebSocketInfo":
+async def get_inline_entities_from_websocket_info() -> "_WebSocketInfo":
     """
     Information about the WebSocket endpoint for real-time NER entity extraction.
 
@@ -72,9 +81,10 @@ async def get_inline_annotations_from_websocket_info() -> "_WebSocketInfo":
     """
     return _WebSocketInfo()
 
+
 @router.websocket(PATH_WS)
-# @limiter.limit(config.PROCESS_BULK_RATE_LIMIT)  # Not supported yet
-async def get_inline_annotations_from_websocket(
+@limiter.exempt
+async def get_inline_entities_from_websocket(
     websocket: WebSocket,
     user_manager: CmsUserManager = Depends(get_user_manager),
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
@@ -99,12 +109,32 @@ async def get_inline_annotations_from_websocket(
     monitor_idle_task = None
     try:
         if get_settings().AUTH_USER_ENABLED == "true":
-            cookie = websocket.cookies.get("fastapiusersauth")
-            if cookie is None:
-                raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="Authentication cookie not found")
-            user = await cms_globals.props.auth_backends[1].get_strategy().read_token(cookie, user_manager) # type: ignore
-            if not user or not user.is_active:
-                raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
+            jwt_backend = cms_globals.props.auth_backends[0]    # type: ignore
+            cookie_backend = cms_globals.props.auth_backends[1] # type: ignore
+            auth_header = websocket.headers.get("Authorization", "")
+            cookie = websocket.cookies.get("fastapiusersauth", "")
+
+            if not auth_header and not cookie:
+                raise WebSocketException(
+                    code=WS_1008_POLICY_VIOLATION,
+                    reason="Authentication credentials not found (Bearer token or cookie required)",
+                )
+
+            user = None
+            try:
+                if auth_header:
+                    bearer_token = auth_header.split(" ", 1)[1].strip()
+                    user = await jwt_backend.get_strategy().read_token(bearer_token, user_manager)  # type: ignore
+                else:
+                    user = await cookie_backend.get_strategy().read_token(cookie, user_manager) # type: ignore
+            except Exception:
+                raise WebSocketException(
+                    code=WS_1008_POLICY_VIOLATION,
+                    reason="Invalid authentication credential)",
+                )
+            else:
+                if user is None or not user.is_active:
+                    raise WebSocketException(code=WS_1008_POLICY_VIOLATION, reason="User not found or not active")
 
         await websocket.accept()
 
@@ -145,6 +175,178 @@ async def get_inline_annotations_from_websocket(
         except RuntimeError as e:
             logger.debug(str(e))
 
+
+@router.get(PATH_SSE_EVENTS)
+@limiter.exempt
+async def get_entities_stream_from_sse(
+    request: Request,
+    client_id: Annotated[str, Query(description="Unique client identifier for the SSE connection")],
+    keep_alive: Annotated[Optional[bool], Query(description="Whether to keep the conneciton alive after periods of inactivity")] = False,
+) -> StreamingResponse:
+    """
+    Server-Sent Events (SSE) endpoint to receive NER entities as stream events for a specific client.
+
+    Args:
+        request (Request): The request object.
+        client_id (str): The unique client identifier for the SSE connection.
+        keep_alive (Optional[bool]): Whether to keep the connection alive after periods of inactivity.
+
+    Returns:
+        StreamingResponse: A streaming response for the SSE connection.
+    """
+    if client_id in sse_clients and sse_clients[client_id] is not None:
+        queue = sse_clients[client_id]
+    else:
+        queue = asyncio.Queue()
+        sse_clients[client_id] = queue
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        try:
+            yield ": connected\n\n"
+
+            while True:
+                if await request.is_disconnected():
+                    break
+
+                try:
+                    logger.debug(f"Waiting for event for client {client_id}")
+                    event = await asyncio.wait_for(queue.get(), timeout=SSE_CONNECTION_TIMEOUT_SECONDS)
+
+                    if isinstance(event, dict) and event.get("_control") == "close":
+                        logger.debug(f"Closing SSE for client {client_id} as requested")
+                        break
+
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    if keep_alive:
+                        logger.debug(f"Sending keepalive for client {client_id} after timeout")
+                        yield ": keepalive\n\n"
+                        continue
+                    else:
+                        logger.debug(f"Timeout reached for client {client_id}, closing connection")
+                        break
+        except asyncio.CancelledError:
+            logger.debug(f"SSE connection for client {client_id} cancelled")
+        except Exception as e:
+            logger.error(f"SSE error for client {client_id}: {e}")
+            yield f"data: {json.dumps({'error': 'stream_error', 'message': str(e)})}\n\n"
+        finally:
+            sse_clients.pop(client_id, None)
+            logger.debug(f"SSE disconnected for client {client_id}")
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+@router.post(
+    PATH_SSE_PROCESS,
+    tags=[Tags.Annotations.name],
+    dependencies=[Depends(cms_globals.props.current_active_user)],
+)
+@limiter.exempt
+async def send_text_jsonlines_for_processing(
+    request: Request,
+    client_id: Annotated[str, Query(description="Unique client identifier for the SSE connection")],
+    model_service: AbstractModelService = Depends(cms_globals.model_service_dep),
+) -> JSONResponse:
+    """
+    Sends texts in the JSON Lines format for processing and extracted NER entities will be received via Server-Sent Events (SSE).
+
+    Args:
+        request (Request): The request object containing the texts in JSON Lines.
+        client_id (str): The unique client identifier for the SSE connection.
+        model_service (AbstractModelService): The model service dependency.
+
+    Returns:
+        JSONResponse: A JSON response indicating the status of the request.
+    """
+    for _ in range(SSE_CONNECTION_MAX_RETRIES):
+        queue = sse_clients.get(client_id)
+        if queue:
+            break
+        await asyncio.sleep(0.1)
+    else:
+        raise HTTPException(status_code=400, detail="Client not connected. Please establish SSE connection first.")
+
+    async def process_text(queue: asyncio.Queue, doc_name: str, text: str) -> None:
+        try:
+            await queue.put({"status": "started", "doc_name": doc_name, "text": text})
+            annotations = await model_service.annotate_async(text)
+            await asyncio.sleep(0.1)
+            for anno in annotations:
+                anno.doc_name = doc_name
+                await queue.put({"type": "annotation", "data": anno.dict(exclude_none=True)})
+            await queue.put({"status": "completed", "doc_name": doc_name})
+        except asyncio.CancelledError:
+            logger.debug(f"Processing for document {doc_name} was cancelled")
+            raise
+        except Exception as e:
+            logger.error(f"Error processing document {doc_name}: {e}")
+            await queue.put({"status": "error", "error": str(e), "doc_name": doc_name})
+
+    tasks = []
+    buffer = ""
+    doc_idx = 0
+
+    try:
+        async for chunk in request.stream():
+            decoded = chunk.decode("utf-8")
+            if not decoded:
+                break
+            buffer += decoded
+
+            while "\n" in buffer:
+                newline_idx = buffer.index("\n")
+                line = buffer[:newline_idx]
+                buffer = buffer[newline_idx + 1:]
+
+                if line.strip():
+                    try:
+                        json_line_obj = json.loads(line)
+                        TextStreamItem(**json_line_obj)
+                        task = asyncio.create_task(
+                            process_text(
+                                queue,
+                                text=json_line_obj["text"],
+                                doc_name=json_line_obj.get("name", f"doc_{doc_idx}"),
+                            )
+                        )
+                        tasks.append(task)
+                    except json.JSONDecodeError as e:
+                        await queue.put({'status': 'error', 'error': f'Invalid JSON Line: {str(e)}', 'content': line})
+                    except ValidationError as e:
+                        await queue.put({'status': 'error', 'error': f'Invalid JSON properties: {str(e)}', 'content': line})
+                    finally:
+                        doc_idx += 1
+
+        if buffer.strip():
+            try:
+                json_line_obj = json.loads(buffer)
+                TextStreamItem(**json_line_obj)
+                task = asyncio.create_task(
+                    process_text(
+                        queue,
+                        text=json_line_obj["text"],
+                        doc_name=json_line_obj.get("name", f"doc_{doc_idx}"),
+                    )
+                )
+                tasks.append(task)
+            except (json.JSONDecodeError, ValidationError) as e:
+                await queue.put({'status': 'error', 'error': str(e), 'content': buffer})
+
+    finally:
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        await queue.put({"status": "all_completed", "total_docs": doc_idx})
+
+    return JSONResponse(content={"status": "accepted", "total_docs": doc_idx}, status_code=HTTP_202_ACCEPTED)
 
 class _LocalStreamingResponse(Response):
 

@@ -1,4 +1,6 @@
 import os
+import unittest
+
 import pytest
 from typer.testing import CliRunner
 from unittest.mock import patch
@@ -100,7 +102,6 @@ def test_generate_api_doc_help():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--help"])
     assert result.exit_code == 0
     assert "This generates an API document for all endpoints defined in CMS" in result.output
-
 
 def test_generate_api_doc():
     result = runner.invoke(cmd_app, ["export-openapi-spec", "--api-title", "TestAPIs"])

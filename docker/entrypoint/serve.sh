@@ -22,10 +22,10 @@ else
     exit 1
 fi
 
-if [ "${CMS_STREAMABLE}" = "true" ]; then
-    streamable="--streamable"
+if [ -z "${CMS_SERVE_EXTRA_OPTIONS}" ]; then
+    extra_opts=""
 else
-    streamable=""
+    extra_opts="${CMS_SERVE_EXTRA_OPTIONS}"
 fi
 
 source /.venv/bin/activate
@@ -36,4 +36,4 @@ exec /.venv/bin/python cli/cli.py serve \
   --model-path "${CMS_MODEL_FILE}" \
   --host 0.0.0.0 \
   --port 8000 \
-  $streamable
+  $extra_opts

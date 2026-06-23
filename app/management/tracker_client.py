@@ -70,12 +70,17 @@ class TrackerClient(object):
         """
         experiment_name = TrackerClient.get_experiment_name(model_name, training_type)
         experiment_id = TrackerClient._get_experiment_id(experiment_name)
+
+        if mlflow.active_run() is not None:
+            logger.warning("Detected an active run that did not end properly, marking it as FAILED before starting a new one.")
+            mlflow.end_run(RunStatus.to_string(RunStatus.FAILED))
+
         try:
             active_run = mlflow.start_run(
                 experiment_id=experiment_id,
+                run_name=run_name,
                 tags={
                     MLFLOW_SOURCE_NAME: socket.gethostname(),
-                    "mlflow.runName": run_name,
                     "mlflow.note.content": description or "",
                     "training.input_data.filename": input_file_name,
                     "training.base_model.origin": base_model_original,
@@ -334,6 +339,17 @@ class TrackerClient(object):
         """
 
         mlflow.set_tag("training.document.size", str(num_of_docs))
+
+    @staticmethod
+    def log_training_token_count(token_count: int) -> None:
+        """
+        Logs the total number of tokens in the training dataset as a tag.
+
+        Args:
+            token_count (int): The total number of tokens used for training.
+        """
+
+        mlflow.set_tag("training.token.count", str(token_count))
 
     @staticmethod
     def log_model_config(config: Dict[str, str]) -> None:
