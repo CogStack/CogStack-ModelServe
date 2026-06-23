@@ -648,7 +648,7 @@
         "/v1/embeddings": {
             "post": {
                 "tags": [
-                    "Operations compatible with OpenAI APIs"
+                    "OpenAICompatible"
                 ],
                 "summary": "Embed Texts",
                 "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
@@ -1991,9 +1991,9 @@
                 "tags": [
                     "Annotations"
                 ],
-                "summary": "Get Inline Annotations From Websocket Info",
+                "summary": "Get Inline Entities From Websocket Info",
                 "description": "WebSocket info endpoint for real-time NER entity extraction. Use ws://host:port/stream/ws to establish an actual WebSocket connection.",
-                "operationId": "get_inline_annotations_from_websocket_info",
+                "operationId": "get_inline_entities_from_websocket_info",
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -2014,6 +2014,116 @@
                         "APIKeyCookie": []
                     }
                 ]
+            }
+        },
+        "/stream/sse/events": {
+            "get": {
+                "summary": "Get Entities Stream From Sse",
+                "description": "Server-Sent Events (SSE) endpoint to receive NER entities as stream events for a specific client.\n\nArgs:\n    request (Request): The request object.\n    client_id (str): The unique client identifier for the SSE connection.\n    keep_alive (Optional[bool]): Whether to keep the connection alive after periods of inactivity.\n\nReturns:\n    StreamingResponse: A streaming response for the SSE connection.",
+                "operationId": "get_entities_stream_from_sse",
+                "parameters": [
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Unique client identifier for the SSE connection",
+                            "title": "Client Id"
+                        },
+                        "description": "Unique client identifier for the SSE connection"
+                    },
+                    {
+                        "name": "keep_alive",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "boolean"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Whether to keep the conneciton alive after periods of inactivity",
+                            "default": false,
+                            "title": "Keep Alive"
+                        },
+                        "description": "Whether to keep the conneciton alive after periods of inactivity"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/stream/sse/process": {
+            "post": {
+                "tags": [
+                    "Annotations"
+                ],
+                "summary": "Send Text Jsonlines For Processing",
+                "description": "Sends texts in the JSON Lines format for processing and extracted NER entities will be received via Server-Sent Events (SSE).\n\nArgs:\n    request (Request): The request object containing the texts in JSON Lines.\n    client_id (str): The unique client identifier for the SSE connection.\n    model_service (AbstractModelService): The model service dependency.\n\nReturns:\n    JSONResponse: A JSON response indicating the status of the request.",
+                "operationId": "send_text_jsonlines_for_processing",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "description": "Unique client identifier for the SSE connection",
+                            "title": "Client Id"
+                        },
+                        "description": "Unique client identifier for the SSE connection"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/generate": {
@@ -2089,6 +2199,18 @@
                         "description": "The list of sequences used to stop the generation"
                     },
                     {
+                        "name": "include_usage",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to include token usage in the response",
+                            "default": false,
+                            "title": "Include Usage"
+                        },
+                        "description": "Whether to include token usage in the response"
+                    },
+                    {
                         "name": "ensure_full_sentences",
                         "in": "query",
                         "required": false,
@@ -2099,6 +2221,24 @@
                             "title": "Ensure Full Sentences"
                         },
                         "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
                     },
                     {
                         "name": "tracking_id",
@@ -2228,6 +2368,18 @@
                         "description": "The list of sequences used to stop the generation"
                     },
                     {
+                        "name": "include_usage",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to include token usage in the response",
+                            "default": false,
+                            "title": "Include Usage"
+                        },
+                        "description": "Whether to include token usage in the response"
+                    },
+                    {
                         "name": "ensure_full_sentences",
                         "in": "query",
                         "required": false,
@@ -2238,6 +2390,24 @@
                             "title": "Ensure Full Sentences"
                         },
                         "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
                     },
                     {
                         "name": "tracking_id",
@@ -2287,7 +2457,7 @@
                 }
             }
         },
-        "/v1/chat/completions": {
+        "/openai/v1/chat/completions": {
             "post": {
                 "tags": [
                     "Operations compatible with OpenAI APIs"
@@ -2315,6 +2485,24 @@
                             "title": "Ensure Full Sentences"
                         },
                         "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
                     },
                     {
                         "name": "tracking_id",
@@ -2368,7 +2556,7 @@
                 }
             }
         },
-        "/v1/completions": {
+        "/openai/v1/completions": {
             "post": {
                 "tags": [
                     "Operations compatible with OpenAI APIs"
@@ -2396,6 +2584,24 @@
                             "title": "Ensure Full Sentences"
                         },
                         "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
                     },
                     {
                         "name": "tracking_id",
@@ -2449,7 +2655,76 @@
                 }
             }
         },
-        "/v1/models": {
+        "/openai/v1/embeddings": {
+            "post": {
+                "tags": [
+                    "Operations compatible with OpenAI APIs"
+                ],
+                "summary": "Embed Texts",
+                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+                "operationId": "embed_texts",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "tracking_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "The tracking ID of the requested task",
+                            "title": "Tracking Id"
+                        },
+                        "description": "The tracking ID of the requested task"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OpenAIEmbeddingsRequest",
+                                "description": "Text(s) to be embedded"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/openai/v1/models": {
             "get": {
                 "tags": [
                     "Operations compatible with OpenAI APIs"
@@ -2477,7 +2752,7 @@
                 ]
             }
         },
-        "/v1/models/{model_name}": {
+        "/openai/v1/models/{model_name}": {
             "get": {
                 "tags": [
                     "Operations compatible with OpenAI APIs"
@@ -2524,6 +2799,376 @@
                         }
                     }
                 }
+            }
+        },
+        "/ollama/": {
+            "get": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Health Get",
+                "description": "Health check, similar to Ollama's / endpoint (GET)",
+                "operationId": "ollama_health_get",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            },
+            "head": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Health Head",
+                "description": "Health check, similar to Ollama's / endpoint (HEAD)",
+                "operationId": "ollama_health_head",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/ollama/api/version": {
+            "get": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Version",
+                "description": "Get the API version, similar to Ollama's /api/version endpoint",
+                "operationId": "ollama_version",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/ollama/api/tags": {
+            "get": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama List Tags",
+                "description": "List available models, similar to Ollama's /api/tags endpoint",
+                "operationId": "ollama_list_tags",
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/ollama/api/show": {
+            "post": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Show Model",
+                "description": "Show model information, similar to Ollama's /api/show endpoint",
+                "operationId": "ollama_show_model",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OllamaShowRequest",
+                                "description": "Ollama show request"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
+            }
+        },
+        "/ollama/api/generate": {
+            "post": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Generate",
+                "description": "Generate a completion, similar to Ollama's /api/generate endpoint",
+                "operationId": "ollama_generate",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OllamaGenerateRequest",
+                                "description": "Ollama generate request"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ollama/api/chat": {
+            "post": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Chat",
+                "description": "Generate a chat completion, similar to Ollama's /api/chat endpoint",
+                "operationId": "ollama_chat",
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "ensure_full_sentences",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Whether to generate full sentences only",
+                            "default": false,
+                            "title": "Ensure Full Sentences"
+                        },
+                        "description": "Whether to generate full sentences only"
+                    },
+                    {
+                        "name": "chat_template",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "anyOf": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "type": "null"
+                                }
+                            ],
+                            "description": "Override chat template for prompt formatting",
+                            "title": "Chat Template"
+                        },
+                        "description": "Override chat template for prompt formatting"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OllamaChatRequest",
+                                "description": "Ollama chat request"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ollama/api/embed": {
+            "post": {
+                "tags": [
+                    "Operations compatible with Ollama APIs"
+                ],
+                "summary": "Ollama Embed",
+                "description": "Create embeddings, similar to Ollama's /api/embed endpoint",
+                "operationId": "ollama_embed",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OllamaEmbedRequest",
+                                "description": "Ollama embed request"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "OAuth2PasswordBearer": []
+                    },
+                    {
+                        "APIKeyCookie": []
+                    }
+                ]
             }
         }
     },
@@ -3123,6 +3768,326 @@
                 ],
                 "title": "ModelType"
             },
+            "OllamaChatRequest": {
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The model name"
+                    },
+                    "messages": {
+                        "items": {
+                            "$ref": "#/components/schemas/OllamaMessage"
+                        },
+                        "type": "array",
+                        "title": "Messages",
+                        "description": "The conversation messages"
+                    },
+                    "stream": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stream",
+                        "description": "Whether to stream the response",
+                        "default": false
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Format",
+                        "description": "The response format"
+                    },
+                    "keep_alive": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Keep Alive",
+                        "description": "The model keep-alive duration"
+                    },
+                    "options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OllamaRequestOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The Ollama options"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "model",
+                    "messages"
+                ],
+                "title": "OllamaChatRequest"
+            },
+            "OllamaEmbedRequest": {
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The model name"
+                    },
+                    "input": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "title": "Input",
+                        "description": "The input text or list of texts to embed"
+                    },
+                    "keep_alive": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Keep Alive",
+                        "description": "The model keep-alive duration"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "model",
+                    "input"
+                ],
+                "title": "OllamaEmbedRequest"
+            },
+            "OllamaGenerateRequest": {
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The model name"
+                    },
+                    "prompt": {
+                        "type": "string",
+                        "title": "Prompt",
+                        "description": "The prompt text"
+                    },
+                    "stream": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stream",
+                        "description": "Whether to stream the response",
+                        "default": false
+                    },
+                    "system": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "System",
+                        "description": "The system prompt"
+                    },
+                    "suffix": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Suffix",
+                        "description": "The suffix text after model response"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Format",
+                        "description": "The response format"
+                    },
+                    "keep_alive": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Keep Alive",
+                        "description": "The model keep-alive duration"
+                    },
+                    "options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OllamaRequestOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The Ollama options"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "model",
+                    "prompt"
+                ],
+                "title": "OllamaGenerateRequest"
+            },
+            "OllamaMessage": {
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "title": "Role",
+                        "description": "The message role"
+                    },
+                    "content": {
+                        "type": "string",
+                        "title": "Content",
+                        "description": "The message content"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "role",
+                    "content"
+                ],
+                "title": "OllamaMessage"
+            },
+            "OllamaRequestOptions": {
+                "properties": {
+                    "num_predict": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Num Predict",
+                        "description": "The maximum number of tokens to generate",
+                        "default": 512
+                    },
+                    "temperature": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Temperature",
+                        "description": "The sampling temperature",
+                        "default": 0.7
+                    },
+                    "top_p": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Top P",
+                        "description": "The nucleus sampling top_p",
+                        "default": 0.9
+                    },
+                    "stop": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Stop",
+                        "description": "The single sequence or list of sequences used to stop generation"
+                    }
+                },
+                "type": "object",
+                "title": "OllamaRequestOptions"
+            },
+            "OllamaShowRequest": {
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "title": "Model",
+                        "description": "The model name"
+                    },
+                    "verbose": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Verbose",
+                        "description": "Whether to return verbose model info",
+                        "default": false
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "model"
+                ],
+                "title": "OllamaShowRequest"
+            },
             "OpenAIChatCompletionsRequest": {
                 "properties": {
                     "messages": {
@@ -3133,10 +4098,44 @@
                         "title": "Messages",
                         "description": "A list of messages to be sent to the model"
                     },
+                    "tools": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/OpenAITool"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tools",
+                        "description": "A list of tools available to the model"
+                    },
                     "stream": {
-                        "type": "boolean",
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Stream",
-                        "description": "Whether to stream the response"
+                        "description": "Whether to stream the response",
+                        "default": false
+                    },
+                    "stream_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OpenAIStreamOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The extra options for streaming when it's turned on"
                     },
                     "max_tokens": {
                         "type": "integer",
@@ -3183,12 +4182,22 @@
                         ],
                         "title": "Stop",
                         "description": "The single sequence or the list of sequences used to stop the generation"
+                    },
+                    "response_format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OpenAIResponseFormat"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The optional response format configuration for structured outputs"
                     }
                 },
                 "type": "object",
                 "required": [
                     "messages",
-                    "stream",
                     "model"
                 ],
                 "title": "OpenAIChatCompletionsRequest"
@@ -3208,13 +4217,31 @@
                             }
                         ],
                         "title": "Prompt",
-                        "description": "Prompt text or list of prompts"
+                        "description": "The prompt text or list of prompts"
                     },
                     "stream": {
-                        "type": "boolean",
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
                         "title": "Stream",
                         "description": "Whether to stream the response",
                         "default": false
+                    },
+                    "stream_options": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/OpenAIStreamOptions"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "The extra options for streaming when it's turned on"
                     },
                     "max_tokens": {
                         "type": "integer",
@@ -3285,7 +4312,7 @@
                             }
                         ],
                         "title": "Input",
-                        "description": "Input text or list of texts to embed"
+                        "description": "The input text or list of texts to embed"
                     },
                     "model": {
                         "type": "string",
@@ -3299,6 +4326,131 @@
                     "model"
                 ],
                 "title": "OpenAIEmbeddingsRequest"
+            },
+            "OpenAIFunctionTool": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "description": "The name of the function tool"
+                    },
+                    "description": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Description",
+                        "description": "The description of the function tool"
+                    },
+                    "parameters": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Parameters",
+                        "description": "The JSON schema for the function parameters"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "OpenAIFunctionTool"
+            },
+            "OpenAIJsonSchemaWrapper": {
+                "properties": {
+                    "name": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Name",
+                        "description": "The optional schema name"
+                    },
+                    "schema": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Schema",
+                        "description": "The actual JSON schema definition"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "schema"
+                ],
+                "title": "OpenAIJsonSchemaWrapper"
+            },
+            "OpenAIResponseFormat": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "json_schema",
+                        "title": "Type",
+                        "description": "The response format type"
+                    },
+                    "json_schema": {
+                        "$ref": "#/components/schemas/OpenAIJsonSchemaWrapper",
+                        "description": "The JSON schema wrapper"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type",
+                    "json_schema"
+                ],
+                "title": "OpenAIResponseFormat"
+            },
+            "OpenAIStreamOptions": {
+                "properties": {
+                    "include_usage": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Include Usage",
+                        "description": "Whether to include token usage in stream response",
+                        "default": false
+                    }
+                },
+                "additionalProperties": true,
+                "type": "object",
+                "title": "OpenAIStreamOptions"
+            },
+            "OpenAITool": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "title": "Type",
+                        "description": "The type of the tool",
+                        "default": "function"
+                    },
+                    "function": {
+                        "$ref": "#/components/schemas/OpenAIFunctionTool",
+                        "description": "The function tool definition"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "function"
+                ],
+                "title": "OpenAITool"
             },
             "PromptMessage": {
                 "properties": {
@@ -3362,7 +4514,7 @@
                     "public_key_pem": {
                         "type": "string",
                         "title": "Public Key Pem",
-                        "description": "the public PEM key used for encrypting detected spans"
+                        "description": "The public PEM key used for encrypting detected spans"
                     }
                 },
                 "type": "object",
@@ -3443,43 +4595,5 @@
                 "name": "fastapiusersauth"
             }
         }
-    },
-    "tags": [
-        {
-            "name": "Metadata",
-            "description": "Get the model card"
-        },
-        {
-            "name": "Annotations",
-            "description": "Retrieve NER entities by running the model"
-        },
-        {
-            "name": "Redaction",
-            "description": "Redact the extracted NER entities"
-        },
-        {
-            "name": "Rendering",
-            "description": "Preview embeddable annotation snippet in HTML"
-        },
-        {
-            "name": "Training",
-            "description": "Trigger model training on input annotations"
-        },
-        {
-            "name": "Evaluating",
-            "description": "Evaluate the deployed model with trainer export"
-        },
-        {
-            "name": "Authentication",
-            "description": "Authenticate registered users"
-        },
-        {
-            "name": "Generative",
-            "description": "Generate text based on the input prompt"
-        },
-        {
-            "name": "OpenAICompatible",
-            "description": "Operations compatible with OpenAI APIs"
-        }
-    ]
+    }
 }

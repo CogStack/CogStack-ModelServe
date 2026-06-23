@@ -1921,7 +1921,7 @@
                             }
                         ],
                         "title": "Input",
-                        "description": "Input text or list of texts to embed"
+                        "description": "The input text or list of texts to embed"
                     },
                     "model": {
                         "type": "string",
@@ -1969,7 +1969,7 @@
                     "public_key_pem": {
                         "type": "string",
                         "title": "Public Key Pem",
-                        "description": "the public PEM key used for encrypting detected spans"
+                        "description": "The public PEM key used for encrypting detected spans"
                     }
                 },
                 "type": "object",
@@ -2013,43 +2013,5 @@
                 "title": "ValidationError"
             }
         }
-    },
-    "tags": [
-        {
-            "name": "Metadata",
-            "description": "Get the model card"
-        },
-        {
-            "name": "Annotations",
-            "description": "Retrieve NER entities by running the model"
-        },
-        {
-            "name": "Redaction",
-            "description": "Redact the extracted NER entities"
-        },
-        {
-            "name": "Rendering",
-            "description": "Preview embeddable annotation snippet in HTML"
-        },
-        {
-            "name": "Training",
-            "description": "Trigger model training on input annotations"
-        },
-        {
-            "name": "Evaluating",
-            "description": "Evaluate the deployed model with trainer export"
-        },
-        {
-            "name": "Authentication",
-            "description": "Authenticate registered users"
-        },
-        {
-            "name": "Generative",
-            "description": "Generate text based on the input prompt"
-        },
-        {
-            "name": "OpenAICompatible",
-            "description": "Operations compatible with OpenAI APIs"
-        }
-    ]
+    }
 }
