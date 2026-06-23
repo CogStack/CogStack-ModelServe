@@ -32,15 +32,15 @@ ENV TZ=Etc/UTC
 ARG IMAGE_TYPE
 
 RUN if [ "$IMAGE_TYPE" = "gpu" ]; then \
-        apt-get update && apt-get install -y --no-install-recommends \
+        rm -rf /var/lib/apt/lists/* && apt-get update && apt-get install -y --no-install-recommends \
         nano telnet software-properties-common && \
         add-apt-repository ppa:deadsnakes/ppa -y && \
         apt-get update && \
-        apt-get install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv python3-pip && \
+        apt-get install -y --no-install-recommends python3.11 python3.11-dev python3.11-venv python3-pip git curl && \
         rm -rf /var/lib/apt/lists/*; \
     else \
-        apt-get update && apt-get install -y --no-install-recommends \
-        nano telnet build-essential g++ && \
+        rm -rf /var/lib/apt/lists/* && apt-get update && apt-get install -y --no-install-recommends \
+        nano telnet build-essential g++ git && \
         rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -61,7 +61,10 @@ COPY uv-requirements.txt /uv-requirements.txt
 COPY docker/entrypoint/serve.sh /app/entrypoint.sh
 RUN mkdir -p /app/model/model && \
     mkdir -p /app/model/retrained && \
-    chown -R $CMS_UID:$CMS_GID /app
+    chown -R $CMS_UID:$CMS_GID /app && \
+    chown $CMS_UID:$CMS_GID /pyproject.toml && \
+    chown $CMS_UID:$CMS_GID /uv.lock && \
+    chown $CMS_UID:$CMS_GID /uv-requirements.txt
 
 RUN python3.11 -m pip install --require-hashes -r /uv-requirements.txt --no-cache-dir
 RUN if [ -z "$PIP_EXTRAS" ]; then \

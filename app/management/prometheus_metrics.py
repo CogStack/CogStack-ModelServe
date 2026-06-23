@@ -55,3 +55,17 @@ cms_total_tokens = Histogram(
     "Number of tokens used in the prompt and the completion",
     ["handler"],
 )
+
+# The histogram metric to track Time To First Token (TTFT) in milliseconds
+cms_ttft_milliseconds = Histogram(
+    "cms_ttft_milliseconds",
+    "Time to first generated token in milliseconds",
+    ["handler"],
+)
+
+# The histogram metric to track Time Per Output Token (TPOT) in milliseconds
+cms_tpot_milliseconds = Histogram(
+    "cms_tpot_milliseconds",
+    "Average time per output token in milliseconds",
+    ["handler"],
+)

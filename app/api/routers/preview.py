@@ -30,7 +30,7 @@ assert cms_globals.model_service_dep is not None, "Model service dependency not 
     dependencies=[Depends(cms_globals.props.current_active_user)],
     description="Extract the NER entities in HTML for preview",
 )
-async def get_rendered_entities_from_text(
+def get_rendered_entities_from_text(
     request: Request,
     text: Annotated[str, Body(description="The text to be sent to the model for NER", media_type="text/plain")],
     tracking_id: Union[str, None] = Depends(validate_tracking_id),

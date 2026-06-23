@@ -92,6 +92,7 @@ class MedCATModelDeIdentification(MedCATModel):
                 entity["type_ids"] = ["PII"]
 
         records = self.get_records_from_doc({"entities": doc["entities"]})  # type: ignore
+        records = [r for r in records if r.get("accuracy", 0.0) >= self._config.CONFIDENCE_SCORE_THRESHOLD]
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def annotate_with_local_chunking(self, text: str) -> List[Annotation]:
@@ -158,6 +159,7 @@ class MedCATModelDeIdentification(MedCATModel):
         assert processed_char_len == (len(text) + leading_ws_len), f"{len(text) + leading_ws_len - processed_char_len} characters were not processed:\n{text}"
 
         records = self.get_records_from_doc({"entities": aggregated_entities})
+        records = [r for r in records if r.get("accuracy", 0.0) >= self._config.CONFIDENCE_SCORE_THRESHOLD]
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
@@ -178,8 +180,10 @@ class MedCATModelDeIdentification(MedCATModel):
             for _, entity in entities["entities"].items():
                 entity = cast(Dict[str, Any], entity)
                 entity["type_ids"] = ["PII"]
+            records = self.get_records_from_doc(entities)    # type: ignore
+            records = [r for r in records if r.get("accuracy", 0.0) >= self._config.CONFIDENCE_SCORE_THRESHOLD]
             annotations_list.append([
-                load_pydantic_object_from_dict(Annotation, record) for record in self.get_records_from_doc(entities)    # type: ignore
+                load_pydantic_object_from_dict(Annotation, record) for record in records
             ])
 
         return annotations_list
@@ -298,7 +302,7 @@ class MedCATModelDeIdentification(MedCATModel):
                     task="ner",
                     tokenizer=ner.tokenizer.hf_tokenizer,
                     device=get_hf_pipeline_device_id(self._config.DEVICE),
-                    aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
+                    aggregation_strategy=self._config.HF_NER_AGGREGATION_STRATEGY,
                 )
             else:
                 if self._config.DEVICE != "default":

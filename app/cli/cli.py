@@ -44,9 +44,10 @@ from app.api.api import (
     get_stream_server,
     get_generative_server,
     get_vllm_server,
+    get_sglang_server,
     get_app_for_api_docs,
 )   # noqa
-from app.utils import get_settings, send_gelf_message, download_model_package, get_model_data_package_base_name  # noqa
+from app.utils import get_settings, send_gelf_message, download_model_package, quantize_and_save_model  # noqa
 from app.management.model_manager import ModelManager  # noqa
 from app.api.dependencies import ModelServiceDep, ModelManagerDep  # noqa
 from app.management.tracker_client import TrackerClient  # noqa
@@ -71,8 +72,12 @@ def serve_model(
     streamable: bool = typer.Option(False, help="Serve the streamable endpoints only"),
     device: Device = typer.Option(Device.DEFAULT.value, help="The device to serve the model on"),
     llm_engine: Optional[LlmEngine] = typer.Option(LlmEngine.CMS.value, help="The engine to use for text generation"),
+    llm_engine_args: Optional[str] = typer.Option(None, help="The arguments to pass to the LLM engine"),
     load_in_4bit: Optional[bool] = typer.Option(False, help="Load the model in 4-bit precision, used by 'huggingface_llm' models"),
     load_in_8bit: Optional[bool] = typer.Option(False, help="Load the model in 8-bit precision, used by 'huggingface_llm' models"),
+    with_sdpa: Optional[bool] = typer.Option(False, help="Attempt to use SPDA attention for 'huggingface_llm' model loading"),
+    assistant_model_path: Optional[str] = typer.Option("", help="The assistant model package for speculative decoding"),
+    chat_template: Optional[str] = typer.Option("", help="Override the chat template used for prompt formatting"),
     debug: Optional[bool] = typer.Option(None, help="Run in the debug mode"),
 ) -> None:
     """
@@ -89,9 +94,12 @@ def serve_model(
         model_name (Optional[str]): The optional string representation of the model name.
         streamable (bool): Serve the streamable endpoints only. Defaults to False.
         device (Device): The device to serve the model on. Defaults to Device.DEFAULT.
-        llm_engine (LlmEngine): The inference engine to use. Defaults to LlmEngine.CMS.
-        load_in_4bit (bool): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
-        load_in_8bit (bool): Load the model in 8-bit precision, used by 'huggingface_llm' models. Defaults to False.
+        llm_engine (Optional[LlmEngine]): The inference engine to use. Defaults to LlmEngine.CMS.
+        llm_engine_args (Optional[str]): The arguments to pass to the LLM engine.
+        load_in_4bit (Optional[bool]): Load the model in 4-bit precision, used by 'huggingface_llm' models. Defaults to False.
+        load_in_8bit (Optional[bool]): Load the model in 8-bit precision, used by 'huggingface_llm' models. Defaults to False.
+        assistant_model_path (Optional[str]): The assistant model package for speculative decoding.
+        chat_template (Optional[str]): Override the chat template used for prompt formatting.
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -101,6 +109,9 @@ def serve_model(
     logger = _get_logger(debug, model_type, model_name)
     config = get_settings()
     config.DEVICE = device
+    config.ENABLE_SPDA_ATTN = "true" if with_sdpa else "false"
+    config.ASSISTANT_MODEL_FULL_PATH = assistant_model_path if assistant_model_path else ""
+    config.OVERRIDE_CHAT_TEMPLATE = chat_template if chat_template else ""
     if model_type in [
         ModelType.HUGGINGFACE_NER,
         ModelType.MEDCAT_DEID,
@@ -139,7 +150,7 @@ def serve_model(
                 logger.warning("Source and destination are the same model package file.")
                 pass
 
-    if llm_engine is not LlmEngine.VLLM:
+    if llm_engine not in [LlmEngine.VLLM, LlmEngine.SGLANG]:
         if model_path:
             model_service = model_service_dep()
             model_service.model_name = model_name
@@ -163,7 +174,16 @@ def serve_model(
                 config,
                 dst_model_path,
                 model_name,
-                log_level="debug" if debug else "info"
+                log_level="debug" if debug else "info",
+                server_args=llm_engine_args,
+            )
+        elif llm_engine == LlmEngine.SGLANG:
+            model_server_app = get_sglang_server(
+                config,
+                dst_model_path,
+                model_name,
+                log_level="debug" if debug else "info",
+                server_args=llm_engine_args,
             )
         else:
             logger.error("Unknown LLM engine: %s" % llm_engine)
@@ -451,9 +471,9 @@ def generate_api_doc_per_model(
     config.ENABLE_PREVIEWS_APIS = "true" if add_previews_apis else "false"
     config.AUTH_USER_ENABLED = "true" if add_user_authentication else "false"
 
-    model_service_dep = ModelServiceDep(model_type, config, model_name or model_type.value)
+    model_service_dep = ModelServiceDep(model_type, config, model_name or model_type)
     cms_globals.model_service_dep = model_service_dep
-    doc_name = f"{model_type.value}_model_apis.json"
+    doc_name = f"{model_name or model_type}_model_apis.json"
 
     if model_type == ModelType.HUGGINGFACE_LLM:
         app = get_generative_server(config)
@@ -476,6 +496,8 @@ def package_model(
     output_model_package: str = typer.Option("", help="The path where the model package will be saved, minus any format-specific extension, e.g., './model_packages/bert-base-cased'"),
     archive_format: ArchiveFormat = typer.Option(ArchiveFormat.ZIP.value, help="The archive format of the model package, e.g., 'zip' or 'gztar'"),
     remove_cached: bool = typer.Option(False, help="Whether to remove the downloaded cache after the model package is saved"),
+    load_in_4bit: bool = typer.Option(False, help="Whether to quantise the model in 4-bit precision"),
+    load_in_8bit: bool = typer.Option(False, help="Whether to quantise the model in 8-bit precision"),
 ) -> None:
     """
     Packages and saves a Hugging Face model into a specified archive format.
@@ -490,6 +512,8 @@ def package_model(
         output_model_package (str): The path where the model package will be saved, minus any format-specific extension, e.g., './model_packages/bert-base-cased'.
         archive_format (ArchiveFormat): The format of the archive for the model package, either 'zip' or 'gztar'. Defaults to 'zip'.
         remove_cached (bool): Whether to remove the downloaded cache after the model package is saved. Defaults to False.
+        load_in_4bit (bool): Whether to quantise the model in 4-bit precision. Defaults to False.
+        load_in_8bit (bool): Whether to quantise the model in 8-bit precision. Defaults to False.
     """
 
     if hf_repo_id == "" and cached_model_dir == "":
@@ -517,6 +541,13 @@ def package_model(
                         revision=hf_repo_revision,
                         local_dir=tmp_dir,
                         local_dir_use_symlinks=False,
+                    )
+                if load_in_4bit or load_in_8bit:
+                    download_path = quantize_and_save_model(
+                        hf_model_path=download_path,
+                        output_model_path=None,
+                        load_in_4bit=load_in_4bit,
+                        load_in_8bit=load_in_8bit,
                     )
                 _make_archive_file(model_package_archive, archive_format.value, download_path)
         finally:
@@ -600,7 +631,7 @@ def run_mcp_server(
     cms_base_url: str = typer.Option("http://127.0.0.1:8000", help="The base URL of the CMS API"),
     cms_api_key: str = typer.Option("Bearer", help="The API key for authenticating with the CMS API"),
     cms_mcp_api_keys: str = typer.Option("", help="Comma-separated API keys for authenticating CMS MCP clients"),
-    cms_mcp_oauth_enabled: Optional[bool] = typer.Option(None, help="Whether to enable OAuth2 authentication for MCP clients"),
+    cms_mcp_oauth_provider: str = typer.Option("", help="The OAuth2 provider to use ('github' or 'google')"),
     github_client_id: str = typer.Option("", help="The GitHub OAuth2 client ID"),
     github_client_secret: str = typer.Option("", help="The GitHub OAuth2 client secret"),
     google_client_id: str = typer.Option("", help="The Google OAuth2 client ID"),
@@ -620,11 +651,11 @@ def run_mcp_server(
         cms_base_url (str): The base URL of the CMS API endpoint. Defaults to "http://localhost:8000".
         cms_api_key (str): The API key for authenticating with the CMS API. Defaults to "Bearer".
         cms_mcp_api_keys (str): Comma-separated API keys for authenticating CMS MCP clients. Defaults to "".
-        cms_mcp_oauth_enabled (Optional[bool]): Whether to enable OAuth2 authentication for MCP clients. Defaults to None.
-        github_client_id (str): The GitHub OAuth2 client ID, required if cms_mcp_oauth_enabled is True. Defaults to "".
-        github_client_secret (str): The GitHub OAuth2 client secret, required if cms_mcp_oauth_enabled is True. Defaults to an "".
-        google_client_id (str): The Google OAuth2 client ID, required if cms_mcp_oauth_enabled is True. Defaults to an "".
-        google_client_secret (str): The Google OAuth2 client secret, required if cms_mcp_oauth_enabled is True. Defaults to an "".
+        cms_mcp_oauth_provider (Optional[str]): The OAuth2 provider to use ('github' or 'google'). Defaults to "".
+        github_client_id (str): The GitHub OAuth2 client ID, required if cms_mcp_oauth_provider is set. Defaults to "".
+        github_client_secret (str): The GitHub OAuth2 client secret, required if cms_mcp_oauth_provider is set. Defaults to an "".
+        google_client_id (str): The Google OAuth2 client ID, required if cms_mcp_oauth_provider is set. Defaults to an "".
+        google_client_secret (str): The Google OAuth2 client secret, required if cms_mcp_oauth_provider is set. Defaults to an "".
         debug (Optional[bool]): Run in debug mode if set to True.
     """
 
@@ -637,7 +668,7 @@ def run_mcp_server(
     os.environ["CMS_MCP_TRANSPORT"] = transport.lower()
     os.environ["CMS_API_KEY"] = cms_api_key
     os.environ["CMS_MCP_API_KEYS"] = cms_mcp_api_keys
-    os.environ["CMS_MCP_OAUTH_ENABLED"] = "true" if cms_mcp_oauth_enabled else "false"
+    os.environ["CMS_MCP_OAUTH_PROVIDER"] = cms_mcp_oauth_provider.lower()
     os.environ["GITHUB_CLIENT_ID"] = github_client_id
     os.environ["GITHUB_CLIENT_SECRET"] = github_client_secret
     os.environ["GOOGLE_CLIENT_ID"] = google_client_id
@@ -839,11 +870,11 @@ def _display_info_table(
     info_table.add_column(style="cyan", justify="left")
     info_table.add_column(style="dim", justify="left")
 
-    info_table.add_row("🤖", "Model Name:", model_name or "CMS model")
-    info_table.add_row("📦", "Model Type:", display_model_type)
-    info_table.add_row("📂", "Model Path:", model_path or mlflow_model_uri)
-    info_table.add_row("🔗", "Base URL:", server_url)
-    info_table.add_row("📚", "Docs:", f"{server_url}/docs")
+    info_table.add_row("🤖 ", "Model Name:", model_name or "CMS model")
+    info_table.add_row("📦 ", "Model Type:", display_model_type)
+    info_table.add_row("📂 ", "Model Path:", model_path or mlflow_model_uri)
+    info_table.add_row("🔗 ", "Base URL:", server_url)
+    info_table.add_row("📚 ", "Docs:", f"{server_url}/docs")
 
     panel_content = Group(
         Align.center(title_text),
@@ -906,7 +937,10 @@ def _get_logger(
         get_settings().DEBUG = "true" if debug else "false"
     if get_settings().DEBUG != "true":
         logging.getLogger().setLevel(logging.INFO)
+    else:
+        logging.getLogger().setLevel(logging.DEBUG)
     logger = logging.getLogger("cms")
+    logger.setLevel(logging.DEBUG if get_settings().DEBUG == "true" else logging.INFO)
 
     lrf = logging.getLogRecordFactory()
 

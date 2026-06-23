@@ -2,7 +2,6 @@ import os
 import logging
 import torch
 import pandas as pd
-
 from functools import partial
 from typing import Dict, List, Optional, Tuple, Any, TextIO, Union
 from transformers import (
@@ -27,8 +26,11 @@ from app.utils import (
     ensure_tensor_contiguity,
     get_model_data_package_base_name,
     load_pydantic_object_from_dict,
+    resolve_safe_max_model_length,
+    parse_label_into_id_and_name,
 )
 from app.processors.tagging import TagProcessor
+from app.processors.viterbi_decoder import ViterbiDecoder
 
 logger = logging.getLogger("cms")
 
@@ -43,7 +45,6 @@ class HuggingFaceNerModel(AbstractModelService):
         enable_trainer: Optional[bool] = None,
         model_name: Optional[str] = None,
         base_model_file: Optional[str] = None,
-        confidence_threshold: float = 0.7,
     ) -> None:
         """
         Initialises the HuggingFace NER model service with specified configurations.
@@ -54,7 +55,6 @@ class HuggingFaceNerModel(AbstractModelService):
             enable_trainer (Optional[bool]): The flag to enable or disable trainers. Defaults to None.
             model_name (Optional[str]): The name of the model. Defaults to None.
             base_model_file (Optional[str]): The model package file name. Defaults to None.
-            confidence_threshold (float): The threshold for the confidence score. Defaults to 0.7.
         """
 
         super().__init__(config)
@@ -65,9 +65,10 @@ class HuggingFaceNerModel(AbstractModelService):
         self._model: PreTrainedModel = None
         self._tokenizer: PreTrainedTokenizerBase = None
         self._ner_pipeline: Pipeline = None
+        self._viterbi_decoder: Optional[ViterbiDecoder] = None
         self._whitelisted_tuis = set([tui.strip() for tui in config.TYPE_UNIQUE_ID_WHITELIST.split(",")])
-        self._confidence_threshold = confidence_threshold
         self.model_name = model_name or "HuggingFace NER model"
+        torch.set_num_threads(1)
 
     @property
     def model(self) -> PreTrainedModel:
@@ -134,13 +135,14 @@ class HuggingFaceNerModel(AbstractModelService):
             task="ner",
             model=model_service.model,
             tokenizer=model_service.tokenizer,
-            stride=32,
-            aggregation_strategy=_config.HF_PIPELINE_AGGREGATION_STRATEGY,
+            stride=max(max(resolve_safe_max_model_length(model.config) - 2, 1) // 4, 1),
+            aggregation_strategy=_config.HF_NER_AGGREGATION_STRATEGY,
         )
         if non_default_device_is_available(_config.DEVICE):
             model_service._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(_config.DEVICE))
         else:
             model_service._ner_pipeline = _pipeline()
+        model_service._viterbi_decoder = ViterbiDecoder.from_id2label(model_service.model.config.id2label)
         return model_service
 
     @staticmethod
@@ -174,7 +176,7 @@ class HuggingFaceNerModel(AbstractModelService):
                 ensure_tensor_contiguity(model)
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_path,
-                    model_max_length=model.config.max_position_embeddings,
+                    model_max_length=max(resolve_safe_max_model_length(model.config) - 2, 1),
                     do_lower_case=False,
                 )
                 logger.info("Model package loaded from %s", os.path.normpath(model_file_path))
@@ -207,13 +209,14 @@ class HuggingFaceNerModel(AbstractModelService):
                 task="ner",
                 model=self._model,
                 tokenizer=self._tokenizer,
-                stride=32,
-                aggregation_strategy=self._config.HF_PIPELINE_AGGREGATION_STRATEGY,
+                stride=max(max(resolve_safe_max_model_length(self._model.config) - 2, 1) // 4, 1),
+                aggregation_strategy=self._config.HF_NER_AGGREGATION_STRATEGY,
             )
             if non_default_device_is_available(get_settings().DEVICE):
                 self._ner_pipeline = _pipeline(device=get_hf_pipeline_device_id(get_settings().DEVICE))
             else:
                 self._ner_pipeline = _pipeline()
+            self._viterbi_decoder = ViterbiDecoder.from_id2label(self._model.config.id2label)
             if self._enable_trainer:
                 self._supervised_trainer = HuggingFaceNerSupervisedTrainer(self)
                 self._unsupervised_trainer = HuggingFaceNerUnsupervisedTrainer(self)
@@ -242,9 +245,17 @@ class HuggingFaceNerModel(AbstractModelService):
         Returns:
             List[Annotation]: A list of annotations containing the extracted named entities.
         """
-
-        if TaggingScheme(self._config.TRAINING_HF_TAGGING_SCHEME.lower()) == TaggingScheme.IOBES:
-            entities = self._ner_pipeline(text, aggregation_strategy="none")
+        tagging_scheme = TaggingScheme(self._config.TRAINING_HF_NER_TAGGING_SCHEME.lower())
+        if tagging_scheme in (TaggingScheme.IOBES, TaggingScheme.IOB):
+            if self._config.HF_NER_APPLY_VITERBI_DECODING == "true":
+                entities = self._ner_pipeline(text, aggregation_strategy="none", ignore_labels=[])
+                if self._viterbi_decoder is not None:
+                    entities = self._viterbi_decoder.apply_viterbi_to_hf_pipeline_output(entities, self._model.config.id2label)
+                    logger.info("Viterbi decoding applied")
+                else:
+                    logger.warning("Viterbi decoding requested but no Viterbi decoder was detected.")
+            else:
+                entities = self._ner_pipeline(text, aggregation_strategy="none")
         else:
             entities = self._ner_pipeline(text)
         df = pd.DataFrame(entities)
@@ -252,12 +263,13 @@ class HuggingFaceNerModel(AbstractModelService):
         if df.empty:
             columns = ["label_name", "label_id", "start", "end", "accuracy"]
             df = pd.DataFrame(columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns)
-        elif TaggingScheme(self._config.TRAINING_HF_TAGGING_SCHEME.lower()) == TaggingScheme.IOBES:
+        elif tagging_scheme in (TaggingScheme.IOBES, TaggingScheme.IOB):
             aggregated_entities = TagProcessor.aggregate_bioes_predictions(
                 df,
                 text,
                 self._config.INCLUDE_SPAN_TEXT == "true",
             )
+            logger.debug("Aggregation applied for tagging scheme: %s", tagging_scheme.value)
             df = pd.DataFrame(aggregated_entities)
             if df.empty:
                 columns = ["label_name", "label_id", "start", "end", "accuracy"]
@@ -265,21 +277,94 @@ class HuggingFaceNerModel(AbstractModelService):
                     columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns
                 )
             else:
-                df = df[df["accuracy"] >= self._confidence_threshold]
+                df = df[df["accuracy"] >= self._config.CONFIDENCE_SCORE_THRESHOLD]
         else:
             for idx, row in df.iterrows():
-                df.loc[idx, "label_id"] = row["entity_group"]
+                df.loc[idx, "label_id"], df.loc[idx, "label_name"] = parse_label_into_id_and_name(row["entity_group"])
                 if self._config.INCLUDE_SPAN_TEXT == "true":
                     df.loc[idx, "text"] = text[row["start"]:row["end"]]
 
-            df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
-            df = df[df["accuracy"] >= self._confidence_threshold]
+            df.rename(columns={"score": "accuracy"}, inplace=True)
+            del df["entity_group"]
+            df = df[df["accuracy"] >= self._config.CONFIDENCE_SCORE_THRESHOLD]
 
+        if not df.empty:
+            df = df[(df["start"].notna()) & (df["end"].notna()) & (df["start"] < df["end"])]
         records = df.to_dict("records")
         return [load_pydantic_object_from_dict(Annotation, record) for record in records]
 
     def batch_annotate(self, texts: List[str]) -> List[List[Annotation]]:
-        raise NotImplementedError("Batch annotation is not yet implemented for HuggingFace NER models")
+        """
+        Annotates texts in batches and returns a list of lists of annotations.
+
+        Args:
+            texts (List[str]): The list of texts to be annotated.
+
+        Returns:
+            List[List[Annotation]]: A list where each element is a list of annotations containing the extracted named entities.
+        """
+        if not texts:
+            return []
+
+        batch_size = max(int(self._config.HF_NER_BATCH_SIZE), 1)
+
+        tagging_scheme = TaggingScheme(self._config.TRAINING_HF_NER_TAGGING_SCHEME.lower())
+        if tagging_scheme in (TaggingScheme.IOBES, TaggingScheme.IOB):
+            if self._config.HF_NER_APPLY_VITERBI_DECODING == "true":
+                batch_entities = self._ner_pipeline(
+                    texts,
+                    aggregation_strategy="none",
+                    batch_size=batch_size,
+                    ignore_labels=[],
+                )
+                if self._viterbi_decoder is not None:
+                    batch_entities = [
+                        self._viterbi_decoder.apply_viterbi_to_hf_pipeline_output(entities, self._model.config.id2label)
+                        for entities in batch_entities
+                    ]
+                    logger.info("Viterbi decoding (batch) applied")
+                else:
+                    logger.warning("Viterbi decoding requested but no Viterbi decoder was detected.")
+            else:
+                batch_entities = self._ner_pipeline(texts, aggregation_strategy="none", batch_size=batch_size)
+        else:
+            batch_entities = self._ner_pipeline(texts, batch_size=batch_size)
+
+        annotations_list: List[List[Annotation]] = []
+        for text, entities in zip(texts, batch_entities):
+            df = pd.DataFrame(entities)
+            if df.empty:
+                columns = ["label_name", "label_id", "start", "end", "accuracy"]
+                df = pd.DataFrame(columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns)
+            elif tagging_scheme in (TaggingScheme.IOBES, TaggingScheme.IOB):
+                aggregated_entities = TagProcessor.aggregate_bioes_predictions(
+                    df,
+                    text,
+                    self._config.INCLUDE_SPAN_TEXT == "true",
+                )
+                df = pd.DataFrame(aggregated_entities)
+                if df.empty:
+                    columns = ["label_name", "label_id", "start", "end", "accuracy"]
+                    df = pd.DataFrame(
+                        columns=(columns + ["text"]) if self._config.INCLUDE_SPAN_TEXT == "true" else columns
+                    )
+                else:
+                    df = df[df["accuracy"] >= self._config.CONFIDENCE_SCORE_THRESHOLD]
+            else:
+                for idx, row in df.iterrows():
+                    df.loc[idx, "label_id"] = row["entity_group"]
+                    if self._config.INCLUDE_SPAN_TEXT == "true":
+                        df.loc[idx, "text"] = text[row["start"]:row["end"]]
+
+                df.rename(columns={"entity_group": "label_name", "score": "accuracy"}, inplace=True)
+                df = df[df["accuracy"] >= self._config.CONFIDENCE_SCORE_THRESHOLD]
+
+            if not df.empty:
+                df = df[(df["start"].notna()) & (df["end"].notna()) & (df["start"] < df["end"])]
+            records = df.to_dict("records")
+            annotations_list.append([load_pydantic_object_from_dict(Annotation, record) for record in records])
+
+        return annotations_list
 
     def create_embeddings(
         self,

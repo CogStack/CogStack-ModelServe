@@ -25,13 +25,12 @@ def test_start_new(mlflow_fixture):
 
     mlflow.get_experiment_by_name.assert_called_once_with("model_name_training_type")
     mlflow.create_experiment.assert_called_once_with(name="model_name_training_type")
-    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", tags=ANY)
+    mlflow.start_run.assert_called_once_with(experiment_id="experiment_id", run_name="run_name", tags=ANY)
     mlflow.log_params.assert_called_once_with({"param": "param"})
     _, kwargs = mlflow.start_run.call_args
     assert experiment_id == "experiment_id"
     assert run_id == "run_id"
     assert "mlflow.source.name" in kwargs["tags"]
-    assert "mlflow.runName" in kwargs["tags"]
     assert "mlflow.note.content" in kwargs["tags"]
     assert "training.input_data.filename" in kwargs["tags"]
     assert "training.base_model.origin" in kwargs["tags"]
@@ -303,6 +302,13 @@ def test_log_document_size(mlflow_fixture):
     tracker_client.log_document_size(10)
 
     mlflow.set_tag.assert_called_once_with("training.document.size", "10")
+
+def test_log_training_token_count(mlflow_fixture):
+    tracker_client = TrackerClient("")
+
+    tracker_client.log_training_token_count(1000)
+
+    mlflow.set_tag.assert_called_once_with("training.token.count", "1000")
 
 
 def test_log_model_config(mlflow_fixture):

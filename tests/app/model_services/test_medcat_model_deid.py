@@ -57,6 +57,19 @@ def test_info(medcat_deid_model):
     not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
     reason="requires the model file to be present in the resources folder",
 )
+def test_annotate_with_confidence_threshold(medcat_deid_model):
+    medcat_deid_model.init_model()
+    original_threshold = medcat_deid_model._config.CONFIDENCE_SCORE_THRESHOLD
+    medcat_deid_model._config.CONFIDENCE_SCORE_THRESHOLD = 1.1
+    annotations = medcat_deid_model.annotate("NW1 2DA")
+    assert len(annotations) == 0
+    medcat_deid_model._config.CONFIDENCE_SCORE_THRESHOLD = original_threshold
+
+
+@pytest.mark.skipif(
+    not os.path.exists(os.path.join(MODEL_PARENT_DIR, "deid_model.zip")),
+    reason="requires the model file to be present in the resources folder",
+)
 def test_annotate(medcat_deid_model):
     medcat_deid_model.init_model()
     annotations = medcat_deid_model.annotate(

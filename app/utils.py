@@ -1,3 +1,5 @@
+import shutil
+
 import json
 import socket
 import random
@@ -13,6 +15,8 @@ import time
 import torch
 import tarfile
 import zipfile
+import re
+import uuid
 import numpy as np
 import pandas as pd
 from packaging.markers import Marker
@@ -20,12 +24,20 @@ from pydantic import BaseModel
 from spacy.lang.en import English
 from spacy.util import filter_spans
 from safetensors.torch import load_file
-from transformers import PreTrainedModel, PreTrainedTokenizer
+from transformers import (
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerBase,
+    PretrainedConfig,
+    BitsAndBytesConfig,
+    AutoModel,
+    AutoTokenizer,
+)
 from urllib.parse import ParseResult
 from functools import lru_cache
-from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar
+from typing import List, Optional, Dict, Callable, Any, Union, Type, TypeVar, Tuple
 from app.config import Settings
-from app.domain import Annotation, Entity, CodeType, ModelType, Device, PromptMessage, PromptRole
+from app.domain import Annotation, Entity, CodeType, ModelType, Device, PromptMessage, PromptRole, OpenAIFunctionTool
 from app.exception import ManagedModelException
 from app.processors.prompt_factory import PromptFactory
 
@@ -38,10 +50,16 @@ def get_settings() -> Settings:
     Returns:
         Settings: An instance of the configuration settings.
     """
+    if torch.cuda.is_available():
+        torch.cuda.set_per_process_memory_fraction(0.9)
 
     settings = Settings()
     os.environ["DISABLE_MLFLOW_INTEGRATION"] = "TRUE"
     os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
     if settings.SYSTEM_METRICS_LOGGING_INTERVAL_SECONDS > 0:
         os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
         os.environ["MLFLOW_SYSTEM_METRICS_SAMPLING_INTERVAL"] = str(settings.SYSTEM_METRICS_LOGGING_INTERVAL_SECONDS)
@@ -239,7 +257,7 @@ def filter_by_concept_ids(
             if extra_excluded is not None and len(extra_excluded) > 0:
                 document["annotations"] = [anno for anno in document.get("annotations", []) if anno.get("cui") not in extra_excluded]
 
-    if model_type in [ModelType.TRANSFORMERS_DEID, ModelType.MEDCAT_DEID, ModelType.ANONCAT]:
+    if model_type in [ModelType.TRANSFORMERS_DEID, ModelType.MEDCAT_DEID, ModelType.ANONCAT, ModelType.HUGGINGFACE_NER]:
         # special preprocessing for the DeID annotations and consider removing this.
         for project in filtered["projects"]:
             for document in project["documents"]:
@@ -792,6 +810,59 @@ def download_model_package(
             retry_delay *= 2
 
 
+def quantize_and_save_model(
+    hf_model_path: str,
+    output_model_path: Optional[str] = None,
+    load_in_4bit: bool = False,
+    load_in_8bit: bool = True,
+) -> str:
+    """
+    Quantises and saves a Hugging Face model using the specified precision.
+
+    Args:
+        hf_model_path (str): The path to the Hugging Face model to be quantised.
+        output_model_path (str): The path where the quantised model will be saved.
+        load_in_4bit (bool): Whether to quantise the model in 4-bit precision. Defaults to False.
+        load_in_8bit (bool): Whether to quantise the model in 8-bit precision. Defaults to True.
+
+    Returns:
+        str: The path to the quantised model.
+
+    Raises:
+        ManagedModelException: If there is an error during quantisation or saving of the model.
+    """
+
+    try:
+        if load_in_4bit:
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.float16 if has_turing_generation_gpu() else torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            )
+        elif load_in_8bit:
+            bnb_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+                bnb_4bit_compute_dtype=torch.float16 if has_turing_generation_gpu() else torch.bfloat16,
+                llm_int8_threshold=6.0,
+                llm_int8_enable_fp32_cpu_offload=False
+            )
+        else:
+            bnb_config = None
+        if bnb_config is not None:
+            model = AutoModel.from_pretrained(
+                hf_model_path,
+                quantization_config=bnb_config,
+                device_map="auto"
+            )
+            tokenizer = AutoTokenizer.from_pretrained(hf_model_path)
+            model.save_pretrained(output_model_path if output_model_path is not None else hf_model_path)
+            tokenizer.save_pretrained(output_model_path if output_model_path is not None else hf_model_path)
+        return hf_model_path if output_model_path is None else output_model_path
+    except Exception as e:
+        raise ManagedModelException(f"Error during quantisation and saving of the model: {e}")
+
+
 def get_default_chat_template() -> str:
     """
     Gets the default chat template.
@@ -860,9 +931,12 @@ def get_default_system_prompt() -> str:
 
 
 def get_prompt_from_messages(
-        tokenizer: PreTrainedTokenizer,
-        messages: List[PromptMessage],
-        override_template: Optional[str] = None,
+    tokenizer: PreTrainedTokenizer,
+    messages: List[PromptMessage],
+    tools: Optional[List[Union[OpenAIFunctionTool, Dict[Any, Any]]]] = None,
+    override_template: Optional[str] = None,
+    max_input_tokens: Optional[int] = None,
+    add_generation_prompt: bool = True,
 ) -> str:
     """
     Generates a prompt from a list of prompt messages.
@@ -870,30 +944,60 @@ def get_prompt_from_messages(
     Args:
         tokenizer (PreTrainedTokenizer): The tokenizer to use for applying the chat template.
         messages (List[PromptMessage]): The list of prompt messages to use for generating the prompt.
+        tools (Optional[List[OpenAIFunctionTool]]): An optional list of tools to include in the prompt.
         override_template (str): The name of the chat template to use for generating the prompt.
+        max_input_tokens (Optional[int]): The maximum number of input tokens to include in the prompt.
+        add_generation_prompt (bool): Whether or not to include the generation prompt.
 
     Returns:
         str: The generated prompt.
     """
-    if override_template is None:
-        if hasattr(tokenizer, "apply_chat_template") and tokenizer.chat_template:
-            prompt = tokenizer.apply_chat_template(
-                [dump_pydantic_object_to_dict(message) for message in messages],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        elif hasattr(tokenizer, "default_chat_template") and tokenizer.default_chat_template:
-            # This largely depends on how older versions of HF tokenizers behave and may not work universally
-            tokenizer.chat_template = tokenizer.default_chat_template
-            prompt = tokenizer.apply_chat_template(
-                [dump_pydantic_object_to_dict(message) for message in messages],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        else:
+    def _build_prompt(
+        prompt_messages: List[PromptMessage],
+        tools: Optional[List[Union[OpenAIFunctionTool, Dict[Any, Any]]]],
+    ) -> str:
+        if override_template is None:
+            if all([
+                hasattr(tokenizer, "apply_chat_template"),
+                hasattr(tokenizer, "chat_template"),
+                tokenizer.chat_template,
+            ]):
+                tool_payloads = None
+                if tools is not None:
+                    tool_payloads = [
+                        dump_pydantic_object_to_dict(tool) if not isinstance(tool, dict) else tool
+                        for tool in tools
+                    ]
+                return tokenizer.apply_chat_template(
+                    [dump_pydantic_object_to_dict(message) for message in prompt_messages],
+                    tools=tool_payloads,
+                    tokenize=False,
+                    add_generation_prompt=add_generation_prompt,
+                    enable_thinking=False,
+                )
+            if all([
+                hasattr(tokenizer, "apply_chat_template"),
+                hasattr(tokenizer, "default_chat_template"),
+                tokenizer.default_chat_template,
+            ]):
+                # This largely depends on how older versions of HF tokenizers behave and may not work universally
+                tokenizer.chat_template = tokenizer.default_chat_template
+                tool_payloads = None
+                if tools is not None:
+                    tool_payloads = [
+                        dump_pydantic_object_to_dict(tool) if not isinstance(tool, dict) else tool
+                        for tool in tools
+                    ]
+                return tokenizer.apply_chat_template(
+                    [dump_pydantic_object_to_dict(message) for message in prompt_messages],
+                    tools=tool_payloads,
+                    tokenize=False,
+                    add_generation_prompt=add_generation_prompt,
+                    enable_thinking=False,
+                )
             system_content = ""
             prompt_parts: List[str] = []
-            for message in messages:
+            for message in prompt_messages:
                 content = message.content.strip()
                 if message.role == PromptRole.SYSTEM:
                     system_content = content
@@ -905,15 +1009,309 @@ def get_prompt_from_messages(
                 prompt = f"<|system|>\n{system_content}</s>\n" + "\n".join(prompt_parts)
             else:
                 prompt = "\n".join(prompt_parts)
-            prompt += "\n<|assistant|>\n"
-    else:
+            if add_generation_prompt:
+                return prompt + "\n<|assistant|>\n"
+            return prompt
+
         tokenizer.chat_template = PromptFactory.create_chat_template(tmpl_name=override_template)
-        prompt = tokenizer.apply_chat_template(
-            [dump_pydantic_object_to_dict(message) for message in messages],
+        return tokenizer.apply_chat_template(
+            [dump_pydantic_object_to_dict(message) for message in prompt_messages],
             tokenize=False,
-            add_generation_prompt=True,
+            add_generation_prompt=add_generation_prompt,
+            enable_thinking=False,
         )
+
+    prompt = _build_prompt(messages, tools)
+    if max_input_tokens is None:
+        return prompt
+
+    truncated_messages = list(messages)
+    system_msg_detected = bool(truncated_messages and truncated_messages[0].role == PromptRole.SYSTEM)
+
+    while len(tokenizer.encode(prompt, add_special_tokens=False)) > max_input_tokens:
+        start_idx = 1 if system_msg_detected else 0
+        assistant_idx = next(
+            (
+                idx
+                for idx, message in enumerate(truncated_messages[start_idx:], start=start_idx)
+                if message.role == PromptRole.ASSISTANT
+            ),
+            None,
+        )
+        if assistant_idx is None:
+            break
+        delete_end = assistant_idx + 1
+        if delete_end < len(truncated_messages) and truncated_messages[delete_end].role == PromptRole.TOOL:
+            delete_end += 1
+        del truncated_messages[start_idx:delete_end]
+        prompt = _build_prompt(truncated_messages, tools)
+
     return prompt
+
+def extract_tool_calls(text: str) -> List[Dict[str, Any]]:
+    """Extracts tool calls from the generated text.
+
+    Arguments:
+        text (str): The text to extract the tool calls from.
+
+    Returns:
+        List[Dict[str, Any]]: A list of tool calls.
+    """
+    mistral_match = re.search(r"\[TOOL_CALLS\]\s*\[", text)
+    if mistral_match:
+        json_start = mistral_match.end() - 1
+        try:
+            decoder = json.JSONDecoder()
+            tool_calls, _ = decoder.raw_decode(text, json_start)
+            results: List[Dict[str, Any]] = []
+            for tool_call in tool_calls:
+                name = tool_call.get("name")
+                arguments = tool_call.get("arguments", {})
+                call_id = tool_call.get("id") or f"call_{uuid.uuid4().hex[:9]}"
+                results.append({
+                    "id": call_id,
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": json.dumps(arguments),
+                    },
+                })
+            return results
+        except Exception:
+            pass
+
+    deepseek_match = re.search(r"<｜tool▁call▁begin｜>", text)
+    if deepseek_match:
+        sep_idx = text.find("<｜tool▁sep｜>", deepseek_match.end())
+        if sep_idx != -1:
+            name_start = sep_idx + len("<｜tool▁sep｜>")
+            name_end = text.find("\n", name_start)
+            if name_end != -1:
+                name = text[name_start:name_end].strip()
+                json_block_start = text.find("```json", name_end)
+                if json_block_start != -1:
+                    json_start = text.find("{", json_block_start)
+                    if json_start != -1:
+                        try:
+                            decoder = json.JSONDecoder()
+                            arguments, _ = decoder.raw_decode(text, json_start)
+                            return [{
+                                "id": f"call_{uuid.uuid4().hex[:9]}",
+                                "type": "function",
+                                "function": {
+                                    "name": name,
+                                    "arguments": json.dumps(arguments),
+                                },
+                            }]
+                        except Exception:
+                            pass
+
+    gpt_oss_matches = list(re.finditer(r"functions\.(?P<name>[A-Za-z0-9_]+)\s+json", text))
+    if gpt_oss_matches:
+        results = []
+        for match in gpt_oss_matches:
+            name = match.group("name")
+            json_start = text.find("{", match.end())
+            if json_start == -1:
+                continue
+            depth = 0
+            json_end = None
+            for idx in range(json_start, len(text)):
+                char = text[idx]
+                if char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+                    if depth == 0:
+                        json_end = idx + 1
+                        break
+            if json_end is None:
+                continue
+            try:
+                args = json.loads(text[json_start:json_end])
+                results.append({
+                    "id": f"call_{uuid.uuid4().hex}",
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "arguments": json.dumps(args),
+                    },
+                })
+            except Exception:
+                continue
+        return results
+
+    return []
+
+
+def extract_json_string(text: str) -> str:
+    """ Extract JSON string from the generated text
+
+    Arguments:
+        text (str): The text to extract the tool call from.
+
+    Returns:
+        str: A sanitised JSON string.
+    """
+    if not text:
+        return text
+    start = text.find("{")
+    if start == -1:
+        return text.strip()
+    stack = 0
+    try:
+        for idx in range(start, len(text)):
+            ch = text[idx]
+            if ch == "{":
+                stack += 1
+            elif ch == "}":
+                if stack > 0:
+                    stack -= 1
+                    if stack == 0:
+                        candidate = text[start:idx + 1]
+                        for char in ["\n", "\r", "\t"]:
+                            candidate = candidate.replace(char, "")
+                        parsed = json.loads(candidate)
+                        return json.dumps(parsed, separators=(",", ":"))
+    except Exception:
+        return text[start:].strip()
+    return text[start:].strip()
+
+
+def has_turing_generation_gpu() -> bool:
+    """Checks if the GPU is from the Turing generation"""
+    if torch.cuda.is_available():
+        major, minor = torch.cuda.get_device_capability()
+        if (major, minor) < (8, 0):
+            return True
+    return False
+
+
+def resolve_safe_max_model_length(config: PretrainedConfig) -> int:
+    """
+    Resolves safe max model length across config variants.
+
+    Arguments:
+        config: PretrainedConfig: the Hugging Face model config object
+
+    Returns:
+        int: the value of the safe max model length
+    """
+    value = getattr(config, "max_position_embeddings", None)
+    if isinstance(value, int) and value > 0:
+        return value
+
+    text_config = getattr(config, "text_config", None)
+    text_value = getattr(text_config, "max_position_embeddings", None) if text_config is not None else None
+    if isinstance(text_value, int) and text_value > 0:
+        return text_value
+
+    seq_len = getattr(config, "seq_length", None)
+    if isinstance(seq_len, int) and seq_len > 0:
+        return seq_len
+
+    return 512
+
+def parse_label_into_id_and_name(label: Optional[str], delimiter: str = "|") -> Tuple[Optional[str], Optional[str]]:
+    """
+    Parses a single label in to a pair of label id and label name by the given delimiter.
+
+    Args:
+        label (Optional[str]): A single label string as the input
+        delimiter (str): The delimiter used for separating the label id and the label name.
+
+    Returns:
+         Tuple[Optional[str], Optional[str]]: A pair of label id and label name.
+    """
+    if label is None:
+        return None, None
+    if delimiter in label:
+        label_id, label_name = label.split(delimiter, 1)
+    else:
+        label_id = label
+        label_name = label.replace("-", " ").replace("_", " ").title()
+    return label_id, label_name
+
+
+def freeze_hf_model_params_by_names(
+    model: PreTrainedModel,
+    params_names_csv: str,
+    include: bool = True,
+) -> Tuple[int, int]:
+    """
+    Freezes the parameters of a Hugging Face model based on their names or regex patterns in CSV.
+
+    Args:
+        model (PreTrainedModel): The Hugging Face model to freeze parameters in.
+        params_names_csv (str): A CSV string of parameter name prefixes or regex patterns to freeze or unfreeze.
+        include (bool): Whether to freeze parameters with names (True) or to freeze others parameters (False). Defaults to True.
+
+    Returns:
+        Tuple[int, int]: A tuple containing the number of frozen parameters and the total number of parameters in the model.
+    """
+
+    frozen_params = 0
+    total_params = sum(1 for _ in model.named_parameters())
+    param_names = [param_name.strip() for param_name in params_names_csv.split(",") if param_name.strip()]
+    if not param_names:
+        return frozen_params, total_params
+
+    compiled_patterns: List[Optional[re.Pattern[str]]] = []
+    for pattern in param_names:
+        try:
+            compiled_patterns.append(re.compile(pattern))
+        except re.error:
+            compiled_patterns.append(None)
+
+    for name, param in model.named_parameters():
+        if include:
+            if any(
+                pattern.search(name) if pattern is not None else prefix in name
+                for prefix, pattern in zip(param_names, compiled_patterns)
+            ):
+                if param.requires_grad:
+                    param.requires_grad = False
+                    frozen_params += 1
+        else:
+            if not any(
+                pattern.search(name) if pattern is not None else prefix in name
+                for prefix, pattern in zip(param_names, compiled_patterns)
+            ):
+                if param.requires_grad:
+                    param.requires_grad = False
+                    frozen_params += 1
+
+    return frozen_params, total_params
+
+
+def save_model_to_clean_directory(
+    model: PreTrainedModel,
+    tokenizer: PreTrainedTokenizerBase,
+    model_directory: str,
+    safe_serialization: bool,
+) -> None:
+    """
+    Saves the Hugging Face model and tokenizer to a clean directory and ensures the emptiness before saving.
+
+    Args:
+        model (PreTrainedModel): The Hugging Face model to save.
+        tokenizer (PreTrainedTokenizerBase): The Hugging Face tokenizer to save.
+        model_directory (str): The directory where the model and tokenizer will be saved.
+        safe_serialization (bool): Whether to use safe serialization when saving the model.
+    """
+    if os.path.isdir(model_directory):
+        for entry in os.listdir(model_directory):
+            entry_path = os.path.join(model_directory, entry)
+            if os.path.isdir(entry_path):
+                shutil.rmtree(entry_path)
+            else:
+                os.remove(entry_path)
+    os.makedirs(model_directory, exist_ok=True)
+    model.save_pretrained(
+        model_directory,
+        safe_serialization=safe_serialization,
+    )
+    tokenizer.save_pretrained(model_directory)
 
 
 TYPE_ID_TO_NAME_PATCH = {

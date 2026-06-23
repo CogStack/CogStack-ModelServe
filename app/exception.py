@@ -36,3 +36,7 @@ class DeviceNotAvailableError(RuntimeError):
 
 class ExtraDependencyRequiredException(Exception):
     """An exception raised when an extra dependency is required but not found."""
+
+
+class GenerationException(Exception):
+    """An exception raised due to generation errors"""

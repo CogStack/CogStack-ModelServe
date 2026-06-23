@@ -7,10 +7,12 @@ from app.api.api import get_model_server
 from app.utils import get_settings, load_pydantic_object_from_dict
 from app.model_services.trf_model_deid import TransformersModelDeIdentification
 from app.domain import ModelCard, ModelType, Annotation
+from tests.app.helper import disable_rate_limits
 
 
 config = get_settings()
 config.AUTH_USER_ENABLED = "true"
+disable_rate_limits(config)
 
 
 @pytest.fixture(scope="function")

@@ -5,11 +5,13 @@ import hashlib
 import base64
 import contextlib
 import uuid
+import tempfile
 from functools import lru_cache
-from typing import Optional, AsyncGenerator
+from typing import Optional, AsyncGenerator, Dict, Any
 from typing_extensions import Annotated
 from fastapi import FastAPI, Request, APIRouter, Body, Query
 from starlette.responses import JSONResponse, StreamingResponse
+from starlette.types import Receive, Scope, Send
 from starlette.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
     HTTP_501_NOT_IMPLEMENTED,
@@ -25,17 +27,40 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi_users.jwt import decode_jwt
+from app import __version__ as app_version
 from app.config import Settings
-from app.domain import TagsGenerative
+from app.domain import TagsGenerative, ModelCard, ModelType
+from app.processors.prompt_factory import PromptFactory
 from app.exception import (
     StartTrainingException,
     AnnotationException,
     ConfigurationException,
     ClientException,
     ExtraDependencyRequiredException,
+    GenerationException,
 )
+from app.utils import get_settings, has_turing_generation_gpu
 
 logger = logging.getLogger("cms")
+
+
+class ForwardedPrefixMiddleware:
+    def __init__(self, app: FastAPI) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            forwarded_prefix = next(
+                (
+                    v.decode("latin-1").strip()
+                    for k, v in scope.get("headers", [])
+                    if k == b"x-forwarded-prefix"
+                ),
+                None,
+            )
+            if forwarded_prefix:
+                scope["root_path"] = "/" + forwarded_prefix.strip("/")
+        await self.app(scope, receive, send)
 
 
 def add_exception_handlers(app: FastAPI) -> None:
@@ -156,6 +181,21 @@ def add_exception_handlers(app: FastAPI) -> None:
         """
         logger.exception(exception)
         return JSONResponse(status_code=HTTP_400_BAD_REQUEST, content={"message": str(exception)})
+
+    @app.exception_handler(GenerationException)
+    async def generation_exception_handler(_: Request, exception: GenerationException) -> JSONResponse:
+        """
+        Handles generation exceptions.
+
+        Args:
+            _ (Request): The request object.
+            exception (GenerationException): The generation exception.
+
+        Returns:
+            JSONResponse: A JSON response with a 500 status code and an error message.
+        """
+        logger.exception(exception)
+        return JSONResponse(status_code=HTTP_500_INTERNAL_SERVER_ERROR, content={"message": str(exception)})
 
     @app.exception_handler(Exception)
     async def unhandled_exception_handler(_: Request, exception: Exception) -> JSONResponse:
@@ -295,48 +335,68 @@ def decrypt(b64_encoded: str, private_key_pem: str) -> str:
     )
     return decrypted.decode()
 
-async def init_vllm_engine(app: FastAPI,
-                           model_dir_path: str,
-                           model_name: str,
-                           log_level: str = "info") -> FastAPI:
+
+async def init_vllm_engine(
+    app: FastAPI,
+    config: Settings,
+    model_dir_path: str,
+    model_name: str,
+    log_level: str = "info",
+    server_args: Optional[str] = None,
+) -> FastAPI:
     """
     Initialises the vLLM engine.
 
     Args:
         app (FastAPI): The FastAPI app instance.
+        config (Settings): Configuration settings for the model service.
         model_dir_path (str): The path to the directory containing the model.
         model_name (str): The name of the model.
         log_level (str): The log level for the VLLM engine. Defaults to "info".
+        server_args (Optional[str]): The arguments to pass to the vLLM engine.
     """
 
     try:
-        # Import necessary vLLM components
-        from vllm.utils import FlexibleArgumentParser
+        from vllm.utils.argparse_utils import FlexibleArgumentParser
         from vllm.engine.arg_utils import AsyncEngineArgs
         from vllm.entrypoints.openai.cli_args import make_arg_parser, validate_parsed_serve_args
         from vllm.entrypoints.chat_utils import parse_chat_messages, apply_hf_chat_template
         from vllm.entrypoints.openai.api_server import (
             create_chat_completion,
+            create_completion,
             show_available_models,
+            show_version,
             build_async_engine_client_from_engine_args,
             init_app_state,
         )
         from vllm import SamplingParams, TokensPrompt
     except ImportError:
-        logger.error("Cannot import the vLLM engine. Please install it with `pip install '.[llm]'`.")
-        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install '.[llm]'`.")
+        logger.error("Cannot import the vLLM engine. Please install it with `pip install '.[vllm]'`.")
+        raise ExtraDependencyRequiredException("Cannot import the vLLM engine. Please install it with `pip install '.[vllm]'`.")
 
     parser = FlexibleArgumentParser()
     parser = make_arg_parser(parser)
-    args = parser.parse_args([])
+    args = parser.parse_args(server_args.split() if server_args else [])
     validate_parsed_serve_args(args)
 
     args.model = model_dir_path
     args.dtype = "float16"
     args.served_model_name = [model_name]
-    args.max_model_len = 2048 # The default batched length (2048) needs to be higher than max_model_len.
-    # args.tokenizer = model_dir_path # Uncomment if your tokenizer is in a different path or needs explicit setting.
-    args.log_level = log_level
+    args.max_model_len = 2048
+    args.uvicorn_log_level = log_level
+    if hasattr(args, "chat_template") and config.OVERRIDE_CHAT_TEMPLATE:
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jinja", delete=False)
+        tmp.write(config.OVERRIDE_CHAT_TEMPLATE)
+        tmp.flush()
+        args.chat_template = tmp.name
+    if hasattr(args, "enable_auto_tool_choice"):
+        args.enable_auto_tool_choice = True
+    if hasattr(args, "tool_call_parser"):
+        args.tool_call_parser = "pythonic"
+    if hasattr(args, "return_tokens_as_token_ids"):
+        args.return_tokens_as_token_ids = True
+    if hasattr(args, "default_chat_template_kwargs"):
+        args.default_chat_template_kwargs = {"enable_thinking": False}
 
     exit_stack = contextlib.AsyncExitStack()
     engine = await exit_stack.enter_async_context(
@@ -345,38 +405,61 @@ async def init_vllm_engine(app: FastAPI,
             disable_frontend_multiprocessing=True,
         )
     )
+    app.state._vllm_exit_stack = exit_stack
+    app.state._vllm_engine = engine
 
     tokenizer = await engine.get_tokenizer()
-    vllm_config = await engine.get_vllm_config()    # type: ignore
-    model_config = await engine.get_model_config()  # type: ignore
+    model_config = getattr(engine, "model_config", None)
+    if model_config is None:
+        vllm_config = getattr(engine, "vllm_config", None)
+        model_config = getattr(vllm_config, "model_config", None)
+    await init_app_state(engine, app.state, args)
 
-    await init_app_state(engine, vllm_config, app.state, args)  # type: ignore
+    async def get_model_card() -> ModelCard:
+        return ModelCard(
+            model_description=model_name,
+            model_type=ModelType.HUGGINGFACE_LLM,
+            api_version=app_version,
+            model_card=_to_model_card_dict(model_config),
+        )
 
     async def generate_text(
         request: Request,
         prompt: Annotated[str, Body(description="The prompt to be sent to the model", media_type="text/plain")],
         max_tokens: Annotated[int, Query(description="The maximum number of tokens to generate", gt=0)] = 512
     ) -> StreamingResponse:
-        """
-        Custom endpoint for streaming text generation.
-        This endpoint takes a raw text prompt and streams back the generated text.
-        It applies a chat template to the prompt internally for model compatibility.
-        """
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 
         params = SamplingParams(max_tokens=max_tokens)
 
-        conversation, _ = parse_chat_messages(messages, model_config, tokenizer, content_format="string")   # type: ignore
-        prompt_tokens = apply_hf_chat_template( # type: ignore
+        conversation, _, _ = parse_chat_messages(  # type: ignore
+            messages=messages,  # type: ignore[arg-type]
+            model_config=model_config,  # type: ignore[arg-type]
+            content_format="string",    # type: ignore[arg-type]
+        )
+        chat_template: Optional[str] = None
+        if args.chat_template:
+            chat_template = args.chat_template
+        else:
+            if getattr(tokenizer, "chat_template", None):  # type: ignore
+                chat_template = tokenizer.chat_template  # type: ignore
+            elif getattr(tokenizer, "default_chat_template", None):  # type: ignore
+                tokenizer.chat_template = tokenizer.default_chat_template  # type: ignore
+                chat_template = tokenizer.chat_template  # type: ignore
+            else:
+                chat_template = PromptFactory.create_chat_template()
+
+        prompt_text = apply_hf_chat_template(
             tokenizer,
             conversation=conversation,
             tools=None,
             add_generation_prompt=True,
             continue_final_message=False,
-            chat_template="{% for message in messages %}\n{% if message['role'] == 'user' %}\nUser: {{ message['content'] }}\n{% elif message['role'] == 'assistant' %}\nAssistant: {{ message['content'] }}\n{% endif %}\n{% endfor %}\nAssistant:",
-            tokenize=True,
+            model_config=model_config,  # type: ignore
+            chat_template=chat_template,
         )
-        prompt_obj = TokensPrompt(prompt_token_ids=prompt_tokens)   # type: ignore
+        prompt_token_ids = tokenizer(prompt_text, add_special_tokens=False).input_ids
+        prompt_obj = TokensPrompt(prompt_token_ids=prompt_token_ids)
 
         async def _stream() -> AsyncGenerator[bytes, None]:
             start = 0
@@ -389,9 +472,12 @@ async def init_vllm_engine(app: FastAPI,
 
     router = APIRouter()
     endpoints = [
+        ["/info", get_model_card, ["GET"]],
         ["/generate", generate_text, ["POST"]],
-        ["/chat/completions", create_chat_completion, ["POST"]],
-        ["/models", show_available_models, ["GET"]],
+        ["/v1/chat/completions", create_chat_completion, ["POST"]],
+        ["/v1/completions", create_completion, ["POST"]],
+        ["/v1/models", show_available_models, ["GET"]],
+        ["/v1/version", show_version, ["GET"]],
     ]
 
     for route, endpoint, methods in endpoints:
@@ -405,3 +491,187 @@ async def init_vllm_engine(app: FastAPI,
     app.include_router(router)
 
     return app
+
+
+async def init_sglang_engine(
+    app: FastAPI,
+    config: Settings,
+    model_dir_path: str,
+    model_name: str,
+    log_level: str = "info",
+    server_args: Optional[str] = None,
+) -> FastAPI:
+    """
+    Initialises the SGLang engine.
+
+    Args:
+        app (FastAPI): The FastAPI app instance.
+        config (Settings): Configuration settings for the model service.
+        model_dir_path (str): The path to the directory containing the model.
+        model_name (str): The name of the model.
+        log_level (str): The log level for the SGLang engine. Defaults to "info".
+        server_args (Optional[str]): The arguments to pass to the SGLang engine.
+    """
+
+    try:
+        from sglang.srt.entrypoints.engine import (
+            _launch_subprocesses,
+            init_tokenizer_manager,
+            run_detokenizer_process,
+            run_scheduler_process,
+        )
+        from fastapi import Depends
+        from sglang.srt.server_args import prepare_server_args
+        from sglang.srt.entrypoints.http_server import (
+            _GlobalState,
+            set_global_state,
+            generate_request,
+            openai_v1_completions,
+            openai_v1_chat_completions,
+            available_models,
+            validate_json_request,
+        )
+        from sglang.srt.entrypoints.openai.serving_chat import OpenAIServingChat
+        from sglang.srt.entrypoints.openai.serving_completions import OpenAIServingCompletion
+        from sglang.srt.entrypoints.openai.serving_embedding import OpenAIServingEmbedding
+        from sglang.srt.entrypoints.openai.serving_score import OpenAIServingScore
+        from sglang.srt.entrypoints.openai.serving_rerank import OpenAIServingRerank
+        from sglang.srt.metrics.func_timer import enable_func_timer
+        from sglang.version import __version__ as sglang_version
+    except ImportError:
+        logger.error("Cannot import the SGLang engine. Please install it with `pip install '.[sglang]'`.")
+        raise ExtraDependencyRequiredException("Cannot import the SGLang engine. Please install it with `pip install '.[sglang]'`.")
+
+    add_api_key_middleware = None
+    add_prometheus_middleware = None
+    try:
+        from sglang.srt.utils import add_api_key_middleware, add_prometheus_middleware # type: ignore
+    except ImportError:
+        logger.warning(
+            "SGLang middleware helpers not available in this version; "
+            "API-key and Prometheus middleware setup will be skipped."
+        )
+
+    server_args = prepare_server_args((server_args.split() if server_args else []) + ["--model-path", model_dir_path])
+    server_args.served_model_name = model_name
+    server_args.log_level = log_level
+    server_args.log_level_http = log_level
+    server_args.tokenizer_worker_num = 1
+    server_args.skip_server_warmup = False
+    server_args.quantization = None # "bitsandbytes"
+    server_args.model_impl = "transformers"
+    server_args.mem_fraction_static = 0.9
+
+    if config.OVERRIDE_CHAT_TEMPLATE:
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".jinja", delete=False)
+        tmp.write(config.OVERRIDE_CHAT_TEMPLATE)
+        tmp.flush()
+        server_args.chat_template = tmp.name
+
+    if has_turing_generation_gpu():
+        server_args.sampling_backend = "pytorch"
+        server_args.attention_backend = None if get_settings().ENABLE_SPDA_ATTN == "true" else "torch_native"
+        server_args.prefill_attention_backend =  None if get_settings().ENABLE_SPDA_ATTN == "true" else "torch_native"
+        server_args.decode_attention_backend =  None if get_settings().ENABLE_SPDA_ATTN == "true" else "torch_native"
+        server_args.disable_cuda_graph = True
+
+    result = _launch_subprocesses(
+        server_args=server_args,
+        init_tokenizer_manager_func=init_tokenizer_manager,
+        run_scheduler_process_func=run_scheduler_process,
+        run_detokenizer_process_func=run_detokenizer_process,
+    )
+
+    if len(result) == 4:
+        tokenizer_manager, template_manager, scheduler_infos, subprocess_watchdog = result
+        if not scheduler_infos:
+            raise ExtraDependencyRequiredException(
+                "SGLang engine started but scheduler_infos is empty; cannot build HTTP global state."
+            )
+        if tokenizer_manager is not None and subprocess_watchdog is not None:
+            tokenizer_manager._subprocess_watchdog = subprocess_watchdog
+    else:
+        raise ExtraDependencyRequiredException(
+            f"Unexpected _launch_subprocesses return length {len(result)}; expected 4."
+        )
+
+    set_global_state(
+        _GlobalState(
+            tokenizer_manager=tokenizer_manager,
+            template_manager=template_manager,
+            scheduler_info=scheduler_infos[0],
+        )
+    )
+
+    if server_args.api_key and add_api_key_middleware is not None:
+        add_api_key_middleware(app, server_args.api_key)
+    elif server_args.api_key:
+        logger.warning("SGLang API key middleware is unavailable in this version.")
+    if server_args.enable_metrics and add_prometheus_middleware is not None:
+        add_prometheus_middleware(app)
+        enable_func_timer()
+    elif server_args.enable_metrics:
+        logger.warning("SGLang Prometheus middleware is unavailable in this version.")
+
+    app.state.openai_serving_completion = OpenAIServingCompletion(tokenizer_manager, template_manager)
+    app.state.openai_serving_chat = OpenAIServingChat(tokenizer_manager, template_manager)
+    app.state.openai_serving_embedding = OpenAIServingEmbedding(tokenizer_manager, template_manager)
+    app.state.openai_serving_score = OpenAIServingScore(tokenizer_manager)
+    app.state.openai_serving_rerank = OpenAIServingRerank(tokenizer_manager)
+
+    async def get_model_card() -> ModelCard:
+        model_config = getattr(tokenizer_manager, "model_config", None)
+        return ModelCard(
+            model_description=model_name,
+            model_type=ModelType.HUGGINGFACE_LLM,
+            api_version=app_version,
+            model_card=_to_model_card_dict(model_config),
+        )
+
+    async def show_version() -> Dict[str, str]:
+        return {"version": sglang_version}
+
+    router = APIRouter()
+    endpoints = [
+        ["/info", get_model_card, ["GET"], None],
+        ["/generate", generate_request, ["POST"], None],
+        ["/v1/chat/completions", openai_v1_chat_completions, ["POST"], [Depends(validate_json_request)]],
+        ["/v1/completions", openai_v1_completions, ["POST"], [Depends(validate_json_request)]],
+        ["/v1/models", available_models, ["GET"], None],
+        ["/v1/version", show_version, ["GET"], None],
+    ]
+
+    for route, endpoint, methods, dependencies in endpoints:
+        router.add_api_route(
+            path=route,
+            endpoint=endpoint,
+            methods=methods,
+            dependencies=dependencies,
+            include_in_schema=True,
+            tags=[TagsGenerative.Generative.name],
+        )
+    app.include_router(router)
+
+    return app
+
+
+def _to_model_card_dict(model_config: Optional[Any]) -> Dict:
+    """
+    Converts a model config object into a serialisable dict when possible.
+    """
+
+    if model_config is None:
+        return {}
+    if hasattr(model_config, "to_dict"):
+        try:
+            return model_config.to_dict()  # type: ignore[no-any-return]
+        except Exception:
+            logger.exception("Failed to convert model config with to_dict().")
+    if isinstance(model_config, dict):
+        return model_config
+    if hasattr(model_config, "__dict__"):
+        try:
+            return dict(vars(model_config))
+        except Exception:
+            logger.exception("Failed to convert model config using vars().")
+    return {}

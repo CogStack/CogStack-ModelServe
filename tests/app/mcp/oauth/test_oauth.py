@@ -1,3 +1,4 @@
+import os
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from datetime import datetime, timedelta
@@ -48,7 +49,7 @@ class TestOAuthProvider:
 
     def test_generate_authorization_url_without_state(self, oauth_provider):
         auth_url, state = oauth_provider.generate_authorization_url()
-        
+
         assert auth_url.startswith("https://example.com/auth?")
         assert "client_id=test_client_id" in auth_url
         assert "redirect_uri=http://localhost:8080/oauth/callback" in auth_url
@@ -57,34 +58,34 @@ class TestOAuthProvider:
         assert "state=" in auth_url
         assert len(state) == 43
         assert state in oauth_provider._state_store
- 
+
     def test_generate_authorization_url_with_state(self, oauth_provider):
         custom_state = "custom_state_123"
         _, state = oauth_provider.generate_authorization_url(state=custom_state)
-        
+
         assert state == custom_state
         assert custom_state in oauth_provider._state_store
 
     def test_verify_state_valid(self, oauth_provider):
         _, state = oauth_provider.generate_authorization_url()
-        
+
         result = oauth_provider.verify_state(state)
-        
+
         assert result is True
         assert state not in oauth_provider._state_store
 
     def test_verify_state_invalid_not_found(self, oauth_provider):
         result = oauth_provider.verify_state("nonexistent_state")
-        
+
         assert result is False
 
     def test_verify_state_expired(self, oauth_provider):
         _, state = oauth_provider.generate_authorization_url()
-        
+
         oauth_provider._state_store[state] = datetime.utcnow() - timedelta(minutes=10)
-        
+
         result = oauth_provider.verify_state(state)
-        
+
         assert result is False
         assert state not in oauth_provider._state_store
 
@@ -99,19 +100,19 @@ class TestOAuthProvider:
                 "refresh_token": "new_refresh_token",
                 "scope": "openid email"
             }
-            
+
             mock_client_instance = AsyncMock()
             mock_client_instance.post.return_value = mock_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance
-            
+
             token = await oauth_provider.exchange_code_for_token("authorization_code")
-            
+
             assert token.access_token == "new_access_token"
             assert token.token_type == "Bearer"
             assert token.expires_in == 3600
             assert token.refresh_token == "new_refresh_token"
             assert token.scope == "openid email"
-    
+
     @pytest.mark.asyncio
     async def test_refresh_access_token(self, oauth_provider):
         with patch("app.mcp.oauth.oauth.httpx.AsyncClient") as mock_client:
@@ -122,16 +123,16 @@ class TestOAuthProvider:
                 "expires_in": 7200,
                 "refresh_token": "new_refresh_token",
             }
-            
+
             mock_client_instance = AsyncMock()
             mock_client_instance.post.return_value = mock_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance
-            
+
             token = await oauth_provider.refresh_access_token("old_refresh_token")
-            
+
             assert token.access_token == "refreshed_access_token"
             assert token.expires_in == 7200
-    
+
     @pytest.mark.asyncio
     async def test_get_user_info(self, oauth_provider):
         with patch("app.mcp.oauth.oauth.httpx.AsyncClient") as mock_client:
@@ -141,13 +142,13 @@ class TestOAuthProvider:
                 "name": "Test User",
                 "email": "test@example.com"
             }
-            
+
             mock_client_instance = AsyncMock()
             mock_client_instance.get.return_value = mock_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance
-            
+
             user_info = await oauth_provider.get_user_info("test_access_token")
-            
+
             assert user_info["sub"] == "1234567890"
             assert user_info["name"] == "Test User"
             assert user_info["email"] == "test@example.com"
@@ -161,7 +162,7 @@ class TestGitHubOAuthProvider:
             "GITHUB_CLIENT_SECRET": "test_github_client_secret"
         }):
             provider = GitHubOAuthProvider(redirect_uri="http://localhost:8080/oauth/callback")
-            
+
             assert provider.config.client_id == "test_github_client_id"
             assert provider.config.client_secret == "test_github_client_secret"
             assert provider.config.authorization_url == "https://github.com/login/oauth/authorize"
@@ -177,14 +178,14 @@ class TestGitHubOAuthProvider:
                 "name": "Test User",
                 "email": "test@example.com"
             }
-            
+
             mock_client_instance = AsyncMock()
             mock_client_instance.get.return_value = mock_user_response
             mock_client.return_value.__aenter__.return_value = mock_client_instance
-            
+
             provider = GitHubOAuthProvider(redirect_uri="http://localhost:8080/oauth/callback")
             user_info = await provider.get_user_info("test_access_token")
-            
+
             assert user_info["email"] == "test@example.com"
 
 
@@ -197,7 +198,7 @@ class TestGoogleOAuthProvider:
             "GOOGLE_CLIENT_SECRET": "test_google_client_secret"
         }):
             provider = GoogleOAuthProvider(redirect_uri="http://localhost:8080/oauth/callback")
-            
+
             assert provider.config.client_id == "test_google_client_id"
             assert provider.config.client_secret == "test_google_client_secret"
             assert provider.config.authorization_url == "https://accounts.google.com/o/oauth2/v2/auth"
@@ -206,13 +207,11 @@ class TestGoogleOAuthProvider:
 
     def test_google_oauth_provider_missing_credentials(self):
         with patch.dict("os.environ", {}, clear=True):
-            import os
-            # Ensure env vars are not set
             os.environ.pop("GOOGLE_CLIENT_ID", None)
             os.environ.pop("GOOGLE_CLIENT_SECRET", None)
-            
+
             provider = GoogleOAuthProvider(redirect_uri="http://localhost:8080/oauth/callback")
-            
+
             assert provider.config.client_id == ""
             assert provider.config.client_secret == ""
 
@@ -227,35 +226,35 @@ class TestOAuthManager:
 
     def test_get_provider_google(self, oauth_manager):
         provider = oauth_manager.get_provider("google")
-        
+
         assert provider is not None
         assert isinstance(provider, GoogleOAuthProvider)
 
     def test_get_provider_unknown(self, oauth_manager):
         provider = oauth_manager.get_provider("unknown")
-        
+
         assert provider is None
 
     def test_store_and_get_token(self, oauth_manager, oauth_token):
         session_id = "test_session_123"
-        
+
         oauth_manager.store_token(session_id, oauth_token)
-        
+
         retrieved_token = oauth_manager.get_token(session_id)
         assert retrieved_token is not None
         assert retrieved_token.access_token == "test_access_token"
 
     def test_get_token_nonexistent(self, oauth_manager):
         token = oauth_manager.get_token("nonexistent_session")
-        
+
         assert token is None
 
     def test_remove_token(self, oauth_manager, oauth_token):
         session_id = "test_session_123"
-        
+
         oauth_manager.store_token(session_id, oauth_token)
         oauth_manager.remove_token(session_id)
-        
+
         token = oauth_manager.get_token(session_id)
         assert token is None
 
@@ -263,9 +262,9 @@ class TestOAuthManager:
     async def test_get_valid_token(self, oauth_manager, oauth_token):
         session_id = "test_session_123"
         oauth_manager.store_token(session_id, oauth_token)
-        
+
         token = await oauth_manager.get_valid_token(session_id)
-        
+
         assert token is not None
         assert token.access_token == "test_access_token"
 
@@ -277,14 +276,14 @@ class TestOAuthManager:
             expires_in=1,
             refresh_token=None
         )
-        
+
         object.__setattr__(expired_token, "created_at", datetime.utcnow() - timedelta(hours=2))
-        
+
         session_id = "test_session_123"
         oauth_manager.store_token(session_id, expired_token)
-        
+
         token = await oauth_manager.get_valid_token(session_id)
-        
+
         assert token is None
 
     @pytest.mark.asyncio
@@ -296,25 +295,39 @@ class TestOAuthManager:
             refresh_token="refresh_token"
         )
         object.__setattr__(expired_token, "created_at", datetime.utcnow() - timedelta(hours=2))
-        
+
         session_id = "test_session_123"
         oauth_manager.store_token(session_id, expired_token)
-        
+
         for provider in oauth_manager.providers.values():
             provider.refresh_access_token = AsyncMock(return_value=oauth_token)
-        
+
         token = await oauth_manager.get_valid_token(session_id)
-        
+
         assert token is not None
         assert token.access_token == "test_access_token"
 
     def test_create_oauth_routes(self, oauth_manager):
         routes = oauth_manager.create_oauth_routes()
-        
-        assert len(routes) == 5
+
+        assert len(routes) == 21
         route_paths = [route.path for route in routes]
-        assert "/oauth/login" in route_paths
-        assert "/oauth/authorize/{provider}" in route_paths
-        assert "/oauth/callback/{provider}" in route_paths
-        assert "/oauth/status" in route_paths
-        assert "/oauth/logout" in route_paths
+        expected_paths = {
+            "/.well-known",
+            "/.well-known/",
+            "/.well-known/oauth-authorization-server",
+            "/.well-known/oauth-protected-resource",
+            "/.well-known/oauth-protected-resource/sse",
+            "/.well-known/openid-configuration",
+            "/register",
+            "/oauth/register",
+            "/authorize",
+            "/oauth/login",
+            "/oauth/authorize",
+            "/oauth/authorize/{provider}",
+            "/oauth/callback/{provider}",
+            "/oauth/status",
+            "/oauth/logout",
+        }
+        for path in expected_paths:
+            assert path in route_paths

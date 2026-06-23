@@ -4,7 +4,7 @@ import httpx
 from typing import Optional, Dict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from starlette.responses import HTMLResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, RedirectResponse, Response, JSONResponse
 from starlette.templating import Jinja2Templates
 from starlette.requests import Request
 from starlette.routing import Route
@@ -270,6 +270,81 @@ class OAuthManager:
         return token if not token.is_expired() else None
 
     def create_oauth_routes(self) -> list:
+        async def well_known_index(request: Request) -> Response:
+            base_url = str(request.base_url).rstrip("/")
+            return JSONResponse(
+                content={
+                    "oauth_authorization_server": f"{base_url}/.well-known/oauth-authorization-server",
+                    "oauth_protected_resource": f"{base_url}/.well-known/oauth-protected-resource",
+                    "openid_configuration": f"{base_url}/.well-known/openid-configuration",
+                }
+            )
+
+        async def well_known_index_options(request: Request) -> Response:
+            return Response(status_code=204)
+
+        async def oauth_authorize_root(request: Request) -> Response:
+            provider = request.query_params.get("provider")
+            if not provider:
+                provider = os.getenv("CMS_MCP_OAUTH_PROVIDER", "").strip().lower()
+            if not provider:
+                return HTMLResponse(content="<h1>Missing provider</h1>", status_code=400)
+            request.path_params["provider"] = provider
+            return await oauth_authorize(request)
+
+        async def oauth_authorization_metadata(request: Request) -> Response:
+            base_url = str(request.base_url).rstrip("/")
+            metadata = {
+                "issuer": base_url,
+                "authorization_endpoint": f"{base_url}/authorize",
+                "token_endpoint": f"{base_url}/token",
+                "response_types_supported": ["code"],
+                "grant_types_supported": ["authorization_code", "refresh_token"],
+            }
+            return JSONResponse(content=metadata)
+
+        async def oauth_authorization_options(request: Request) -> Response:
+            return Response(status_code=204)
+
+        async def oauth_protected_resource_metadata(request: Request) -> Response:
+            base_url = str(request.base_url).rstrip("/")
+            metadata = {
+                "resource": base_url,
+                "authorization_servers": [base_url],
+            }
+            return JSONResponse(content=metadata)
+
+        async def oauth_protected_resource_options(request: Request) -> Response:
+            return Response(status_code=204)
+
+        async def oauth_protected_resource_sse(request: Request) -> Response:
+            base_url = str(request.base_url).rstrip("/")
+            metadata = {
+                "resource": f"{base_url}/sse",
+                "authorization_servers": [base_url],
+            }
+            return JSONResponse(content=metadata)
+
+        async def oauth_protected_resource_sse_options(request: Request) -> Response:
+            return Response(status_code=204)
+
+        async def openid_configuration(request: Request) -> Response:
+            base_url = str(request.base_url).rstrip("/")
+            metadata = {
+                "issuer": base_url,
+                "authorization_endpoint": f"{base_url}/authorize",
+                "token_endpoint": f"{base_url}/token",
+                "response_types_supported": ["code"],
+                "grant_types_supported": ["authorization_code", "refresh_token"],
+            }
+            return JSONResponse(content=metadata)
+
+        async def openid_configuration_options(request: Request) -> Response:
+            return Response(status_code=204)
+
+        async def oauth_register_options(request: Request) -> Response:
+            return Response(status_code=204)
+
         async def oauth_login(request: Request) -> Response:
             return templates.TemplateResponse("login.html", {"request": request})
 
@@ -396,7 +471,23 @@ class OAuthManager:
             return response
 
         return [
+            Route("/.well-known", well_known_index),
+            Route("/.well-known/", well_known_index),
+            Route("/.well-known", well_known_index_options, methods=["OPTIONS"]),
+            Route("/.well-known/", well_known_index_options, methods=["OPTIONS"]),
+            Route("/.well-known/oauth-authorization-server", oauth_authorization_metadata),
+            Route("/.well-known/oauth-authorization-server", oauth_authorization_options, methods=["OPTIONS"]),
+            Route("/.well-known/oauth-protected-resource", oauth_protected_resource_metadata),
+            Route("/.well-known/oauth-protected-resource", oauth_protected_resource_options, methods=["OPTIONS"]),
+            Route("/.well-known/oauth-protected-resource/sse", oauth_protected_resource_sse),
+            Route("/.well-known/oauth-protected-resource/sse", oauth_protected_resource_sse_options, methods=["OPTIONS"]),
+            Route("/.well-known/openid-configuration", openid_configuration),
+            Route("/.well-known/openid-configuration", openid_configuration_options, methods=["OPTIONS"]),
+            Route("/register", oauth_register_options, methods=["OPTIONS"]),
+            Route("/oauth/register", oauth_register_options, methods=["OPTIONS"]),
+            Route("/authorize", oauth_authorize_root),
             Route("/oauth/login", oauth_login),
+            Route("/oauth/authorize", oauth_authorize_root),
             Route("/oauth/authorize/{provider}", oauth_authorize),
             Route("/oauth/callback/{provider}", oauth_callback),
             Route("/oauth/status", oauth_status),

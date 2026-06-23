@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any, Union, Literal
 
 from fastapi import HTTPException
 from starlette.status import HTTP_400_BAD_REQUEST
@@ -28,6 +28,7 @@ class Tags(str, Enum):
     Authentication = "Authenticate registered users"
     Generative = "Generate text based on the input prompt"
     OpenAICompatible = "Operations compatible with OpenAI APIs"
+    OllamaCompatible = "Operations compatible with Ollama APIs"
 
 
 class TagsStreamable(str, Enum):
@@ -113,8 +114,9 @@ class TrackerBackend(Enum):
 
 
 class LlmEngine(Enum):
-    CMS = "CMS"
-    VLLM = "vLLM"
+    CMS = "cms"
+    VLLM = "vllm"
+    SGLANG = "sglang"
 
 
 class LlmRole(Enum):
@@ -160,7 +162,7 @@ class TextWithAnnotations(BaseModel):
 
 class TextWithPublicKey(BaseModel):
     text: str = Field(description="The plain text to be sent to the model for NER and redaction")
-    public_key_pem: str = Field(description="the public PEM key used for encrypting detected spans")
+    public_key_pem: str = Field(description="The public PEM key used for encrypting detected spans")
 
 
 class TextStreamItem(BaseModel):
@@ -211,9 +213,58 @@ class PromptMessage(BaseModel):
     content: str = Field(description="The actual text of the message")
 
 
+class GenerationResult(BaseModel):
+    text: str = Field(..., description="The generated text content")
+    prompt_token_num: int = Field(..., description="The number of tokens in the prompt text")
+    completion_token_num: int = Field(..., description="The number of tokens in the generated text")
+    ttft_ms: int = Field(default=-1, description="Time to first token in milliseconds")
+    tpot_ms: int = Field(default=-1, description="Average time per output token in milliseconds")
+
+
+class OpenAIStreamOptions(BaseModel):
+    include_usage: Optional[bool] = Field(
+        default=False, description="Whether to include token usage in stream response"
+    )
+
+    class Config:
+        extra = "allow"
+
+
+class OpenAIJsonSchemaWrapper(BaseModel):
+    name: Optional[str] = Field(default=None, description="The optional schema name")
+    schema_: Dict[str, Any] = Field(..., alias="schema", description="The actual JSON schema definition")
+
+    class Config:
+        allow_population_by_field_name = True
+
+
+class OpenAIResponseFormat(BaseModel):
+    type: Literal["json_schema"] = Field(..., description="The response format type")
+    json_schema: OpenAIJsonSchemaWrapper = Field(..., description="The JSON schema wrapper")
+
+
+class OpenAIFunctionTool(BaseModel):
+    name: str = Field(..., description="The name of the function tool")
+    description: Optional[str] = Field(default=None, description="The description of the function tool")
+    parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="The JSON schema for the function parameters",
+    )
+
+
+class OpenAITool(BaseModel):
+    type: str = Field(default="function", description="The type of the tool")
+    function: OpenAIFunctionTool = Field(..., description="The function tool definition")
+
+
 class OpenAIChatCompletionsRequest(BaseModel):
     messages: List[PromptMessage] = Field(..., description="A list of messages to be sent to the model")
-    stream: bool = Field(..., description="Whether to stream the response")
+    tools: Optional[List[OpenAITool]] = Field(default=None, description="A list of tools available to the model")
+    stream: Optional[bool] = Field(default=False, description="Whether to stream the response")
+    stream_options: Optional[OpenAIStreamOptions] = Field(
+        default=None,
+        description="The extra options for streaming when it's turned on",
+    )
     max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
     model: str = Field(..., description="The name of the model used for generating the completion")
     temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
@@ -221,6 +272,10 @@ class OpenAIChatCompletionsRequest(BaseModel):
     stop: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="The single sequence or the list of sequences used to stop the generation",
+    )
+    response_format: Optional[OpenAIResponseFormat] = Field(
+        default=None,
+        description="The optional response format configuration for structured outputs",
     )
 
 
@@ -237,8 +292,12 @@ class OpenAIChatCompletionsResponse(BaseModel):
 
 
 class OpenAICompletionsRequest(BaseModel):
-    prompt: Union[str, List[str]] = Field(..., description="Prompt text or list of prompts")
-    stream: bool = Field(False, description="Whether to stream the response")
+    prompt: Union[str, List[str]] = Field(..., description="The prompt text or list of prompts")
+    stream: Optional[bool] = Field(default=False, description="Whether to stream the response")
+    stream_options: Optional[OpenAIStreamOptions] = Field(
+        default=None,
+        description="The extra options for streaming when it's turned on",
+    )
     max_tokens: int = Field(512, description="The maximum number of tokens to generate", gt=0)
     model: str = Field(..., description="The name of the model used for generating the completion")
     temperature: float = Field(0.7, description="The temperature of the generated text", ge=0.0, le=1.0)
@@ -262,11 +321,56 @@ class OpenAICompletionsResponse(BaseModel):
 
 
 class OpenAIEmbeddingsRequest(BaseModel):
-    input: Union[str, List[str]] = Field(..., description="Input text or list of texts to embed")
+    input: Union[str, List[str]] = Field(..., description="The input text or list of texts to embed")
     model: str = Field(..., description="The name of the model used for creating the embeddings")
 
 
 class OpenAIEmbeddingsResponse(BaseModel):
     object: str = Field(..., description="The type of the response")
-    data: List[Dict[str, Any]] = Field(..., description="List of embedding objects")
+    data: List[Dict[str, Any]] = Field(..., description="The list of embedding objects")
     model: str = Field(..., description="The name of the model used for creating the embeddings")
+
+
+class OllamaMessage(BaseModel):
+    role: str = Field(..., description="The message role")
+    content: str = Field(..., description="The message content")
+
+
+class OllamaRequestOptions(BaseModel):
+    num_predict: int = Field(512, description="The maximum number of tokens to generate", gt=0)
+    temperature: Optional[float] = Field(default=0.7, description="The sampling temperature")
+    top_p: Optional[float] = Field(default=0.9, description="The nucleus sampling top_p")
+    stop: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="The single sequence or list of sequences used to stop generation",
+    )
+
+class OllamaGenerateRequest(BaseModel):
+    model: str = Field(..., description="The model name")
+    prompt: str = Field(..., description="The prompt text")
+    stream: Optional[bool] = Field(default=False, description="Whether to stream the response")
+    system: Optional[str] = Field(default=None, description="The system prompt")
+    suffix: Optional[str] = Field(default=None, description="The suffix text after model response")
+    format: Optional[Dict[str, Any]] = Field(default=None, description="The response format")
+    keep_alive: Optional[Union[str, int]] = Field(default=None, description="The model keep-alive duration")
+    options: Optional[OllamaRequestOptions] = Field(default=None, description="The Ollama options")
+
+
+class OllamaChatRequest(BaseModel):
+    model: str = Field(..., description="The model name")
+    messages: List[OllamaMessage] = Field(..., description="The conversation messages")
+    stream: Optional[bool] = Field(default=False, description="Whether to stream the response")
+    format: Optional[Dict[str, Any]] = Field(default=None, description="The response format")
+    keep_alive: Optional[Union[str, int]] = Field(default=None, description="The model keep-alive duration")
+    options: Optional[OllamaRequestOptions] = Field(default=None, description="The Ollama options")
+
+
+class OllamaShowRequest(BaseModel):
+    model: str = Field(..., description="The model name")
+    verbose: Optional[bool] = Field(default=False, description="Whether to return verbose model info")
+
+
+class OllamaEmbedRequest(BaseModel):
+    model: str = Field(..., description="The model name")
+    input: Union[str, List[str]] = Field(..., description="The input text or list of texts to embed")
+    keep_alive: Optional[Union[str, int]] = Field(default=None, description="The model keep-alive duration")

@@ -118,13 +118,20 @@ def create_server() -> Starlette:
 
     routes = []
     middleware = []
-    oauth_enabled = os.environ.get("CMS_MCP_OAUTH_ENABLED", "false").lower() == "true"
+    oauth_enabled = os.environ.get("CMS_MCP_OAUTH_PROVIDER", "") != ""
 
     if oauth_enabled:
         try:
             base_url = f"http://{host}:{port}"
             oauth_manager = OAuthManager(base_url)
             oauth_routes = oauth_manager.create_oauth_routes()
+            for route in oauth_routes:
+                route_path = getattr(route, "path", str(route))
+                route_methods = getattr(route, "methods", None)
+                if route_methods:
+                    logger.debug(f"Mounted OAuth route: {route_path} [{', '.join(sorted(route_methods))}]")
+                else:
+                    logger.debug(f"Mounted OAuth route: {route_path}")
             routes.extend(oauth_routes)
 
             middleware.append(
@@ -132,11 +139,10 @@ def create_server() -> Starlette:
                     OAuthMiddleware,
                     oauth_manager=oauth_manager,
                     public_paths=[
+                        "/authorize",
+                        "/favicon.ico",
                         "/oauth/",
-                        "/docs",
-                        "/openapi.json",
-                        "/redoc",
-                        "/health",
+                        "/.well-known",
                         "/.well-known/",
                     ]
                 )
@@ -174,8 +180,11 @@ def main() -> None:
 
     app = create_server()
 
-    if os.environ.get("CMS_MCP_OAUTH_ENABLED", "false").lower() == "true" and os.environ.get("CMS_MCP_TRANSPORT") != TransportType.STREAMABLE_HTTP.value:
-        logger.info(f"OAuth login: http://{host}:{port}/oauth/login")
+    if all([
+        os.environ.get("CMS_MCP_OAUTH_PROVIDER", "") != "",
+        os.environ.get("CMS_MCP_TRANSPORT") != TransportType.STREAMABLE_HTTP.value
+    ]):
+        logger.info(f"Please log in via OAuth: http://{host}:{port}/oauth/login")
 
     uvicorn.run(
         app,

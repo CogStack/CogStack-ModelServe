@@ -7,6 +7,7 @@ import zipfile
 import tarfile
 import pytest
 import unittest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from safetensors.torch import save_file
 from transformers import PreTrainedModel, PreTrainedTokenizer
@@ -38,6 +39,14 @@ from app.utils import (
     get_prompt_from_messages,
     utilise_local_chat_template,
     ensure_pad_token,
+    extract_tool_calls,
+    extract_json_string,
+    has_turing_generation_gpu,
+    resolve_safe_max_model_length,
+    quantize_and_save_model,
+    parse_label_into_id_and_name,
+    freeze_hf_model_params_by_names,
+    save_model_to_clean_directory,
 )
 from app.exception import ManagedModelException
 from app.domain import Annotation, Entity, PromptMessage, PromptRole
@@ -92,8 +101,39 @@ def test_send_gelf_message(mocker):
 def test_get_func_params_as_dict():
     def func(arg1, arg2=None, arg3="arg3"):
         pass
+
     params = get_func_params_as_dict(func)
     assert params == {"arg2": None, "arg3": "arg3"}
+
+
+def test_extract_json_string():
+    text = '<any> Before extraction |any| {  "temperature": 15 , "city" :  "London"} ! # <any>'
+    result = extract_json_string(text)
+    assert result == '{"temperature":15,"city":"London"}'
+
+
+def test_extract_json_string_malformed():
+    partial = '<any> Before extraction |any| {\n  "temperature": 15 ,\t "city" :\r ! # <any>'
+    result = extract_json_string(partial)
+    assert result == '{\n  "temperature": 15 ,\t "city" :\r ! # <any>'
+
+    no_json_string = " No JSON string included "
+    result = extract_json_string(no_json_string)
+    assert result == "No JSON string included"
+
+
+def test_parse_label_into_id_and_name():
+    label_id, label_name = parse_label_into_id_and_name("C1234|Pretty Name")
+    assert label_id == "C1234"
+    assert label_name == "Pretty Name"
+
+    label_id, label_name = parse_label_into_id_and_name("C1234:Pretty Name", delimiter=":")
+    assert label_id == "C1234"
+    assert label_name == "Pretty Name"
+
+    label_id, label_name = parse_label_into_id_and_name("no_delimiter-detected")
+    assert label_id == "no_delimiter-detected"
+    assert label_name == "No Delimiter Detected"
 
 
 def test_json_normalize_medcat_entities():
@@ -102,7 +142,32 @@ def test_json_normalize_medcat_entities():
         medcat_entities = json.load(f)
     df = json_normalize_medcat_entities(medcat_entities)
     assert len(df) == 25
-    assert df.columns.tolist() == ["pretty_name", "cui", "type_ids", "types", "source_value", "detected_name", "acc", "context_similarity", "start", "end", "icd10", "opcs4", "ontologies", "snomed", "id", "meta_anns.Presence.value", "meta_anns.Presence.confidence", "meta_anns.Presence.name", "meta_anns.Subject.value", "meta_anns.Subject.confidence", "meta_anns.Subject.name", "meta_anns.Time.value", "meta_anns.Time.confidence", "meta_anns.Time.name"]
+    assert df.columns.tolist() == [
+        "pretty_name",
+        "cui",
+        "type_ids",
+        "types",
+        "source_value",
+        "detected_name",
+        "acc",
+        "context_similarity",
+        "start",
+        "end",
+        "icd10",
+        "opcs4",
+        "ontologies",
+        "snomed",
+        "id",
+        "meta_anns.Presence.value",
+        "meta_anns.Presence.confidence",
+        "meta_anns.Presence.name",
+        "meta_anns.Subject.value",
+        "meta_anns.Subject.confidence",
+        "meta_anns.Subject.name",
+        "meta_anns.Time.value",
+        "meta_anns.Time.confidence",
+        "meta_anns.Time.name",
+    ]
 
 
 def test_json_normalize_trainer_export():
@@ -111,7 +176,34 @@ def test_json_normalize_trainer_export():
         trainer_export = json.load(f)
     df = json_normalize_trainer_export(trainer_export)
     assert len(df) == 30
-    assert df.columns.tolist() == ["id", "user", "cui", "value", "start", "end", "validated", "correct", "deleted", "alternative", "killed", "last_modified", "manually_created", "acc", "meta_anns.Status.name", "meta_anns.Status.value", "meta_anns.Status.acc", "meta_anns.Status.validated", "projects.name", "projects.id", "projects.cuis", "projects.tuis", "projects.documents.id", "projects.documents.name", "projects.documents.text", "projects.documents.last_modified"]
+    assert df.columns.tolist() == [
+        "id",
+        "user",
+        "cui",
+        "value",
+        "start",
+        "end",
+        "validated",
+        "correct",
+        "deleted",
+        "alternative",
+        "killed",
+        "last_modified",
+        "manually_created",
+        "acc",
+        "meta_anns.Status.name",
+        "meta_anns.Status.value",
+        "meta_anns.Status.acc",
+        "meta_anns.Status.validated",
+        "projects.name",
+        "projects.id",
+        "projects.cuis",
+        "projects.tuis",
+        "projects.documents.id",
+        "projects.documents.name",
+        "projects.documents.text",
+        "projects.documents.last_modified",
+    ]
 
 
 def test_json_denormalize():
@@ -141,11 +233,16 @@ def test_filter_by_concept_ids():
 def test_replace_spans_of_concept():
     def transform(source: str) -> str:
         return source.upper()[:-7]
+
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
     result = replace_spans_of_concept(trainer_export, "C0017168", transform)
-    updated = [(anno["value"], anno["start"], anno["end"]) for anno in result["projects"][0]["documents"][0]["annotations"] if anno["cui"] == "C0017168"]
+    updated = [
+        (anno["value"], anno["start"], anno["end"])
+        for anno in result["projects"][0]["documents"][0]["annotations"]
+        if anno["cui"] == "C0017168"
+    ]
     assert updated[0][0] == "GASTROESOPHAGEAL"
     assert updated[0][1] == 332
     assert updated[0][2] == 348
@@ -197,27 +294,53 @@ def test_augment_annotations_case_insensitive():
     trainer_export_path = os.path.join(os.path.dirname(__file__), "..", "resources", "fixture", "trainer_export.json")
     with open(trainer_export_path, "r") as f:
         trainer_export = json.load(f)
-    result = augment_annotations(trainer_export, {
-        "00001": [["HiSToRy"]],
-        "00002": [
-            [r"^\d{1,2}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{2,4}$"],
-            [r"^\d{1,2}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{2,4}$"],
-            [r"^\d{2,4}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{1,2}$"],
-            [r"^\d{2,4}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{1,2}$"],
-            [r"^\d{1,2}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$"],
-            [r"^\d{2,4}$", r"^[-.\/]$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{1,2}$"],
-            [r"^\d{1,2}\s*$", r"-", r"^\s*\d{4}$"],
-            [r"^\d{1,2}\s*[\/]\s*\d{4}$"],
-            [r"^\d{4}\s*$", r"-", r"^\s*\d{1,2}$"],
-            [r"^\d{4}\s*[\/]\s*\d{1,2}$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{4}$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)(\s+\d{1,2})*$", r",", r"^\d{4}$"],
-            [r"^\d{4}\s*[-.\/]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$"],
-            [r"^\d{4}$", r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$"],
-            [r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$", r"^\d{4}$"],
-            [r"^(?:19\d\d|20\d\d)$"],
-        ]
-    }, case_sensitive=False)
+    result = augment_annotations(
+        trainer_export,
+        {
+            "00001": [["HiSToRy"]],
+            "00002": [
+                [r"^\d{1,2}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{2,4}$"],
+                [r"^\d{1,2}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{2,4}$"],
+                [r"^\d{2,4}\s*$", r"-", r"^\s*\d{1,2}\s*$", r"-", r"^\s*\d{1,2}$"],
+                [r"^\d{2,4}\s*[.\/]\s*\d{1,2}\s*[.\/]\s*\d{1,2}$"],
+                [
+                    r"^\d{1,2}$",
+                    r"^[-.\/]$",
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{2,4}$",
+                ],
+                [
+                    r"^\d{2,4}$",
+                    r"^[-.\/]$",
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{1,2}$",
+                ],
+                [r"^\d{1,2}\s*$", r"-", r"^\s*\d{4}$"],
+                [r"^\d{1,2}\s*[\/]\s*\d{4}$"],
+                [r"^\d{4}\s*$", r"-", r"^\s*\d{1,2}$"],
+                [r"^\d{4}\s*[\/]\s*\d{1,2}$"],
+                [
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)\s*[-.\/]\s*\d{4}$"
+                ],
+                [
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)(\s+\d{1,2})*$",
+                    r",",
+                    r"^\d{4}$",
+                ],
+                [
+                    r"^\d{4}\s*[-.\/]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$"
+                ],
+                [
+                    r"^\d{4}$",
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$",
+                ],
+                [
+                    r"^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)$",
+                    r"^\d{4}$",
+                ],
+                [r"^(?:19\d\d|20\d\d)$"],
+            ],
+        },
+        case_sensitive=False,
+    )
 
     match_count_00001 = 0
     match_count_00002 = 0
@@ -450,10 +573,62 @@ def test_get_prompt_with_chat_template():
             PromptMessage(content="Alright?", role=PromptRole.USER.value),
             PromptMessage(content="Yeah.", role=PromptRole.ASSISTANT.value),
         ]
+        tools = [
+            {
+                "name": "get_weather",
+                "description": "Get weather for a city",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"city": {"type": "string"}},
+                    "required": ["city"],
+                },
+            }
+        ]
 
-        prompt = get_prompt_from_messages(mock_tokenizer, messages)
+        prompt = get_prompt_from_messages(mock_tokenizer, messages, tools=tools)
 
         assert prompt == "Mock chat template applied"
+        mock_tokenizer.apply_chat_template.assert_called_once()
+        call_kwargs = mock_tokenizer.apply_chat_template.call_args.kwargs
+        assert call_kwargs["tools"] == tools
+        assert call_kwargs["tokenize"] is False
+        assert call_kwargs["add_generation_prompt"] is True
+        assert call_kwargs["enable_thinking"] is False
+
+
+def test_extract_tool_calls_gpt_oss():
+    text = (
+        "some text"
+        'functions.get_weather json\n{"city":"London"} \n'
+        'functions.get_date json{"city":"London"} \n'
+        "some other text"
+    )
+    tool_calls = extract_tool_calls(text)
+
+    assert tool_calls
+    assert tool_calls[0]["type"] == "function"
+    assert tool_calls[0]["function"]["name"] == "get_weather"
+    assert json.loads(tool_calls[0]["function"]["arguments"]) == {"city": "London"}
+    assert tool_calls[1]["function"]["name"] == "get_date"
+    assert json.loads(tool_calls[1]["function"]["arguments"]) == {"city": "London"}
+
+
+def test_extract_tool_calls_mistral_instruct():
+    text = (
+        "[TOOL_CALLS]["
+        '{"name":"get_weather","arguments":{"city":"London"},"id":"call_1234"},'
+        '{"name":"get_date","arguments":{"city":"London"},"id":"call_5678"}'
+        "]</s>"
+    )
+    tool_calls = extract_tool_calls(text)
+
+    assert tool_calls[0]["type"] == "function"
+    assert tool_calls[0]["id"] == "call_1234"
+    assert tool_calls[0]["function"]["name"] == "get_weather"
+    assert json.loads(tool_calls[0]["function"]["arguments"]) == {"city": "London"}
+    assert tool_calls[1]["id"] == "call_5678"
+    assert tool_calls[1]["function"]["name"] == "get_date"
+    assert json.loads(tool_calls[1]["function"]["arguments"]) == {"city": "London"}
 
 
 def test_get_prompt_with_default_chat_template():
@@ -515,3 +690,248 @@ def test_get_prompt_with_no_messages():
         prompt = get_prompt_from_messages(mock_tokenizer, messages)
 
         assert prompt == "\n<|assistant|>\n"
+
+
+def test_get_prompt_truncates_messages_by_token_limit():
+    with patch("transformers.PreTrainedTokenizer") as tok:
+        mock_tokenizer = tok.return_value
+        mock_tokenizer.chat_template = None
+        mock_tokenizer.default_chat_template = None
+
+        def _fake_encode(text: str, add_special_tokens: bool = False):
+            count = 0
+            for token in ("S", "U1", "A1", "T1", "A2", "U2", "A3", "U3"):
+                count += text.count(token)
+            return list(range(count))
+
+        mock_tokenizer.encode.side_effect = _fake_encode
+        messages = [
+            PromptMessage(content="S", role=PromptRole.SYSTEM.value),
+            PromptMessage(content="U1", role=PromptRole.USER.value),
+            PromptMessage(content="A1", role=PromptRole.ASSISTANT.value),
+            PromptMessage(content="T1", role=PromptRole.TOOL.value),
+            PromptMessage(content="A2", role=PromptRole.ASSISTANT.value),
+            PromptMessage(content="U2", role=PromptRole.USER.value),
+            PromptMessage(content="A3", role=PromptRole.ASSISTANT.value),
+            PromptMessage(content="U3", role=PromptRole.USER.value),
+        ]
+
+        prompt = get_prompt_from_messages(mock_tokenizer, messages, max_input_tokens=5)
+
+        assert "S" in prompt
+        assert "A2" in prompt
+        assert "U2" in prompt
+        assert "A3" in prompt
+        assert "U3" in prompt
+        assert "U1" not in prompt
+        assert "A1" not in prompt
+        assert "T1" not in prompt
+
+
+def test_has_turing_generation_gpu():
+    with patch("torch.cuda.is_available", return_value=False):
+        assert has_turing_generation_gpu() is False
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.get_device_capability", return_value=(8, 0)),
+    ):
+        assert has_turing_generation_gpu() is False
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.get_device_capability", return_value=(7, 5)),
+    ):
+        assert has_turing_generation_gpu() is True
+
+
+def test_resolve_safe_max_model_length():
+    top_level = SimpleNamespace(max_position_embeddings=8192, text_config=SimpleNamespace(max_position_embeddings=4096))
+    assert resolve_safe_max_model_length(top_level) == 8192
+
+    text_config = SimpleNamespace(
+        max_position_embeddings=None, text_config=SimpleNamespace(max_position_embeddings=16384)
+    )
+    assert resolve_safe_max_model_length(text_config) == 16384
+
+    seq_length = SimpleNamespace(max_position_embeddings=None, text_config=None, seq_length=2048)
+    assert resolve_safe_max_model_length(seq_length) == 2048
+
+    fallback = SimpleNamespace(max_position_embeddings=None, text_config=None, seq_length=None)
+    assert resolve_safe_max_model_length(fallback) == 512
+
+
+def test_quantize_and_save_model_4bit():
+    with (
+        patch("app.utils.AutoModel") as mock_auto_model,
+        patch("app.utils.AutoTokenizer") as mock_auto_tokenizer,
+        patch("app.utils.BitsAndBytesConfig") as mock_bnb_config,
+        patch("app.utils.has_turing_generation_gpu", return_value=True),
+    ):
+        mock_model = MagicMock()
+        mock_tokenizer = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model
+        mock_auto_tokenizer.from_pretrained.return_value = mock_tokenizer
+
+        result = quantize_and_save_model(
+            "/path/to/input_model", "/path/to/output_model", load_in_4bit=True, load_in_8bit=False
+        )
+
+        mock_bnb_config.assert_called_once()
+        call_kwargs = mock_bnb_config.call_args.kwargs
+        assert call_kwargs["load_in_4bit"] is True
+        assert call_kwargs["bnb_4bit_use_double_quant"] is True
+        mock_model.save_pretrained.assert_called_once_with("/path/to/output_model")
+        mock_tokenizer.save_pretrained.assert_called_once_with("/path/to/output_model")
+        assert result == "/path/to/output_model"
+
+
+def test_quantize_and_save_model_8bit():
+    with (
+        patch("app.utils.AutoModel") as mock_auto_model,
+        patch("app.utils.AutoTokenizer") as mock_auto_tokenizer,
+        patch("app.utils.BitsAndBytesConfig") as mock_bnb_config,
+        patch("app.utils.has_turing_generation_gpu", return_value=False),
+    ):
+        mock_model = MagicMock()
+        mock_tokenizer = MagicMock()
+        mock_auto_model.from_pretrained.return_value = mock_model
+        mock_auto_tokenizer.from_pretrained.return_value = mock_tokenizer
+
+        result = quantize_and_save_model(
+            "/path/to/input_model", None, load_in_4bit=False, load_in_8bit=True
+        )
+
+        mock_bnb_config.assert_called_once()
+        mock_auto_model.from_pretrained.assert_called_once()
+        mock_auto_tokenizer.from_pretrained.assert_called_once()
+        mock_model.save_pretrained.assert_called_once_with("/path/to/input_model")
+        mock_tokenizer.save_pretrained.assert_called_once_with("/path/to/input_model")
+        assert result == "/path/to/input_model"
+
+
+def test_quantize_and_save_model_exception():
+    with (
+        patch("app.utils.AutoModel") as mock_auto_model,
+        patch("app.utils.BitsAndBytesConfig"),
+    ):
+        mock_auto_model.from_pretrained.side_effect = Exception("Error")
+
+        with pytest.raises(ManagedModelException) as exc_info:
+            quantize_and_save_model("/path/to/input_model", "/path/to/output_model")
+
+        assert "Error during quantisation and saving of the model" in str(exc_info.value)
+
+def test_freeze_hf_model_params_by_names_inclusive():
+    class _DummyModel:
+        def __init__(self) -> None:
+            self._params = {
+                "encoder.layer.0.weight": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.0.bias": torch.nn.Parameter(torch.ones(1)),
+                "classifier.weight": torch.nn.Parameter(torch.ones(1)),
+            }
+
+        def named_parameters(self):
+            for name, param in self._params.items():
+                yield name, param
+
+    model = _DummyModel()
+    frozen_params, total_params = freeze_hf_model_params_by_names(model, "encoder.layer.0,  unknown.layer.0", True)
+
+    assert frozen_params == 2
+    assert total_params == 3
+    assert model._params["encoder.layer.0.weight"].requires_grad is False
+    assert model._params["encoder.layer.0.bias"].requires_grad is False
+    assert model._params["classifier.weight"].requires_grad is True
+
+def test_freeze_hf_model_params_by_names_exclusive():
+    class _DummyModel:
+        def __init__(self) -> None:
+            self._params = {
+                "encoder.layer.0.weight": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.0.bias": torch.nn.Parameter(torch.ones(1)),
+                "classifier.weight": torch.nn.Parameter(torch.ones(1)),
+            }
+
+        def named_parameters(self):
+            for name, param in self._params.items():
+                yield name, param
+
+    model = _DummyModel()
+    frozen_params, total_params = freeze_hf_model_params_by_names(model, "encoder.layer.0,  unknown.layer.0", False)
+
+    assert frozen_params == 1
+    assert total_params == 3
+    assert model._params["encoder.layer.0.weight"].requires_grad is True
+    assert model._params["encoder.layer.0.bias"].requires_grad is True
+    assert model._params["classifier.weight"].requires_grad is False
+
+def test_freeze_hf_model_params_by_name_regex_inclusive():
+    class _DummyModel:
+        def __init__(self) -> None:
+            self._params = {
+                "encoder.layer.0.weight": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.0.bias": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.1.weight": torch.nn.Parameter(torch.ones(1)),
+                "classifier.weight": torch.nn.Parameter(torch.ones(1)),
+            }
+
+        def named_parameters(self):
+            for name, param in self._params.items():
+                yield name, param
+
+    model = _DummyModel()
+    frozen_params, total_params = freeze_hf_model_params_by_names(model, "encoder\\.layer\\.[0-9]+", True)
+
+    assert frozen_params == 3
+    assert total_params == 4
+    assert model._params["encoder.layer.0.weight"].requires_grad is False
+    assert model._params["encoder.layer.0.bias"].requires_grad is False
+    assert model._params["encoder.layer.1.weight"].requires_grad is False
+    assert model._params["classifier.weight"].requires_grad is True
+
+def test_freeze_hf_model_params_by_name_regex_exclusive():
+    class _DummyModel:
+        def __init__(self) -> None:
+            self._params = {
+                "encoder.layer.0.weight": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.0.bias": torch.nn.Parameter(torch.ones(1)),
+                "encoder.layer.1.weight": torch.nn.Parameter(torch.ones(1)),
+                "classifier.weight": torch.nn.Parameter(torch.ones(1)),
+            }
+
+        def named_parameters(self):
+            for name, param in self._params.items():
+                yield name, param
+
+    model = _DummyModel()
+    frozen_params, total_params = freeze_hf_model_params_by_names(model, "encoder\\.layer\\.[0-9]+", False)
+
+    assert frozen_params == 1
+    assert total_params == 4
+    assert model._params["encoder.layer.0.weight"].requires_grad is True
+    assert model._params["encoder.layer.0.bias"].requires_grad is True
+    assert model._params["encoder.layer.1.weight"].requires_grad is True
+    assert model._params["classifier.weight"].requires_grad is False
+
+def test_save_model_to_clean_directory():
+    model = MagicMock()
+    tokenizer = MagicMock()
+
+    with tempfile.TemporaryDirectory() as model_dir:
+        stale_model_path = os.path.join(model_dir, "model.safetensors")
+        stale_adapter_path = os.path.join(model_dir, "adapter_config.json")
+        with open(stale_model_path, "w") as f:
+            f.write("old weights")
+        with open(stale_adapter_path, "w") as f:
+            f.write("old adapter")
+
+        save_model_to_clean_directory(model, tokenizer, model_dir, safe_serialization=True)
+
+        assert not os.path.exists(stale_model_path)
+        assert not os.path.exists(stale_adapter_path)
+        model.save_pretrained.assert_called_once_with(
+            model_dir,
+            safe_serialization=True,
+        )
+        tokenizer.save_pretrained.assert_called_once_with(model_dir)

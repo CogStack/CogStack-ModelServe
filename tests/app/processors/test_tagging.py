@@ -40,14 +40,14 @@ class TestAgregateBioesPredictions:
 
         assert len(result) == 2
         assert result[0]["entity_group"] == "DISEASE"
-        assert result[0]["label_name"] == "DISEASE"
+        assert result[0]["label_name"] == "Disease"
         assert result[0]["start"] == 0
         assert result[0]["end"] == 7
         assert result[0]["text"] == "Disease"
         assert result[0]["score"] == 0.9
         assert result[0]["accuracy"] == 0.9
         assert result[1]["entity_group"] == "MEDICATION"
-        assert result[1]["label_name"] == "MEDICATION"
+        assert result[1]["label_name"] == "Medication"
         assert result[1]["start"] == 12
         assert result[1]["end"] == 20
         assert result[1]["text"] == "medicine"
@@ -67,7 +67,7 @@ class TestAgregateBioesPredictions:
 
         assert len(result) == 1
         assert result[0]["entity_group"] == "DISEASE"
-        assert result[0]["label_name"] == "DISEASE"
+        assert result[0]["label_name"] == "Disease"
         assert result[0]["start"] == 0
         assert result[0]["end"] == 18
         assert result[0]["text"] == "Heart disease and "
@@ -341,6 +341,7 @@ class TestGenerateChuncksByTaggingScheme:
         assert new_tokenized["labels"][3] == 2
         assert new_tokenized["labels"][6] == 5
         assert new_tokenized["labels"][7] == 6
+
 
     def test_generate_chuncks_iobes_scheme(self, mock_model):
         annotations = [{"start": 5, "end": 15, "cui": "DISEASE"}]

@@ -5,7 +5,6 @@ from typing_extensions import Annotated
 
 from fastapi import HTTPException, Query
 from starlette.status import HTTP_400_BAD_REQUEST
-
 from typing import Optional
 from app.config import Settings
 from app.domain import ModelType
@@ -14,10 +13,9 @@ from app.registry import model_service_registry
 from app.model_services.base import AbstractModelService
 from app.management.model_manager import ModelManager
 
+
 TRACKING_ID_REGEX = re.compile(r"^[a-zA-Z0-9][\w\-]{0,255}$")
-
 logger = logging.getLogger("cms")
-
 
 class ModelServiceDep(object):
     """Dependency class for injecting the CMS model service based on the given model type."""

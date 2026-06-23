@@ -4,9 +4,18 @@ import pytest
 import socket
 import websockets
 from pytest_bdd import scenarios, given, when, then
-from helper import ensure_app_config, get_logger, download_model, data_table, async_to_sync, run
+from helper import (
+    ensure_app_config,
+    get_logger,
+    download_model,
+    data_table,
+    async_to_sync,
+    run,
+    wait_for_server_ready,
+)
 
 
+pytestmark = pytest.mark.timeout(600)
 scenarios("../features/serving_stream.feature")
 ensure_app_config(debug_mode=False)
 logger = get_logger(debug=True, name="cms-integration-stream")
@@ -38,6 +47,7 @@ def cms_stream_is_running(cms_stream):
 @when(data_table("I send an async POST request with the following jsonlines content", fixture="request", orient="dict"))
 @async_to_sync
 async def send_async_post_request(context_stream, request):
+    await wait_for_server_ready(context_stream["base_url"], timeout_secs=90, retry_interval_secs=1)
     async with httpx.AsyncClient(base_url=context_stream["base_url"]) as ac:
         context_stream["response"] = await ac.post(
             f"{context_stream['base_url']}{request[0]['endpoint']}",
@@ -61,6 +71,7 @@ async def check_response_stream(context_stream):
 @when("I send a piece of text to the WS endpoint")
 @async_to_sync
 async def send_ws_request(context_stream):
+    await wait_for_server_ready(context_stream["base_url"], timeout_secs=90, retry_interval_secs=1)
     ws_url = context_stream["base_url"].replace("http", "ws") + "/stream/ws"
     async with websockets.connect(ws_url) as websocket:
         await websocket.send("Spinal stenosis")

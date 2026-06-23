@@ -4,9 +4,11 @@ import logging
 import subprocess
 import tempfile
 import threading
+import time
 from functools import partial, wraps
 from pytest_bdd import parsers
 from urllib.parse import urlparse
+import httpx
 from app.domain import ModelType
 from app.utils import download_model_package
 
@@ -56,6 +58,9 @@ def ensure_app_config(debug_mode=False):
     os.environ["DEBUG"] = "true" if debug_mode else "false"
     os.environ["MLFLOW_TRACKING_URI"] = tempfile.TemporaryDirectory().name
     os.environ["PYTHONUNBUFFERED"] = "1"
+    os.environ["PROCESS_RATE_LIMIT"] = "10000/minute"
+    os.environ["PROCESS_BULK_RATE_LIMIT"] = "10000/minute"
+    os.environ["GENERATION_RATE_LIMIT"] = "10000/minute"
 
 
 def get_logger(debug=False, name="cms-integration"):
@@ -102,7 +107,7 @@ def run(conf, logger, streamable=False, generative=False):
 
         def cms_log_listener(pipe, logger, event):
             for line in iter(pipe.readline, ""):
-                if "Application startup complete" in line:
+                if "Uvicorn running on" in line:
                     event.set()
                 logger.info(line[:-1])
             pipe.close()
@@ -112,7 +117,11 @@ def run(conf, logger, streamable=False, generative=False):
         logging_thread.daemon = True
         logging_thread.start()
         try:
-            startup_event.wait(timeout=60)
+            timeout = 120
+            if not startup_event.wait(timeout=timeout):
+                raise RuntimeError(f"CMS process was not ready within {timeout} seconds")
+            if conf["process"].poll() is not None:
+                raise RuntimeError("CMS process exited before becoming ready")
             return {
                 "base_url": conf["base_url"],
             }
@@ -124,3 +133,25 @@ def run(conf, logger, streamable=False, generative=False):
         return {
             "base_url": conf["base_url"],
         }
+
+
+async def wait_for_server_ready(
+    base_url: str,
+    timeout_secs: int = 60,
+    retry_interval_secs: int = 1,
+) -> None:
+    deadline = time.monotonic() + timeout_secs
+    last_error: str = "Unknown"
+    async with httpx.AsyncClient(timeout=5) as client:
+        while time.monotonic() < deadline:
+            for path in ("/healthz", "/readyz"):
+                try:
+                    response = await client.get(f"{base_url}{path}")
+                    if response.status_code < 500:
+                        return
+                    last_error = f"{path} returned status {response.status_code}"
+                except Exception as exc:
+                    last_error = f"{path} connection error: {exc}"
+            await asyncio.sleep(retry_interval_secs)
+
+    raise RuntimeError(f"CMS server was not ready within {timeout_secs}s ({last_error})")

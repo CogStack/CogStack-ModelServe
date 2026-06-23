@@ -1,6 +1,7 @@
 import os
 import logging
 import math
+import inspect
 import torch
 import gc
 import json
@@ -17,7 +18,6 @@ from tqdm import tqdm
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score as sklearn_accuracy_score
 from sklearn.utils.class_weight import compute_class_weight
 from seqeval.metrics import classification_report, accuracy_score as seqeval_accuracy_score
-from scipy.special import softmax
 from transformers import __version__ as transformers_version
 from transformers import (
     AutoModelForMaskedLM,
@@ -37,6 +37,7 @@ from evaluate.visualization import radar_plot
 from app.management.model_manager import ModelManager
 from app.management.tracker_client import TrackerClient
 from app.processors.metrics_collector import get_stats_from_trainer_export, sanity_check_model_with_trainer_export
+from app.processors.lora_adaptor import LoraAdaptor
 from app.utils import (
     filter_by_concept_ids,
     reset_random_seed,
@@ -45,6 +46,8 @@ from app.utils import (
     get_model_data_package_extension,
     ensure_tensor_contiguity,
     get_model_data_package_base_name,
+    freeze_hf_model_params_by_names,
+    save_model_to_clean_directory,
 )
 from app.trainers.base import UnsupervisedTrainer, SupervisedTrainer
 from app.domain import ModelType, DatasetSplit, HfTransformerBackbone, Device, TrainerBackend, TaggingScheme
@@ -57,6 +60,7 @@ logger = logging.getLogger("cms")
 
 
 class _HuggingFaceNerTrainerCommon(object):
+    TRAINING_CONTEXT_CAP = 512
 
     @staticmethod
     def deploy_model(
@@ -70,6 +74,66 @@ class _HuggingFaceNerTrainerCommon(object):
         model_service.model = model
         model_service.tokenizer = tokenizer
         logger.info("Retrained model deployed")
+
+    @staticmethod
+    def _create_training_arguments(**kwargs: Any) -> TrainingArguments:
+        valid_args = set(inspect.signature(TrainingArguments.__init__).parameters.keys())
+
+        # Handle naming differences across transformers versions
+        if "eval_strategy" in kwargs and "eval_strategy" not in valid_args:
+            kwargs["evaluation_strategy"] = kwargs.pop("eval_strategy")
+        if "evaluation_strategy" in kwargs and "evaluation_strategy" not in valid_args:
+            kwargs["eval_strategy"] = kwargs.pop("evaluation_strategy")
+
+        filtered = {k: v for k, v in kwargs.items() if k in valid_args}
+        dropped = set(kwargs.keys()) - set(filtered.keys())
+        if dropped:
+            logger.debug(
+                "Ignoring unsupported training arguments for this transformers installed: %s",sorted(dropped)
+            )
+        return TrainingArguments(**filtered)
+
+    @staticmethod
+    def _resolve_safe_max_length(model: PreTrainedModel, tokenizer: Optional[PreTrainedTokenizerBase]) -> int:
+        model_max = int(
+            getattr(model.config, "max_position_embeddings", None) or _HuggingFaceNerTrainerCommon.TRAINING_CONTEXT_CAP
+        )
+        tokenizer_max = int(
+            getattr(tokenizer, "model_max_length", model_max) if tokenizer is not None else model_max
+        )
+        return max(1, min(model_max, tokenizer_max, _HuggingFaceNerTrainerCommon.TRAINING_CONTEXT_CAP))
+
+    @staticmethod
+    def _calculate_batch_sizes(training_params: Dict, device_config: str) -> Dict[str, int]:
+        scaling_factor = max(1, int(training_params.get("scaling_factor", 1)))
+        cpu_count = os.cpu_count() or 1
+        effective_train_batch_size = 16
+        effective_eval_batch_size = 16
+        device = device_config.lower()
+        cuda_available = device.startswith(Device.GPU.value) and torch.cuda.is_available()
+        mps_available = device.startswith(Device.MPS.value) and torch.backends.mps.is_available()
+        accelerator_available = cuda_available or mps_available
+
+        if accelerator_available:
+            workers = max(1, min(4, cpu_count))
+            batch_size_cap = 16 if cuda_available else 8
+            micro_batch_size = max(1, scaling_factor * 2)
+        else:
+            workers = max(1, min(4, cpu_count // scaling_factor))
+            batch_size_cap = 16
+            micro_batch_size = max(1, cpu_count // workers)
+
+        per_device_train_batch_size = min(batch_size_cap, micro_batch_size)
+        per_device_eval_batch_size = min(batch_size_cap, micro_batch_size)
+        eval_accumulation_steps = max(1, math.ceil(effective_eval_batch_size / per_device_eval_batch_size))
+        gradient_accumulation_steps = max(1, math.ceil(effective_train_batch_size / per_device_train_batch_size))
+        return {
+            "workers": workers,
+            "per_device_train_batch_size": per_device_train_batch_size,
+            "per_device_eval_batch_size": per_device_eval_batch_size,
+            "eval_accumulation_steps": eval_accumulation_steps,
+            "gradient_accumulation_steps": gradient_accumulation_steps,
+        }
 
 
 @final
@@ -92,7 +156,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
             self._model_name.replace(" ", "_"),
         )
         self._model_manager = ModelManager(type(model_service), model_service._config)
-        self._max_length = model_service.model.config.max_position_embeddings
+        self._max_length = self._resolve_safe_max_length(model_service.model, model_service.tokenizer)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     def run(
@@ -125,7 +189,7 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
 
         eval_mode = training_params["nepochs"] == 0
         window_size = max(self._max_length - 2, 1)
-        stride = max(window_size // 2, 1)
+        stride = min(max(int(window_size * 0.75), 1), window_size - 1)
         self._tracker_client.log_trainer_mode(not eval_mode)
         if not eval_mode:
             try:
@@ -194,22 +258,33 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                 train_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
                 eval_dataset.set_format(type="torch", columns=["input_ids", "attention_mask"])
 
+                training_token_count = sum(len(example["input_ids"]) for example in train_dataset)
+                logger.debug(f"Total training tokens: {training_token_count}")
+                self._tracker_client.log_training_token_count(training_token_count)
+
                 data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.2)
 
-                training_args = TrainingArguments(
+                batch_sizes = self._calculate_batch_sizes(training_params, self._config.DEVICE)
+                per_device_train_batch_size = batch_sizes["per_device_train_batch_size"]
+                per_device_eval_batch_size = batch_sizes["per_device_eval_batch_size"]
+                gradient_accumulation_steps = batch_sizes["gradient_accumulation_steps"]
+                torch.set_num_threads(batch_sizes["workers"])
+
+                training_args = self._create_training_arguments(
                     output_dir=results_path,
                     logging_dir=logs_path,
                     eval_strategy="epoch",
                     save_strategy="epoch",
                     overwrite_output_dir=True,
                     num_train_epochs=training_params["nepochs"],
-                    per_device_train_batch_size=8,
-                    per_device_eval_batch_size=8,
-                    gradient_accumulation_steps=2,
+                    per_device_train_batch_size=per_device_train_batch_size,
+                    per_device_eval_batch_size=per_device_eval_batch_size,
+                    gradient_accumulation_steps=gradient_accumulation_steps,
                     logging_steps=log_frequency,
                     save_steps=1000,
                     load_best_model_at_end=True,
                     save_total_limit=3,
+                    report_to="none",
                     use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
                 )
 
@@ -245,7 +320,9 @@ class HuggingFaceNerUnsupervisedTrainer(UnsupervisedTrainer, _HuggingFaceNerTrai
                     model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
-                    model.save_pretrained(
+                    save_model_to_clean_directory(
+                        model,
+                        tokenizer,
                         copied_model_directory,
                         safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
                     )
@@ -541,7 +618,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         self._retrained_models_dir = os.path.join(model_service._model_parent_dir, "retrained",
                                                   self._model_name.replace(" ", "_"))
         self._model_manager = ModelManager(type(model_service), model_service._config)
-        self._max_length = model_service.model.config.max_position_embeddings
+        self._max_length = self._resolve_safe_max_length(model_service.model, model_service.tokenizer)
         os.makedirs(self._retrained_models_dir, exist_ok=True)
 
     class _LocalDataCollator:
@@ -590,9 +667,9 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         reset_random_seed()
         eval_mode = training_params["nepochs"] == 0
         window_size = max(self._max_length - 2, 1)
-        stride = max(window_size // 2, 1)
+        stride = min(max(int(window_size * 0.75), 1), window_size - 1)
         self._tracker_client.log_trainer_mode(not eval_mode)
-        tagging_scheme = TaggingScheme(self._model_service._config.TRAINING_HF_TAGGING_SCHEME.lower())
+        tagging_scheme = TaggingScheme(self._model_service._config.TRAINING_HF_NER_TAGGING_SCHEME.lower())
         if not eval_mode:
             try:
                 logger.info("Loading a new model copy for training...")
@@ -609,6 +686,9 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 filtered_training_data, filtered_concepts = self._filter_training_data_and_concepts(data_file)
                 logger.debug(f"Filtered concepts: {filtered_concepts}")
                 model = self._update_model_with_concepts(model, filtered_concepts, tagging_scheme)
+                model = self._apply_lora_adapter_if_enabled(model)
+
+                self._freeze_params_or_classifier(model, self._config.TRAINING_HF_NER_FROZEN_PARAM_NAMES)
 
                 test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
                 if test_size < 0:
@@ -621,7 +701,6 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 else:
                     documents = [document for project in filtered_training_data["projects"] for document in project["documents"]]
                     random.shuffle(documents)
-                    test_size = 0.2 if training_params.get("test_size") is None else training_params["test_size"]
                     train_documents = [document for document in documents[:int(len(documents) * (1 - test_size))]]
                     eval_documents = [document for document in documents[int(len(documents) * (1 - test_size)):]]
 
@@ -662,6 +741,10 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 train_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
 
+                training_token_count = sum(len(example["input_ids"]) for example in train_dataset)
+                logger.debug(f"Total training tokens: {training_token_count}")
+                self._tracker_client.log_training_token_count(training_token_count)
+
                 data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=tokenizer.pad_token_id)
                 training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency)
                 if training_params.get("lr_override") is not None:
@@ -674,14 +757,20 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 if early_stopping_patience > 0:
                     trainer_callbacks.append(EarlyStoppingCallback(early_stopping_patience=early_stopping_patience))
 
-                train_labels = []
+                train_labels: List[str] = []
                 weights = torch.ones(model.num_labels, dtype=torch.float)
                 for example in train_dataset:
-                    train_labels.extend([label for label in example["labels"] if label != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID])
+                    train_labels.extend(label for label in example["labels"] if label != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
                 unique_labels = np.unique(train_labels)
-                class_weight_vect = compute_class_weight("balanced", classes=unique_labels, y=train_labels)
+                class_weight_vect = compute_class_weight(
+                    class_weight="balanced",
+                    classes=unique_labels,
+                    y=train_labels,
+                )
                 for label_id, weight in zip(unique_labels, class_weight_vect):
                     weights[label_id] = weight
+                weights = torch.sqrt(weights)
+                weights = torch.clamp(weights, max=10.0)
 
                 if non_default_device_is_available(self._config.DEVICE):
                     weights = weights.to(self._config.DEVICE)
@@ -694,7 +783,11 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                     num_items_in_batch: Optional[torch.Tensor] = None,
                 ) -> torch.Tensor:
                     logits = outputs.get("logits")
-                    loss_func = nn.CrossEntropyLoss(weight=weights, ignore_index=HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
+                    loss_weights = weights.to(device=logits.device, dtype=logits.dtype) # type: ignore
+                    loss_func = nn.CrossEntropyLoss(
+                        weight=loss_weights,
+                        ignore_index=HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID,
+                    )
                     loss = loss_func(logits.view(-1, model.num_labels), labels.view(-1))    # type: ignore
                     return loss
 
@@ -729,12 +822,15 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 self._save_trained_concepts(cui_counts, cui_unique_counts, cui_ignorance_counts, model)
                 self._tracker_client.log_classes_and_names(model.config.id2label)
                 self._sanity_check_model_and_save_results(data_file.name, self._model_service.from_model(model, tokenizer))
+                model = self._merge_lora_if_enabled(model)
 
                 if not skip_save_model:
                     model_pack_file_ext = get_model_data_package_extension(self._config.BASE_MODEL_FILE)
                     model_pack_file_name = f"{ModelType.HUGGINGFACE_NER.value}_{run_id}{model_pack_file_ext}"
                     retrained_model_pack_path = os.path.join(self._retrained_models_dir, model_pack_file_name)
-                    model.save_pretrained(
+                    save_model_to_clean_directory(
+                        model,
+                        tokenizer,
                         copied_model_directory,
                         safe_serialization=(self._config.TRAINING_SAFE_MODEL_SERIALISATION == "true"),
                     )
@@ -803,8 +899,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 )
                 eval_dataset.set_format(type=None, columns=["input_ids", "labels", "attention_mask"])
                 data_collator = self._LocalDataCollator(max_length=self._max_length, pad_token_id=self._model_service.tokenizer.pad_token_id)
-                training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency)
-                training_args.eval_strategy = "no"
+                training_args = self._get_training_args(results_path, logs_path, training_params, log_frequency, "no")
                 hf_trainer = Trainer(
                     model=self._model_service.model,
                     args=training_args,
@@ -836,6 +931,64 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
                 data_file.close()
                 with self._training_lock:
                     self._training_in_progress = False
+
+    def _apply_lora_adapter_if_enabled(self, model: PreTrainedModel) -> PreTrainedModel:
+        if self._config.TRAINING_HF_NER_ENABLE_LORA.lower() != "true":
+            return model
+
+        logger.info("Applying LoRA adapters for supervised training...")
+        peft_model, _ = LoraAdaptor.apply(
+            model=model,
+            task_type="TOKEN_CLS",
+            r=8,
+            lora_alpha=32,
+            lora_dropout=0.1,
+        )
+        if hasattr(peft_model, "print_trainable_parameters"):
+            peft_model.print_trainable_parameters()
+        return cast(PreTrainedModel, peft_model)
+
+    def _merge_lora_if_enabled(self, model: PreTrainedModel) -> PreTrainedModel:
+        if self._config.TRAINING_HF_NER_ENABLE_LORA.lower() != "true":
+            return model
+
+        if hasattr(model, "merge_and_unload"):
+            logger.info("Merging LoRA adapters into the base model...")
+            merged_model = model.merge_and_unload()
+            return cast(PreTrainedModel, merged_model)
+        return model
+
+    @staticmethod
+    def _freeze_params_or_classifier(model: PreTrainedModel, params_names_csv: str) -> None:
+        param_names = [param_name.strip() for param_name in params_names_csv.split(",") if param_name.strip()]
+        if not param_names:
+            return
+
+        if "except_classifier" in param_names:
+            frozen_params, total_params = freeze_hf_model_params_by_names(
+                model=model,
+                params_names_csv="classifier,score",
+                include=False,
+            )
+            logger.info(
+                "Configured training on classification head only: %s; %s/%s parameter tensors remain trainable",
+                ["classifier", "score"],
+                total_params - frozen_params,
+                total_params,
+            )
+            return
+
+        frozen_params, total_params = freeze_hf_model_params_by_names(
+            model=model,
+            params_names_csv=params_names_csv,
+            include=True,
+        )
+        logger.info(
+            "Configured frozen parameters by names: %s; %s/%s parameter tensors remain trainable",
+            param_names,
+            total_params - frozen_params,
+            total_params,
+        )
 
     @staticmethod
     def _filter_training_data_and_concepts(data_file: TextIO) -> Tuple[Dict, List]:
@@ -903,79 +1056,121 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         model_name: str,
         token_level: bool,
     ) -> Dict[str, Any]:
-        predictions = np.argmax(softmax(eval_pred.predictions, axis=2), axis=2)
+
+        predictions = np.argmax(eval_pred.predictions, axis=2)
         label_ids = eval_pred.label_ids
-        non_padding_indices = np.where(label_ids != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID)
-        non_padding_predictions = predictions[non_padding_indices].flatten()
-        non_padding_label_ids = label_ids[non_padding_indices].flatten()
+
         labels = list(id2label.values())
+        ignored_labels = {"O", "X"}
+
+        metric_indices = [
+            idx for idx, label_id in enumerate(list(id2label.keys()))
+            if id2label[label_id] not in ignored_labels
+        ]
 
         if token_level:
             # Get token level metrics
-            precision, recall, f1, support = precision_recall_fscore_support(non_padding_label_ids, non_padding_predictions, labels=list(id2label.keys()), average=None)
-            filtered_predictions, filtered_label_ids = zip(*[(a, b) for a, b in zip(non_padding_predictions, non_padding_label_ids) if not (a == b == HuggingFaceNerSupervisedTrainer.DEFAULT_LABEL_ID)])
-            accuracy = sklearn_accuracy_score(filtered_label_ids, filtered_predictions)
+            pred_labels = []
+            true_labels = []
+
+            for i in range(label_ids.shape[0]):
+                for j in range(label_ids.shape[1]):
+                    if label_ids[i, j] == HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID:
+                        continue
+
+                    pred_labels.append(predictions[i, j])
+                    true_labels.append(label_ids[i, j])
+
+            precision, recall, f1, support = precision_recall_fscore_support(
+                np.array(true_labels),
+                np.array(pred_labels),
+                labels=list(id2label.keys()),
+                average=None
+            )
+
+            accuracy = sklearn_accuracy_score(np.array(true_labels), np.array(pred_labels))
+
             metrics = {
                 "accuracy": accuracy,
-                "f1_avg": np.average(f1[2:]),
-                "precision_avg": np.average(precision[2:]),
-                "recall_avg": np.average(recall[2:]),
-                "support_avg": np.average(support[2:]),
+                "f1_avg": np.average([f1[idx] for idx in metric_indices]) if metric_indices else 0.0,
+                "precision_avg": np.average([precision[idx] for idx in metric_indices]) if metric_indices else 0.0,
+                "recall_avg": np.average([recall[idx] for idx in metric_indices]) if metric_indices else 0.0,
+                "support_avg": np.average([support[idx] for idx in metric_indices]) if metric_indices else 0.0,
             }
+
             aggregated_labels = []
             aggregated_metrics = []
 
+            metric_rows = [
+                (labels[idx], precision[idx], recall[idx], f1[idx], support[idx])
+                for idx in metric_indices
+            ]
+
             # Limit the number of labels to avoid excessive metrics logging
-            for idx, (label, precision, recall, f1, support) in enumerate(zip(labels[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                            precision[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                            recall[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                            f1[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2],
-                                                                            support[2:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK+2])):
-                if support == 0:  # The concept has no true labels
+            for _, (label, p, r, f1_, support_) in enumerate(
+                metric_rows[:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK]
+            ):
+                if support_ == 0:
                     continue
-                metrics[f"{label}/precision"] = precision if precision is not None else 0.0
-                metrics[f"{label}/recall"] = recall if recall is not None else 0.0
-                metrics[f"{label}/f1"] = f1 if f1 is not None else 0.0
-                metrics[f"{label}/support"] = support if support is not None else 0.0
+
+                metrics[f"{label}/precision"] = p
+                metrics[f"{label}/recall"] = r
+                metrics[f"{label}/f1"] = f1_
+                metrics[f"{label}/support"] = support_
 
                 aggregated_labels.append(label)
                 aggregated_metrics.append({
-                    "per_concept_p": metrics[f"{label}/precision"],
-                    "per_concept_r": metrics[f"{label}/recall"],
-                    "per_concept_f1": metrics[f"{label}/f1"],
+                    "per_concept_p": p,
+                    "per_concept_r": r,
+                    "per_concept_f1": f1_,
                 })
         else:
             # Get entity level metrics
-            y_true = []
-            y_pred = []
+            true_label_sequences = []
+            pred_label_sequences = []
+
             for i in range(label_ids.shape[0]):
-                true_labels = []
-                pred_labels = []
+
+                entity_true_labels: List = []
+                entity_pred_labels: List = []
+
                 for j in range(label_ids.shape[1]):
-                    if label_ids[i, j] != HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID:
-                        true_labels.append(id2label[label_ids[i, j]])
-                        pred_labels.append(id2label[predictions[i, j]])
-                    else:
+
+                    if label_ids[i, j] == HuggingFaceNerSupervisedTrainer.PAD_LABEL_ID:
                         break
-                y_true.append(true_labels)
-                y_pred.append(pred_labels)
-            report = classification_report(y_true, y_pred, output_dict=True)
-            accuracy = seqeval_accuracy_score(y_true, y_pred)
+
+                    entity_true_labels.append(id2label[label_ids[i, j]])
+                    entity_pred_labels.append(id2label[predictions[i, j]])
+
+                true_label_sequences.append(entity_true_labels)
+                pred_label_sequences.append(entity_pred_labels)
+
+            report = classification_report(true_label_sequences, pred_label_sequences, output_dict=True)
+            accuracy = seqeval_accuracy_score(true_label_sequences, pred_label_sequences)
+
+            target_labels = [
+                key for key in report.keys()
+                if key not in {"weighted avg", "macro avg", "micro avg", "accuracy"}
+                and key not in ignored_labels
+            ]
+
             metrics = {
                 "accuracy": accuracy,
-                "f1_avg": np.mean([report[label]["f1-score"] for label in report]),
-                "precision_avg": np.mean([report[label]["precision"] for label in report]),
-                "recall_avg": np.mean([report[label]["recall"] for label in report]),
-                "support_avg": np.mean([report[label]["support"] for label in report]),
+                "f1_avg": np.mean([report[label]["f1-score"] for label in target_labels]) if target_labels else 0.0,
+                "precision_avg": np.mean([report[label]["precision"] for label in target_labels]) if target_labels else 0.0,
+                "recall_avg": np.mean([report[label]["recall"] for label in target_labels]) if target_labels else 0.0,
+                "support_avg": np.mean([report[label]["support"] for label in target_labels]) if target_labels else 0.0,
             }
+
             aggregated_labels = []
             aggregated_metrics = []
 
             # Limit the number of labels to avoid excessive metrics logging
-            label_keys = [k for k in report.keys() if k not in ['weighted avg', 'macro avg', 'micro avg']]
-            for _, label in enumerate(label_keys[:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK]):
-                if label not in report or report[label]['support'] == 0:  # The label has no true labels
+            for label in target_labels[:HuggingFaceNerSupervisedTrainer.MAX_CONCEPTS_TO_TRACK]:
+
+                if label not in report or report[label]["support"] == 0:
                     continue
+
                 metrics[f"{label}/precision"] = report[label]["precision"]
                 metrics[f"{label}/recall"] = report[label]["recall"]
                 metrics[f"{label}/f1"] = report[label]["f1-score"]
@@ -983,9 +1178,9 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
 
                 aggregated_labels.append(label)
                 aggregated_metrics.append({
-                    "per_concept_p": metrics[f"{label}/precision"],
-                    "per_concept_r": metrics[f"{label}/recall"],
-                    "per_concept_f1": metrics[f"{label}/f1"],
+                    "per_concept_p": report[label]["precision"],
+                    "per_concept_r": report[label]["recall"],
+                    "per_concept_f1": report[label]["f1-score"],
                 })
 
         HuggingFaceNerSupervisedTrainer._save_metrics_plot(
@@ -994,6 +1189,7 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             tracker_client,
             model_name,
         )
+
         logger.debug("Evaluation metrics: %s", metrics)
         return metrics
 
@@ -1021,19 +1217,26 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         logs_path: str,
         training_params: Dict,
         log_frequency: int,
+        eval_strategy: str = "epoch",
     ) -> TrainingArguments:
-        scaling_factor = 2
-        cpu_count = os.cpu_count() or 1
-        effective_batch_size = cpu_count * scaling_factor
-        workers = max(1, cpu_count // scaling_factor)
-        per_device_train_batch_size = max(1, effective_batch_size // workers)
-        per_device_eval_batch_size = max(1, effective_batch_size // workers)
-        eval_accumulation_steps = max(1, per_device_eval_batch_size // scaling_factor)
+        batch_sizes = self._calculate_batch_sizes(training_params, self._config.DEVICE)
+        workers = batch_sizes["workers"]
+        per_device_train_batch_size = batch_sizes["per_device_train_batch_size"]
+        per_device_eval_batch_size = batch_sizes["per_device_eval_batch_size"]
+        eval_accumulation_steps = batch_sizes["eval_accumulation_steps"]
+        gradient_accumulation_steps = batch_sizes["gradient_accumulation_steps"]
         torch.set_num_threads(workers)
-        return TrainingArguments(
+        logger.debug("Training scaling arguments:")
+        logger.debug("  - CPU workers: %d", workers)
+        logger.debug("  - Per device train batch size: %d", per_device_train_batch_size)
+        logger.debug("  - Per device eval batch size: %d", per_device_eval_batch_size)
+        logger.debug("  - Eval accumulation steps: %d", eval_accumulation_steps)
+        logger.debug("  - Gradient accumulation steps: %d", gradient_accumulation_steps)
+
+        return self._create_training_arguments(
             output_dir=results_path,
             logging_dir=logs_path,
-            eval_strategy="epoch",
+            eval_strategy=eval_strategy,
             do_eval=True,
             save_strategy="epoch",
             logging_strategy="epoch",
@@ -1042,15 +1245,17 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
             per_device_train_batch_size=per_device_train_batch_size,
             per_device_eval_batch_size=per_device_eval_batch_size,
             eval_accumulation_steps=eval_accumulation_steps,
-            gradient_accumulation_steps=1,
+            gradient_accumulation_steps=gradient_accumulation_steps,
             weight_decay=0.01,
             warmup_ratio=0.08,
+            max_grad_norm=1.0,
             logging_steps=log_frequency,
             save_steps=1000,
             metric_for_best_model="eval_f1_avg",
             greater_is_better=True,
             load_best_model_at_end=True,
             save_total_limit=3,
+            report_to="none",
             use_cpu=self._config.DEVICE.lower() == Device.CPU.value if non_default_device_is_available(self._config.DEVICE) else False,
         )
 
@@ -1062,7 +1267,17 @@ class HuggingFaceNerSupervisedTrainer(SupervisedTrainer, _HuggingFaceNerTrainerC
         model: PreTrainedModel,
     ) -> None:
         if len(training_concepts.keys()) != 0:
-            unknown_concepts = set(training_concepts.keys()) - set(model.config.label2id.keys())
+            labels = set(model.config.label2id.keys())
+            model_concepts = set()
+            for label in labels:
+                if label in {"O", "X"}:
+                    continue
+                if len(label) > 2 and label[1] == "-" and label[0] in {"B", "I", "E", "S"}:
+                    model_concepts.add(label[2:])
+                else:
+                    model_concepts.add(label)
+
+            unknown_concepts = set(training_concepts.keys()) - model_concepts
             unknown_concept_pct = round(len(unknown_concepts) / len(training_concepts.keys()) * 100, 2)
             self._tracker_client.send_model_stats({
                 "unknown_concept_count": len(unknown_concepts),
