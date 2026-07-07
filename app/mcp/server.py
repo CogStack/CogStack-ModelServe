@@ -140,7 +140,7 @@ def create_server() -> Starlette:
                     oauth_manager=oauth_manager,
                     public_paths=[
                         "/authorize",
-                        "/favicon.ico",
+                        "/favicon.png",
                         "/oauth/",
                         "/.well-known",
                         "/.well-known/",

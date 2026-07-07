@@ -24,6 +24,7 @@ class Tags(str, Enum):
     Redaction = "Redact the extracted NER entities"
     Rendering = "Preview embeddable annotation snippet in HTML"
     Training = "Trigger model training on input annotations"
+    Embeddings = "Generate embeddings for input texts"
     Evaluating = "Evaluate the deployed model with trainer export"
     Authentication = "Authenticate registered users"
     Generative = "Generate text based on the input prompt"

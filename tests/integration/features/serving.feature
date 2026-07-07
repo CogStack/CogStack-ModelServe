@@ -93,6 +93,14 @@ Feature:
       | /redact_with_encryption | {"text": "Spinal stenosis", "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA3ITkTP8Tm/5FygcwY2EQ7LgVsuCF0OH7psUqvlXnOPNCfX86CobHBiSFjG9o5ZeajPtTXaf1thUodgpJZVZSqpVTXwGKo8r0COMO87IcwYigkZZgG/WmZgoZART+AA0+JvjFGxflJAxSv7puGlf82E+u5Wz2psLBSDO5qrnmaDZTvPh5eX84cocahVVI7X09/kI+sZiKauM69yoy1bdx16YIIeNm0M9qqS3tTrjouQiJfZ8jUKSZ44Na/81LMVw5O46+5GvwD+OsR43kQ0TexMwgtHxQQsiXLWHCDNy2ZzkzukDYRwA3V2lwVjtQN0WjxHg24BTBDBM+v7iQ7cbweQIDAQAB\n-----END PUBLIC KEY-----"} |  application/json   |
     Then the response should contain encrypted labels
 
+  @embeddings
+  Scenario: Generate embeddings for a single text
+    Given CMS app is up and running
+    When I send a POST request with the following content
+      | endpoint        | data                                                | content_type      |
+      | /embeddings     | {"input": "Spinal stenosis", "model": "cms-model"}  | application/json  |
+    Then the response should contain embeddings
+
   @preview
   Scenario: Extract and preview entities
     Given CMS app is up and running
