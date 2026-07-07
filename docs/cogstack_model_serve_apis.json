@@ -645,14 +645,14 @@
                 }
             }
         },
-        "/v1/embeddings": {
+        "/embeddings": {
             "post": {
                 "tags": [
-                    "OpenAICompatible"
+                    "Embeddings"
                 ],
-                "summary": "Embed Texts",
-                "description": "Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
-                "operationId": "embed_texts",
+                "summary": "Get Text Embeddings",
+                "description": "Create embeddings based on text(s)",
+                "operationId": "get_text_embeddings",
                 "security": [
                     {
                         "OAuth2PasswordBearer": []
