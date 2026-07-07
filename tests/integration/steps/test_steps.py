@@ -284,3 +284,15 @@ def check_response_annotation_stats(context):
     assert len(response_lines) > 1
     assert "concept,anno_count,anno_unique_counts,anno_ignorance_counts" == response_lines[0]
     context["response"].close()
+
+@then("the response should contain embeddings")
+def check_response_embeddings(context):
+    assert context["response"].status_code == 200
+    assert context["response"].headers["Content-Type"] == "application/json"
+    response_json = context["response"].json()
+    assert "data" in response_json
+    assert isinstance(response_json["data"], list)
+    assert len(response_json["data"]) > 0
+    assert "embedding" in response_json["data"][0]
+    assert isinstance(response_json["data"][0]["embedding"], list)
+    context["response"].close()

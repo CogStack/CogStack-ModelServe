@@ -273,7 +273,7 @@ def _get_app(
     add_exception_handlers(app)
 
     instrumentator = Instrumentator(
-        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.ico", "none"]
+        excluded_handlers=["/docs", "/redoc", "/metrics", "/openapi.json", "/favicon.png", "none"]
     ).instrument(app)
 
     if msd_overwritten is not None:
@@ -309,7 +309,7 @@ def _get_app(
             title="CogStack ModelServe",
             oauth2_redirect_url=oauth2_redirect_url,
             init_oauth=app.swagger_ui_init_oauth,
-            swagger_favicon_url="/static/images/favicon.ico",
+            swagger_favicon_url="/static/images/favicon.png",
             swagger_ui_parameters=app.swagger_ui_parameters,
         )
 
@@ -320,7 +320,7 @@ def _get_app(
         return get_redoc_html(
             openapi_url=openapi_url,
             title="CogStack ModelServe",
-            redoc_favicon_url="/static/images/favicon.ico",
+            redoc_favicon_url="/static/images/favicon.png",
         )
 
     @app.get("/", include_in_schema=False)

@@ -45,7 +45,7 @@ PATH_PROCESS_BULK = "/process_bulk"
 PATH_PROCESS_BULK_FILE = "/process_bulk_file"
 PATH_REDACT = "/redact"
 PATH_REDACT_WITH_ENCRYPTION = "/redact_with_encryption"
-PATH_OPENAI_EMBEDDINGS = "/v1/embeddings"
+PATH_EMBEDDINGS = "/embeddings"
 
 router = APIRouter()
 config = get_settings()
@@ -359,13 +359,13 @@ def get_redacted_text_with_encryption(
 
 
 @router.post(
-    PATH_OPENAI_EMBEDDINGS,
-    tags=[Tags.OpenAICompatible.name],
+    PATH_EMBEDDINGS,
+    tags=[Tags.Embeddings.name],
     response_model=None,
     dependencies=[Depends(cms_globals.props.current_active_user)],
-    description="Create embeddings based on text(s), similar to OpenAI's /v1/embeddings endpoint",
+    description="Create embeddings based on text(s)",
 )
-def embed_texts(
+def get_text_embeddings(
     request: Request,
     request_data: Annotated[OpenAIEmbeddingsRequest, Body(
         description="Text(s) to be embedded", media_type="application/json"
@@ -374,7 +374,7 @@ def embed_texts(
     model_service: AbstractModelService = Depends(cms_globals.model_service_dep)
 ) -> JSONResponse:
     """
-    Embeds text or a list of texts, mimicking OpenAI's /v1/embeddings endpoint.
+    Embeds text or a list of texts.
 
     Args:
         request (Request): The request object.
