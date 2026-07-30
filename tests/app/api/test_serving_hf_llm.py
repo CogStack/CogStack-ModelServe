@@ -19,6 +19,7 @@ config.DISABLE_UNSUPERVISED_TRAINING = "false"
 config.ENABLE_EVALUATION_APIS = "true"
 config.ENABLE_PREVIEWS_APIS = "true"
 config.AUTH_USER_ENABLED = "false"
+config.DECODING_BACKEND = "lm_format_enforcer"
 disable_rate_limits(config)
 
 
@@ -42,7 +43,6 @@ def llm_app(llm_model_service):
     app.dependency_overrides[cms_globals.props.current_active_user] = lambda: None
     yield app
     app.dependency_overrides.clear()
-
 
 @pytest.fixture(scope="function")
 def client(llm_model_service):

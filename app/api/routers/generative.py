@@ -55,6 +55,16 @@ from app.management.prometheus_metrics import (
     cms_tpot_milliseconds,
 )
 from app.exception import GenerationException, ClientException
+from app.processors.constrained_decoder import ConstrainedDecoder
+try:
+    import xgrammar as xgr
+except ImportError:
+    xgr = None  # type: ignore[assignment]
+
+try:
+    from llguidance import LLMatcher
+except ImportError:
+    LLMatcher = None  # type: ignore[assignment,misc]
 
 
 PATH_GENERATE = "/generate"
@@ -134,6 +144,7 @@ def generate_text(
                 override_template=chat_template if chat_template else None,
             ),
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
@@ -214,6 +225,7 @@ async def generate_text_stream(
         async for generated in model_service.generate_async(
             prompt=prompt,
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
@@ -230,6 +242,12 @@ async def generate_text_stream(
                        f"TTFT in milliseconds: {str(generated.ttft_ms)}; "
                        f"TPOT in milliseconds: {str(generated.tpot_ms)}"
                        "</cms_token_usage>"
+                    )
+                if generated.timed_out:
+                    yield (
+                        "\n\n<cms_generation_timed_out>"
+                        "Generation timed out before completion so the returned content may be partial."
+                        "</cms_generation_timed_out>"
                     )
                 continue
             yield generated
@@ -293,7 +311,7 @@ def generate_chat_completions(
     max_tokens = request_data.max_tokens
     temperature = request_data.temperature
     top_p = request_data.top_p
-    json_schema_parser = _get_parser_for_response_format(request_data.response_format)
+    json_schema_parser = _get_parser_for_openai_compatible(request_data.response_format, model_service=model_service)
 
     if isinstance(request_data.stop, str):
         stop_sequences = [request_data.stop]
@@ -340,6 +358,7 @@ def generate_chat_completions(
             async for generated in model_service.generate_async(
                 prompt,
                 max_tokens=max_tokens,
+                num_beams=config.DECODING_NUM_BEAMS,
                 temperature=temperature,
                 top_p=top_p,
                 stop_sequences=stop_sequences,
@@ -358,6 +377,14 @@ def generate_chat_completions(
                             }
                         }
                         yield f"data: {json.dumps(data)}\n\n"
+                    if generated.timed_out:
+                        error_data = {
+                            "error": {
+                                "message": "Generation timed out before completion and the returned content may be partial.",
+                                "type": "generation_error",
+                            }
+                        }
+                        yield f"data: {json.dumps(error_data)}\n\n"
                     continue
                 if tool_call_emitted:
                     continue
@@ -452,6 +479,7 @@ def generate_chat_completions(
         generation_result = model_service.generate(
             prompt,
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences or [],
@@ -587,6 +615,7 @@ def generate_text_completions(
             async for generated in model_service.generate_async(
                 prompt,
                 max_tokens=max_tokens,
+                num_beams=config.DECODING_NUM_BEAMS,
                 temperature=temperature,
                 top_p=top_p,
                 stop_sequences=stop_sequences,
@@ -656,6 +685,7 @@ def generate_text_completions(
         generation_result = model_service.generate(
             prompt,
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
@@ -972,7 +1002,7 @@ async def ollama_generate(
     temperature = options.get("temperature", 0.7)
     top_p = options.get("top_p", 0.9)
     stop_sequences = _normalise_stop_sequences(options.get("stop", None))
-    json_schema_parser = _get_parser_for_json_schema(request_data.format)
+    json_schema_parser = _get_parser_for_ollama_compatible(request_data.format, model_service=model_service)
 
     def _report_tokens(
         prompt_token_num: int,
@@ -1001,6 +1031,7 @@ async def ollama_generate(
                 async for generated in model_service.generate_async(
                     prompt,
                     max_tokens=max_tokens,
+                    num_beams=config.DECODING_NUM_BEAMS,
                     temperature=temperature,
                     top_p=top_p,
                     stop_sequences=stop_sequences,
@@ -1034,7 +1065,7 @@ async def ollama_generate(
                 "created_at": _iso_utc_now(),
                 "response": "",
                 "done": True,
-                "done_reason": "stop",
+                "done_reason": "timed_out" if generation_result is not None and generation_result.timed_out else "stop",
                 "prompt_eval_count": generation_result.prompt_token_num if generation_result is not None else 0,
                 "eval_count": generation_result.completion_token_num if generation_result is not None else 0,
                 "ttft_in_milliseconds": generation_result.ttft_ms if generation_result is not None else -1,
@@ -1048,6 +1079,7 @@ async def ollama_generate(
         generation_result = model_service.generate(
             prompt,
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
@@ -1095,7 +1127,7 @@ async def ollama_chat(
     temperature = options.get("temperature", 0.7)
     top_p = options.get("top_p", 0.9)
     stop_sequences = _normalise_stop_sequences(options.get("stop", None))
-    json_schema_parser = _get_parser_for_json_schema(request_data.format)
+    json_schema_parser = _get_parser_for_ollama_compatible(request_data.format, model_service=model_service)
     _ensures_chat_template(model_service, chat_template)
 
     def _report_tokens(
@@ -1142,6 +1174,7 @@ async def ollama_chat(
                 async for generated in model_service.generate_async(
                     prompt,
                     max_tokens=max_tokens,
+                    num_beams=config.DECODING_NUM_BEAMS,
                     temperature=temperature,
                     top_p=top_p,
                     stop_sequences=stop_sequences,
@@ -1176,7 +1209,7 @@ async def ollama_chat(
                 "created_at": _iso_utc_now(),
                 "message": {"role": PromptRole.ASSISTANT.value, "content": ""},
                 "done": True,
-                "done_reason": "stop",
+                "done_reason": "timed_out" if generated_result is not None and generated_result.timed_out else "stop",
                 "prompt_eval_count": generated_result.prompt_token_num if generated_result is not None else 0,
                 "eval_count": generated_result.completion_token_num if generated_result is not None else 0,
                 "ttft_in_milliseconds": generated_result.ttft_ms if generated_result is not None else -1,
@@ -1190,6 +1223,7 @@ async def ollama_chat(
         generated_result = model_service.generate(
             prompt,
             max_tokens=max_tokens,
+            num_beams=config.DECODING_NUM_BEAMS,
             temperature=temperature,
             top_p=top_p,
             stop_sequences=stop_sequences,
@@ -1267,33 +1301,35 @@ def _build_prompt_text(
     )
 
 
-def _get_parser_for_response_format(response_format: Optional[OpenAIResponseFormat]) -> Optional[Any]:
+def _get_parser_for_openai_compatible(
+    response_format: Optional[OpenAIResponseFormat],
+    model_service: Optional[AbstractModelService] = None,
+) -> Optional[Any]:
     if response_format is None:
         return None
     if response_format.type == "json_schema":
-        try:
-            from lmformatenforcer import JsonSchemaParser
-            parser = JsonSchemaParser(response_format.json_schema.schema_)
-            setattr(parser, "schema", response_format.json_schema.schema_)
-            return parser
-        except ImportError as e:
-            raise ClientException("lmformatenforcer package is not installed; required for JSON schema support") from e
-        except Exception as exc:
-            raise ClientException("Invalid JSON schema in response_format") from exc
+        return ConstrainedDecoder.get_parser(
+            response_format.json_schema.schema_,
+            model_service=model_service,
+            source="response_format",
+            backend=config.DECODING_BACKEND,
+        )
     else:
         raise ClientException("Unsupported response_format type; only 'json_schema' is supported")
 
 
-def _get_parser_for_json_schema(json_schema: Optional[Dict[str, Any]]) -> Optional[Any]:
+def _get_parser_for_ollama_compatible(
+    json_schema: Optional[Dict[str, Any]],
+    model_service: Optional[AbstractModelService] = None,
+) -> Optional[Any]:
     if json_schema is None:
         return None
-    try:
-        from lmformatenforcer import JsonSchemaParser
-        return JsonSchemaParser(json_schema)
-    except ImportError as e:
-        raise ClientException("lmformatenforcer package is not installed; required for JSON schema support") from e
-    except Exception as exc:
-        raise ClientException("Invalid JSON schema") from exc
+    return ConstrainedDecoder.get_parser(
+        json_schema,
+        model_service=model_service,
+        source="json_schema",
+        backend=config.DECODING_BACKEND,
+    )
 
 
 def _send_usage_metrics(

@@ -48,6 +48,8 @@ class Settings(BaseSettings):   # type: ignore
     ENABLE_SPDA_ATTN: str = "true"                    # if "true", attempt to use SPDA attention for HuggingFace LLM loading
     ASSISTANT_MODEL_FULL_PATH: str = ""               # the full path to the assistant model package for speculative decoding
     OVERRIDE_CHAT_TEMPLATE: str = ""                  # if set, override the chat template used for prompt formatting
+    DECODING_BACKEND: str = "lm_format_enforcer"      # the decoding backend to use for LLM constrained decoding, one of "lm_format_enforcer", "xgrammar" or "llguidance"
+    DECODING_NUM_BEAMS: int = 1                       # the number of beams to used for beam search during LLM decoding
     DEBUG: str = "false"                              # if "true", the debug mode is switched on
 
     class Config:

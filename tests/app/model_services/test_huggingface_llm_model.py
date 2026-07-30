@@ -2,12 +2,19 @@ import os
 import pytest
 import torch
 from concurrent.futures import Future
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from tests.app.conftest import MODEL_PARENT_DIR
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 from app import __version__
 from app.domain import ModelType, GenerationResult
-from app.model_services.huggingface_llm_model import HuggingFaceLlmModel, TimeoutCriteria
+from app.model_services.huggingface_llm_model import (
+    HuggingFaceLlmModel,
+    TimeoutCriteria,
+    Float32LogitsProcessor,
+    VocabSafetyLogitsProcessor,
+)
+from app.processors.constrained_decoder import _LLGuidanceLogitsProcessor
 from app.exception import GenerationException
 
 
@@ -96,7 +103,7 @@ def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output)
         prompt="Alright?",
         min_tokens=50,
         max_tokens=128,
-        num_beams=2,
+        num_beams=1,
         temperature=0.5,
         top_p=0.8,
         stop_sequences=["[STOP]"],
@@ -117,8 +124,8 @@ def test_generate(huggingface_llm_model, ensure_full_sentences, expected_output)
     assert call_kwargs["min_new_tokens"] == 50
     assert call_kwargs["max_new_tokens"] == 128
     assert call_kwargs["use_cache"] is True
-    assert call_kwargs["num_beams"] == 2
-    assert call_kwargs["do_sample"] is False
+    assert call_kwargs["num_beams"] == 1
+    assert call_kwargs["do_sample"] is True
     assert call_kwargs["temperature"] == 0.5
     assert call_kwargs["top_p"] == 0.8
     assert call_kwargs["repetition_penalty"] == 1.2
@@ -153,35 +160,74 @@ def test_generate_with_structured_output(huggingface_llm_model):
     huggingface_llm_model.model = model
     captured = {}
     json_schema_parser = MagicMock()
-    huggingface_llm_model._get_schema_hash = MagicMock(return_value="schema_hash")
-    prefix_fn = MagicMock()
+    with patch("app.processors.constrained_decoder.ConstrainedDecoder.get_schema_hash", return_value="schema_hash"):
+        prefix_fn = MagicMock()
 
-    def _submit(request):
-        captured.update(request)
-        future = Future()
-        request["future"] = future
-        with patch.object(
-            huggingface_llm_model,
-            "_build_transformers_prefix_allowed_tokens_fn",
-            return_value=prefix_fn,
-        ):
-            model.generate(prefix_allowed_tokens_fn=prefix_fn)
-        future.set_result(model.generate.return_value)
-        return future
+        def _submit(request):
+            captured.update(request)
+            future = Future()
+            request["future"] = future
+            with patch.object(
+                huggingface_llm_model._constrained_decoder,
+                "build_transformers_prefix_allowed_tokens_fn",
+                return_value=prefix_fn,
+            ):
+                model.generate(prefix_allowed_tokens_fn=prefix_fn)
+            future.set_result(model.generate.return_value)
+            return future
 
-    huggingface_llm_model._micro_batch_scheduler.submit = _submit
+        huggingface_llm_model._micro_batch_scheduler.submit = _submit
 
-    result = huggingface_llm_model.generate(
-        prompt="This is a test prompt",
-        min_tokens=1,
-        max_tokens=2,
-        json_schema_parser=json_schema_parser,
-    )
+        result = huggingface_llm_model.generate(
+            prompt="This is a test prompt",
+            min_tokens=1,
+            max_tokens=2,
+            json_schema_parser=json_schema_parser,
+        )
 
     assert result.text == "Yeah."
     assert captured["json_schema_parser"] == json_schema_parser
     assert captured["batch_key"][-2] == "schema_hash"
     assert model.generate.call_args.kwargs["prefix_allowed_tokens_fn"] == prefix_fn
+
+
+@pytest.mark.parametrize("num_beams, temperature, expected_do_sample", [
+    (1, 0.0, False),
+    (1, 0.5, True),
+    (2, 0.0, False),
+    (2, 0.5, False),
+])
+def test_generate_with_or_without_sampling(huggingface_llm_model, num_beams, temperature, expected_do_sample):
+    huggingface_llm_model.init_model()
+    huggingface_llm_model._micro_batch_scheduler._batch_wait_milliseconds = 1
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.tokenizer = MagicMock()
+    huggingface_llm_model._assistant_model = MagicMock()
+    huggingface_llm_model._assistant_tokenizer = MagicMock()
+    inputs = _TokenBatch(length=2)
+    huggingface_llm_model.tokenizer.return_value = inputs
+    huggingface_llm_model.tokenizer.pad_token_id = 2
+    huggingface_llm_model.tokenizer.vocab_size = 2
+    huggingface_llm_model._assistant_tokenizer.vocab_size = 2
+    outputs = [MagicMock(shape=[2])]
+    huggingface_llm_model.model.generate.return_value = outputs
+    completion_ids = MagicMock()
+    completion_ids.shape = [2]
+    outputs[0].__getitem__.return_value = completion_ids
+    huggingface_llm_model.tokenizer.decode.return_value = "Yeah."
+    huggingface_llm_model.tokenizer.apply_chat_template.return_value = "chat template text"
+
+    huggingface_llm_model.generate(
+        prompt="Alright?",
+        min_tokens=1,
+        max_tokens=2,
+        num_beams=num_beams,
+        temperature=temperature,
+        top_p=0.8,
+    )
+
+    call_kwargs = huggingface_llm_model.model.generate.call_args.kwargs
+    assert call_kwargs["do_sample"] is expected_do_sample
 
 
 @pytest.mark.parametrize("ensure_full_sentences, stream_chunks, stop_sequences, expected_output, report_called", [
@@ -204,20 +250,20 @@ async def test_generate_async(
     huggingface_llm_model._assistant_tokenizer = MagicMock()
     mock_send_metrics = MagicMock()
     inputs = _TokenBatch(length=2)
-    
+
     def mock_tokenizer_call(*args, **kwargs):
         if args and args[0] == "Alright?":
             return inputs
         return _TokenBatch(length=2)
-    
+
     huggingface_llm_model.tokenizer.side_effect = mock_tokenizer_call
     huggingface_llm_model.tokenizer.vocab_size = 2
     huggingface_llm_model._assistant_tokenizer.vocab_size = 2
     streamer = FakeAsyncTextIteratorStreamer(stream_chunks)
-    
+
     with patch("app.model_services.huggingface_llm_model.AsyncTextIteratorStreamer", return_value=streamer):
         huggingface_llm_model.model.generate.return_value = MagicMock(shape=[2])
-        mock_future = MagicMock()
+        mock_future = Future()
         huggingface_llm_model._text_generator.submit = MagicMock(return_value=mock_future)
 
         results = []
@@ -274,7 +320,7 @@ async def test_generate_async_with_timeout(huggingface_llm_model):
     with patch(
         "app.model_services.huggingface_llm_model.AsyncTextIteratorStreamer", return_value=streamer
     ) as mock_streamer:
-        huggingface_llm_model._text_generator.submit = MagicMock(return_value=MagicMock())
+        huggingface_llm_model._text_generator.submit = MagicMock(return_value=Future())
         results = []
         async for chunk in huggingface_llm_model.generate_async(prompt="Alright?"):
             if isinstance(chunk, str):
@@ -283,10 +329,120 @@ async def test_generate_async_with_timeout(huggingface_llm_model):
         submit_kwargs = huggingface_llm_model._text_generator.submit.call_args.kwargs
         mock_streamer.assert_called_once()
         assert "".join(results) == "OK"
-        assert mock_streamer.call_args.kwargs["timeout"] == 2
+        assert mock_streamer.call_args.kwargs["timeout"] is None
         assert "stopping_criteria" in submit_kwargs
         assert len(submit_kwargs["stopping_criteria"]) == 1
         assert isinstance(submit_kwargs["stopping_criteria"][0], TimeoutCriteria)
+
+
+@pytest.mark.asyncio
+async def test_generate_async_with_xgrammar(huggingface_llm_model):
+    huggingface_llm_model.init_model()
+    huggingface_llm_model._constrained_decoder.backend = "xgrammar"
+    huggingface_llm_model._generation_timeout_secs = 2
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.model.config.vocab_size = 2
+    huggingface_llm_model.tokenizer = MagicMock()
+    huggingface_llm_model.tokenizer.pad_token_id = 2
+    inputs = _TokenBatch(length=2)
+
+    def _mock_tokenizer_call(*args, **kwargs):
+        if args and args[0] == "A 28-year-old woman presented in 1994 with musculoskeletal manifestation of systemic lupus erythematosus (SLE)":
+            return inputs
+        return _TokenBatch(length=2)
+
+    huggingface_llm_model.tokenizer.side_effect = _mock_tokenizer_call
+
+    class _FakeCompiledGrammar:
+        tokenizer_info = SimpleNamespace(vocab_size=2)
+
+        def serialize_json(self):
+            return "{}"
+
+    fake_logits_processor = SimpleNamespace(full_vocab_size=2)
+    fake_xgr = SimpleNamespace(
+        contrib=SimpleNamespace(
+            hf=SimpleNamespace(
+                LogitsProcessor=MagicMock(return_value=fake_logits_processor),
+            ),
+        ),
+    )
+    streamer = FakeAsyncTextIteratorStreamer(['{"answer": 28}'])
+    generation_future = Future()
+    generation_future.set_result(None)
+
+    with patch("app.processors.constrained_decoder.xgr", fake_xgr), patch(
+        "app.model_services.huggingface_llm_model.AsyncTextIteratorStreamer", return_value=streamer
+    ) as mock_streamer:
+        huggingface_llm_model._text_generator.submit = MagicMock(return_value=generation_future)
+        results = []
+        async for chunk in huggingface_llm_model.generate_async(
+            prompt="Alright?",
+            json_schema_parser=_FakeCompiledGrammar(),
+        ):
+            if isinstance(chunk, str):
+                results.append(chunk)
+
+        submit_kwargs = huggingface_llm_model._text_generator.submit.call_args.kwargs
+        mock_streamer.assert_called_once()
+        assert "".join(results) == '{"answer":28}'
+        assert mock_streamer.call_args.kwargs["timeout"] is None
+        assert isinstance(submit_kwargs["logits_processor"][0], VocabSafetyLogitsProcessor)
+        assert isinstance(submit_kwargs["logits_processor"][1], Float32LogitsProcessor)
+        assert submit_kwargs["logits_processor"][-1] == fake_logits_processor
+
+
+@pytest.mark.asyncio
+async def test_generate_async_with_llguidance(huggingface_llm_model):
+    huggingface_llm_model.init_model()
+    huggingface_llm_model._constrained_decoder.backend = "llguidance"
+    huggingface_llm_model._generation_timeout_secs = 2
+    huggingface_llm_model.model = MagicMock()
+    huggingface_llm_model.model.config.vocab_size = 2
+    huggingface_llm_model.tokenizer = MagicMock()
+    huggingface_llm_model.tokenizer.pad_token_id = 2
+    inputs = _TokenBatch(length=2)
+
+    def _mock_tokenizer_call(*args, **kwargs):
+        if args and args[0] == "A 28-year-old woman presented in 1994 with musculoskeletal manifestation of systemic lupus erythematosus (SLE)":
+            return inputs
+        return _TokenBatch(length=2)
+
+    huggingface_llm_model.tokenizer.side_effect = _mock_tokenizer_call
+
+    fake_llguidance = SimpleNamespace()
+    fake_lg_from_tokenizer = MagicMock(return_value=SimpleNamespace(vocab_size=2))
+    fake_ll_matcher = MagicMock()
+
+    streamer = FakeAsyncTextIteratorStreamer(['{"answer": 28}'])
+    generation_future = Future()
+    generation_future.set_result(None)
+
+    with patch("app.processors.constrained_decoder.llguidance", fake_llguidance), patch(
+        "app.processors.constrained_decoder.lg_from_tokenizer", fake_lg_from_tokenizer
+    ), patch(
+        "app.processors.constrained_decoder.LLMatcher", fake_ll_matcher
+    ), patch(
+        "app.model_services.huggingface_llm_model.AsyncTextIteratorStreamer", return_value=streamer
+    ) as mock_streamer:
+        huggingface_llm_model._text_generator.submit = MagicMock(return_value=generation_future)
+        results = []
+        async for chunk in huggingface_llm_model.generate_async(
+            prompt="Alright?",
+            json_schema_parser='{"answer": 28}',
+        ):
+            if isinstance(chunk, str):
+                results.append(chunk)
+
+        submit_kwargs = huggingface_llm_model._text_generator.submit.call_args.kwargs
+        mock_streamer.assert_called_once()
+        assert "".join(results) == '{"answer":28}'
+        assert mock_streamer.call_args.kwargs["timeout"] is None
+        assert isinstance(submit_kwargs["logits_processor"][0], VocabSafetyLogitsProcessor)
+        assert isinstance(submit_kwargs["logits_processor"][1], Float32LogitsProcessor)
+        assert isinstance(submit_kwargs["logits_processor"][-1], _LLGuidanceLogitsProcessor)
+        fake_lg_from_tokenizer.assert_called_once()
+        fake_ll_matcher.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -503,6 +659,7 @@ def test_load_model_quantization_check():
 class FakeAsyncTextIteratorStreamer:
     def __init__(self, chunks):
         self._chunks = chunks
+        self._iter = iter(self._chunks)
 
     def __aiter__(self):
         self._iter = iter(self._chunks)
@@ -513,3 +670,66 @@ class FakeAsyncTextIteratorStreamer:
             return next(self._iter)
         except StopIteration:
             raise StopAsyncIteration
+
+
+class TestLogitsProcessor:
+    def test_mask_out_of_range_ids(self):
+        logits = torch.zeros(1, 5)
+        logits[0, 3] = 10.0
+        logits[0, 4] = 10.0
+        processor = VocabSafetyLogitsProcessor(vocab_size=3)
+        out = processor(torch.tensor([[0]]), logits)
+        assert out[0, 0] == 0
+        assert out[0, 1] == 0
+        assert out[0, 2] == 0
+        assert out[0, 3] == -1e10
+        assert out[0, 4] == -1e10
+
+    def test_no_masking_for_logits_equal_or_smaller_than_vocab_size(self):
+        logits = torch.zeros(1, 4)
+        logits[0, 3] = 10.0
+        processor = VocabSafetyLogitsProcessor(vocab_size=4)
+        out = processor(torch.tensor([[0]]), logits)
+        assert out[0, 3] == 10.0
+
+        logits = torch.zeros(1, 3)
+        logits[0, 2] = 5.0
+        processor = VocabSafetyLogitsProcessor(vocab_size=5)
+        out = processor(torch.tensor([[0]]), logits)
+        assert out[0, 2] == 5.0
+
+    def test_no_ops_on_non_positive_vocab_size(self):
+        logits = torch.zeros(1, 4)
+        logits[0, 3] = 10.0
+        processor = VocabSafetyLogitsProcessor(vocab_size=0)
+        out = processor(torch.tensor([[0]]), logits)
+        assert out[0, 3] == 10.0
+
+    def test_cast_to_float32(self):
+        logits = torch.zeros(1, 4, dtype=torch.float16)
+        logits[0, 0] = 1.0
+        processor = Float32LogitsProcessor()
+        out = processor(torch.tensor([[0]]), logits)
+        assert out.dtype == torch.float32
+        assert out[0, 0] == 1.0
+
+    def test_replace_nan_positive_and_negative_inf(self):
+        processor = Float32LogitsProcessor()
+
+        logits = torch.zeros(1, 4)
+        logits[0, 1] = float("nan")
+        out = processor(torch.tensor([[0]]), logits)
+        assert not torch.isnan(out).any()
+        assert out[0, 1] == -1e10
+
+        logits = torch.zeros(1, 4)
+        logits[0, 2] = float("inf")
+        out = processor(torch.tensor([[0]]), logits)
+        assert not torch.isinf(out).any()
+        assert out[0, 2] == 1e10
+
+        logits = torch.zeros(1, 4)
+        logits[0, 3] = float("-inf")
+        out = processor(torch.tensor([[0]]), logits)
+        assert not torch.isinf(out).any()
+        assert out[0, 3] == -1e10

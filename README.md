@@ -224,51 +224,6 @@ curl -X 'POST' 'http://127.0.0.1:8000/stream/process' \
 ```
 will result in a response like {"doc_name": "DOC", "start": INT, "end": INT, "label_name": "STR", "label_id": "STR", ...}\n...
 
-### Serve causal language models
-You can serve causal LLMs (e.g., LLaMa 3 or DeepSeek R1) using the `huggingface_llm` model type. To do so, run:
-```commandline
-cms serve --model-type huggingface_llm --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
-```
-To generate texts in near real-time, send a request with the optional query parameter `max_tokens`:
-```commandline
-curl -N -X 'POST' 'http://127.0.0.1:8000/stream/generate?max_tokens=512' \
-    -H 'accept: application/json'  -H 'Content-Type: text/plain' \
-    -d 'What is hypertension?'
-```
-
-CMS also provides APIs that are compatible with the OpenAI client. For example, using its Python SDK, you can generate text and retrieve embeddings with the following snippet:
-```python
-from openai import OpenAI
-
-client = OpenAI(api_key="dummy", base_url="http://localhost:8000/v1")
-completion = client.chat.completions.create(
-    model="Huggingface LLM Model",
-    messages=[
-        {"role": "system", "content": "You are bot answering questions from the user"},
-        {"role": "user", "content": "What is hypertension?"},
-    ],
-    max_tokens=256,
-    temperature=0.7,
-    stream=False
-)
-print(f"CMS => {completion.choices[0].message.content}")
-embeddings = client.embeddings.create(
-    model="Huggingface LLM Model", input="What is hypertension?"
-)
-```
-Note that to enable quantization and training features, you need to install the extra dependencies:
-```commandline
-pip install '.[llm]'
-```
-
-### CMS MCP server
-You can run an MCP server to expose local or remote CMS capabilities to your preferred MCP client.
-To that end, install the following extra dependencies:
-```commandline
-pip install '.[mcp]'
-```
-For detailed configuration, please refer to the [CMS MCP Server docs](./app/mcp/README.md).
-
 #### Chat with served models
 You can also "chat" with the running model using the `/stream/ws` endpoint. For example:
 ```html
@@ -290,3 +245,71 @@ You can also "chat" with the running model using the `/stream/ws` endpoint. For 
     };
 </script>
 ```
+
+### Serve causal language models
+You can serve open-weight causal LLMs (e.g., LLaMa 3, DeepSeek R1, Qwen3 or Mistral) using the `huggingface_llm` model type. To do so, run:
+```commandline
+cms serve --model-type huggingface_llm --model-path PATH/TO/MODEL_PACKAGE.zip --host 127.0.0.1 --port 8000
+```
+To generate texts in near real-time, send a request with the optional query parameter `max_tokens`:
+```commandline
+curl -N -X 'POST' 'http://127.0.0.1:8000/stream/generate?max_tokens=512' \
+    -H 'accept: application/json'  -H 'Content-Type: text/plain' \
+    -d 'What is hypertension?'
+```
+
+CMS also provides APIs that are compatible with OpenAI and Ollama clients. For example, using their Python SDKs, you can generate text and retrieve embeddings with the following snippet:
+```python
+from openai import OpenAI
+
+client = OpenAI(api_key="dummy", base_url="http://localhost:8000/openai/v1")
+completion = client.chat.completions.create(
+    model="Huggingface LLM Model",
+    messages=[
+        {"role": "system", "content": "You are bot answering questions from the user"},
+        {"role": "user", "content": "What is hypertension?"},
+    ],
+    max_tokens=256,
+    temperature=0.7,
+    stream=False
+)
+print(f"CMS => {completion.choices[0].message.content}")
+embeddings = client.embeddings.create(
+    model="Huggingface LLM Model", input="What is hypertension?"
+)
+```
+```python
+from ollama import Client
+
+client = Client(host="http://localhost:8000//ollama")
+
+response = client.chat(
+    model="Huggingface LLM Model",
+    messages=[
+        {"role": "system", "content": "You are bot answering questions from the user"},
+        {"role": "user", "content": "What is the normal LVEF range?"},
+    ],
+    stream=False,
+    options={
+        "num_predict": 512,
+        "temperature": 0.7,
+        "top_p": 0.9
+    },
+)
+print(f"CMS => {response["message"]["content"]}")
+embeddings = client.embed(
+    model="Huggingface LLM Model", input="What is the normal LVEF range?"
+)
+```
+Note that to enable quantization and training features, you need to install the extra dependencies:
+```commandline
+pip install '.[llm]'
+```
+
+### CMS MCP server
+You can run an MCP server to expose local or remote CMS capabilities to your preferred MCP client.
+To that end, install the following extra dependencies:
+```commandline
+pip install '.[mcp]'
+```
+For detailed configuration, please refer to the [CMS MCP Server docs](./app/mcp/README.md).

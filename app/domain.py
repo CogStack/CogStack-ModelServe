@@ -137,6 +137,13 @@ class LlmDatasetType(Enum):
     CSV = "csv"
 
 
+class LLMDecodingBackend(Enum):
+    LM_FORMAT_ENFORCER = "lm_format_enforcer"
+    XGRAMMAR = "xgrammar"
+    LLGUIDANCE = "llguidance"
+
+
+
 class Annotation(BaseModel):
     doc_name: Optional[str] = Field(default=None, description="The name of the document to which the annotation belongs")
     start: int = Field(description="The start index of the annotation span")
@@ -220,6 +227,10 @@ class GenerationResult(BaseModel):
     completion_token_num: int = Field(..., description="The number of tokens in the generated text")
     ttft_ms: int = Field(default=-1, description="Time to first token in milliseconds")
     tpot_ms: int = Field(default=-1, description="Average time per output token in milliseconds")
+    timed_out: bool = Field(
+        default=False,
+        description="Whether the generation was stopped by the generation timeout criteria before completing",
+    )
 
 
 class OpenAIStreamOptions(BaseModel):

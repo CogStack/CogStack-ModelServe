@@ -3,11 +3,10 @@ import os
 import logging
 import time
 import hashlib
-import json
 import re
 import torch
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Callable, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Any, AsyncIterable, TextIO, Callable, Union
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -18,15 +17,26 @@ from transformers import (
     BitsAndBytesConfig,
     StoppingCriteria,
     StoppingCriteriaList,
+    LogitsProcessor,
+    LogitsProcessorList,
+)
+from app.management.prometheus_metrics import (
+    cms_gen_request_latency_milliseconds,
+    cms_prefix_cache_queries,
+    cms_prefix_cache_hits,
+    cms_gen_job_queue_time_milliseconds,
+    cms_num_of_gen_jobs_running,
+    cms_num_of_gen_jobs_waiting,
 )
 from app import __version__ as app_version
-from app.exception import ConfigurationException, GenerationException, ExtraDependencyRequiredException
+from app.exception import ConfigurationException, GenerationException
 from app.model_services.base import AbstractModelService
 from app.trainers.huggingface_llm_trainer import HuggingFaceLlmSupervisedTrainer, HuggingFaceLlmUnsupervisedTrainer
 from app.domain import ModelCard, ModelType, Annotation, Device, GenerationResult
 from app.config import Settings
 from app.processors.data_batcher import MicroBatchScheduler
 from app.processors.prefix_cache import PrefixCache
+from app.processors.constrained_decoder import ConstrainedDecoder
 from app.utils import (
     get_settings,
     non_default_device_is_available,
@@ -34,16 +44,10 @@ from app.utils import (
     ensure_tensor_contiguity,
     get_model_data_package_base_name,
     ensure_pad_token,
-    dump_pydantic_object_to_dict,
     extract_json_string,
     has_turing_generation_gpu,
     resolve_safe_max_model_length,
 )
-if TYPE_CHECKING:
-    from lmformatenforcer import JsonSchemaParser as JsonSchemaParserType
-else:
-    JsonSchemaParserType = Any
-
 logger = logging.getLogger("cms")
 
 
@@ -68,14 +72,6 @@ class HuggingFaceLlmModel(AbstractModelService):
             model_name (Optional[str]): The name of the model. Defaults to None.
             base_model_file (Optional[str]): The model package file name. Defaults to None.
         """
-        try:
-            from lmformatenforcer.integrations.transformers import build_transformers_prefix_allowed_tokens_fn
-        except ImportError:
-            logger.error("Cannot import JsonSchemaParser. Please install it with `pip install '.[llm]'`.")
-            raise ExtraDependencyRequiredException(
-                "Cannot import JsonSchemaParser. Please install it with `pip install '.[llm]'`."
-            )
-
         super().__init__(config)
         self._config = config
         self._model_parent_dir = model_parent_dir or os.path.abspath(
@@ -92,7 +88,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         self._sentence_endings = ".。!！?？:：;；\n"
         self._generation_timeout_secs = config.GENERATION_TIMEOUT_SECONDS or 180
         self._prefix_kv_cache = PrefixCache()
-        self._build_transformers_prefix_allowed_tokens_fn = build_transformers_prefix_allowed_tokens_fn
+        self._constrained_decoder = ConstrainedDecoder(backend=config.DECODING_BACKEND)
         self._micro_batch_scheduler = MicroBatchScheduler(
             process_batch_fn=self._process_batched_requests,
             batch_key_fn=lambda request: request["batch_key"],
@@ -214,6 +210,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                         model = HuggingFaceLlmModel._load_causal_lm(
                             enable_sdpa_attn=enable_sdpa_attn,
                             model_path=model_path,
+                            device_map={"": get_settings().DEVICE},
                             low_cpu_mem_usage=True,
                         )
                 else:
@@ -237,6 +234,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                                 enable_sdpa_attn=enable_sdpa_attn,
                                 model_path=model_path,
                                 quantization_config=bnb_config,
+                                device_map={"": get_settings().DEVICE},
                                 low_cpu_mem_usage=True,
                             )
                     elif load_in_8bit:
@@ -259,6 +257,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                                 enable_sdpa_attn=enable_sdpa_attn,
                                 model_path=model_path,
                                 quantization_config=bnb_config,
+                                device_map={"": get_settings().DEVICE},
                                 low_cpu_mem_usage=True,
                             )
                     else:
@@ -274,6 +273,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                             model = HuggingFaceLlmModel._load_causal_lm(
                                 enable_sdpa_attn=enable_sdpa_attn,
                                 model_path=model_path,
+                                device_map={"": get_settings().DEVICE},
                                 low_cpu_mem_usage=True,
                                 dtype=torch.float16 if has_turing_generation_gpu() else torch.bfloat16,
                             )
@@ -355,6 +355,28 @@ class HuggingFaceLlmModel(AbstractModelService):
                 self._supervised_trainer = HuggingFaceLlmSupervisedTrainer(self)
                 self._unsupervised_trainer = HuggingFaceLlmUnsupervisedTrainer(self)
 
+            self._warn_vocab_mismatch()
+
+    def _warn_vocab_mismatch(self) -> None:
+        tokenizer_vocab_size = getattr(self._tokenizer, "vocab_size", None)
+        config_vocab_size = getattr(self._model.config, "vocab_size", None)
+        if tokenizer_vocab_size is None or config_vocab_size is None:
+            return
+        if tokenizer_vocab_size != config_vocab_size:
+            logger.warning(
+                "Tokenizer vocab_size (%s) does not match model config vocab_size (%s). "
+                "This can cause CUDA device-side asserts during generation.",
+                tokenizer_vocab_size,
+                config_vocab_size,
+            )
+
+    @staticmethod
+    def _get_actual_vocab_size(model: PreTrainedModel) -> int:
+        embed = model.get_input_embeddings()
+        if embed is not None and hasattr(embed, "weight"):
+            return int(embed.weight.shape[0])
+        return int(getattr(model.config, "vocab_size", 0) or 0)
+
     def info(self) -> ModelCard:
         """
         Retrieves a ModelCard containing information about the model.
@@ -397,7 +419,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[..., None]] = None,
         ensure_full_sentences: bool = False,
-        json_schema_parser: Optional[JsonSchemaParserType] = None,
+        json_schema_parser: Optional[Any] = None,
         prefix_prompt: Optional[str] = None,
         *args: Tuple,
         **kwargs: Dict[str, Any],
@@ -415,7 +437,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             ensure_full_sentences (bool): Whether to generate full sentences only. Defaults to False.
-            json_schema_parser (Optional[JsonSchemaParser]): The JSON schema parser for validating the generated text. Defaults to None.
+            json_schema_parser (Optional[Any]): The JSON schema parser or compiled grammar for validating the generated text. Defaults to None.
             prefix_prompt (Optional[str]): The prefix prompt to be used for generation. Defaults to None.
 
         Returns:
@@ -430,16 +452,18 @@ class HuggingFaceLlmModel(AbstractModelService):
             "report_tokens": report_tokens,
             "json_schema_parser": json_schema_parser,
             "prefix_prompt": prefix_prompt,
+            "request_received_time": time.monotonic(),
             "batch_key": (
                 min_tokens,
                 max_tokens,
                 num_beams,
                 temperature,
                 top_p,
-                self._get_schema_hash(json_schema_parser),
+                self._constrained_decoder.get_schema_hash(json_schema_parser),
                 (PrefixCache.key(prefix_prompt) if prefix_prompt else None),
             ),
         }
+        cms_num_of_gen_jobs_waiting.labels(handler="cms_service").inc()
         future = self._micro_batch_scheduler.submit(request)
         try:
             generation_result = future.result()
@@ -461,7 +485,7 @@ class HuggingFaceLlmModel(AbstractModelService):
         stop_sequences: Optional[List[str]] = None,
         report_tokens: Optional[Callable[..., None]] = None,
         ensure_full_sentences: bool = False,
-        json_schema_parser: Optional[JsonSchemaParserType] = None,
+        json_schema_parser: Optional[Any] = None,
         prefix_prompt: Optional[str] = None,
         *args: Tuple,
         **kwargs: Dict[str, Any],
@@ -479,7 +503,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             stop_sequences (Optional[List[str]]): List of strings that will stop generation when encountered. Defaults to None.
             report_tokens (Optional[Callable[[str], None]]): The callback function to send metrics. Defaults to None.
             ensure_full_sentences (bool): Whether to generate full sentences only. Defaults to False.
-            json_schema_parser (Optional[JsonSchemaParser]): The JSON schema parser for validating the generated text. Defaults to None.
+            json_schema_parser (Optional[Any]): The JSON schema parser or compiled grammar for validating the generated text. Defaults to None.
             prefix_prompt  (Optional[str]): The prefix prompt to be used for generation. Defaults to None.
 
         Returns:
@@ -487,11 +511,17 @@ class HuggingFaceLlmModel(AbstractModelService):
         """
 
         self.model.eval()
+        gen_job_received_time = time.monotonic()
+        cms_num_of_gen_jobs_waiting.labels(handler="cms_service").inc()
         logger.debug("Prompt after chat template applied: %s", prompt[:200])
         full_prompt_len = None
         past_key_values = None
         prefix_len = 0
         prefix_text = prefix_prompt or ""
+
+        if bool(prefix_prompt):
+            cms_prefix_cache_queries.labels(handler="cms_service").inc()
+
         use_prefix_cache = bool(prefix_prompt) and prompt.startswith(prefix_text)
         if use_prefix_cache:
             prefix_entry = self._prefix_kv_cache.get_prefix_entry(
@@ -511,6 +541,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                     use_prefix_cache = False
                 else:
                     prefix_len = int(prefix_entry.input_ids.shape[1])
+                    cms_prefix_cache_hits.labels(handler="cms_service").inc()
                     full_prompt_len = prefix_len + int(inputs.attention_mask.sum().item())
                     prefix_mask = torch.ones(
                         (inputs.input_ids.shape[0], prefix_len),
@@ -536,15 +567,17 @@ class HuggingFaceLlmModel(AbstractModelService):
             past_key_values=past_key_values,
         )
 
+        max_tokens = max(min_tokens, max_tokens)
+        use_constrained_tokens = json_schema_parser is not None
+
         streamer = AsyncTextIteratorStreamer(
             self.tokenizer,
             skip_prompt=True,
-            timeout=self._generation_timeout_secs,
+            timeout=None,   # rely on the StoppingCriteria for timeout handling
             skip_special_tokens=True,
             clean_up_tokenization_spaces=True,
         )
-        max_tokens = max(min_tokens, max_tokens)
-        use_constrained_tokens = json_schema_parser is not None
+        do_sample = (num_beams == 1) and temperature > 0.0
         generation_kwargs = dict(
             inputs=inputs.input_ids,
             attention_mask=attention_mask,
@@ -553,15 +586,24 @@ class HuggingFaceLlmModel(AbstractModelService):
             max_new_tokens=max_tokens,
             use_cache=True,
             num_beams=num_beams,
-            do_sample=(num_beams == 1 and not use_constrained_tokens),
-            temperature=temperature,
-            top_p=top_p,
-            top_k=0,
+            num_return_sequences=1,
+            do_sample=do_sample,
+            temperature=temperature if do_sample else None,
+            top_p=top_p if do_sample else None,
+            top_k=0 if do_sample else None,
             repetition_penalty=(1.0 if use_constrained_tokens else 1.2),
             no_repeat_ngram_size=(0 if use_constrained_tokens else 3),
             pad_token_id=self.tokenizer.pad_token_id,
-            stopping_criteria=StoppingCriteriaList([TimeoutCriteria(float(self._generation_timeout_secs))]),
+            renormalize_logits=False,
+            stopping_criteria=StoppingCriteriaList(
+                [timeout_criteria := TimeoutCriteria(float(self._generation_timeout_secs))]
+            ),
         )
+        if use_constrained_tokens:
+            generation_kwargs["logits_processor"] = LogitsProcessorList([
+                VocabSafetyLogitsProcessor(self._get_actual_vocab_size(self.model)),
+                Float32LogitsProcessor(),
+            ])
         if past_key_values is not None:
             generation_kwargs["past_key_values"] = past_key_values
             cache_position = torch.arange(
@@ -571,9 +613,11 @@ class HuggingFaceLlmModel(AbstractModelService):
             )
             generation_kwargs["cache_position"] = cache_position
         if use_constrained_tokens:
-            generation_kwargs["prefix_allowed_tokens_fn"] = self._build_transformers_prefix_allowed_tokens_fn(
-                self.tokenizer,
+            generation_kwargs = self._constrained_decoder.apply_grammar_constraint(
+                generation_kwargs,
                 json_schema_parser,
+                tokenizer=self.tokenizer,
+                vocab_size=getattr(self.model.config, "vocab_size", None),
             )
         if self._assistant_model is not None:
             generation_kwargs["assistant_model"] = self._assistant_model
@@ -583,16 +627,28 @@ class HuggingFaceLlmModel(AbstractModelService):
                 if self._assistant_tokenizer.vocab_size != self._tokenizer.vocab_size:  # type: ignore
                     generation_kwargs["assistant_tokenizer"] = self._assistant_tokenizer
 
+        generation_future = None
         try:
             generation_start = time.monotonic()
             ttft_milliseconds = -1.0
-            _ = self._text_generator.submit(self.model.generate, **generation_kwargs)
+
+            def _wrapped_generate(**kwargs: Dict[str, Any]) -> Any:
+                cms_num_of_gen_jobs_waiting.labels(handler="cms_service").dec()
+                cms_num_of_gen_jobs_running.labels(handler="cms_service").inc()
+                queue_time_ms = (time.monotonic() - generation_start) * 1000.0
+                cms_gen_job_queue_time_milliseconds.labels(handler="cms_service").observe(queue_time_ms)
+                try:
+                    return self.model.generate(**kwargs)
+                finally:
+                    cms_num_of_gen_jobs_running.labels(handler="cms_service").dec()
+
+            generation_future = self._text_generator.submit(_wrapped_generate, **generation_kwargs)
             buffer = ""
             full_output = ""
 
             output_is_formatted = use_constrained_tokens
             if not ensure_full_sentences:
-                async for content in streamer:
+                async for content in self._stream_tokens(streamer, generation_future):
                     if ttft_milliseconds == -1.0 and content:
                         ttft_milliseconds = (time.monotonic() - generation_start) * 1000.0
                     prev_output = full_output
@@ -611,7 +667,7 @@ class HuggingFaceLlmModel(AbstractModelService):
                             await asyncio.sleep(0.1)
                             yield out_chunk
             else:
-                async for content in streamer:
+                async for content in self._stream_tokens(streamer, generation_future):
                     if ttft_milliseconds == -1.0 and content:
                         ttft_milliseconds = (time.monotonic() - generation_start) * 1000.0
                     buffer += content
@@ -648,6 +704,9 @@ class HuggingFaceLlmModel(AbstractModelService):
             if output_is_formatted:
                 yield extract_json_string(full_output)
 
+            if generation_future.done():
+                generation_future.result()
+
             logger.debug("Decoded raw output: %s",full_output[:200])
             prompt_token_num = (
                 full_prompt_len
@@ -668,16 +727,24 @@ class HuggingFaceLlmModel(AbstractModelService):
                     ttft_milliseconds=int(ttft_milliseconds),  # type: ignore
                     tpot_milliseconds=int(tpot_milliseconds),  # type: ignore
                 )
+            cms_gen_request_latency_milliseconds.labels(handler="cms_service").observe(
+                (time.monotonic() - gen_job_received_time) * 1000.0
+            )
             yield GenerationResult(
                 text=full_output,
                 prompt_token_num=prompt_token_num,
                 completion_token_num=completion_token_num,
                 ttft_ms=int(ttft_milliseconds),
                 tpot_ms=int(tpot_milliseconds),
+                timed_out=timeout_criteria._triggered,
             )
         except Exception as e:
             logger.error("An error occurred while generating the response")
             logger.exception(e)
+
+            if generation_future is not None and not generation_future.done():
+                cms_num_of_gen_jobs_waiting.labels(handler="cms_service").dec()
+
             raise GenerationException(f"Failed to generate text from the request: {str(e)}") from e
         finally:
             logger.debug("Chat response generation completed")
@@ -864,13 +931,6 @@ class HuggingFaceLlmModel(AbstractModelService):
         return AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
 
 
-    @staticmethod
-    def _get_schema_hash(json_schema_parser: Optional[JsonSchemaParserType]) -> Optional[str]:
-        if json_schema_parser is None:
-            return None
-        schema_dict = dump_pydantic_object_to_dict(json_schema_parser.context.model_class)
-        return hashlib.sha256(json.dumps(schema_dict).encode("utf-8")).hexdigest()
-
     def _postprocess_generated_text(
             self,
             generated_text: str,
@@ -929,7 +989,46 @@ class HuggingFaceLlmModel(AbstractModelService):
             chunks.append("".join(current))
         return chunks
 
+    async def _stream_tokens(
+        self,
+        streamer: AsyncTextIteratorStreamer,
+        generation_future: Any,
+    ) -> AsyncIterable[str]:
+        """Wrap streamer to monitor both streamer queue and thread pool execution future.
+        If the future fails, propagate the exception immediately."""
+        async_generation_future = asyncio.wrap_future(generation_future)
+        while not async_generation_future.done():
+            next_token_task = asyncio.create_task(streamer.__anext__())
+            done, pending = await asyncio.wait(
+                [next_token_task, async_generation_future],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            if next_token_task in done:
+                try:
+                    content = next_token_task.result()
+                    yield content
+                except StopAsyncIteration:
+                    return
+            else:
+                next_token_task.cancel()
+                try:
+                    await next_token_task
+                except asyncio.CancelledError:
+                    pass
+
+        # Check for thread execution exception
+        exc = async_generation_future.exception()
+        if exc is not None:
+            raise exc
+
     def _process_batched_requests(self, requests: List[Dict[str, Any]]) -> None:
+        for req in requests:
+            cms_num_of_gen_jobs_waiting.labels(handler="cms_service").dec()
+            cms_num_of_gen_jobs_running.labels(handler="cms_service").inc()
+            if "request_received_time" in req:
+                queue_time_ms = (time.monotonic() - req["request_received_time"]) * 1000.0
+                cms_gen_job_queue_time_milliseconds.labels(handler="cms_service").observe(queue_time_ms)
         try:
             self.model.eval()
             prompt_texts = [req["prompt"] for req in requests]
@@ -1019,6 +1118,7 @@ class HuggingFaceLlmModel(AbstractModelService):
             min_tokens, max_tokens, num_beams, temperature, top_p, _, _ = requests[0]["batch_key"]
             json_schema_parser = requests[0].get("json_schema_parser")
             use_constrained_tokens = json_schema_parser is not None
+            do_sample = (num_beams == 1) and temperature > 0.0
             generation_kwargs = dict(
                 inputs=batch_input_ids,
                 attention_mask=attention_mask,
@@ -1026,15 +1126,24 @@ class HuggingFaceLlmModel(AbstractModelService):
                 max_new_tokens=max_tokens,
                 use_cache=True,
                 num_beams=num_beams,
-                do_sample=(num_beams == 1 and not use_constrained_tokens),
-                temperature=temperature,
-                top_p=top_p,
-                top_k=0,
+                num_return_sequences=1,
+                do_sample=do_sample,
+                temperature=temperature if do_sample else None,
+                top_p=top_p if do_sample else None,
+                top_k=0 if do_sample else None,
                 repetition_penalty=(1.0 if use_constrained_tokens else 1.2),
                 no_repeat_ngram_size=(0 if use_constrained_tokens else 3),
                 pad_token_id=self.tokenizer.pad_token_id,
-                stopping_criteria=StoppingCriteriaList([TimeoutCriteria(float(self._generation_timeout_secs))]),
+                renormalize_logits=False,
+                stopping_criteria=StoppingCriteriaList(
+                    [timeout_criteria := TimeoutCriteria(float(self._generation_timeout_secs))]
+                ),
             )
+            if use_constrained_tokens:
+                generation_kwargs["logits_processor"] = LogitsProcessorList([
+                    VocabSafetyLogitsProcessor(self._get_actual_vocab_size(self.model)),
+                    Float32LogitsProcessor(),
+                ])
             if past_key_values is not None:
                 generation_kwargs["past_key_values"] = past_key_values
                 cache_position = torch.arange(
@@ -1044,9 +1153,11 @@ class HuggingFaceLlmModel(AbstractModelService):
                 )
                 generation_kwargs["cache_position"] = cache_position
             if use_constrained_tokens:
-                generation_kwargs["prefix_allowed_tokens_fn"] = self._build_transformers_prefix_allowed_tokens_fn(
-                    self.tokenizer,
+                generation_kwargs = self._constrained_decoder.apply_grammar_constraint(
+                    generation_kwargs,
                     json_schema_parser,
+                    tokenizer=self.tokenizer,
+                    vocab_size=getattr(self.model.config, "vocab_size", None),
                 )
             if self._assistant_model is not None:
                 generation_kwargs["assistant_model"] = self._assistant_model
@@ -1058,8 +1169,9 @@ class HuggingFaceLlmModel(AbstractModelService):
             generation_start = time.monotonic()
             outputs = self.model.generate(**generation_kwargs)
             total_generation_ms = (time.monotonic() - generation_start) * 1000.0
+            sequences = outputs.sequences if hasattr(outputs, "sequences") else outputs
             for idx, req in enumerate(requests):
-                completion_ids = outputs[idx][prompt_lens[idx]:]
+                completion_ids = sequences[idx][prompt_lens[idx]:]
                 generated_text = self.tokenizer.decode(completion_ids, skip_special_tokens=True)
                 logger.debug("Decoded raw output (batched): %s",generated_text[:200])
                 if use_constrained_tokens:
@@ -1100,13 +1212,19 @@ class HuggingFaceLlmModel(AbstractModelService):
                         completion_token_num=completion_token_num,
                         ttft_ms=-1,
                         tpot_ms=int(tpot_milliseconds),
+                        timed_out=timeout_criteria._triggered,
                     ))
+                if "request_received_time" in req:
+                    queue_time_ms = (time.monotonic() - req["request_received_time"]) * 1000.0
+                    cms_gen_request_latency_milliseconds.labels(handler="cms_service").observe(total_generation_ms + queue_time_ms)
+                cms_num_of_gen_jobs_running.labels(handler="cms_service").dec()
         except Exception as e:
             logger.error("Batched generation failed")
             logger.exception(e)
             for req in requests:
                 if not req["future"].done():
                     req["future"].set_exception(e)
+                cms_num_of_gen_jobs_running.labels(handler="cms_service").dec()
 
     def _ensure_non_empty_inputs(
         self,
@@ -1153,12 +1271,37 @@ class HuggingFaceLlmModel(AbstractModelService):
         return rebuilt, rebuilt.attention_mask, None, full_prompt_len, None
 
 
+class VocabSafetyLogitsProcessor(LogitsProcessor):
+    """Masks token IDs that exceed the model's actual vocabulary size."""
+
+    def __init__(self, vocab_size: int) -> None:
+        self._vocab_size = max(vocab_size, 0)
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.FloatTensor:
+        if self._vocab_size <= 0 or scores.shape[-1] <= self._vocab_size:
+            return scores
+        scores[..., self._vocab_size:].fill_(-1e10)
+
+        return scores
+
+
+class Float32LogitsProcessor(LogitsProcessor):
+    """Cast logits to prevent multinomial sampling errors on bfloat16 or float16 models."""
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor) -> torch.Tensor:
+        out: torch.Tensor = scores.to(torch.float32)
+        out.nan_to_num_(nan=-1e10, posinf=1e10, neginf=-1e10)
+
+        return out
+
+
 class TimeoutCriteria(StoppingCriteria):
     """Stop generation when the timeout is reached."""
 
     def __init__(self, timeout_in_secs: float) -> None:
         self._timeout_in_secs = timeout_in_secs
         self._deadline = time.monotonic() + timeout_in_secs
+        self._triggered = False
 
     def __call__(
         self, input_ids: torch.LongTensor,
@@ -1167,6 +1310,7 @@ class TimeoutCriteria(StoppingCriteria):
     ) -> bool:
         now = time.monotonic()
         if now >= self._deadline:
+            self._triggered = True
             logger.warning(f"Generation timed out after {str(self._timeout_in_secs)} seconds")
             return True
         return False
