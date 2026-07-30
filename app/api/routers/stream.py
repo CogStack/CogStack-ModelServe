@@ -176,7 +176,11 @@ async def get_inline_entities_from_websocket(
             logger.debug(str(e))
 
 
-@router.get(PATH_SSE_EVENTS)
+@router.get(
+    PATH_SSE_EVENTS,
+    tags=[Tags.Annotations.name],
+    description="Server-Sent Events (SSE) endpoint to receive NER entities as stream events for a specific client",
+)
 @limiter.exempt
 async def get_entities_stream_from_sse(
     request: Request,

@@ -100,12 +100,12 @@ def send_post_request_jsonlines(context, request):
 
 @when(data_table("I send a POST request with the following content where data as a file", fixture="request", orient="dict"))
 def send_post_request_file(context, request):
-    with tempfile.NamedTemporaryFile(mode="w+") as f:
-        f.write(request[0]["data"])
+    with tempfile.NamedTemporaryFile(mode="w+b") as f:
+        f.write(request[0]["data"].encode("utf-8"))
         f.seek(0)
         context["response"] = requests.post(
             f"{context['base_url']}{request[0]['endpoint']}",
-            files=[("multi_text_file", f)],
+            files=[("multi_text_file", ("multi_text_file", f.read()))],
         )
 
 @then("the response should contain json lines")
