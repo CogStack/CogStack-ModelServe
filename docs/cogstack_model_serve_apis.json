@@ -2018,8 +2018,11 @@
         },
         "/stream/sse/events": {
             "get": {
+                "tags": [
+                    "Annotations"
+                ],
                 "summary": "Get Entities Stream From Sse",
-                "description": "Server-Sent Events (SSE) endpoint to receive NER entities as stream events for a specific client.\n\nArgs:\n    request (Request): The request object.\n    client_id (str): The unique client identifier for the SSE connection.\n    keep_alive (Optional[bool]): Whether to keep the connection alive after periods of inactivity.\n\nReturns:\n    StreamingResponse: A streaming response for the SSE connection.",
+                "description": "Server-Sent Events (SSE) endpoint to receive NER entities as stream events for a specific client",
                 "operationId": "get_entities_stream_from_sse",
                 "parameters": [
                     {
