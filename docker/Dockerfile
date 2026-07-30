@@ -78,5 +78,7 @@ RUN /.venv/bin/python -m ensurepip && \
 
 WORKDIR /app
 EXPOSE 8000
-USER cms:cms
+
+# hadolint ignore=DL3066
+USER ${CMS_UID}:${CMS_GID}
 CMD ["bash", "-c", "./entrypoint.sh"]
