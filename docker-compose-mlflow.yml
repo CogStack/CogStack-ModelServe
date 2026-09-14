@@ -24,7 +24,7 @@ services:
       retries: 3
 
   minio:
-    image: minio/minio:RELEASE.2022-06-30T20-58-09Z
+    image: quay.io/minio/minio:RELEASE.2022-06-30T20-58-09Z
     restart: always
     networks:
       - cogstack-model-serve_cms
@@ -46,7 +46,7 @@ services:
       - 9001
 
   model-bucket-init:
-    image: minio/mc:RELEASE.2022-06-26T18-51-48Z
+    image: quay.io/minio/mc:RELEASE.2022-06-26T18-51-48Z
     restart: on-failure
     networks:
       - cogstack-model-serve_cms
