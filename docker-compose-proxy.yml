@@ -5,7 +5,7 @@ name: cms
 services:
 
   proxy:
-    image: nginx:1.23.0
+    image: nginx:1.30.7
     restart: always
     networks:
       - cogstack-model-serve_cms
